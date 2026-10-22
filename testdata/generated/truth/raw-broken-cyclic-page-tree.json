@@ -1,0 +1,14 @@
+{
+ "category": "repair",
+ "expect": "one-page-with-diagnostic",
+ "generator": "hand-assembled by tools/corpus/generate.py",
+ "name": "raw-broken-cyclic-page-tree",
+ "notes": "/Kids contains an ancestor; expect one page and a diagnostic",
+ "pageCount": 1,
+ "pages": [
+  {
+   "text": "Only page behind a cyclic tree."
+  }
+ ],
+ "schema": 1
+}

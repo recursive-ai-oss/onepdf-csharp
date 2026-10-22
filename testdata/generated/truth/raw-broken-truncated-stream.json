@@ -1,0 +1,10 @@
+{
+ "category": "repair",
+ "expect": "unrecoverable",
+ "generator": "hand-assembled by tools/corpus/generate.py",
+ "name": "raw-broken-truncated-stream",
+ "notes": "file ends in the middle of the first objects: the document cannot be recovered; expect an error or an empty result",
+ "pageCount": 0,
+ "pages": [],
+ "schema": 1
+}

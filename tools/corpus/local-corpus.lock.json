@@ -1,0 +1,184 @@
+{
+ "govdocs1": [
+  {
+   "name": "000.zip",
+   "url": "https://digitalcorpora.s3.amazonaws.com/corpora/files/govdocs1/zipfiles/000.zip",
+   "size": 486762106,
+   "sha1": "c444d5b3c916183543027a4a1270bef294ba79f5"
+  },
+  {
+   "name": "042.zip",
+   "url": "https://digitalcorpora.s3.amazonaws.com/corpora/files/govdocs1/zipfiles/042.zip",
+   "size": 440103602,
+   "sha1": "59586272249e9d0e5efbbfe92bf6f0898b90c272"
+  },
+  {
+   "name": "084.zip",
+   "url": "https://digitalcorpora.s3.amazonaws.com/corpora/files/govdocs1/zipfiles/084.zip",
+   "size": 463859038,
+   "sha1": "4308770659544f3f9def67c455e60dad07117a29"
+  },
+  {
+   "name": "126.zip",
+   "url": "https://digitalcorpora.s3.amazonaws.com/corpora/files/govdocs1/zipfiles/126.zip",
+   "size": 881758840,
+   "sha1": "1c3353178cf3b0d9eeea08a3a8204a9646b08435"
+  },
+  {
+   "name": "168.zip",
+   "url": "https://digitalcorpora.s3.amazonaws.com/corpora/files/govdocs1/zipfiles/168.zip",
+   "size": 248827854,
+   "sha1": "19adebb5ecb858b90172d3d67a232086ac17cd16"
+  },
+  {
+   "name": "210.zip",
+   "url": "https://digitalcorpora.s3.amazonaws.com/corpora/files/govdocs1/zipfiles/210.zip",
+   "size": 380093674,
+   "sha1": "efd6c82082a4cf6fd85fd0b020c38cb21a680b2c"
+  },
+  {
+   "name": "252.zip",
+   "url": "https://digitalcorpora.s3.amazonaws.com/corpora/files/govdocs1/zipfiles/252.zip",
+   "size": 435000062,
+   "sha1": "20e2a1e15e36ffe643e7b0412b9cbfb559d432b4"
+  },
+  {
+   "name": "294.zip",
+   "url": "https://digitalcorpora.s3.amazonaws.com/corpora/files/govdocs1/zipfiles/294.zip",
+   "size": 363664580,
+   "sha1": "f43bbee0817f097aae075d38229ffb2acbc74d65"
+  },
+  {
+   "name": "336.zip",
+   "url": "https://digitalcorpora.s3.amazonaws.com/corpora/files/govdocs1/zipfiles/336.zip",
+   "size": 329305081,
+   "sha1": "bdebf6d1a39ae02f9fd3844e8c6edc1f01b4967a"
+  },
+  {
+   "name": "378.zip",
+   "url": "https://digitalcorpora.s3.amazonaws.com/corpora/files/govdocs1/zipfiles/378.zip",
+   "size": 267953019,
+   "sha1": "007f49435ad9359aa03788036e9560999e7a5772"
+  },
+  {
+   "name": "420.zip",
+   "url": "https://digitalcorpora.s3.amazonaws.com/corpora/files/govdocs1/zipfiles/420.zip",
+   "size": 293644184,
+   "sha1": "5ba2af655aaa59ea6e942cc5209a8485ae17c0d1"
+  },
+  {
+   "name": "462.zip",
+   "url": "https://digitalcorpora.s3.amazonaws.com/corpora/files/govdocs1/zipfiles/462.zip",
+   "size": 238420691,
+   "sha1": "1bd9efc3e56b82da47a5d47d10b5d6c34075c6b5"
+  },
+  {
+   "name": "504.zip",
+   "url": "https://digitalcorpora.s3.amazonaws.com/corpora/files/govdocs1/zipfiles/504.zip",
+   "size": 500168313,
+   "sha1": "2e0a690ed83a36488f909f7e136bff231949e53a"
+  },
+  {
+   "name": "546.zip",
+   "url": "https://digitalcorpora.s3.amazonaws.com/corpora/files/govdocs1/zipfiles/546.zip",
+   "size": 333234676,
+   "sha1": "de2d6c41732e59510c212c89404f7513b09bb24f"
+  },
+  {
+   "name": "588.zip",
+   "url": "https://digitalcorpora.s3.amazonaws.com/corpora/files/govdocs1/zipfiles/588.zip",
+   "size": 197635142,
+   "sha1": "ab7d1bb143ec69e286531abfbb7edda93b18854a"
+  },
+  {
+   "name": "630.zip",
+   "url": "https://digitalcorpora.s3.amazonaws.com/corpora/files/govdocs1/zipfiles/630.zip",
+   "size": 292282464,
+   "sha1": "e38ec703ce347bfde6fdf608855a18e1f4f6daf1"
+  },
+  {
+   "name": "672.zip",
+   "url": "https://digitalcorpora.s3.amazonaws.com/corpora/files/govdocs1/zipfiles/672.zip",
+   "size": 341639081,
+   "sha1": "034944d9b1628335bc8ffd34bb1b05f3cb5f79ff"
+  },
+  {
+   "name": "714.zip",
+   "url": "https://digitalcorpora.s3.amazonaws.com/corpora/files/govdocs1/zipfiles/714.zip",
+   "size": 326677789,
+   "sha1": "8b94b2ff490e00f60043b83f7cc8d78e86c8998f"
+  },
+  {
+   "name": "756.zip",
+   "url": "https://digitalcorpora.s3.amazonaws.com/corpora/files/govdocs1/zipfiles/756.zip",
+   "size": 449727987,
+   "sha1": "611b873edeb801619d50364fe621e2b93780fa8e"
+  },
+  {
+   "name": "798.zip",
+   "url": "https://digitalcorpora.s3.amazonaws.com/corpora/files/govdocs1/zipfiles/798.zip",
+   "size": 395912671,
+   "sha1": "045ed94d4fc1548fd03c20d38ff595ce4a8abc27"
+  },
+  {
+   "name": "840.zip",
+   "url": "https://digitalcorpora.s3.amazonaws.com/corpora/files/govdocs1/zipfiles/840.zip",
+   "size": 291317048,
+   "sha1": "98113c009c53ab8e64d85d7014e9f7cd4802e65c"
+  },
+  {
+   "name": "882.zip",
+   "url": "https://digitalcorpora.s3.amazonaws.com/corpora/files/govdocs1/zipfiles/882.zip",
+   "size": 366082517,
+   "sha1": "e68835dd69254832ecef866184fdd0a12956a9a8"
+  },
+  {
+   "name": "924.zip",
+   "url": "https://digitalcorpora.s3.amazonaws.com/corpora/files/govdocs1/zipfiles/924.zip",
+   "size": 411206023,
+   "sha1": "aa2f688b3aef39e214764b5346ae3330a1919a61"
+  },
+  {
+   "name": "966.zip",
+   "url": "https://digitalcorpora.s3.amazonaws.com/corpora/files/govdocs1/zipfiles/966.zip",
+   "size": 286279908,
+   "sha1": "f592f0382db1090b818350ac5bef781be4efd273"
+  }
+ ],
+ "safedocs": [
+  {
+   "name": "0000.zip",
+   "url": "https://downloads.digitalcorpora.org/corpora/files/CC-MAIN-2021-31-PDF-UNTRUNCATED/zipfiles/0000-0999/0000.zip",
+   "size": 1266879273,
+   "sha256": "a6b28286550f6dcfdebec0454d57cb9797ca4c5792c85a09cb89b207f3f407fb"
+  },
+  {
+   "name": "0001.zip",
+   "url": "https://downloads.digitalcorpora.org/corpora/files/CC-MAIN-2021-31-PDF-UNTRUNCATED/zipfiles/0000-0999/0001.zip",
+   "size": 1660857091,
+   "sha256": "09bdad85ef33bd0a6ac484e89f671a86e3ad69e46e16a4232d182395c3fe22db"
+  },
+  {
+   "name": "0002.zip",
+   "url": "https://downloads.digitalcorpora.org/corpora/files/CC-MAIN-2021-31-PDF-UNTRUNCATED/zipfiles/0000-0999/0002.zip",
+   "size": 1298887150,
+   "sha256": "e3657471905162443ee4aeebba90332bff8af3cb23ba21cab865eedd99f1e24b"
+  },
+  {
+   "name": "0003.zip",
+   "url": "https://downloads.digitalcorpora.org/corpora/files/CC-MAIN-2021-31-PDF-UNTRUNCATED/zipfiles/0000-0999/0003.zip",
+   "size": 1234547316,
+   "sha256": "7c9664ab19caf398ef28756e71b6886286e7d27c2ecb621ab03e1aa9abea2861"
+  },
+  {
+   "name": "0004.zip",
+   "url": "https://downloads.digitalcorpora.org/corpora/files/CC-MAIN-2021-31-PDF-UNTRUNCATED/zipfiles/0000-0999/0004.zip",
+   "size": 1310167182,
+   "sha256": "5aa39868435893af60fa42050041517a0edb84233bb416a7c4d7bbc000a2edcf"
+  }
+ ],
+ "verapdf": {
+  "url": "https://github.com/veraPDF/veraPDF-corpus.git",
+  "commit": "bb75f4f0073d9350dfd058c0162a367e6fadf25e"
+ }
+}

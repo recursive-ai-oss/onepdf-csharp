@@ -1,0 +1,13 @@
+{
+ "category": "type3",
+ "generator": "hand-assembled by tools/corpus/generate.py",
+ "name": "raw-type3",
+ "notes": "Type 3 font: glyphs are a square, a triangle and a frame; codes map to A, B, C through /ToUnicode",
+ "pageCount": 1,
+ "pages": [
+  {
+   "text": "ABCCBA\nAABBCC"
+  }
+ ],
+ "schema": 1
+}

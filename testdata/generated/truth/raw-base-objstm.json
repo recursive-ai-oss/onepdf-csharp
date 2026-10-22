@@ -1,0 +1,20 @@
+{
+ "category": "structure",
+ "generator": "qpdf (black-box) qpdf version 12.4.2 from raw-base",
+ "name": "raw-base-objstm",
+ "notes": "objects live in object streams; the cross-reference is a stream",
+ "pageCount": 3,
+ "pages": [
+  {
+   "text": "The first page of the base document.\nIt has two lines of plain Helvetica text."
+  },
+  {
+   "text": "A second page follows with its own words.\nNothing here repeats the first page."
+  },
+  {
+   "text": "The third and last page ends the document."
+  }
+ ],
+ "schema": 1,
+ "source": "raw-base"
+}

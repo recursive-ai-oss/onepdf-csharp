@@ -1,0 +1,16 @@
+{
+ "category": "ligatures",
+ "generator": "Tectonic 0.17.0",
+ "name": "tex-article",
+ "notes": "TeX ligatures (ff, fi, fl, ffi); the second group reads after the first column",
+ "pageCount": 2,
+ "pages": [
+  {
+   "text": "Ligatures and columns\n\nThe office staff offered affluent, fluffy waffles. A difficult fjord, a flagship, an effigy: efficient workflows suffice. Final first fly floor.\n\nAlpha beta gamma delta epsilon zeta eta theta iota kappa lambda mu.\n\nNu xi omicron pi rho sigma tau upsilon phi chi psi omega."
+  },
+  {
+   "text": "Second page\n\nQuartz, jasper, and obsidian were sorted into wooden trays."
+  }
+ ],
+ "schema": 1
+}

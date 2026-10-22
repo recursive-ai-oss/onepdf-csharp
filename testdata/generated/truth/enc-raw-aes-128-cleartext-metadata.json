@@ -1,0 +1,19 @@
+{
+ "category": "encrypted",
+ "generator": "qpdf (black-box) qpdf version 12.4.2 from raw-metadata",
+ "name": "enc-raw-aes-128-cleartext-metadata",
+ "notes": "the XMP stream stays in the clear (/EncryptMetadata false); /Info strings are encrypted",
+ "pageCount": 1,
+ "pages": [
+  {
+   "text": "Metadata carrier."
+  }
+ ],
+ "passwords": {
+  "owner": "owner-pw",
+  "user": "user-pw"
+ },
+ "schema": 1,
+ "securityRevision": "R4",
+ "source": "raw-metadata"
+}

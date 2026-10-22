@@ -1,0 +1,13 @@
+{
+ "category": "table",
+ "generator": "Chrome Google Chrome 149.0.7827.155",
+ "name": "chrome-table-en",
+ "notes": "table cells in row-major order, one row per line",
+ "pageCount": 1,
+ "pages": [
+  {
+   "text": "Cargo manifest\n\nItem Quantity Unit Notes\nLemons 120 crate unwaxed\nBicycles 14 each assorted\nBlankets 40 bale wool\nLamp oil 9 drum sealed\n\nEnd of manifest."
+  }
+ ],
+ "schema": 1
+}

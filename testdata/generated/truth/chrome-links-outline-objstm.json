@@ -1,0 +1,56 @@
+{
+ "category": "structure",
+ "generator": "qpdf (black-box) qpdf version 12.4.2 from chrome-links-outline",
+ "links": [
+  {
+   "page": 0,
+   "uri": "https://example.com/start"
+  },
+  {
+   "internalTarget": "Details",
+   "page": 0
+  }
+ ],
+ "name": "chrome-links-outline-objstm",
+ "notes": "outline, links and fonts inside object streams",
+ "outline": [
+  [
+   "Handbook",
+   0,
+   [
+    [
+     "Overview",
+     0,
+     []
+    ]
+   ]
+  ],
+  [
+   "Details",
+   1,
+   [
+    [
+     "First detail",
+     1,
+     []
+    ],
+    [
+     "Second detail",
+     1,
+     []
+    ]
+   ]
+  ]
+ ],
+ "pageCount": 2,
+ "pages": [
+  {
+   "text": "Handbook\n\nStart with the start page or jump to the details.\n\nOverview\n\nThis part gives an overview of the handbook."
+  },
+  {
+   "text": "Details\n\nFirst detail\n\nThe first detail is short.\n\nSecond detail\n\nThe second detail is longer, but not by much."
+  }
+ ],
+ "schema": 1,
+ "source": "chrome-links-outline"
+}
