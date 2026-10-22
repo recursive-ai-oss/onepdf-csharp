@@ -1,0 +1,1 @@
+q 1 0 0 1 10 10 cm /GS gs 1 0 0 rg 0 0 50 50 re W n 0 0 m 20 20 40 20 50 0 c h B /F Do Q BT /F1 12 Tf 14 TL 10 100 Td (Hello) Tj [(A) -200 (B)] TJ T* (x) ' ET /OC /Off BDC 0 0 5 5 re f EMC /Sep cs 0.5 sc 0 0 9 9 re f /Pattern cs /P1 scn 0 0 5 5 re W 2 /H 2 /BPC 8 /CS /G ID abcd EI /Im Do /GM gs 0 0 1 1 re f

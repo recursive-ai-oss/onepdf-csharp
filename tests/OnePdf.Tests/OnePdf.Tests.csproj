@@ -33,6 +33,8 @@
     <Compile Include="../../fuzz/OnePdf.Fuzz/FontTargets.cs" Link="Fonts/FontTargets.cs" />
     <Compile Include="../../fuzz/OnePdf.Fuzz/SecurityTarget.cs" Link="Security/SecurityTarget.cs" />
     <Compile Include="../../fuzz/OnePdf.Fuzz/ImageTarget.cs" Link="Images/ImageTarget.cs" />
+    <Compile Include="../../fuzz/OnePdf.Fuzz/ContentTarget.cs" Link="Content/ContentTarget.cs" />
+    <Compile Include="../../fuzz/OnePdf.Fuzz/ExtractionTarget.cs" Link="Extraction/ExtractionTarget.cs" />
   </ItemGroup>
 
   <ItemGroup>
