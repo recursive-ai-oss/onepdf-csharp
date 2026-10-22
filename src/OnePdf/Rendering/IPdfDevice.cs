@@ -43,10 +43,11 @@ public interface IPdfDevice
     void DrawImage(in PdfImage image, in PdfGraphicsState state);
 
     /// <summary>
-    /// The <c>sh</c> operator: paints a shading over the current clip. The shading dictionary (or stream) is passed
-    /// unevaluated.
+    /// The <c>sh</c> operator: paints a shading over the whole current clip. The shading's target space is the user space of
+    /// <see cref="PdfGraphicsState.Ctm"/>. Its <see cref="PdfShading.BBox"/> still limits the painted area; its background is
+    /// ignored (ISO 32000-2 8.7.4.3). Fill alpha, blend mode and soft mask in the state apply.
     /// </summary>
-    void PaintShading(PdfObject shading, string name, in PdfGraphicsState state);
+    void PaintShading(PdfShading shading, in PdfGraphicsState state);
 
     /// <summary>Starts a transparency group; its content is composited as a unit with the state's opacity, blend mode and soft mask.</summary>
     void BeginGroup(in PdfGroupInfo group, in PdfGraphicsState state);
@@ -122,7 +123,7 @@ public abstract class PdfDevice : IPdfDevice
     }
 
     /// <inheritdoc/>
-    public virtual void PaintShading(PdfObject shading, string name, in PdfGraphicsState state)
+    public virtual void PaintShading(PdfShading shading, in PdfGraphicsState state)
     {
     }
 

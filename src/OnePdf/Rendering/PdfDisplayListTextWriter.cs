@@ -10,7 +10,7 @@ namespace OnePdf;
 internal sealed class PdfDisplayListTextWriter(TextWriter output) : IPdfDevice
 {
     /// <summary>The version of the text format. Bump it with any change to the output.</summary>
-    public const int FormatVersion = 2;
+    public const int FormatVersion = 3;
 
     /// <summary>First token of the header line.</summary>
     public const string Magic = "onepdf-display-list";
@@ -18,7 +18,7 @@ internal sealed class PdfDisplayListTextWriter(TextWriter output) : IPdfDevice
     /// <summary>Every record keyword the writer can emit, for the format document's consistency check.</summary>
     public static readonly string[] Records =
     [
-        "page", "end-page", "gs", "fill", "stroke", "clip", "text-clip", "pop-clip", "text", "image", "shading",
+        "page", "end-page", "gs", "fill", "stroke", "clip", "text-clip", "pop-clip", "text", "image", "shading", "pattern-def", "end-pattern-def",
         "begin-group", "end-group", "begin-softmask", "end-softmask", "begin-mc", "end-mc", "begin-annot", "end-annot",
     ];
 
@@ -27,6 +27,7 @@ internal sealed class PdfDisplayListTextWriter(TextWriter output) : IPdfDevice
     private PdfGraphicsState _lastState;
     private bool _haveState;
     private int _indent;
+    private Dictionary<PdfPattern, int> _patternIds = new(ReferenceEqualityComparer.Instance);
 
     public void WriteHeader() => output.Write(Magic + " " + FormatVersion.ToString(CultureInfo.InvariantCulture) + "\n");
 
@@ -166,13 +167,17 @@ internal sealed class PdfDisplayListTextWriter(TextWriter output) : IPdfDevice
         return h;
     }
 
-    private static void Color(StringBuilder sb, in PdfColor c)
+    private void Color(StringBuilder sb, in PdfColor c)
     {
         PdfColorSpace s = c.Space;
         if (s.Kind == PdfColorSpaceKind.Pattern)
         {
             sb.Append("pattern(");
-            Name(sb, c.PatternName ?? string.Empty);
+            if (c.Pattern is { } pat)
+            {
+                sb.Append('#').Append((_patternIds.TryGetValue(pat, out int pid) ? pid : 0).ToString(CultureInfo.InvariantCulture)).Append(' ');
+                Name(sb, pat.Name);
+            }
             if (s.PatternBase is { } b)
             {
                 sb.Append(' ').Append(b.Name);
@@ -355,6 +360,8 @@ internal sealed class PdfDisplayListTextWriter(TextWriter output) : IPdfDevice
             return;
         }
 
+        DefinePattern(s.FillColor.Pattern);
+        DefinePattern(s.StrokeColor.Pattern);
         _lastState = s;
         _haveState = true;
         StringBuilder sb = _sb;
@@ -610,16 +617,178 @@ internal sealed class PdfDisplayListTextWriter(TextWriter output) : IPdfDevice
         }
     }
 
-    public void PaintShading(PdfObject shading, string name, in PdfGraphicsState state)
+    public void PaintShading(PdfShading shading, in PdfGraphicsState state)
     {
         EmitState(state);
         StringBuilder sb = _sb;
         sb.Clear();
-        sb.Append("shading ");
-        Name(sb, name);
-        sb.Append(" obj=");
-        Dict(sb, shading, 0);
+        ShadingFields(sb, shading);
         Line(sb.ToString());
+    }
+
+    /// <summary>Writes the definition of a pattern the first time a colour uses it (the cell's records are nested inside).</summary>
+    private void DefinePattern(PdfPattern? pattern)
+    {
+        if (pattern is null || _patternIds.ContainsKey(pattern))
+        {
+            return;
+        }
+
+        int id = _patternIds.Count + 1;
+        _patternIds[pattern] = id;
+        StringBuilder sb = _sb;
+        sb.Clear();
+        sb.Append("pattern-def #").Append(id.ToString(CultureInfo.InvariantCulture)).Append(' ');
+        Name(sb, pattern.Name);
+        sb.Append(' ');
+        if (pattern is PdfTilingPattern t)
+        {
+            sb.Append("tiling paint=").Append(t.IsColored ? '1' : '2');
+            sb.Append(" tile=").Append(t.TilingType.ToString(CultureInfo.InvariantCulture));
+            sb.Append(" bbox=");
+            Box(sb, t.BBox);
+            sb.Append(" step=");
+            AppendNum(sb, t.XStep);
+            sb.Append(' ');
+            AppendNum(sb, t.YStep);
+        }
+        else
+        {
+            sb.Append("shading");
+        }
+
+        sb.Append(" matrix=");
+        Matrix(sb, pattern.Matrix);
+        Line(sb.ToString());
+        _indent++;
+        if (pattern is PdfTilingPattern { Cell: { } cell })
+        {
+            var nested = new PdfDisplayListTextWriter(output) { _patternIds = _patternIds, _indent = _indent };
+            cell.Replay(nested);
+        }
+        else if (pattern is PdfShadingPattern sp)
+        {
+            sb.Clear();
+            ShadingFields(sb, sp.Shading);
+            Line(sb.ToString());
+        }
+
+        _indent--;
+        Line("end-pattern-def");
+    }
+
+    private static void ShadingFields(StringBuilder sb, PdfShading sh)
+    {
+        CultureInfo ci = CultureInfo.InvariantCulture;
+        sb.Append("shading type=").Append(sh.ShadingType.ToString(ci));
+        sb.Append(" cs=").Append(sh.FinalSpace.Name);
+        sb.Append(" fn=").Append(sh.HasFunction ? '1' : '0');
+        sb.Append(" bbox=");
+        if (sh.BBox is { } bb)
+        {
+            Box(sb, bb);
+        }
+        else
+        {
+            sb.Append("none");
+        }
+
+        sb.Append(" bg=");
+        Span<double> c = stackalloc double[32];
+        if (sh.TryGetBackground(c))
+        {
+            Comps(sb, c[..sh.ColorComponentCount]);
+        }
+        else
+        {
+            sb.Append("none");
+        }
+
+        sb.Append(" aa=").Append(sh.AntiAlias ? '1' : '0');
+        Span<double> p = stackalloc double[32];
+        switch (sh.ShadingType)
+        {
+            case 1:
+                sb.Append(" domain=");
+                Comps(sb, [.. sh.Domain]);
+                sb.Append(" matrix=");
+                Matrix(sb, sh.Matrix);
+                p[0] = (sh.Domain[0] + sh.Domain[1]) / 2;
+                p[1] = (sh.Domain[2] + sh.Domain[3]) / 2;
+                sb.Append(" at-centre=");
+                sh.Evaluate(p[..2], c);
+                Comps(sb, c[..sh.ColorComponentCount]);
+                break;
+            case 2 or 3:
+                sb.Append(" coords=");
+                Comps(sb, [.. sh.Coords]);
+                sb.Append(" domain=");
+                Comps(sb, [.. sh.Domain]);
+                sb.Append(" extend=").Append(sh.ExtendStart ? '1' : '0').Append(sh.ExtendEnd ? '1' : '0');
+                for (int k = 0; k < 3; k++)
+                {
+                    p[0] = sh.Domain[0] + (k * 0.5 * (sh.Domain[1] - sh.Domain[0]));
+                    sh.Evaluate(p[..1], c);
+                    sb.Append(k == 0 ? " at-start=" : k == 1 ? " at-mid=" : " at-end=");
+                    Comps(sb, c[..sh.ColorComponentCount]);
+                }
+
+                break;
+            default:
+            {
+                PdfShadingMesh m = sh.Mesh!;
+                sb.Append(" vertices=").Append(m.VertexCount.ToString(ci));
+                sb.Append(" triangles=").Append(m.TriangleCount.ToString(ci));
+                if (m.PatchCount > 0)
+                {
+                    sb.Append(" patches=").Append(m.PatchCount.ToString(ci));
+                    sb.Append(" div=").Append(m.PatchDivisions.ToString(ci));
+                }
+
+                // A hash of the rounded vertex data and the triangle indices stands for the mesh.
+                ulong h = 14695981039346656037UL;
+                var tmp = new StringBuilder(24);
+                foreach (double v in m.Vertices.Span)
+                {
+                    tmp.Clear();
+                    AppendNum(tmp, v);
+                    tmp.Append(' ');
+                    for (int k = 0; k < tmp.Length; k++)
+                    {
+                        h = (h ^ tmp[k]) * 1099511628211UL;
+                    }
+                }
+
+                foreach (int t in m.Triangles.Span)
+                {
+                    h = (h ^ (uint)t) * 1099511628211UL;
+                }
+
+                sb.Append(" fnv=").Append(h.ToString("x16", ci));
+                if (m.IsTruncated)
+                {
+                    sb.Append(" truncated");
+                }
+
+                break;
+            }
+        }
+    }
+
+    private static void Comps(StringBuilder sb, ReadOnlySpan<double> v)
+    {
+        sb.Append('(');
+        for (int i = 0; i < v.Length; i++)
+        {
+            if (i > 0)
+            {
+                sb.Append(' ');
+            }
+
+            AppendNum(sb, v[i]);
+        }
+
+        sb.Append(')');
     }
 
     public void BeginGroup(in PdfGroupInfo group, in PdfGraphicsState state)
