@@ -17,6 +17,7 @@ internal static class Program
     {
         ["noop"] = static data => _ = Library.Name.Length + data.Length,
         ["filters"] = FilterTarget.Run,
+        ["security"] = SecurityTarget.Run,
     };
 
     private static int Main(string[] args)
