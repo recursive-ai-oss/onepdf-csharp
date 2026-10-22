@@ -723,7 +723,9 @@ public class FunctionTests
                 f.Evaluate(x, o);
             }
 
-            Assert.Equal(0, GC.GetAllocatedBytesForCurrentThread() - before);
+            // A per-call allocation would show up as megabytes over 100,000 calls; the small allowance absorbs the
+            // runtime's own one-off allocations (tiered recompilation can land mid-loop on a busy machine).
+            Assert.InRange(GC.GetAllocatedBytesForCurrentThread() - before, 0, 16 * 1024);
         }
     }
 

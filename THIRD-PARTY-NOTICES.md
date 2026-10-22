@@ -104,7 +104,14 @@ Reference Manual, 'post' table). They are listed here for provenance; no license
 
 ## Fonts package (`RecursiveAI.OnePdf.Fonts`)
 
-None yet.
+The package license expression is `(MIT OR Apache-2.0) AND OFL-1.1`: the code is `MIT OR Apache-2.0`, the font files are under the SIL Open Font License, Version 1.1 (https://openfontlicense.org). The fonts are the upstream release files, embedded byte for byte as resources: nothing is subset, converted or rebuilt (the Liberation fonts carry Reserved Font Names). Each font's full license text, with its copyright lines, is in the package under `licenses/` and in the source tree under `src/OnePdf.Fonts/Fonts/`; `src/OnePdf.Fonts/Fonts/README.md` gives the release URLs, and `tools/fonts/fetch.sh` verifies the files against them by SHA-256. The fonts are not offered on their own.
+
+- **Liberation Fonts 2.1.5** (Sans, Serif, Mono; Regular, Bold, Italic, Bold Italic) — "Digitized data copyright (c) 2010 Google Corporation with Reserved Font Arimo, Tinos and Cousine. Copyright (c) 2012 Red Hat, Inc. with Reserved Font Name Liberation." Used for the Helvetica, Times and Courier families. License text: `Liberation.OFL.txt`.
+- **Noto Sans Math 3.000** — "Copyright 2022 The Noto Project Authors (https://github.com/notofonts/math)". Used for Symbol. License text: `NotoSansMath.OFL.txt`.
+- **Noto Sans Symbols 2 2.008** — "Copyright 2022 The Noto Project Authors (https://github.com/notofonts/symbols)". Used for ZapfDingbats. License text: `NotoSansSymbols2.OFL.txt`.
+- **Noto Sans Symbols 2.003** — "Copyright 2022 The Noto Project Authors (https://github.com/notofonts/symbols)". Fills the ZapfDingbats glyphs that Noto Sans Symbols 2 lacks. License text: `NotoSansSymbols.OFL.txt`.
+
+OFL 1.1 conditions that apply: the copyright notice and license accompany every copy (they do, in the package and in the assembly's resources); the fonts are not sold by themselves; no Modified Version is made.
 
 ## Test data (not shipped)
 
