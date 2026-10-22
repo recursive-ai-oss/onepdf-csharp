@@ -27,6 +27,8 @@ internal static class Program
         ["document"] = ReaderTargets.Document,
         ["model"] = ReaderTargets.DocumentModel,
         ["filters"] = FilterTarget.Run,
+        ["fontprogram"] = FontProgramTarget.Run,
+        ["cmap"] = CMapTarget.Run,
         ["security"] = SecurityTarget.Run,
     };
 

@@ -10,6 +10,12 @@ if (Library.Name != "OnePDF" || FontsPackage.Name != "OnePdf.Fonts")
     return 1;
 }
 
+if (OnePdf.AotSmoke.FontSmoke.Run() is { } failure)
+{
+    Console.Error.WriteLine("font data: " + failure);
+    return 1;
+}
+
 const string Xmp =
     "<x:xmpmeta xmlns:x=\"adobe:ns:meta/\"><rdf:RDF xmlns:rdf=\"http://www.w3.org/1999/02/22-rdf-syntax-ns#\">" +
     "<rdf:Description xmlns:dc=\"http://purl.org/dc/elements/1.1/\" xmlns:xmp=\"http://ns.adobe.com/xap/1.0/\">" +
