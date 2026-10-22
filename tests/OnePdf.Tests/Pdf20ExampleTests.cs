@@ -1,8 +1,11 @@
+using System.Runtime.CompilerServices;
+
 namespace OnePdf.Tests;
 
 public class Pdf20ExampleTests
 {
-    private static string? Dir()
+    // Build output lives outside the checkout, so the examples are found from this source file's location.
+    private static string? Dir([CallerFilePath] string source = "")
     {
         string? env = Environment.GetEnvironmentVariable("ONEPDF_PDF20_DIR");
         if (env is not null && Directory.Exists(env))
@@ -10,7 +13,7 @@ public class Pdf20ExampleTests
             return env;
         }
 
-        for (string? d = AppContext.BaseDirectory; d is not null; d = Path.GetDirectoryName(d))
+        for (string? d = Path.GetDirectoryName(source); d is not null; d = Path.GetDirectoryName(d))
         {
             string c = Path.Combine(d, "testdata", "pdf20examples");
             if (Directory.Exists(c))
