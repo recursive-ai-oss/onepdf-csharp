@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using OnePdf;
+using OnePdf.Fuzz;
 using SharpFuzz;
 
 // One fuzz executable, one target per input surface. The target is chosen by the ONEPDF_FUZZ_TARGET environment
@@ -15,6 +16,7 @@ internal static class Program
     private static readonly Dictionary<string, Target> Targets = new(StringComparer.Ordinal)
     {
         ["noop"] = static data => _ = Library.Name.Length + data.Length,
+        ["filters"] = FilterTarget.Run,
     };
 
     private static int Main(string[] args)
