@@ -414,4 +414,58 @@ public class ExtractionFuzzSmoke
             OnePdf.Fuzz.ExtractionTarget.Run(seed.AsSpan(0, rng.Next(2, seed.Length)));
         }
     }
+
+    [Fact]
+    public void IdeographsSetOneByOneInColumnsReadAsVerticalColumns()
+    {
+        // vertical-rl set with horizontal matrices: right column first, each read top to bottom
+        string right = "名前は猫である", left = "家の中に居る。";
+        List<PdfTextGlyph> g = [];
+        foreach ((string col, double x) in new[] { (right, 400.0), (left, 380.0) })
+        {
+            for (int i = 0; i < col.Length; i++)
+            {
+                g.Add(Syn.Glyph(col[i].ToString(), x, 700 - i * 10, 10, 1.0));
+            }
+        }
+
+        Assert.Equal(right + left, Syn.Analyze(g).Text.Replace("\n", "", StringComparison.Ordinal).Replace(" ", "", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void SpaceDrawnOverTheFirstGlyphDoesNotSplitTheWord()
+    {
+        // some producers park the trailing space of a line at its start
+        List<PdfTextGlyph> g = [.. Syn.Line("Form", 50, 700)];
+        g.Add(Syn.Glyph(" ", 50, 699, 10, 0.25));
+        Assert.Equal("Form", Syn.Analyze(g).Text);
+    }
+
+    [Fact]
+    public void WideGapSpannedBySpaceGlyphsIsAWordSpaceNotACell()
+    {
+        List<PdfTextGlyph> g = [.. Syn.Line("Weather", 50, 700)];
+        g.Add(Syn.Glyph(" ", 85, 700, 10, 1.6)); // a space glyph 1.6 em wide, from the end of "Weather" to the start of "report"
+        g.AddRange(Syn.Line("report", 101, 700));
+        Assert.Equal("Weather report", Syn.Analyze(g).Text);
+    }
+
+    [Fact]
+    public void SubscriptThatIsFiveSixthsOfTheSizeJoinsItsLine()
+    {
+        List<PdfTextGlyph> g = [.. Syn.Line("H", 50, 700, 12)];
+        g.Add(Syn.Glyph("2", 56, 697, 10));
+        g.AddRange(Syn.Line("O", 61, 700, 12));
+        Assert.Equal("H2O", Syn.Analyze(g).Text);
+    }
+
+    [Fact]
+    public void TwoSmallLinesAboveEachOtherAreNotJoinedThroughANearbyLargeGlyph()
+    {
+        List<PdfTextGlyph> g = [.. Syn.Line("upper line", 50, 718, 6), .. Syn.Line("lower line", 50, 711, 6)];
+        g.Add(Syn.Glyph("2", 120, 726, 22.4)); // near the lines, but not touching either
+        string[] lines = Syn.Analyze(g).Text.Split('\n');
+        Assert.Contains("upper line", lines);
+        Assert.Contains("lower line", lines);
+    }
 }

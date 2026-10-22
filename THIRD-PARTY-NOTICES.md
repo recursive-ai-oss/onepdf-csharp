@@ -104,8 +104,8 @@ Reference Manual, 'post' table). They are listed here for provenance; no license
 
 ### Unicode bidirectional class data
 
-`src/OnePdf/Text/Extraction/BidiData.g.cs` is generated (`tools/bidi/generate.py`) from the Unicode Character Database 16.0.0 files
-`DerivedBidiClass.txt` and `BidiBrackets.txt`. Copyright (c) 1991-2024 Unicode, Inc., under the Unicode License v3
+`src/OnePdf/Text/Extraction/BidiData.g.cs` is generated (`tools/bidi/generate.py`) from the Unicode Character Database 17.0.0 files
+`DerivedBidiClass.txt` and `BidiBrackets.txt`. Copyright (c) 1991-2025 Unicode, Inc., under the Unicode License v3
 (https://www.unicode.org/license.txt):
 
 > Permission is hereby granted, free of charge, to any person obtaining a copy of data files and any associated documentation (the "Data Files") or

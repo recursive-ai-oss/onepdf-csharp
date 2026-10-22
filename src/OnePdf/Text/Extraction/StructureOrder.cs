@@ -85,7 +85,9 @@ internal sealed class StructureOrder
                         }
 
                         int pg = PageOf(doc, d) ?? page;
-                        stack.Push((d.Get("K"), pg, ++elemCounter));
+                        // Inline-level elements (ISO 32000-2 14.8.4.4) and the purely grouping NonStruct and Private (14.8.4.2) are runs inside a paragraph, so their content joins the enclosing element's group:
+                        // laying them out apart would cut a line at every style change or link.
+                        stack.Push((d.Get("K"), pg, IsInline(d.GetName("S")) ? elem : ++elemCounter));
                     }
 
                     break;
@@ -121,6 +123,10 @@ internal sealed class StructureOrder
             ps.Map[(int)mcid] = (ps.Map.Count, groupCounter[page]);
         }
     }
+
+    private static bool IsInline(string? type) =>
+        type is "Span" or "NonStruct" or "Private" or "Quote" or "Note" or "Reference" or "BibEntry" or "Code" or "Link" or "Annot" or "Em" or "Strong" or "Sub" or "Sup" or "Lbl" or
+            "Ruby" or "RB" or "RT" or "RP" or "Warichu" or "WT" or "WP";
 
     private static int? PageOf(PdfDocument doc, PdfDictionary d)
     {
