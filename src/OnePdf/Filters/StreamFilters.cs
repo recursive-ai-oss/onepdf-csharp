@@ -5,15 +5,15 @@ using System.Threading;
 namespace OnePdf.Filters;
 
 /// <summary>
-/// Decodes PDF stream filters that need no image codec: FlateDecode, LZWDecode, ASCIIHexDecode, ASCII85Decode and
-/// RunLengthDecode, with the PNG/TIFF predictors, singly or chained (ISO 32000-2 7.4).
+/// Decodes PDF stream filters that need no image codec: FlateDecode, LZWDecode, ASCIIHexDecode, ASCII85Decode,
+/// RunLengthDecode and CCITTFaxDecode, with the PNG/TIFF predictors, singly or chained (ISO 32000-2 7.4).
 /// </summary>
 /// <remarks>
 /// <para>Damaged data never throws. The decoded prefix comes back with <see cref="FilterIssues"/> flags and a message the
 /// caller turns into a diagnostic. A <see cref="DecodeLimits"/> breach also comes back as a flag
 /// (<see cref="FilterIssues.LimitExceeded"/>) with the output produced within the bound; the caller raises its limit error.</para>
-/// <para>Filter names are the full names and the inline-image abbreviations (AHx, A85, LZW, Fl, RL). Anything else
-/// (DCT, JPX, JBIG2, CCITT, Crypt, unknown) stops a chain with <see cref="FilterIssues.UnsupportedFilter"/>.</para>
+/// <para>Filter names are the full names and the inline-image abbreviations (AHx, A85, LZW, Fl, RL, CCF). Anything else
+/// (DCT, JPX, JBIG2, Crypt, unknown) stops a chain with <see cref="FilterIssues.UnsupportedFilter"/>.</para>
 /// <para>Only <see cref="OperationCanceledException"/> and argument exceptions escape.</para>
 /// </remarks>
 internal static class StreamFilters
@@ -26,6 +26,7 @@ internal static class StreamFilters
         AsciiHex,
         Ascii85,
         RunLength,
+        CcittFax,
     }
 
     /// <summary>True when <paramref name="name"/> is a filter this class decodes.</summary>
@@ -93,6 +94,7 @@ internal static class StreamFilters
         "ASCIIHexDecode" or "AHx" => Kind.AsciiHex,
         "ASCII85Decode" or "A85" => Kind.Ascii85,
         "RunLengthDecode" or "RL" => Kind.RunLength,
+        "CCITTFaxDecode" or "CCF" => Kind.CcittFax,
         _ => Kind.Unsupported,
     };
 
@@ -111,6 +113,7 @@ internal static class StreamFilters
         {
             Kind.Flate or Kind.Lzw => (long)input.Length * 4,
             Kind.RunLength => (long)input.Length * 2,
+            Kind.CcittFax => Math.Min(cap, Math.Max(4096, (long)input.Length * 8)),
             _ => input.Length,
         };
         var output = new OutputBuffer(cap, estimate);
@@ -127,6 +130,9 @@ internal static class StreamFilters
                 break;
             case Kind.Ascii85:
                 AsciiFilters.Ascii85(input, output, ref issues, ref message, ct);
+                break;
+            case Kind.CcittFax:
+                CcittFax.Decode(input, p, output, ref issues, ref message, ct);
                 break;
             default:
                 AsciiFilters.RunLength(input, output, ref issues, ref message, ct);
