@@ -5,17 +5,19 @@
  "pageCount": 6,
  "pages": [
   {
-   "text": "המכון להגירה ושילוב חברתי\n\nתפיסות לגבי שילוב עולים בתעסוקה הציבור הישראלי היהודי נשאל לגבי שילוב עולים חדשים בתפקידים שונים: •\n\n•\n\n•\n\nכ 80%-מהנשאלים מסכימים שעולה חדש או ותיק יהיה מטפל סיעודי בבן משפחתם ( 82%ו79%- בהתאמה) .עם זאת ,כאשר נשאלה שאלה לגבי הסכמתם שעולה חדש או ותיק יהיה הרופא המנתח שלהם או של בני משפחתם  ,נמצאו הבדלים בין התייחסות לשתי הקבוצות ( 76%ו 84%-בהתאמה). כלומר ,כאשר נשאלו לגבי עולה חדש כמנתח  76%הביעו הסמכתם בעוד שכאשר נשאלו על ותיק כמנתח  84%הביעו את הסכמתם. כאשר הציבור הישראלי היהודי נשאל לגבי שילוב עולים חדשים בתפקידי ניהול בכירים נמצא כי רק  57%מסכימים שעולה חדש יהיה הממונה עליהם בעבודה לעומת  81%המסכימים שוותיק יהיה ממונה עליהם. כאשר הציבור הישראלי נשאל לגבי בחירות למועצת הרשות המקומית ,כ 70% -מסכימים שעולה חדש יהיה חבר במועצת הרשות המקומית לעומת  83%המסכימים שוותיק יהיה חבר מועצת הרשות המקומית. מכאן שעולים חדשים וותיקים עלולים להיתקל ב\"תקרת זכוכית\" מקצועית ,ניהולית ופוליטית.\n\n3 המכון להגירה ושילוב חברתי hagira@ruppin.ac.il"
+   "text": "המכון להגירה ושילוב חברתי\n\nתפיסות לגבי שילוב עולים בתעסוקה\n\nהציבור הישראלי היהודי נשאל לגבי שילוב עולים חדשים בתפקידים שונים:\n\n• כ 80%-מהנשאלים מסכימים שעולה חדש או ותיק יהיה מטפל סיעודי בבן משפחתם ( 82%ו79%- בהתאמה) .עם זאת ,כאשר נשאלה שאלה לגבי הסכמתם שעולה חדש או ותיק יהיה הרופא המנתח שלהם או של בני משפחתם  ,נמצאו הבדלים בין התייחסות לשתי הקבוצות ( 76%ו 84%-בהתאמה). כלומר ,כאשר נשאלו לגבי עולה חדש כמנתח  76%הביעו הסמכתם בעוד שכאשר נשאלו על ותיק כמנתח  84%הביעו את הסכמתם.\n\n• כאשר הציבור הישראלי היהודי נשאל לגבי שילוב עולים חדשים בתפקידי ניהול בכירים נמצא כי רק  57%מסכימים שעולה חדש יהיה הממונה עליהם בעבודה לעומת  81%המסכימים שוותיק יהיה ממונה עליהם.\n\n• כאשר הציבור הישראלי נשאל לגבי בחירות למועצת הרשות המקומית ,כ 70% -מסכימים שעולה חדש יהיה חבר במועצת הרשות המקומית לעומת  83%המסכימים שוותיק יהיה חבר מועצת הרשות המקומית.\n\nמכאן שעולים חדשים וותיקים עלולים להיתקל ב\"תקרת זכוכית\" מקצועית ,ניהולית ופוליטית.\n\n3 המכון להגירה ושילוב חברתי hagira@ruppin.ac.il"
   }
  ],
  "reference": {
-  "checkedPages": [],
-  "confidence": "low",
+  "checkedPages": [
+   2
+  ],
+  "confidence": "medium",
   "extractorAgreement": {
    "3": 0.647
   },
-  "method": "Draft from the text layer as recovered by two black-box extractors (poppler pdftotext reading-order mode; MuPDF via its Python binding), compared with each other and, for Latin text, with tesseract OCR of the rendered page; block order and completeness checked against the page image; characters are the text layer, not re-read from pixels.",
-  "notes": "Text layer in logical order; the Arabic comma spacing is normalised; ToUnicode defects of the producer (for example lam-alef) are kept because they are what an extractor can recover. Not yet reviewed against the page image (only compared across extractors): treat as a draft."
+  "method": "Draft from the text layer as recovered by two black-box extractors (poppler pdftotext reading-order mode; MuPDF via its Python binding), compared with each other and, for Latin text, with tesseract OCR of the rendered page; every scored page then compared with its rendered image: block order, completeness, columns, headers and footers corrected. Characters are the text layer, not re-read from pixels.",
+  "notes": "Hebrew page with a raster chart (not text, so not in the reference): running head, heading, introduction, three bullet paragraphs, closing line, footer. Logical order; bullets are written before their paragraph."
  },
  "schema": 1,
  "scoredPages": [

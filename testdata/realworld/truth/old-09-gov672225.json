@@ -1,0 +1,32 @@
+{
+ "category": "old",
+ "generator": "real-world file; reference text built as described in reference.method",
+ "name": "old-09-gov672225",
+ "pageCount": 9,
+ "pages": [
+  {
+   "text": "Enclosure I Certification/Fuel Economy Vehicles Tested at EPA (8/22/96 - 6/18/97)\n\nEPA Log Vehicle IOV-CFEIS\n\nNumber MFR VID Config Type Fuel Type Date VID Config\n\n19970478 20 CHRYSLER V7R7-3259 0 01 Cert Emission Data 06 Unleaded (at EPA-96 RON) 06/10/97\n\n19970360 20 CHRYSLER BD02 0 01 Cert Emission Data 06 Unleaded (at EPA-96 RON) 04/16/97\n\n19970424 20 CHRYSLER BD12 1 01 Cert Emission Data 06 Unleaded (at EPA-96 RON) 05/15/97\n\n19970425 20 CHRYSLER BD13 0 01 Cert Emission Data 06 Unleaded (at EPA-96 RON) 05/15/97\n\n19970393 20 CHRYSLER BD14 0 01 Cert Emission Data 06 Unleaded (at EPA-96 RON) 05/02/97\n\n19970412 20 CHRYSLER BD17 0 01 Cert Emission Data 06 Unleaded (at EPA-96 RON) 05/09/97\n\n19970172 30 FORD 6DC1-3.0-F-712 7 01 Cert Emission Data 06 Unleaded (at EPA-96 RON) 12/18/96\n\n19970328 30 FORD 6DC1-3.0-H-703 2 03 Cert Fuel Economy 06 Unleaded (at EPA-96 RON) 04/04/97\n\n19970274 30 FORD 6F11-5.0-H-690 0 03 Cert Fuel Economy 06 Unleaded (at EPA-96 RON) 03/04/97\n\n19970103 30 FORD 7U31-5.0-F-433 1 01 Cert Emission Data 06 Unleaded (at EPA-96 RON) 10/22/96\n\n19970315 30 FORD 7DC1-3.0-F-125 6 01 Cert Emission Data 06 Unleaded (at EPA-96 RON) 03/26/97\n\n19970150 30 FORD 7R22-4.0-F-389 4 01 Cert Emission Data 06 Unleaded (at EPA-96 RON) 12/03/96\n\n19970142 30 FORD 7R22-4.0-F-389 5 01 Cert Emission Data 06 Unleaded (at EPA-96 RON) 11/26/96\n\n19970118 30 FORD 7U31-4.0-F-115 9 01 Cert Emission Data 06 Unleaded (at EPA-96 RON) 11/04/96\n\n19970134 30 FORD 7U31-4.0-F-119 4 01 Cert Emission Data 06 Unleaded (at EPA-96 RON) 11/19/96\n\n19970289 30 FORD 7lB1-4.6-F-088 3 03 Cert Fuel Economy 06 Unleaded (at EPA-96 RON) 03/13/97\n\n19970314 30 FORD 7LB1-4.6-F-089 5 01 Cert Emission Data 06 Unleaded (at EPA-96 RON) 03/26/97\n\n19970371 30 FORD 7E41-5.4-J-296 3 03 Cert Fuel Economy 41 CNG (Cert) 04/18/97\n\n19970141 30 FORD 7R22-4.0-C-407 5 01 Cert Emission Data 06 Unleaded (at EPA-96 RON) 11/26/96\n\n19970398 30 FORD 8F51-5.4-J-467 3 01 Cert Emission Data 23 CARB Phase II Gasoline 05/06/97\n\n19970326 30 FORD 8F51-5.4-J-467 2 01 Cert Emission Data 06 Unleaded (at EPA-96 RON) 04/03/97\n\n19970449 30 FORD 7E41-5.4-C-249 6 01 Cert Emission Data 23 CARB Phase II Gasoline 05/28/97\n\n19970397 30 FORD 8R31-2.5-F-544 1 01 Cert Emission Data 06 Unleaded (at EPA-96 RON) 05/06/97\n\n19970467 30 FORD BR31-3.0-F-561 0 01 Cert Emission Data 06 Unleaded (at EPA-96 RON) 06/06/97\n\n19970468 30 FORD 8R31-3.0-F-554 0 01 Cert Emission Data 06 Unleaded (at EPA-96 RON) 06/06/97\n\n19970423 30 FORD 8R32-3.0-F-563 0 01 Cert Emission Data 06 Unleaded (at EPA-96 RON) 05/14/97\n\n19970130 30 FORD 7A31-3.8-C-288 1 01 Cert Emission Data 23 CARB Phase II Gasoline 11/14/96\n\n19970447 30 FORD 8R32-4.0-C-595 0 01 Cert Emission Data 06 Unleaded (at EPA-96 RON) 05/28/97\n\n19970374 30 FORD 8U32-4.0-F-625 2 01 Cert Emission Data 06 Unleaded (at EPA-96 RON) 04/22/97\n\n19970432 30 FORD 6F51-4.6-F-951 2 01 Cert Emission Data 06 Unleaded (at EPA-96 RON) 05/20/97\n\nVehicle Programs Compliance Division Page 2 6/18/97"
+  }
+ ],
+ "reference": {
+  "checkedPages": [
+   1
+  ],
+  "confidence": "high",
+  "extractorAgreement": {
+   "2": 1.0
+  },
+  "method": "Draft from the text layer as recovered by two black-box extractors (poppler pdftotext reading-order mode; MuPDF via its Python binding), compared with each other and, for Latin text, with tesseract OCR of the rendered page; every scored page then compared with its rendered image: block order, completeness, columns, headers and footers corrected. Characters are the text layer, not re-read from pixels.",
+  "notes": "PDF 1.2 from Acrobat PDFWriter 3.0: a table page, written row by row with the cells of a row on one line, title first and the footer line last. Every row compared with the page image (30 rows)."
+ },
+ "schema": 1,
+ "scoredPages": [
+  1
+ ],
+ "source": {
+  "attribution": "Work of the United States government (17 U.S.C. 105); original URL in source_url; unmodified",
+  "license": "US-Government-Work",
+  "source_url": "http://www.epa.gov/OMSWWW/cert/cfeis/certveh2.pdf",
+  "upstream_ref": "GovDocs1 (digitalcorpora.org), crawled 2009"
+ }
+}

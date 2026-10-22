@@ -16,7 +16,7 @@
   "extractorAgreement": {
    "3": 0.887
   },
-  "method": "Draft from the text layer as recovered by two black-box extractors (poppler pdftotext reading-order mode; MuPDF via its Python binding), compared with each other and, for Latin text, with tesseract OCR of the rendered page; block order and completeness checked against the page image; characters are the text layer, not re-read from pixels.",
+  "method": "Draft from the text layer as recovered by two black-box extractors (poppler pdftotext reading-order mode; MuPDF via its Python binding), compared with each other and, for Latin text, with tesseract OCR of the rendered page; every scored page then compared with its rendered image: block order, completeness, columns, headers and footers corrected. Characters are the text layer, not re-read from pixels.",
   "notes": "Reading order is column by column, left column first; running heads and page numbers at their top or bottom position."
  },
  "schema": 1,

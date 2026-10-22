@@ -5,21 +5,24 @@
  "pageCount": 20,
  "pages": [
   {
-   "text": "The meaning of Legacy\n\n[Wikipedia]\n\n• „Legacy code is source code that relates to a nolonger supported or manufactured operating system „Forgotte or other computer technology“ n Lore“: CP/M, Be O\n\nS etc.\n\n• “Old application programs are considered “legacy” which continue to be used because the user does „Never ch a nge not want to replace or redesign them.” working\n\nc ode“ – we don‘t why it works…\n\n• “Legacy software often differs from its suggested alternative by actually working and scaling, making „It does th the term not pejorative at all.” e job“"
+   "text": "The meaning of Legacy\n\n[Wikipedia]\n\n• „Legacy code is source code that relates to a nolonger supported or manufactured operating system or other computer technology“\n\n• “Old application programs are considered “legacy” which continue to be used because the user does not want to replace or redesign them.”\n\n• “Legacy software often differs from its suggested alternative by actually working and scaling, making the term not pejorative at all.”\n\n„Forgotten Lore“: CP/M, BeOS etc.\n\n„Never change working code“ – we don‘t why it works…\n\n„It does the job“"
   },
   {
-   "text": "FOSS GIS Legacy Several FOSS GIS projects have been in existence for a very long time, giving them “legacy”: – UMN Mapserver – GRASS GIS, – both are community-controlled projects.\n\nGRASS User Map"
+   "text": "FOSS GIS Legacy\n\nSeveral FOSS GIS projects have been in existence for a very long time, giving them “legacy”:\n\n– UMN Mapserver\n\n– GRASS GIS,\n\n– both are community-controlled projects.\n\nGRASS User Map"
   }
  ],
  "reference": {
-  "checkedPages": [],
-  "confidence": "low",
+  "checkedPages": [
+   2,
+   3
+  ],
+  "confidence": "high",
   "extractorAgreement": {
    "3": 0.863,
    "4": 1.0
   },
-  "method": "Draft from the text layer as recovered by two black-box extractors (poppler pdftotext reading-order mode; MuPDF via its Python binding), compared with each other and, for Latin text, with tesseract OCR of the rendered page; block order and completeness checked against the page image; characters are the text layer, not re-read from pixels.",
-  "notes": "Text of the scored slides in visual order, title first. Not yet reviewed against the page image (only compared across extractors): treat as a draft."
+  "method": "Draft from the text layer as recovered by two black-box extractors (poppler pdftotext reading-order mode; MuPDF via its Python binding), compared with each other and, for Latin text, with tesseract OCR of the rendered page; every scored page then compared with its rendered image: block order, completeness, columns, headers and footers corrected. Characters are the text layer, not re-read from pixels.",
+  "notes": "Slide text compared with the slide image. On the first slide the three yellow sticky notes are rotated text boxes; they are written as drawn (the page's text layer splits their words into fragments), after the three bullets. The \"no-longer\" hyphen is lost in the layer and left as it is."
  },
  "schema": 1,
  "scoredPages": [

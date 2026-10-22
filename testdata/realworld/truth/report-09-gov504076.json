@@ -1,0 +1,32 @@
+{
+ "category": "report",
+ "generator": "real-world file; reference text built as described in reference.method",
+ "name": "report-09-gov504076",
+ "pageCount": 33,
+ "pages": [
+  {
+   "text": "LAW LIBRARY OF CONGRESS – 4\n\nTo maintain their power over a diverse empire of peoples with different languages and cultures, they instituted a policy of forcing people to migrate to other areas under their control. The policy brought the peoples of the region into close contact, creating a cultural mixing bowl and spreading legal culture along with other institutions. King Nebuchadnezzar, who reigned from 604-562 BCE, continued the policy of moving groups of people from one part of the empire to another by capturing Jerusalem and bringing back 7,000 Jewish captives to Babylon as slaves. 16\n\nThe Assyrians are considered by some to have changed family law practices in Mesopotamia, instituting rules that were more restrictive to women than those that had been in place. In comparison with Hammurabi’s day, the husbands and fathers had more authority over their families. Men could punish their wives by twisting their ears or pulling out their hair. In addition, while it was traditional for wives and children to be used as debt pawns, sent to work for the family’s creditors, the previous laws limiting the time they could be held and prohibiting their physical abuse while in that status were dropped under the Assyrian rule. Women also had more difficulty getting divorces, and no longer were their spouses required to return the dowries of women they divorced. Women of the upper classes had to wear veils, while other women could be penalized for donning them. However, women did enjoy the rights to own and inherit property. 17\n\nE. Other Conquerors (from the 6th century BCE)\n\nThe Assyrian empire declined in power, and Babylon was captured by Cyrus of Persia (today known as Iran) in 539 BCE. His empire eventually was even larger than the Assyrian one had been, reaching from Egypt to the western border of India. The Jews enslaved by Nebuchadnezzar were allowed to return to their homeland. The Persian rule lasted until Alexander the Great conquered Mesopotamia in 333 BCE. Upon Alexander’s death, the country was given to one of his generals, Seleucus, to rule, and later the region became a battleground for various powers, including the Persians, Romans, and Greeks.\n\nThe formerly great cities of Mesopotamia were deserted. 18 The successive invasions brought cultural and social change, which had reflections in the legal system. For example, it has been argued that women’s legal status declined further after the Persian conquest, when they were no longer able to serve as witnesses and were restricted in their participation in legal transactions. 19\n\nII. Advent of Islam\n\nA. Early Arab Era (7th century CE)\n\nMesopotamia became al-Iraq in the 7th century CE, when the Persian army was defeated by Arab forces; the region later came under the control of the caliph in Damascus. Along with the Arab army came a language, a religion, a culture, and a new set of laws. The warriors who operated under religious\n\n16 Id.\n\n17 Sue Rowland, Veiling in the Assyrian Empire, at http://members.aol.com/peterow/p6meso2.htm; LEILA AHMED, WOMEN AND GENDER IN ISLAM: HISTORICAL ROOTS OF A MODERN DEBATE 13-17 (1992).\n\n18 SPENCER, supra note 1, at 27-29.\n\n19 AHMED, supra note 17."
+  }
+ ],
+ "reference": {
+  "checkedPages": [
+   5
+  ],
+  "confidence": "high",
+  "extractorAgreement": {
+   "6": 0.99
+  },
+  "method": "Draft from the text layer as recovered by two black-box extractors (poppler pdftotext reading-order mode; MuPDF via its Python binding), compared with each other and, for Latin text, with tesseract OCR of the rendered page; every scored page then compared with its rendered image: block order, completeness, columns, headers and footers corrected. Characters are the text layer, not re-read from pixels.",
+  "notes": "Running head, body, two headings with a subheading, four footnotes; footnote markers follow the sentence they belong to, and ordinal suffixes (6th, 7th) are written in line."
+ },
+ "schema": 1,
+ "scoredPages": [
+  5
+ ],
+ "source": {
+  "attribution": "Work of the United States government (17 U.S.C. 105); original URL in source_url; unmodified",
+  "license": "US-Government-Work",
+  "source_url": "http://www.loc.gov/law/help/iraq%20_legal_history_and_traditions.pdf",
+  "upstream_ref": "GovDocs1 (digitalcorpora.org), crawled 2009"
+ }
+}

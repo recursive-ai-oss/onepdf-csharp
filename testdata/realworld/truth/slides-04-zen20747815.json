@@ -5,17 +5,19 @@
  "pageCount": 6,
  "pages": [
   {
-   "text": "PLOS Open Science Indicators dataset snapshot Adoption of open science indicators (%)\n\n• Data sharing is mature •\n\nData sharing\n\n83\n\nPreprint match\n\n• Code is the weak link •\n\n35\n\nCode sharing\n\nThanks to data management policies\n\nOnly 56% of code-generating papers share the code\n\n• Preprints are climbing fast\n\n27\n\n•\n\nFrom 13% in 2018 to nearly 50% in\n\n2024 Protocol shared\n\n10\n\nStudy registration\n\n10\n\n0\n\nImperial College London\n\n10\n\n• Protocols and registration lag •\n\n10% each. Newer practices, and more common in some fields than others\n\n20\n\n30\n\n40\n\nCan we measure research in a more meaningful way? | Edinburgh Open Research Conference\n\n50\n\n60\n\n70\n\n80\n\n3\n\n90\n\n18/06/2026"
+   "text": "PLOS Open Science Indicators dataset snapshot\n\nAdoption of open science indicators (%)\n\nData sharing\n\n83\n\nPreprint match\n\n35\n\nCode sharing\n\n27\n\nProtocol shared\n\n10\n\nStudy registration\n\n10\n\n0\n\n10\n\n20\n\n30\n\n40\n\n50\n\n60\n\n70\n\n80\n\n90\n\n• Data sharing is mature\n\n• Thanks to data management policies\n\n• Code is the weak link\n\n• Only 56% of code-generating papers share the code\n\n• Preprints are climbing fast\n\n• From 13% in 2018 to nearly 50% in 2024\n\n• Protocols and registration lag\n\n• 10% each. Newer practices, and more common in some fields than others\n\nImperial College London\n\nCan we measure research in a more meaningful way? | Edinburgh Open Research Conference\n\n3\n\n18/06/2026"
   }
  ],
  "reference": {
-  "checkedPages": [],
-  "confidence": "low",
+  "checkedPages": [
+   2
+  ],
+  "confidence": "high",
   "extractorAgreement": {
    "3": 0.983
   },
-  "method": "Draft from the text layer as recovered by two black-box extractors (poppler pdftotext reading-order mode; MuPDF via its Python binding), compared with each other and, for Latin text, with tesseract OCR of the rendered page; block order and completeness checked against the page image; characters are the text layer, not re-read from pixels.",
-  "notes": "Text of the scored slides in visual order, title first. Not yet reviewed against the page image (only compared across extractors): treat as a draft."
+  "method": "Draft from the text layer as recovered by two black-box extractors (poppler pdftotext reading-order mode; MuPDF via its Python binding), compared with each other and, for Latin text, with tesseract OCR of the rendered page; every scored page then compared with its rendered image: block order, completeness, columns, headers and footers corrected. Characters are the text layer, not re-read from pixels.",
+  "notes": "Slide text in reading order: title, chart (title, bar labels with values, axis), the bulleted text, footer. Compared with the slide image; every word of the draft was present."
  },
  "schema": 1,
  "scoredPages": [

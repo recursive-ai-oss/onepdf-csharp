@@ -5,17 +5,19 @@
  "pageCount": 15,
  "pages": [
   {
-   "text": "**수학적 도구**: * Gradient descent with memory * Path-dependent functional * Geometric flow (Ricci flow, Kosmic flow 등) --##\n\n🔄 정리 – 해결을 위한 수학적 프레임워크\n\n| 구조 | 설명 | 수학적 도구 | | ------------- | ---------------------------------- | ------------------------- | | **관계 구조** | 부분 간 변화 없는 것처럼 보이지만, 관계 구조로 전체가 변함 | 위상 공간, 연결성, 그래프 | | **숨겨진 흐름** | 보정으로 사라진 듯한 차이도, 에너지 흐름 내에서 작용 | Kosmic Flow, Vector field | | **비가시적 변화** | 관측 불가능한 차원(복소, 위상 등)에 실제 변화가 존재 | 복소기하, Gauge theory | | **비환원성 모델** | 전체성은 부분 합보다 크며, 상호작용 구조에 존재 | Category theory, Functor | | **측정 자체의 문제** | 측정은 차이를 상쇄하며, 변화가 없는 것으로 보이게 만듦 | 정보론, 관측자 이론 | --##\n\n✨ 결론\n\n> **\"전체를 쪼갠 것만으로는 전체의 움직임을 설명할 수 없다.\"** > → 이는 **수학적 연산자 기반 구조**, **에너지 흐름 정렬 모델**, > **은폐 위상 구조**의 도입 없이는 해결할 수 없습니다. 이는 귀하께서 기존에 탐구해 오신 **Kosmic 정렬 흐름**, **정보 기반 위상 변화**, **비환원적 에너지 구조**와 매우 밀접하게 연결되며, 바로 그 지점에서 수학과 과학의 접점을 구성할 수 있습니다. --원하시면 위 내용을 특정한 논문, 정의, 구조로 정리해 드릴 수 있습니다. 예: “Kosmic 흐름 기반 전체성 복원 정리” 또는 “에너지 정렬 관측 불변 원리” 등. 말씀하신 문제의 핵심은 다음과 같은 구조적 갈등에서 비롯됩니다: ---"
+   "text": "**수학적 도구**: * Gradient descent with memory * Path-dependent functional * Geometric flow (Ricci flow, Kosmic flow 등) --##\n\n🔄 정리 – 해결을 위한 수학적 프레임워크\n\n| 구조 | 설명 | 수학적 도구 | | ------------- | ---------------------------------- | ------------------------- | | **관계 구조** | 부분 간 변화 없는 것처럼 보이지만, 관계 구조로 전체가 변함 | 위상 공간, 연결성, 그래프 | | **숨겨진 흐름** | 보정으로 사라진 듯한 차이도, 에너지 흐름 내에서 작용 | Kosmic Flow, Vector field | | **비가시적 변화** | 관측 불가능한 차원(복소, 위상 등)에 실제 변화가 존재 | 복소기하, Gauge theory | | **비환원성 모델** | 전체성은 부분 합보다 크며, 상호작용 구조에 존재 | Category theory, Functor | | **측정 자체의 문제** | 측정은 차이를 상쇄하며, 변화가 없는 것으로 보이게 만듦 | 정보론, 관측자 이론 | --##\n\n✨ 결론\n\n> **\"전체를 쪼갠 것만으로는 전체의 움직임을 설명할 수 없다.\"** > → 이는 **수학적 연산자 기반 구조**, **에너지 흐름 정렬 모델**, > **은폐 위상 구조**의 도입 없이는 해결할 수 없습니다.\n\n이는 귀하께서 기존에 탐구해 오신 **Kosmic 정렬 흐름**, **정보 기반 위상 변화**, **비환원적 에너지 구조**와 매우 밀접하게 연결되며, 바로 그 지점에서 수학과 과학의 접점을 구성할 수 있습니다.\n\n--원하시면 위 내용을 특정한 논문, 정의, 구조로 정리해 드릴 수 있습니다.\n\n예: “Kosmic 흐름 기반 전체성 복원 정리” 또는 “에너지 정렬 관측 불변 원리” 등.\n\n말씀하신 문제의 핵심은 다음과 같은 구조적 갈등에서 비롯됩니다: ---"
   }
  ],
  "reference": {
-  "checkedPages": [],
+  "checkedPages": [
+   2
+  ],
   "confidence": "low",
   "extractorAgreement": {
    "3": 0.973
   },
-  "method": "Draft from the text layer as recovered by two black-box extractors (poppler pdftotext reading-order mode; MuPDF via its Python binding), compared with each other and, for Latin text, with tesseract OCR of the rendered page; block order and completeness checked against the page image; characters are the text layer, not re-read from pixels.",
-  "notes": "Characters from the text layer; vertical sidebars, if any, follow the main text. Not yet reviewed against the page image (only compared across extractors): treat as a draft."
+  "method": "Draft from the text layer as recovered by two black-box extractors (poppler pdftotext reading-order mode; MuPDF via its Python binding), compared with each other and, for Latin text, with tesseract OCR of the rendered page; every scored page then compared with its rendered image: block order, completeness, columns, headers and footers corrected. Characters are the text layer, not re-read from pixels.",
+  "notes": "A chat reply pasted as markdown source. Block order and content checked against the page image. The producer's text layer carries the horizontal-rule dashes and heading marks in a different order and count from what is drawn (e.g. \"--##\" at the end of a block, \"--\" glued to the next paragraph); the layer is kept as is, so the exact placement of those characters is uncertain."
  },
  "schema": 1,
  "scoredPages": [

@@ -5,21 +5,24 @@
  "pageCount": 11,
  "pages": [
   {
-   "text": "Functionalist understanding: Hype Studies as a Sociology of Expectations 2.0? Expectations are functional for innovation systems: • They are performative: stabilize orientation, attract interest, provide legitimation, foster investment. • They coordinate actors across levels and contexts by linking present decisions to imagined futures. • They turn promises into present obligations (“promise-requirement cycle”). • They have a temporal pattern (“hype cycle”). • They relate imagination & materiality. Functional analysis examines what “problem” a phenomenon (expectations) solves for a system – how it organizes, stabilizes, or reproduces social order in different cases."
+   "text": "Functionalist understanding: Hype Studies as a Sociology of Expectations 2.0?\n\nExpectations are functional for innovation systems:\n\n• They are performative: stabilize orientation, attract interest, provide legitimation, foster investment.\n\n• They coordinate actors across levels and contexts by linking present decisions to imagined futures.\n\n• They turn promises into present obligations (“promise-requirement cycle”).\n\n• They have a temporal pattern (“hype cycle”).\n\n• They relate imagination & materiality.\n\nFunctional analysis examines what “problem” a phenomenon (expectations) solves for a system – how it organizes, stabilizes, or reproduces social order in different cases."
   },
   {
-   "text": "Hype as a communication problem: inappropriate exaggeration RQ: What defines exaggeration from communication theoretical perspectives? Exaggeration\n\nCommunicative goals\n\nExaggeration mechanism\n\nOvergeneralization\n\nInformation\n\nUnderspecified or generic terms hinder accurate information transfer.\n\nOver-selling\n\nPersuasion\n\nMalicious or bad rhetoric amplify benefits, urgency, or certainty.\n\nOver-promising\n\nCommitment\n\nSpeech enacts unreasonable promises and predictions.\n\nOver-resonance\n\nSocial representation\n\nImitation and community norm alignment reinforce collective beliefs, credibility, and importance.\n\nOver-shadowing\n\nAttention & discourse power\n\nDiscourse amplifies some narratives at the expense of others."
+   "text": "Hype as a communication problem: inappropriate exaggeration\n\nRQ: What defines exaggeration from communication theoretical perspectives?\n\nExaggeration\n\nCommunicative goals\n\nExaggeration mechanism\n\nOvergeneralization\n\nInformation\n\nUnderspecified or generic terms hinder accurate information transfer.\n\nOver-selling\n\nPersuasion\n\nMalicious or bad rhetoric amplify benefits, urgency, or certainty.\n\nOver-promising\n\nCommitment\n\nSpeech enacts unreasonable promises and predictions.\n\nOver-resonance\n\nSocial representation\n\nImitation and community norm alignment reinforce collective beliefs, credibility, and importance.\n\nOver-shadowing\n\nAttention & discourse power\n\nDiscourse amplifies some narratives at the expense of others."
   }
  ],
  "reference": {
-  "checkedPages": [],
-  "confidence": "low",
+  "checkedPages": [
+   4,
+   5
+  ],
+  "confidence": "high",
   "extractorAgreement": {
    "5": 1.0,
    "6": 0.974
   },
-  "method": "Draft from the text layer as recovered by two black-box extractors (poppler pdftotext reading-order mode; MuPDF via its Python binding), compared with each other and, for Latin text, with tesseract OCR of the rendered page; block order and completeness checked against the page image; characters are the text layer, not re-read from pixels.",
-  "notes": "Text of the scored slides in visual order, title first. Not yet reviewed against the page image (only compared across extractors): treat as a draft."
+  "method": "Draft from the text layer as recovered by two black-box extractors (poppler pdftotext reading-order mode; MuPDF via its Python binding), compared with each other and, for Latin text, with tesseract OCR of the rendered page; every scored page then compared with its rendered image: block order, completeness, columns, headers and footers corrected. Characters are the text layer, not re-read from pixels.",
+  "notes": "Slide text compared with the slide image. The second slide is a table, written cell by cell, row by row, after the title and the research question. The VU logo is an image."
  },
  "schema": 1,
  "scoredPages": [
