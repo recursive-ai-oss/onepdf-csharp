@@ -1,5 +1,6 @@
 using System.Runtime.CompilerServices;
 using System.Text;
+using System.Text.Json;
 
 namespace OnePdf.Tests.Content;
 
@@ -31,11 +32,29 @@ public class DataSetTests
             ? Directory.EnumerateFiles(Path.Combine(root, sub), "*.pdf", SearchOption.AllDirectories).Order(StringComparer.Ordinal)
             : [];
 
+    // Encrypted generated files carry the password that opens them in their truth sidecar.
+    private static string? TruthPassword(string file)
+    {
+        if (Path.GetFileName(file) == "encrypted-objstm-aes128.pdf")
+        {
+            return "up"; // the repro's user password (see DocumentModelStructureTests)
+        }
+
+        string truth = Path.Combine(Path.GetDirectoryName(Path.GetDirectoryName(file))!, "truth", Path.GetFileNameWithoutExtension(file) + ".json");
+        if (!file.Contains(Path.Combine("generated", "pdf"), StringComparison.Ordinal) || !File.Exists(truth))
+        {
+            return null;
+        }
+
+        using JsonDocument json = JsonDocument.Parse(File.ReadAllBytes(truth));
+        return json.RootElement.TryGetProperty("passwords", out JsonElement pw) && pw.TryGetProperty("user", out JsonElement user) ? user.GetString() : null;
+    }
+
     private static PdfDocument? TryOpen(string file)
     {
         try
         {
-            return PdfDocument.Open(file);
+            return PdfDocument.Open(file, new PdfOpenOptions { Password = TruthPassword(file) });
         }
         catch (PdfException)
         {

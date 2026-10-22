@@ -34,9 +34,18 @@ internal static class StreamFilters
 
     /// <summary>Decodes one filter stage. <paramref name="parameters"/> may be null for defaults.</summary>
     public static FilterResult Decode(string name, ReadOnlySpan<byte> input, FilterParameters? parameters, in DecodeLimits limits, CancellationToken cancellationToken = default)
+        => Decode(name, input, parameters, limits, 0, cancellationToken);
+
+    /// <summary>
+    /// As above, with the expected size of the stage's final output (after any predictor), or 0 when unknown. For Flate and
+    /// LZW a plausible hint (within the limits, and no more than the input could expand to) sizes the output buffer once, so
+    /// a large result is allocated a single time. A wrong hint costs nothing but the up-front allocation: the output is
+    /// whatever the data decodes to, and the limits apply as before.
+    /// </summary>
+    public static FilterResult Decode(string name, ReadOnlySpan<byte> input, FilterParameters? parameters, in DecodeLimits limits, long expectedSize, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(name);
-        return Run(Classify(name), name, input, parameters ?? FilterParameters.Default, limits, cancellationToken);
+        return Run(Classify(name), name, input, parameters ?? FilterParameters.Default, limits, expectedSize, cancellationToken);
     }
 
     /// <summary>As <see cref="Decode(string, ReadOnlySpan{byte}, FilterParameters?, in DecodeLimits, CancellationToken)"/> with the name as raw (Latin-1/ASCII) bytes.</summary>
@@ -48,7 +57,7 @@ internal static class StreamFilters
             chars[i] = (char)name[i];
         }
 
-        return Run(Classify(chars), new string(chars), input, parameters ?? FilterParameters.Default, limits, cancellationToken);
+        return Run(Classify(chars), new string(chars), input, parameters ?? FilterParameters.Default, limits, 0, cancellationToken);
     }
 
     /// <summary>
@@ -57,6 +66,13 @@ internal static class StreamFilters
     /// <see cref="FilterResult.StoppedAtFilter"/>, so image codecs can take over; also stops after a limit breach.
     /// </summary>
     public static FilterResult DecodeChain(IReadOnlyList<string> names, IReadOnlyList<FilterParameters?>? parameters, ReadOnlyMemory<byte> input, in DecodeLimits limits, CancellationToken cancellationToken = default)
+        => DecodeChain(names, parameters, input, limits, 0, cancellationToken);
+
+    /// <summary>
+    /// As above, with the expected size of the chain's final output (0 when unknown), applied to the last stage; see
+    /// <see cref="Decode(string, ReadOnlySpan{byte}, FilterParameters?, in DecodeLimits, long, CancellationToken)"/>.
+    /// </summary>
+    public static FilterResult DecodeChain(IReadOnlyList<string> names, IReadOnlyList<FilterParameters?>? parameters, ReadOnlyMemory<byte> input, in DecodeLimits limits, long expectedSize, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(names);
         ReadOnlyMemory<byte> data = input;
@@ -65,7 +81,7 @@ internal static class StreamFilters
         for (int i = 0; i < names.Count; i++)
         {
             FilterParameters? fp = parameters is not null && i < parameters.Count ? parameters[i] : null;
-            FilterResult r = Decode(names[i], data.Span, fp, limits, cancellationToken);
+            FilterResult r = Decode(names[i], data.Span, fp, limits, i == names.Count - 1 ? expectedSize : 0, cancellationToken);
             issues |= r.Issues;
             if (r.Message is not null)
             {
@@ -98,7 +114,7 @@ internal static class StreamFilters
         _ => Kind.Unsupported,
     };
 
-    private static FilterResult Run(Kind kind, string name, ReadOnlySpan<byte> input, FilterParameters p, in DecodeLimits limits, CancellationToken ct)
+    private static FilterResult Run(Kind kind, string name, ReadOnlySpan<byte> input, FilterParameters p, in DecodeLimits limits, long expectedSize, CancellationToken ct)
     {
         if (kind == Kind.Unsupported)
         {
@@ -116,7 +132,8 @@ internal static class StreamFilters
             Kind.CcittFax => Math.Min(cap, Math.Max(4096, (long)input.Length * 8)),
             _ => input.Length,
         };
-        var output = new OutputBuffer(cap, estimate);
+        long exact = kind is Kind.Flate or Kind.Lzw ? ExactOutputSize(expectedSize, input.Length, p, limits) : 0;
+        var output = exact > 0 ? new OutputBuffer(cap, estimate, exact) : new OutputBuffer(cap, estimate);
         try
         {
             switch (kind)
@@ -169,5 +186,42 @@ internal static class StreamFilters
         {
             output.Dispose();
         }
+    }
+
+    // The size of the buffer before the predictor runs, when the caller's expectation is believable: within the cap and no more
+    // than the input could expand to (the ratio bound, which is above deflate's own maximum), so a tiny stream whose
+    // dictionary declares a huge image does not get a huge buffer.
+    private static long ExactOutputSize(long expected, int inputLength, FilterParameters p, in DecodeLimits limits)
+    {
+        if (expected <= 0 || expected > limits.MaxDecodedBytes)
+        {
+            return 0;
+        }
+
+        long size = expected;
+        if (p.Predictor >= 10)
+        {
+            // PNG predictors add a tag byte to every row (ISO 32000-2 7.4.4.4).
+            if (p.Columns is < 1 or > (1 << 24) || p.Colors is < 1 or > (1 << 12) || p.BitsPerComponent is < 1 or > 16)
+            {
+                return 0;
+            }
+
+            long rowBytes = ((long)p.Columns * p.Colors * p.BitsPerComponent + 7) / 8;
+            if (expected % rowBytes != 0)
+            {
+                return 0;
+            }
+
+            size = expected / rowBytes * (rowBytes + 1);
+        }
+
+        double ratio = limits.MaxExpansionRatio;
+        if (ratio > 0 && size > Math.Max(1.0, ratio * inputLength))
+        {
+            return 0;
+        }
+
+        return size;
     }
 }

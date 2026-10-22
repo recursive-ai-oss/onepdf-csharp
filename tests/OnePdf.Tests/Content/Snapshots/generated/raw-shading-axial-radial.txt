@@ -1,0 +1,25 @@
+# page 1
+onepdf-display-list 3
+page box=0 0 612 792 name=CropBox rotate=0 unit=1 scale=1 size=612 792 base=[1 0 0 -1 0 792]
+  gs ctm=[1 0 0 -1 0 792] fill=gray(0) stroke=gray(0) lw=1 cap=0 join=0 miter=10 dash=[] phase=0 flat=1 ri=RelativeColorimetric fa=1 sa=1 bm=Normal sm=0 ais=0 op=000
+  text font=/F1 size=16 mode=0 tc=0 tw=0 th=1 rise=0 tm=[1 0 0 1 72 740] vert=0 adv=200 0 codes=417869616c20616e642072616469616c2073686164696e6773 glyphs=[65@0,0,0.5 120@8,0,0.5 105@16,0,0.5 97@24,0,0.5 108@32,0,0.5 32@40,0,0.5 97@48,0,0.5 110@56,0,0.5 100@64,0,0.5 32@72,0,0.5 114@80,0,0.5 97@88,0,0.5 100@96,0,0.5 105@104,0,0.5 97@112,0,0.5 108@120,0,0.5 32@128,0,0.5 115@136,0,0.5 104@144,0,0.5 97@152,0,0.5 100@160,0,0.5 105@168,0,0.5 110@176,0,0.5 103@184,0,0.5 115@192,0,0.5]
+  clip nonzero M 72 560 L 272 560 L 272 680 L 72 680 Z
+    shading type=2 cs=rgb fn=1 bbox=none bg=none aa=0 coords=(72 0 272 0) domain=(0 1) extend=11 at-start=(1 0 0) at-mid=(0.5 0 0.5) at-end=(0 0 1)
+  pop-clip
+  clip nonzero M 330 530 L 530 530 L 530 730 L 330 730 Z
+    shading type=3 cs=rgb fn=1 bbox=none bg=(0.9 0.9 0.9) aa=0 coords=(400 600 10 420 590 70) domain=(0 1) extend=01 at-start=(1 1 0) at-mid=(0 0.5833 0.0139) at-end=(0 0 0.5)
+  pop-clip
+  gs ctm=[1 0 0 -1 72 492] fill=gray(0) stroke=gray(0) lw=1 cap=0 join=0 miter=10 dash=[] phase=0 flat=1 ri=RelativeColorimetric fa=1 sa=1 bm=Normal sm=0 ais=0 op=000
+  shading type=2 cs=rgb fn=1 bbox=0 0 100 100 bg=none aa=0 coords=(0 0 100 100) domain=(0 1) extend=00 at-start=(1 1 0) at-mid=(0.5 0.8 0) at-end=(0 0.6 0)
+  gs ctm=[0.5 0 0 -0.5 300 492] fill=gray(0) stroke=gray(0) lw=1 cap=0 join=0 miter=10 dash=[] phase=0 flat=1 ri=RelativeColorimetric fa=1 sa=1 bm=Normal sm=0 ais=0 op=000
+  shading type=2 cs=rgb fn=1 bbox=0 0 100 100 bg=none aa=0 coords=(0 0 100 100) domain=(0 1) extend=00 at-start=(1 1 0) at-mid=(0.5 0.8 0) at-end=(0 0.6 0)
+end-page
+# page 2
+onepdf-display-list 3
+page box=0 0 612 792 name=CropBox rotate=0 unit=1 scale=1 size=612 792 base=[1 0 0 -1 0 792]
+  gs ctm=[1 0 0 -1 0 792] fill=gray(0) stroke=gray(0) lw=1 cap=0 join=0 miter=10 dash=[] phase=0 flat=1 ri=RelativeColorimetric fa=1 sa=1 bm=Normal sm=0 ais=0 op=000
+  text font=/F1 size=16 mode=0 tc=0 tw=0 th=1 rise=0 tm=[1 0 0 1 72 740] vert=0 adv=176 0 codes=46756e6374696f6e2d62617365642073686164696e67 glyphs=[70@0,0,0.5 117@8,0,0.5 110@16,0,0.5 99@24,0,0.5 116@32,0,0.5 105@40,0,0.5 111@48,0,0.5 110@56,0,0.5 45@64,0,0.5 98@72,0,0.5 97@80,0,0.5 115@88,0,0.5 101@96,0,0.5 100@104,0,0.5 32@112,0,0.5 115@120,0,0.5 104@128,0,0.5 97@136,0,0.5 100@144,0,0.5 105@152,0,0.5 110@160,0,0.5 103@168,0,0.5]
+  clip nonzero M 72 450 L 272 450 L 272 570 L 72 570 Z
+    shading type=1 cs=rgb fn=1 bbox=none bg=none aa=0 domain=(0 1 0 1) matrix=[200 0 0 120 72 450] at-centre=(0.25 0.5 0.5)
+  pop-clip
+end-page

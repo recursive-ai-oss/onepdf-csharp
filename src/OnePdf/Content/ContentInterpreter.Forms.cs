@@ -592,7 +592,7 @@ internal sealed partial class ContentInterpreter
         double sx = tb.Width > 0 ? rect.Width / tb.Width : 1;
         double sy = tb.Height > 0 ? rect.Height / tb.Height : 1;
         var fit = new PdfMatrix(sx, 0, 0, sy, rect.Left - (tb.Left * sx), rect.Bottom - (tb.Bottom * sy));
-        PdfMatrix ctm = fit.Then(_page.BaseMatrix);
+        PdfMatrix ctm = fit.Then(AnnotationBaseMatrix(f, rect));
         if (!ctm.IsFinite)
         {
             return;
@@ -617,5 +617,32 @@ internal sealed partial class ContentInterpreter
                 _device.EndAnnotation();
             }
         }
+    }
+
+    // ISO 32000-2 12.5.3 Table 167: NoZoom keeps the appearance at its size at 100% magnification and NoRotate keeps it upright,
+    // in both cases with the upper-left corner of the annotation rectangle (in default user space) staying where the page
+    // matrix puts it. Magnification here is the caller's scale or DPI; /UserUnit is part of the page, not of the zoom.
+    private PdfMatrix AnnotationBaseMatrix(PdfAnnotationOptions flags, in PdfBounds rect)
+    {
+        bool noZoom = (flags & PdfAnnotationOptions.NoZoom) != 0;
+        bool noRotate = (flags & PdfAnnotationOptions.NoRotate) != 0;
+        double s = noZoom ? _page.UserUnit : _page.Scale;
+        int rotation = noRotate ? 0 : _page.Rotation;
+        if ((!noZoom || s == _page.Scale) && (!noRotate || _page.Rotation == 0))
+        {
+            return _page.BaseMatrix;
+        }
+
+        PdfMatrix flip = new(s, 0, 0, -s, 0, 0);
+        PdfMatrix linear = rotation switch
+        {
+            90 => flip.Then(new PdfMatrix(0, 1, -1, 0, 0, 0)),
+            180 => flip.Then(new PdfMatrix(-1, 0, 0, -1, 0, 0)),
+            270 => flip.Then(new PdfMatrix(0, -1, 1, 0, 0, 0)),
+            _ => flip,
+        };
+        (double px, double py) = _page.BaseMatrix.Transform(rect.Left, rect.Top);
+        (double lx, double ly) = linear.Transform(rect.Left, rect.Top);
+        return linear with { E = px - lx, F = py - ly };
     }
 }
