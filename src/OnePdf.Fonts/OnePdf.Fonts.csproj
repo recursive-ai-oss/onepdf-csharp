@@ -10,6 +10,7 @@
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <PackageTags>pdf;fonts;nativeaot;trimmable</PackageTags>
+    <PackageLicenseExpression>(MIT OR Apache-2.0) AND OFL-1.1</PackageLicenseExpression>
     <IncludeSymbols>true</IncludeSymbols>
     <SymbolPackageFormat>snupkg</SymbolPackageFormat>
     <PublishRepositoryUrl>true</PublishRepositoryUrl>
@@ -17,10 +18,27 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Using Include="System" />
+    <Using Include="System.Collections.Generic" />
+    <Using Include="System.IO" />
+    <Using Include="System.Threading" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="../OnePdf/OnePdf.csproj" />
   </ItemGroup>
 
   <ItemGroup>
+    <!-- The upstream font files, byte for byte (see Fonts/README.md). Read with GetManifestResourceStream. -->
+    <EmbeddedResource Include="Fonts/*.ttf" LogicalName="$(LibName).Fonts.%(Filename)%(Extension)" />
+    <EmbeddedResource Include="Fonts/*.OFL.txt" LogicalName="$(LibName).Fonts.%(Filename)%(Extension)" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Each font's license, with its copyright lines, travels in the package. -->
+    <None Include="Fonts/*.OFL.txt" Pack="true" PackagePath="licenses/" />
+    <None Include="Fonts/README.md" Pack="true" PackagePath="licenses/" />
+    <None Include="../../THIRD-PARTY-NOTICES.md" Pack="true" PackagePath="/" />
     <None Include="../../README.md" Pack="true" PackagePath="/" />
   </ItemGroup>
 
