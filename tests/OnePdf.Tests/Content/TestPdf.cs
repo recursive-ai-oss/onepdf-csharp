@@ -60,6 +60,10 @@ internal sealed class CheckingDevice : PdfDevice
 
     public int Runs { get; private set; }
 
+    public int Shadings { get; private set; }
+
+    public int Patterns { get; private set; }
+
     public int Calls { get; private set; }
 
     public bool Ended { get; private set; }
@@ -80,6 +84,43 @@ internal sealed class CheckingDevice : PdfDevice
         if (!Finite(s.FillColor) || !Finite(s.StrokeColor))
         {
             Problems.Add("non-finite colour");
+        }
+
+        CheckPattern(s.FillColor);
+        CheckPattern(s.StrokeColor);
+    }
+
+    private readonly HashSet<PdfPattern> _checkedPatterns = new(ReferenceEqualityComparer.Instance);
+
+    /// <summary>A tiling pattern's cell must itself be balanced and finite; each pattern is looked at once.</summary>
+    private void CheckPattern(in PdfColor c)
+    {
+        if (c.Pattern is not { } p || !_checkedPatterns.Add(p))
+        {
+            return;
+        }
+
+        Patterns++;
+        if (!p.Matrix.IsFinite)
+        {
+            Problems.Add("non-finite pattern matrix");
+        }
+
+        if (p is PdfTilingPattern { Cell: { } cell } t)
+        {
+            if (!t.BBox.IsFinite || !double.IsFinite(t.XStep) || !double.IsFinite(t.YStep) || t.XStep == 0 || t.YStep == 0)
+            {
+                Problems.Add("bad tiling geometry");
+            }
+
+            var inner = new CheckingDevice();
+            cell.Replay(inner);
+            if (inner._open.Count > 0 || inner._clips.Count > 0)
+            {
+                Problems.Add("pattern cell left brackets open");
+            }
+
+            Problems.AddRange(inner.Problems.Select(x => "in pattern cell: " + x));
         }
     }
 
@@ -170,7 +211,11 @@ internal sealed class CheckingDevice : PdfDevice
         Check(state);
     }
 
-    public override void PaintShading(PdfObject shading, string name, in PdfGraphicsState state) => Check(state);
+    public override void PaintShading(PdfShading shading, in PdfGraphicsState state)
+    {
+        Shadings++;
+        Check(state);
+    }
 
     public override void BeginGroup(in PdfGroupInfo group, in PdfGraphicsState state)
     {

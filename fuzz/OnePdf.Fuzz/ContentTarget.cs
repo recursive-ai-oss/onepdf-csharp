@@ -91,8 +91,8 @@ internal static class ContentTarget
             ("<< /Type /Annot /Subtype /Square /Rect [10 10 60 40] /F 4 /AP << /N 19 0 R >> >>", null),
             ("<< /SMask /None >>", null),
             ("<< /FunctionType 2 /Domain [0 1] /N 1 >>", null),
-            ("<< /PatternType 1 /PaintType 1 /TilingType 1 /BBox [0 0 5 5] /XStep 5 /YStep 5 /Resources << >> >>", Encoding.Latin1.GetBytes("0 0 2 2 re f")),
-            ("<< /ShadingType 2 /ColorSpace /DeviceRGB /Coords [0 0 1 1] >>", null),
+            ("<< /PatternType 1 /PaintType 1 /TilingType 1 /BBox [0 0 5 5] /XStep 5 /YStep 5 /Resources << /Pattern << /P1 17 0 R >> /Shading << /S1 18 0 R >> >> >>", Encoding.Latin1.GetBytes("0 0 2 2 re f /Pattern cs /P1 scn 1 1 2 2 re f /S1 sh")),
+            ("<< /ShadingType 2 /ColorSpace /DeviceRGB /Coords [0 0 1 1] /Extend [true true] /Function << /FunctionType 2 /Domain [0 1] /C0 [1 0 0] /C1 [0 0 1] /N 1 >> >>", null),
             ("<< /Type /XObject /Subtype /Form /BBox [0 0 100 50] /Resources 5 0 R >>", Encoding.Latin1.GetBytes("/F Do 0 0 100 50 re f")),
         };
         var offsets = new int[bodies.Length];

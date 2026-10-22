@@ -1,17 +1,16 @@
 namespace OnePdf;
 
 /// <summary>
-/// A colour in a final space: up to four components, stored inline. A pattern colour carries the pattern object and its
-/// resource name, and the tint components for an uncoloured pattern.
+/// A colour in a final space: up to four components, stored inline. A pattern colour carries the resolved pattern and, for an
+/// uncoloured pattern, the tint components.
 /// </summary>
 /// <param name="Space">The colour space.</param>
 /// <param name="C0">First component.</param>
 /// <param name="C1">Second component.</param>
 /// <param name="C2">Third component.</param>
 /// <param name="C3">Fourth component.</param>
-/// <param name="Pattern">For pattern colours: the pattern dictionary or stream, unevaluated.</param>
-/// <param name="PatternName">For pattern colours: the name in the resource dictionary.</param>
-public readonly record struct PdfColor(PdfColorSpace Space, double C0, double C1, double C2, double C3, PdfObject? Pattern = null, string? PatternName = null)
+/// <param name="Pattern">For pattern colours: the resolved pattern (tiling or shading). Null for other colours.</param>
+public readonly record struct PdfColor(PdfColorSpace Space, double C0, double C1, double C2, double C3, PdfPattern? Pattern = null)
 {
     /// <summary>Opaque black in DeviceGray, the initial colour.</summary>
     public static PdfColor Black => new(PdfColorSpace.Gray, 0, 0, 0, 0);

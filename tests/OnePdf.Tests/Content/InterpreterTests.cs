@@ -24,7 +24,7 @@ public class InterpreterTests
         Assert.Contains("page box=0 0 200 200 name=CropBox rotate=0 unit=1 scale=1 size=200 200 base=[1 0 0 -1 0 200]", t);
         Assert.Contains("gs ctm=[1 0 0 -1 0 200] fill=rgb(1 0 0) stroke=gray(0)", t);
         Assert.Contains("fill nonzero M 10 10 L 60 10 L 60 60 L 10 60 Z", t);
-        Assert.StartsWith("onepdf-display-list 2\n", t);
+        Assert.StartsWith("onepdf-display-list 3\n", t);
     }
 
     [Fact]
@@ -195,11 +195,25 @@ public class InterpreterTests
     }
 
     [Fact]
-    public void PatternColourIsPassedAsAPlaceholder()
+    public void PatternColourNamesTheResolvedPattern()
+    {
+        byte[] data = TestPdf.Build("/Pattern cs /P1 scn 0 0 10 10 re f", "/Resources << /Pattern << /P1 5 0 R >> >>",
+            b =>
+            {
+                b.Obj(5, "<< /PatternType 2 /Shading 6 0 R >>");
+                b.Obj(6, "<< /ShadingType 2 /ColorSpace /DeviceGray /Coords [0 0 1 0] /Function << /FunctionType 2 /Domain [0 1] /N 1 >> >>");
+            }, objects: 7);
+        Assert.Contains("fill=pattern(#1 /P1)", TestPdf.Text(data));
+    }
+
+    [Fact]
+    public void APatternWithoutAUsableShadingLeavesTheColourAlone()
     {
         byte[] data = TestPdf.Build("/Pattern cs /P1 scn 0 0 10 10 re f", "/Resources << /Pattern << /P1 5 0 R >> >>",
             b => b.Obj(5, "<< /PatternType 2 >>"), objects: 6);
-        Assert.Contains("fill=pattern(/P1)", TestPdf.Text(data));
+        string t = TestPdf.Text(data);
+        Assert.DoesNotContain("pattern-def", t);
+        Assert.Contains(DiagsOf(data), d => d.Message.Contains("has no /Shading"));
     }
 
     [Fact]

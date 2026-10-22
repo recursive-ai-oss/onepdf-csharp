@@ -315,7 +315,7 @@ public class TextFormsAndLayersTests
         string t = T("q 10 0 0 10 5 5 cm /Im Do Q BI /W 2 /H 2 /BPC 8 /CS /G ID \u0001\u0002\u0003\u0004 EI 0 0 1 1 re W n /S1 sh", res, b =>
         {
             b.Stream(5, "/Type /XObject /Subtype /Image /Width 1 /Height 1 /ColorSpace /DeviceGray /BitsPerComponent 8", [0x7f]);
-            b.Obj(6, "<< /ShadingType 2 /ColorSpace /DeviceRGB /Coords [0 0 1 0] >>");
+            b.Obj(6, "<< /ShadingType 2 /ColorSpace /DeviceRGB /Coords [0 0 1 0] /Function << /FunctionType 2 /Domain [0 1] /C0 [1 0 0] /C1 [0 0 1] /N 1 >> >>");
         }, objects: 7);
         string[] images = TestPdf.Lines(t, "image");
         Assert.Equal(2, images.Length);

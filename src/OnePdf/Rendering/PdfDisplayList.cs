@@ -86,6 +86,7 @@ public sealed class PdfDisplayList : IPdfDevice
     private readonly Dictionary<PdfGraphicsState, int> _stateIndex = [];
     private readonly List<RunRecord> _runs = [];
     private readonly List<PdfImage> _images = [];
+    private readonly List<PdfShading> _shadings = [];
     private readonly List<PdfObject> _objects = [];
     private readonly List<string> _strings = [];
     private readonly List<PdfGroupInfo> _groups = [];
@@ -101,7 +102,7 @@ public sealed class PdfDisplayList : IPdfDevice
 
     /// <summary>
     /// The bounding box, in output space, recorded for item <paramref name="index"/>. Items without geometry (brackets,
-    /// marked content) have an unbounded box; shadings are unbounded too.
+    /// marked content) have an unbounded box; a shading is bounded by its <c>/BBox</c> when it has one.
     /// </summary>
     public PdfBounds GetItemBounds(int index)
     {
@@ -217,8 +218,13 @@ public sealed class PdfDisplayList : IPdfDevice
                     }
 
                 case Kind.Shading:
+                    if (cull && !Overlaps(in it, in clip))
+                    {
+                        break;
+                    }
+
                     Load(it.State, ref state, ref stateLoaded);
-                    device.PaintShading(_objects[it.A], _strings[it.B], in state);
+                    device.PaintShading(_shadings[it.A], in state);
                     break;
                 case Kind.BeginGroup:
                     {
@@ -552,11 +558,13 @@ public sealed class PdfDisplayList : IPdfDevice
     }
 
     /// <inheritdoc/>
-    public void PaintShading(PdfObject shading, string name, in PdfGraphicsState state)
+    public void PaintShading(PdfShading shading, in PdfGraphicsState state)
     {
-        int idx = Add(Kind.Shading, StateIndex(state), Unbounded);
-        _items[idx].A = AddObject(shading);
-        _items[idx].B = AddString(name);
+        // Painted over the whole clip, so only the shading's own box can bound it.
+        PdfBounds b = shading.BBox is { } box ? state.Ctm.TransformBounds(box) : Unbounded;
+        _shadings.Add(shading);
+        int idx = Add(Kind.Shading, StateIndex(state), b);
+        _items[idx].A = _shadings.Count - 1;
     }
 
     /// <inheritdoc/>

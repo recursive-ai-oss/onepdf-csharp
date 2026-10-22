@@ -38,6 +38,7 @@ internal static class Program
         ["security"] = SecurityTarget.Run,
         ["image"] = ImageTarget.Run,
         ["content"] = ContentTarget.Run,
+        ["shading"] = ShadingTarget.Run,
         ["extraction"] = ExtractionTarget.Run,
     };
 
