@@ -445,8 +445,8 @@ public class ExtractionFuzzSmoke
     public void WideGapSpannedBySpaceGlyphsIsAWordSpaceNotACell()
     {
         List<PdfTextGlyph> g = [.. Syn.Line("Weather", 50, 700)];
-        g.Add(Syn.Glyph(" ", 50 + 3.5 * 1, 700, 10, 1.6)); // 1.6 em wide space glyph
-        g.AddRange(Syn.Line("report", 50 + 3.5 + 16, 700));
+        g.Add(Syn.Glyph(" ", 85, 700, 10, 1.6)); // a space glyph 1.6 em wide, from the end of "Weather" to the start of "report"
+        g.AddRange(Syn.Line("report", 101, 700));
         Assert.Equal("Weather report", Syn.Analyze(g).Text);
     }
 
@@ -463,7 +463,7 @@ public class ExtractionFuzzSmoke
     public void TwoSmallLinesAboveEachOtherAreNotJoinedThroughANearbyLargeGlyph()
     {
         List<PdfTextGlyph> g = [.. Syn.Line("upper line", 50, 718, 6), .. Syn.Line("lower line", 50, 711, 6)];
-        g.Add(Syn.Glyph("2", 70, 726, 22.4));
+        g.Add(Syn.Glyph("2", 120, 726, 22.4)); // near the lines, but not touching either
         string[] lines = Syn.Analyze(g).Text.Split('\n');
         Assert.Contains("upper line", lines);
         Assert.Contains("lower line", lines);
