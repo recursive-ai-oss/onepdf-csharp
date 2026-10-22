@@ -30,6 +30,7 @@
     <Compile Include="../../fuzz/OnePdf.Fuzz/CcittTarget.cs" Link="Filters/CcittTarget.cs" />
     <Compile Include="../../fuzz/OnePdf.Fuzz/FontTargets.cs" Link="Fonts/FontTargets.cs" />
     <Compile Include="../../fuzz/OnePdf.Fuzz/SecurityTarget.cs" Link="Security/SecurityTarget.cs" />
+    <Compile Include="../../fuzz/OnePdf.Fuzz/ContentTarget.cs" Link="Content/ContentTarget.cs" />
   </ItemGroup>
 
   <ItemGroup>

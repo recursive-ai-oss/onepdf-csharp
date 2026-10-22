@@ -57,5 +57,24 @@ if (page.Rotate != 90 || page.MediaBox.Width != 200 || page.Label != "i"
     return 1;
 }
 
+// Interpretation: a page with content, a form and text goes into a display list and out as text.
+string pdf2 =
+    "%PDF-1.4\n1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n" +
+    "2 0 obj\n<< /Type /Pages /Kids [3 0 R] /Count 1 >>\nendobj\n" +
+    "3 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 100 100] /Contents 4 0 R /Resources << /XObject << /F 5 0 R >> /Font << /F1 << /Type /Font /Subtype /Type1 /BaseFont /Courier >> >> >> >>\nendobj\n" +
+    "4 0 obj\n<< /Length 70 >>\nstream\nq 1 0 0 rg 10 10 30 30 re f /F Do Q BT /F1 12 Tf 10 50 Td (Hi) Tj ET\nendstream\nendobj\n" +
+    "5 0 obj\n<< /Type /XObject /Subtype /Form /BBox [0 0 50 50] /Length 17 >>\nstream\n0 0 20 20 re f\nendstream\nendobj\n" +
+    "trailer\n<< /Root 1 0 R >>\n";
+using PdfDocument doc2 = PdfDocument.Open(Encoding.ASCII.GetBytes(pdf2));
+var list = new PdfDisplayList();
+doc2.Pages[0].Interpret(list);
+string text = list.ToText();
+if (!text.StartsWith("onepdf-display-list 1", StringComparison.Ordinal) || !text.Contains("fill nonzero M 10 10", StringComparison.Ordinal)
+    || !text.Contains("codes=4869", StringComparison.Ordinal) || !text.Contains("clip nonzero", StringComparison.Ordinal))
+{
+    Console.Error.WriteLine("interpretation did not produce the expected display list");
+    return 1;
+}
+
 Console.WriteLine("ok");
 return 0;
