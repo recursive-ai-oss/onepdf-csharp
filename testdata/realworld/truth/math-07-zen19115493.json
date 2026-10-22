@@ -1,0 +1,30 @@
+{
+ "category": "math",
+ "generator": "real-world file; reference text built as described in reference.method",
+ "name": "math-07-zen19115493",
+ "pageCount": 4,
+ "pages": [
+  {
+   "text": "Online at: https://researchtrendsjournal.com Indexed Journal\n\nISSN No: 2584-282X Peer Reviewed Journal\n\nINTERNATIONAL JOURNAL OF TRENDS IN EMERGING RESEARCH AND DEVELOPMENT Volume 4; Issue 2; 2026; Page No. 53-56 Received: 16-01-2026 Accepted: 27-02-2026 Published: 19-03-2026\n\nIdempotency of Transfinite Cardinal Numbers Dr. BS Satpute Head, Department of Mathematics, Vaidyanath College, Parali, Beed, Maharashtra, India DOI: https://doi.org/10.5281/zenodo.19115493 Corresponding Author: Dr. BS Satpute Abstract For transfinite cardinal number α, using Zorn’s lemma we have given a simple proof which is understandable to undergraduate students, of the result α + α = αα = α, that is, Idempotency for addition and multiplication. Keywords: Idempotency, Zorn’s lemma, Transfinite Cardinal Numbers, addition, multiplication\n\nIntroduction Let A and B be any two nonempty sets. A relation ρ from A to B is defined as a subset of A x B. Thus ρ is a relation from A to B if and only if (abbreviated by iff) ρ ⊆ A x B. In particular subset ρ of A x A is called a relation (or a binary relation) on A. We denote xρy for (x, y) ∈ ρ.\n\nTheorem Let ~ be an equivalence relation in a nonempty set X and a and b be arbitrary elements in X. Then • a ∈ [a](ii) b ∈ [a] iff [a] = [b] iff a ~b. • Any two equivalence classes are either disjoint or identical.\n\nA binary relation ρ on a set A is said to be • Reflexive if (a, a) ∈ ρ  a ∈ A. • Symmetric if (a, b) ∈ ρ ⇒ (b, a) ∈ ρ. • Anti-symmetric if (a, b) ∈ ρ and (b, a) ∈ ρ ⇒ a = b. • Transitive if (a, b) ∈ ρ and (b, c) ∈ ρ ⇒ (a, c) ∈ ρ.\n\nTheorem Fundamental Theorem on Equivalence Relation: An equivalence relation ~ on a set X partitions the set X and conversely every partition of X induces an equivalence relation on X.\n\nA relation ρ on a set A is called an equivalence relation on A if it is simultaneously reflexive, symmetric and transitive on A. An equivalence relation on a set is usually denoted by ~ (wiggle or tilde). Let ~ be an equivalence relation of a set X and let a ∈ X. The equivalence class of a, denoted by [a] or is defined as [a] = {x ∈ X | x ~a} = the set of those elements of X which related to a under ~. Let X be a nonempty set. A collection of nonempty mutually disjoint subsets of X whose union is X is called a partition of the set X.\n\nAlternative statement: The distinct equivalence classes of an equivalence relation on X provides us with a decomposition of X as a union of mutually disjoint subsets. Conversely, given a decomposition of X as a union of mutually disjoint, nonempty subsets, we can define an equivalence relation on X for which these subsets are the distinct equivalence classes. A binary relation ρ on a set X is called a partial order relation if it is reflexive, anti-symmetric and transitive. Generally partial order relation is denoted by ≤ and a set with partial order elation is termed a partial ordered set (poset).\n\nhttps://researchtrendsjournal.com\n\n53"
+  }
+ ],
+ "reference": {
+  "checkedPages": [],
+  "confidence": "low",
+  "extractorAgreement": {
+   "1": 1.0
+  },
+  "method": "Draft from the text layer as recovered by two black-box extractors (poppler pdftotext reading-order mode; MuPDF via its Python binding), compared with each other and, for Latin text, with tesseract OCR of the rendered page; block order and completeness checked against the page image; characters are the text layer, not re-read from pixels.",
+  "notes": "Equation content is in extractor order; only the prose and the sequence of displayed formulas were checked. Not yet reviewed against the page image (only compared across extractors): treat as a draft."
+ },
+ "schema": 1,
+ "scoredPages": [
+  0
+ ],
+ "source": {
+  "attribution": "Dr. BS Satpute: Idempotency of Transfinite Cardinal Numbers (Zenodo, doi:10.5281/zenodo.19115493), CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/); unmodified",
+  "license": "CC-BY-4.0",
+  "source_url": "https://zenodo.org/records/19115493",
+  "upstream_ref": "doi:10.5281/zenodo.19115493; file 4-2-17.1.pdf"
+ }
+}

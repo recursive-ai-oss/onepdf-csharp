@@ -1,0 +1,32 @@
+{
+ "category": "slides",
+ "generator": "real-world file; reference text built as described in reference.method",
+ "name": "slides-03-zen8018074",
+ "pageCount": 7,
+ "pages": [
+  {
+   "text": "European and Global interactions • European level: • TGML participation; central marine litter data management role at EU level • Global level: Keeping active contacts and fruitful interactions with the international/global relevant stakeholders/initiatives : • IMDOS paper and community (Oceanobs conference ‘19 and paper) • Global Partnership on Plastic Pollution and Marine Litter (https://www.gpmarinelitter.org/ ; MoU, CoPs,...) • Ministry Of Environment Japan - G20 microlitter data management prototype (invited as experts) • IODE- OBPS (https://www.oceanbestpractices.org/ ; sharing guidelines and best practices)"
+  }
+ ],
+ "reference": {
+  "checkedPages": [
+   2
+  ],
+  "confidence": "high",
+  "extractorAgreement": {
+   "3": 1.0
+  },
+  "method": "Draft from the text layer as recovered by two black-box extractors (poppler pdftotext reading-order mode; MuPDF via its Python binding), compared with each other and, for Latin text, with tesseract OCR of the rendered page; block order and completeness checked against the page image; characters are the text layer, not re-read from pixels.",
+  "notes": "Text of the scored slides in visual order, title first."
+ },
+ "schema": 1,
+ "scoredPages": [
+  2
+ ],
+ "source": {
+  "attribution": "Matteo Vinci, Maria Eugenia Molina Jack: introduction of the webinar \"Presenting Euroqcharm project outcomes to foster gl (Zenodo, doi:10.5281/zenodo.8018074), CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/); unmodified",
+  "license": "CC-BY-4.0",
+  "source_url": "https://zenodo.org/records/8018074",
+  "upstream_ref": "doi:10.5281/zenodo.8018074; file EQC_T3.4_webinar_intro.pdf"
+ }
+}

@@ -1,0 +1,32 @@
+{
+ "category": "scanned-ocr",
+ "generator": "real-world file; reference text built as described in reference.method",
+ "name": "scanned-ocr-05-gov294599",
+ "pageCount": 2,
+ "pages": [
+  {
+   "text": "National Aeronautics and Space Administration\n\nOffice of the Administrator Washington, DC 20546-0001\n\nMarch 27, 2006\n\nTO:\n\nAssociate Administrator for Science blission Directorate Director, 3et Propulsion Laboratory\n\nFROM :\n\nAssociate ~dministrator\n\nSUBJECT :\n\nDAWN Cancellation Reclama\n\nIn October 2005, the Science Mi~sionDirectorate (SMD) initiated an independent assessment and attendant \"stand down\" of the DAWN project i n l i g h t of technical and programmatic problems and associated cost overruns. The Independent Assessment Team ( IAT) briefed its &indings to the SMD Program Management Council. (PMC) on January 27, 2006. Subsequently, SMD made the decision to cancel the DAWN mission on March 2, 2006. On March 6 , t h e Jet Propulsion Laboratory ( J P L ) appealed the cancellation decision and requested a review through the Office of t h e Administrator. Such appeals are invited and expected in cases where there are serious and unresolved differences of opinion between the institutional and programmatic chains-of-command. The undersigned convened and chaired a review panel comprised of the Chief Engineer, the Chief of Safety and Mission A s s u r q c e , and the Assistant Administrator for Program Analysis and Evaluation. The panel met on March 2 3 , 2 0 0 6 , to review the decision process, the IAT findings, and JPL's response to t h e IAT findings. The decision review panel did not evaluate the scientific merit of the mission.\n\nFollowing are the technical and management findings:\n\nThe most significant technical concerns ( e . g . , composite fuel tank qualification, ion propulsion power unit test f a i l u r e s , and spacecraft structural design margins) have been resolved or a credible resolution path exists. Project management and contractor oversight have been strengthened through a combination of personnel and process changes. The projected cost overrun is in the range of 15 to 20\n\npercent. Cost uncertainty has been reduced through resolution of technical concerns, management improvements, and detailed assessments by the IAT."
+  }
+ ],
+ "reference": {
+  "checkedPages": [
+   0
+  ],
+  "confidence": "medium",
+  "extractorAgreement": {
+   "1": 0.86
+  },
+  "method": "Draft from the text layer as recovered by two black-box extractors (poppler pdftotext reading-order mode; MuPDF via its Python binding), compared with each other and, for Latin text, with tesseract OCR of the rendered page; block order and completeness checked against the page image; characters are the text layer, not re-read from pixels. For scanned pages the reference is the embedded OCR layer, with its recognition errors; it measures extraction, not OCR.",
+  "notes": "Reference is the embedded OCR layer including its recognition errors."
+ },
+ "schema": 1,
+ "scoredPages": [
+  0
+ ],
+ "source": {
+  "attribution": "Work of the United States government (17 U.S.C. 105); original URL in source_url; unmodified",
+  "license": "US-Government-Work",
+  "source_url": "http://www.nasa.gov/pdf/145511main_Dawn_letter.pdf",
+  "upstream_ref": "GovDocs1 (digitalcorpora.org), crawled 2009"
+ }
+}

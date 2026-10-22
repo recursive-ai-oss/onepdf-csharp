@@ -1,0 +1,32 @@
+{
+ "category": "slides",
+ "generator": "real-world file; reference text built as described in reference.method",
+ "name": "slides-02-zen3968879",
+ "pageCount": 40,
+ "pages": [
+  {
+   "text": "What is REST API ”REST is acronym for REpresentational State Transfer. It is architectural style for distributed hypermedia systems and was first presented by Roy Fielding in 2000 in his famous dissertation.” --https://restfulapi.net/ ● ● ● ● ● ● ●\n\nGuiding Principles of REST Client–server Stateless Cacheable Uniform interface Layered system Code on demand (optional)\n\nCopyright 2020 SchedMD www.schedmd.com"
+  }
+ ],
+ "reference": {
+  "checkedPages": [
+   2
+  ],
+  "confidence": "high",
+  "extractorAgreement": {
+   "3": 1.0
+  },
+  "method": "Draft from the text layer as recovered by two black-box extractors (poppler pdftotext reading-order mode; MuPDF via its Python binding), compared with each other and, for Latin text, with tesseract OCR of the rendered page; block order and completeness checked against the page image; characters are the text layer, not re-read from pixels.",
+  "notes": "Text of the scored slides in visual order, title first."
+ },
+ "schema": 1,
+ "scoredPages": [
+  2
+ ],
+ "source": {
+  "attribution": "Rini, Nathan: Slurm REST API (Zenodo, doi:10.5281/zenodo.3968879), CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/); unmodified",
+  "license": "CC-BY-4.0",
+  "source_url": "https://zenodo.org/records/3968879",
+  "upstream_ref": "doi:10.5281/zenodo.3968879; file SchedMD-Rest-API.pdf"
+ }
+}

@@ -1,0 +1,32 @@
+{
+ "category": "old",
+ "generator": "real-world file; reference text built as described in reference.method",
+ "name": "old-01-gov672541",
+ "pageCount": 16,
+ "pages": [
+  {
+   "text": "Proposed Final Package Insert, 11/3/98 Page 3 48\n\nGeneral\n\n49\n\nFollowing oral administration, peak concentrations (Cmax) of telmisartan are reached in\n\n50\n\n0.5-1 hour after dosing. Food slightly reduces the bioavailability of telmisartan, with a\n\n51\n\nreduction in the area under the plasma concentration-time curve (AUC) of about 6% with\n\n52\n\nthe 40 mg tablet and about 20% after a 160 mg dose The absolute bioavailability of\n\n53\n\ntelmisartan is dose dependent. At 40 and 160 mg the bioavailability was 42% and 58%,\n\n54\n\nrespectively. The pharmacokinetics of orally administered telmisartan are nonlinear over\n\n55\n\nthe dose range 20-160 mg, with greater than proportional increases of plasma\n\n56\n\nconcentrations (Cmax and AUC) with increasing doses. Telmisartan shows bi-exponential\n\n57\n\ndecay kinetics with a terminal elimination half life of approximately 24 hours. Trough\n\n58\n\nplasma concentrations of telmisartan with once daily dosing are about 10-25% of peak\n\n59\n\nplasma concentrations. Telmisartan has an accumulation index in plasma of 1.5 to 2.0\n\n60\n\nupon repeated once daily dosing.\n\n61\n\nMetabolism and Elimination\n\n62\n\nFollowing either intravenous or oral administration of 14C-labeled telmisartan, most of the\n\n63\n\nadministered dose (>97%) was eliminated unchanged in feces via biliary excretion; only\n\n64\n\nminute amounts were found in the urine (0.91% and 0.49% of total radioactivity,\n\n65\n\nrespectively).\n\n66\n\nTelmisartan is metabolized by conjugation to form a pharmacologically inactive\n\n67\n\nacylglucuronide; the glucuronide of the parent compound is the only metabolite that has\n\n68\n\nbeen identified in human plasma and urine. After a single dose, the glucuronide represents\n\n69\n\napproximately 11% of the measured radioactivity in plasma. The cytochrome P450\n\n70\n\nisoenzymes are not involved in the metabolism of telmisartan.\n\n71\n\nTotal plasma clearance of telmisartan is >800 mL/min. Terminal half-life and total\n\n72\n\nclearance appear to be independent of dose.\n\n73\n\nDistribution\n\nmicard.doc 11/12/98"
+  }
+ ],
+ "reference": {
+  "checkedPages": [
+   2
+  ],
+  "confidence": "high",
+  "extractorAgreement": {
+   "3": 1.0
+  },
+  "method": "Draft from the text layer as recovered by two black-box extractors (poppler pdftotext reading-order mode; MuPDF via its Python binding), compared with each other and, for Latin text, with tesseract OCR of the rendered page; block order and completeness checked against the page image; characters are the text layer, not re-read from pixels.",
+  "notes": ""
+ },
+ "schema": 1,
+ "scoredPages": [
+  2
+ ],
+ "source": {
+  "attribution": "Work of the United States government (17 U.S.C. 105); original URL in source_url; unmodified",
+  "license": "US-Government-Work",
+  "source_url": "http://www.fda.gov/cder/foi/label/1998/20850lbl.pdf",
+  "upstream_ref": "GovDocs1 (digitalcorpora.org), crawled 2009"
+ }
+}

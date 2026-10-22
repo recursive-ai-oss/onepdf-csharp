@@ -1,0 +1,35 @@
+{
+ "category": "slides",
+ "generator": "real-world file; reference text built as described in reference.method",
+ "name": "slides-06-zen20570748",
+ "pageCount": 20,
+ "pages": [
+  {
+   "text": "The meaning of Legacy\n\n[Wikipedia]\n\n• „Legacy code is source code that relates to a nolonger supported or manufactured operating system „Forgotte or other computer technology“ n Lore“: CP/M, Be O\n\nS etc.\n\n• “Old application programs are considered “legacy” which continue to be used because the user does „Never ch a nge not want to replace or redesign them.” working\n\nc ode“ – we don‘t why it works…\n\n• “Legacy software often differs from its suggested alternative by actually working and scaling, making „It does th the term not pejorative at all.” e job“"
+  },
+  {
+   "text": "FOSS GIS Legacy Several FOSS GIS projects have been in existence for a very long time, giving them “legacy”: – UMN Mapserver – GRASS GIS, – both are community-controlled projects.\n\nGRASS User Map"
+  }
+ ],
+ "reference": {
+  "checkedPages": [],
+  "confidence": "low",
+  "extractorAgreement": {
+   "3": 0.863,
+   "4": 1.0
+  },
+  "method": "Draft from the text layer as recovered by two black-box extractors (poppler pdftotext reading-order mode; MuPDF via its Python binding), compared with each other and, for Latin text, with tesseract OCR of the rendered page; block order and completeness checked against the page image; characters are the text layer, not re-read from pixels.",
+  "notes": "Text of the scored slides in visual order, title first. Not yet reviewed against the page image (only compared across extractors): treat as a draft."
+ },
+ "schema": 1,
+ "scoredPages": [
+  2,
+  3
+ ],
+ "source": {
+  "attribution": "Löwe, Peter: Coming of Age: The positive Legacy of FOSS GIS (Zenodo, doi:10.5281/zenodo.20570748), CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/); unmodified",
+  "license": "CC-BY-4.0",
+  "source_url": "https://zenodo.org/records/20570748",
+  "upstream_ref": "doi:10.5281/zenodo.20570748; file Geoinformatics_2008_Loewe_Coming of Age -The postive legacy of FOSS GIS.pdf"
+ }
+}

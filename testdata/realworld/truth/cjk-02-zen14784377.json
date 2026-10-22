@@ -1,0 +1,32 @@
+{
+ "category": "cjk",
+ "generator": "real-world file; reference text built as described in reference.method",
+ "name": "cjk-02-zen14784377",
+ "pageCount": 14,
+ "pages": [
+  {
+   "text": "周艳梅 张乐 朱天行：泰国来华留学研究生全过程培养质量调查研究\n\n为真实把握泰国来华留学研究生的全过程培养情况，分析泰国来华留学研究生的培养体 系，找到泰国来华留学生培养质量提升的有效途径，项目组对在全国高校就读或已毕业的泰 国来华留学研究生中展开了“泰国来华留学研究生全过程培养质量研究”的调查问卷。问卷 共 25 道大题，32 个小题。1-24 题为封闭式问卷题：1-7 题调查学生的性别、就读学校、所 在学科、授课语言、学位层次、入学年份、经费来源等基本信息；8-24 题调查学生的学习动 机和期待值、招生选拔、培养计划、课程教学、科研活动、与导师的互动、语言要求、保障 体系、学生满意度及收获等全过程培养方面的问题。25 题为开放式简答题：找出培养过程 存在的不足并提出改进建议。 项目组以问卷星的形式进行为期二十天的问卷调查，最终收回问卷 105 份。问卷涉及北 京大学、南开大学、四川大学、兰州大学、华南理工大学、广州中医药大学、中南大学、上 海师范大学、哈尔滨师范大学等全国高校 39 所，近 90%的受访者来自 985、211 高校。受访 者中，女生数量是男生的三倍多，在校生是校友的近三倍，硕士研究生是博士研究生的六倍， 中文授课学生占大多数，英文授课仅 3 人参与问卷。受访者专业门类除艺术类未涉及外，其 他门类均有涉及，且国际中文教育专业居多，占受访者总人数的 42.86%。受访者入学年份 至 2011 年起，每年都有涉及，时间跨度十余年（见表 2） 。调查信息涉及不同层次、不同地 域和不同类型的高校和绝大部分学科门类，涵盖不同性别、不同授课语言、不同层次、不同 经费类别、不同入学年份的受访者，既有在校生，也有毕业校友，调查对象的全面性和系统 性，在一定程度上增强了本次数据分析和调查结果的客观性和科学性。 表 2 受访对象的基本情况 类别\n\n占比\n\n类别\n\n人数\n\n占比\n\n性\n\n男\n\n25\n\n23.80%\n\n学校\n\n985、211\n\n94\n\n89.52%\n\n别\n\n女\n\n80\n\n76.19%\n\n层次\n\n双非\n\n11\n\n10.48%\n\n是否\n\n在读\n\n79\n\n75.24%\n\n学生\n\n硕士研究生\n\n90\n\n85.71%\n\n在读\n\n校友\n\n26\n\n24.76%\n\n层次\n\n博士研究生\n\n15\n\n14.29%\n\n43\n\n40.95%\n\n5\n\n4.76%\n\n理学、工学、农学\n\n1\n\n0.95%\n\n2014 年\n\n8\n\n7.62%\n\n经济学、管理学\n\n15\n\n14.29%\n\n2015 年\n\n2\n\n1.90%\n\n汉语国际教育\n\n45\n\n42.86%\n\n2016 年\n\n9\n\n8.57%\n\n艺术学\n\n0\n\n0%\n\n入学\n\n2017 年\n\n6\n\n5.71%\n\n医 学\n\n1\n\n0.95%\n\n年份\n\n2018 年\n\n4\n\n3.80%\n\n中国政府奖学金\n\n52\n\n49.52%\n\n2019 年\n\n3\n\n2.86%\n\n地方政府/高校奖学金\n\n6\n\n5.71%\n\n2020 年\n\n14\n\n13.33%\n\n本国机构资助\n\n1\n\n0.95%\n\n2021 年\n\n12\n\n11.43%\n\n其他奖学金:\n\n41\n\n39.05%\n\n2022 年\n\n16\n\n15.24%\n\n自 费\n\n5\n\n4.76%\n\n2023 年\n\n26\n\n24.76%\n\n文学、历史学、哲 学、法学、教育学 所在 学科\n\n经费 类别\n\n86\n\n人数\n\n2013 年 及以前"
+  }
+ ],
+ "reference": {
+  "checkedPages": [
+   2
+  ],
+  "confidence": "medium",
+  "extractorAgreement": {
+   "3": 0.883
+  },
+  "method": "Draft from the text layer as recovered by two black-box extractors (poppler pdftotext reading-order mode; MuPDF via its Python binding), compared with each other and, for Latin text, with tesseract OCR of the rendered page; block order and completeness checked against the page image; characters are the text layer, not re-read from pixels.",
+  "notes": "Characters from the text layer; vertical sidebars, if any, follow the main text."
+ },
+ "schema": 1,
+ "scoredPages": [
+  2
+ ],
+ "source": {
+  "attribution": "ZHOU, Yanmei, ZHANG, Le, ZHU, Tianxing: 泰国来华留学研究生全过程培养质量调查研究 (Zenodo, doi:10.5281/zenodo.14784377), CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/); unmodified",
+  "license": "CC-BY-4.0",
+  "source_url": "https://zenodo.org/records/14784377",
+  "upstream_ref": "doi:10.5281/zenodo.14784377; file Vol.8-7.pdf"
+ }
+}

@@ -1,0 +1,35 @@
+{
+ "category": "slides",
+ "generator": "real-world file; reference text built as described in reference.method",
+ "name": "slides-07-zen14027747",
+ "pageCount": 15,
+ "pages": [
+  {
+   "text": "HISTORY\n\n• The FDA licensed Merck’s Recombivax HB. • This hepatitis B vaccine was the first human vaccine produced by recombinant DNA methods in 1981.\n\n• In 1986, research resulted in a second generation of genetically engineered (or DNA recombinant hepatitis) B vaccines.\n\nDr. H.K. GARG | ANUJA VYAS"
+  },
+  {
+   "text": "TYPES OF RECOMBINANT VACCINE\n\n• Subunit vaccines: Subunit vaccine are the vaccines that include the purified components of the pathogenic organisms such as protein, peptides and DNA. • Attenuated Recombinant vaccines: These are the genetically modified pathogenic organisms that are made non pathogenic and used as vaccines. • Vector Recombinant vaccines: These are the genetically modified viral vectors that can be used as vaccine against certain pathogens.\n\nDr. H.K. GARG | ANUJA VYAS"
+  }
+ ],
+ "reference": {
+  "checkedPages": [],
+  "confidence": "low",
+  "extractorAgreement": {
+   "3": 1.0,
+   "4": 1.0
+  },
+  "method": "Draft from the text layer as recovered by two black-box extractors (poppler pdftotext reading-order mode; MuPDF via its Python binding), compared with each other and, for Latin text, with tesseract OCR of the rendered page; block order and completeness checked against the page image; characters are the text layer, not re-read from pixels.",
+  "notes": "Text of the scored slides in visual order, title first. Not yet reviewed against the page image (only compared across extractors): treat as a draft."
+ },
+ "schema": 1,
+ "scoredPages": [
+  2,
+  3
+ ],
+ "source": {
+  "attribution": "Garg, HK: Recombinant Vaccines (Zenodo, doi:10.5281/zenodo.14027747), CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/); unmodified",
+  "license": "CC-BY-4.0",
+  "source_url": "https://zenodo.org/records/14027747",
+  "upstream_ref": "doi:10.5281/zenodo.14027747; file 22  Recombinant Vaccines.pdf"
+ }
+}

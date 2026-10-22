@@ -1,0 +1,32 @@
+{
+ "category": "form",
+ "generator": "real-world file; reference text built as described in reference.method",
+ "name": "form-04-gov756951",
+ "pageCount": 2,
+ "pages": [
+  {
+   "text": "CCC-666 (Page 2) (06-02-03) NOTE:\n\nThe following statement is made in accordance with the Privacy Act of 1974 (5 USC 552a) and the Paperwork Reduction Act of 1995 as amended. The authority for requesting the following information is Pub. L. 104-127 and the Commodity Credit Corporation Charter Act, as amended (15 USC 714 b & c) and 7 CFR Part 1421. The information on this form will determine eligibility and the amount of program benefits. Furnishing the requested information is voluntary; however, failure to furnish the correct complete information will result in a determination of ineligibility for program benefits. This information may be provided to other agencies, IRS, Department of Justice, or other State and Federal Law enforcement agencies and in response to a court magistrate or administrative tribunal. The provisions of criminal and civil fraud statutes, including 18 USC 286, 287, 371, 641, 651, 1001; 15 USC 714m; and 31 USC 3729, may be applicable to the information provided. According to the Paperwork Reduction Act of 1995, an agency may not conduct or sponsor, and a person is not required to respond to, a collection of information unless it displays a valid OMB control number. The valid OMB control number for this information collection is 0560-0087. The time required to complete this information collection is estimated to average 15 minutes per response including the time for reviewing instructions searching existing data sources, gathering and maintaining the data needed, and completing and reviewing the collection of information. RETURN THIS COMPLETED FORM TO YOUR COUNTY FSA OFFICE."
+  }
+ ],
+ "reference": {
+  "checkedPages": [
+   1
+  ],
+  "confidence": "medium",
+  "extractorAgreement": {
+   "2": 1.0
+  },
+  "method": "Draft from the text layer as recovered by two black-box extractors (poppler pdftotext reading-order mode; MuPDF via its Python binding), compared with each other and, for Latin text, with tesseract OCR of the rendered page; block order and completeness checked against the page image; characters are the text layer, not re-read from pixels.",
+  "notes": "Static form text only; field values and widgets are not page text."
+ },
+ "schema": 1,
+ "scoredPages": [
+  1
+ ],
+ "source": {
+  "attribution": "Work of the United States government (17 U.S.C. 105); original URL in source_url; unmodified",
+  "license": "US-Government-Work",
+  "source_url": "http://forms.sc.egov.usda.gov/efcommon/eFileServices/Forms/CCC0666_030602V02.pdf",
+  "upstream_ref": "GovDocs1 (digitalcorpora.org), crawled 2009"
+ }
+}

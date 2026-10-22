@@ -1,0 +1,32 @@
+{
+ "category": "rotated",
+ "generator": "real-world file; reference text built as described in reference.method",
+ "name": "rotated-10-gov084529",
+ "pageCount": 24,
+ "pages": [
+  {
+   "text": "TABLE 1. Percentage distribution of the 15 most common types of nonpolio enterovirus isolates reported, by year and rank — United States, 1993–1996\n\nRank 1993 Virus type % 1994 Virus type % 1995 Virus type % 1996 Virus type % 1993–1996 Virus type %\n1 ECHO 30 25.9% Coxsackie B2 16.5% ECHO 9 45.1% Coxsackie B5 31.6% ECHO 9 12.7%\n2 Coxsackie B5 8.5% Coxsackie B3 10.5% ECHO 11 6.8% ECHO 17 10.6% Coxsackie B5 11.5%\n3 Coxsackie A9 7.6% Unknown 10.1% Coxsackie A9 5.7% ECHO 6 9.4% ECHO 30 9.5%\n4 ECHO 7 5.8% ECHO 6 7.0% Coxsackie B2 5.3% Coxsackie A9 8.6% Coxsackie A9 6.6%\n5 Coxsackie B3 4.6% ECHO 30 5.9% Coxsackie B5 4.4% Coxsackie B4 7.7% Coxsackie B2 6.2%\n6 Coxsackie B4 3.8% Entero 71 5.6% ECHO 30 4.4% ECHO 11 4.4% ECHO 6 5.1%\n7 ECHO 25 3.8% Coxsackie A9 4.4% ECHO 7 4.1% ECHO 7 4.4% ECHO 11 4.5%\n8 ECHO 11 3.1% ECHO 11 3.8% Coxsackie B4 3.3% Unknown 3.2% ECHO 7 4.4%\n9 ECHO 6 2.7% ECHO 7 3.3% ECHO 25 1.9% ECHO 22 3.2% Coxsackie B4 4.4%\n10 ECHO 22 1.8% ECHO 9 2.8% Unknown 1.6% ECHO 9 2.4% Coxsackie B3 4.0%\n11 Coxsackie B2 1.8% Coxsackie B4 2.8% ECHO 6 1.2% ECHO 30 1.8% Unknown 3.8%\n12 Entero 71 0.7% ECHO 25 2.8% ECHO 22 1.1% ECHO 25 1.5% ECHO 17 2.7%\n13 ECHO 9 0.7% ECHO 22 2.8% Entero 71 0.6% Entero 71 1.5% ECHO 25 2.5%\n14 Unknown 0.1% Coxsackie B5 1.5% Coxsackie B3 0.4% Coxsackie B2 1.2% ECHO 22 2.2%\n15 ECHO 17 0.1% ECHO 17 0 ECHO 17 0 Coxsackie B3 0.3% Entero 71 2.1%\nTotal number of isolates 1357 612 901 339 3209\n\nVol. 46 / No. 32\n\nNonpolio Enterovirus Surveillance — Continued\n\nMMWR\n\n749"
+  }
+ ],
+ "reference": {
+  "checkedPages": [
+   8
+  ],
+  "confidence": "medium",
+  "extractorAgreement": {
+   "9": 1.0
+  },
+  "method": "Draft from the text layer as recovered by two black-box extractors (poppler pdftotext reading-order mode; MuPDF via its Python binding), compared with each other and, for Latin text, with tesseract OCR of the rendered page; block order and completeness checked against the page image; characters are the text layer, not re-read from pixels.",
+  "notes": "Page chosen because it is rotated (page /Rotate or text running sideways); reading order is as displayed."
+ },
+ "schema": 1,
+ "scoredPages": [
+  8
+ ],
+ "source": {
+  "attribution": "Work of the United States government (17 U.S.C. 105); original URL in source_url; unmodified",
+  "license": "US-Government-Work",
+  "source_url": "http://ftp.cdc.gov/pub/Publications/mmwr/wk/mm4632.pdf",
+  "upstream_ref": "GovDocs1 (digitalcorpora.org), crawled 2009"
+ }
+}

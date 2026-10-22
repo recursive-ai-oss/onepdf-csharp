@@ -1,0 +1,32 @@
+{
+ "category": "table",
+ "generator": "real-world file; reference text built as described in reference.method",
+ "name": "table-06-gov126409",
+ "pageCount": 6,
+ "pages": [
+  {
+   "text": "Filly Yrlng Rd Rn str, 2hs, lfs 2001 2123 SY\n\nBURNT TIMBER RIDGE\n42 Conquistador Stallion Dun str, snp, leg strps, dark head, high blk Split/Midhk 90 7000 BT\nMare Blk str,strp,snp, 2rsk, 2lc Right/Pastern 86 8605 BT\nStud Foal Dun blz 2002 2221 BT\nMare Blk solid 99 9918 BT\nMare Blk str,snp,2hst, rfc,lfp Right/Pastern 97 9728 BT\n\n35 Coronado Stallion Rd Rn str, disconnected, snp, (brkn blz), rhs Right/Hocks 96 9602 BT\nMare Bl Rn solid, dark coat, scarring on lft. hip Right/Pastern 93 9319 SY\nStud Foal Bay Rn solid, sm hernia 2002 2223 SY\n\n45 Star Stallion Bay str, rich bay color,lhc Left/Midhk 91 9109 BT\nMare Blk faint str Right/Hocks 96 9622 BT\nFilly Foal Bay solid 2002 2203 BT\n\n21 Flash Stallion Srl Sab wide blz, 4stk, white on belly, Pinto Right/Pastern 79 8502 BT\nMare Rd Rn sm str, white on hocks Right/Long 93 9311 BT\n\n29 Lakota Stallion Dk Grla cross,single rt. neck bar, full m&t Left/Pastern 91 9202 BT\nMare Chestnut blz,2hst,lfst Right/Pastern 91 8816 BT\nMare Palomino blz, 2hstk, lfstk Right/Midhk 98 9807 BT\n\n14 Littlefoot Stallion Seal Brn mule nose, solid, wavy m&t chunky Left/Long 94 9207 BT\nMare Grla dot str, cross, lighter coat, faint leg strps Right/Long 86 8707 SY\nFilly Foal Grla solid 2002 2230 BT\nMare Rd Rn str w/ bolt race, white on back Right/Hocks 97 9720 BT\nFilly Foal Brn brkn blz 2002 2207 SY\nFilly Dun str, lhp with lrg ermine marks 2000 2010 BT\n\n20 Looking Glass Stallion Dun str (black high up legs) Left/Pastern 87 8708 BT\nMare Grla solid,2-tone mane, 1 wither bar, leg strps Split/Midhk 90 8604 BT\nStud Foal Dun str, m & t highlights 2002 2225 BT\nFilly Yrlng Grla lrg circle str, mane highlights 2001 2128 BT\nMare Dun blz, lhs 99 9917 SY\nStud Foal Grla lg str, lrg snip (diamonds) 2002 2204 BT\n\n23 Opposite Stallion Blk str, sm snp, rfs, lhs Right/Pastern 89 8704 BT\nMare Seal Brn str, feathers Right/Midhk 92 9100 BT\n\n27 Pierre Stallion Blk sm str w/ light race, 2hc Split/Pastern 89 8908 BT\nMare Bl Rn Lrg diamond str, snp dk head, 2-tone tail Left/Midhk 95 9528 BT\nMare Grla rhp, leg stripes 99 9902 BT\nFilly Foal Bay rhp 2202 2210 BT\n\n25 Raven Stallion Blk str, big snp, 2hs Left/Pastern 88 8812 BT\nMare Grla str, kinky tail Right/Pastern 88 8813 BT\nStud Colt Grla 2hp 2002 2201 BT\nMare Bay str, lhs, rhp Right/Hocks 98 9813 BT\nStud Yrlng Grla-Drk lhp, hernia, (white scar str & snp) 2001 2138 BT"
+  }
+ ],
+ "reference": {
+  "checkedPages": [
+   2
+  ],
+  "confidence": "medium",
+  "extractorAgreement": {
+   "3": 1.0
+  },
+  "method": "Draft from poppler pdftotext -layout (rows kept as lines, cells separated by one space); row order and completeness checked against the page image; characters are the text layer.",
+  "notes": "Reading order is row by row, left to right; wrapped cell lines are separate lines."
+ },
+ "schema": 1,
+ "scoredPages": [
+  2
+ ],
+ "source": {
+  "attribution": "Work of the United States government (17 U.S.C. 105); original URL in source_url; unmodified",
+  "license": "US-Government-Work",
+  "source_url": "http://www.blm.gov/pgdata/etc/medialib/blm/mt/field_offices/billings/horseeas/2003.Par.18015.File.dat/app2.pdf",
+  "upstream_ref": "GovDocs1 (digitalcorpora.org), crawled 2009"
+ }
+}

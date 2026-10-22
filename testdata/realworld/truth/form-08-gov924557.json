@@ -1,0 +1,30 @@
+{
+ "category": "form",
+ "generator": "real-world file; reference text built as described in reference.method",
+ "name": "form-08-gov924557",
+ "pageCount": 4,
+ "pages": [
+  {
+   "text": "Form\n\n2106-EZ\n\nOMB No. 1545-0074\n\nUnreimbursed Employee Business Expenses\n\nDepartment of the Treasury Internal Revenue Service (99)\n\n2008\n\nAttachment Sequence No. 129A\n\n© Attach to Form 1040 or Form 1040NR.\n\nYour name\n\nOccupation in which you incurred expenses\n\nSocial security number\n\nYou May Use This Form Only if All of the Following Apply. ● You are an employee deducting ordinary and necessary expenses attributable to your job. An ordinary expense is one that is common and accepted in your field of trade, business, or profession. A necessary expense is one that is helpful and appropriate for your business. An expense does not have to be required to be considered necessary. ● You do not get reimbursed by your employer for any expenses (amounts your employer included in box 1 of your Form W-2 are not considered reimbursements for this purpose). ● If you are claiming vehicle expense, you are using the standard mileage rate for 2008. Caution: You can use the standard mileage rate for 2008 only if: (a) you owned the vehicle and used the standard mileage rate for the first year you placed the vehicle in service, or (b) you leased the vehicle and used the standard mileage rate for the portion of the lease period after 1997.\n\nPart I 1\n\nFigure Your Expenses\n\nVehicle expense using the standard mileage rate. Complete Part II and then go to line 1a below. a Multiply business miles driven before July 1, 2008, by 50.5¢ (.505)\n\n1a\n\nb Multiply business miles driven after June 30, 2008, by 58.5¢ (.585)\n\n1b 1c\n\nc Add lines 1a and 1b 2\n\n3\n\n4\n\n5\n\n6\n\nParking fees, tolls, and transportation, including train, bus, etc., that did not involve overnight travel or commuting to and from work\n\n2\n\nTravel expense while away from home overnight, including lodging, airplane, car rental, etc. Do not include meals and entertainment\n\n3\n\nBusiness expenses not included on lines 1c through 3. entertainment\n\n4\n\nDo not\n\ninclude meals and\n\nMeals and entertainment expenses: $ × 50% (.50). (Employees subject to Department of Transportation (DOT) hours of service limits: Multiply meal expenses incurred while away from home on business by 80% (.80) instead of 50%. For details, see instructions.)\n\n5\n\nTotal expenses. Add lines 1c through 5. Enter here and on Schedule A (Form 1040), line 21 (or on Schedule A (Form 1040NR, line 9)). (Armed Forces reservists, fee-basis state or local government officials, qualified performing artists, and individuals with disabilities: See the instructions for special rules on where to enter this amount.)\n\n6\n\nPart II\n\nInformation on Your Vehicle. Complete this part only if you are claiming vehicle expense on line 1.\n\n7\n\nWhen did you place your vehicle in service for business use? (month, day, year) ©\n\n8\n\nOf the total number of miles you drove your vehicle during 2008, enter the number of miles you used your vehicle for: a Business\n\nb Commuting (see instructions)\n\n/\n\n/\n\nc Other\n\n9\n\nWas your vehicle available for personal use during off-duty hours?\n\nYes\n\nNo\n\n10\n\nDo you (or your spouse) have another vehicle available for personal use?\n\nYes\n\nNo\n\nYes\n\nNo\n\nYes\n\nNo\n\n11a Do you have evidence to support your deduction? b If “Yes,” is the evidence written? For Paperwork Reduction Act Notice, see page 4.\n\nCat. No. 20604Q\n\nForm 2106-EZ (2008)"
+  }
+ ],
+ "reference": {
+  "checkedPages": [],
+  "confidence": "low",
+  "extractorAgreement": {
+   "1": 0.989
+  },
+  "method": "Draft from the text layer as recovered by two black-box extractors (poppler pdftotext reading-order mode; MuPDF via its Python binding), compared with each other and, for Latin text, with tesseract OCR of the rendered page; block order and completeness checked against the page image; characters are the text layer, not re-read from pixels.",
+  "notes": "Static form text only; field values and widgets are not page text. Not yet reviewed against the page image (only compared across extractors): treat as a draft."
+ },
+ "schema": 1,
+ "scoredPages": [
+  0
+ ],
+ "source": {
+  "attribution": "Work of the United States government (17 U.S.C. 105); original URL in source_url; unmodified",
+  "license": "US-Government-Work",
+  "source_url": "http://www.irs.gov/pub/irs-pdf/f2106ez.pdf",
+  "upstream_ref": "GovDocs1 (digitalcorpora.org), crawled 2009"
+ }
+}

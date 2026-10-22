@@ -1,0 +1,32 @@
+{
+ "category": "scanned-ocr",
+ "generator": "real-world file; reference text built as described in reference.method",
+ "name": "scanned-ocr-06-gov378623",
+ "pageCount": 8,
+ "pages": [
+  {
+   "text": "Emergence Trap 20.5cm\n\n~5cm~\n\n1\n\n1.0m\n\nFIGURE I.-Diagram of emergence trap used in this study.\n\nspecies when possible; numbers of major taxa and groups are presented here for simplicity and comparative purposes. Results\n\nThe zooplankton caught in the traps at Alligator Reef were dominated by copepods. Other taxa and categories that were collected included chaetognaths, nematodes, ostracods, polychaetes, cumaceans, isopods, amphipods, and mysids, as well as numerous others that were less common or frequently caught (Table 1). Many of these groups, such as the harpacticoid copepods, are well known as benthic or near-bottom forms. Others, such as the calanoid copepods, are known as primarily planktonic animals that are sometimes observed close to the bottom or other substrate. Many larval forms of benthic macroinvertebrates were captured, especially settling stages, such as barnacle cyprids and megalopae.\n\n840\n\nComparisons of the total mean numbers of animals caught by each trap type and at each location show that approximately 4 times as many animals were caught by reentry traps as by emergence traps and that about twice as many animals were captured at the 7 m site as at the 20 m site (Table 1). Twelve common groups together accounted for 97.9% of all the animals caught. The results of two-way ANOVAs showed that reentry traps captured significantly more harpacticoid and cydopoid copepods, ostracods, mysids, polychaetes, and nematodes than emergence traps, while the emergence traps captured significantly more calanoid copepods and isopods (Table 2). Significantly more cumaceans, gammarid amphipods, polychaetes, and nematodes were captured at the 20 m site than at the 7 m site, while significantly more calanoid copepods and chaetognaths were captured at the shallower location (Table 2). The two-way ANOVAs showed significant interaction effects between the trap types and sampling locations on the numbers of harpacticoid and"
+  }
+ ],
+ "reference": {
+  "checkedPages": [
+   2
+  ],
+  "confidence": "medium",
+  "extractorAgreement": {
+   "3": 0.928
+  },
+  "method": "Draft from the text layer as recovered by two black-box extractors (poppler pdftotext reading-order mode; MuPDF via its Python binding), compared with each other and, for Latin text, with tesseract OCR of the rendered page; block order and completeness checked against the page image; characters are the text layer, not re-read from pixels. For scanned pages the reference is the embedded OCR layer, with its recognition errors; it measures extraction, not OCR.",
+  "notes": "Reference is the embedded OCR layer including its recognition errors."
+ },
+ "schema": 1,
+ "scoredPages": [
+  2
+ ],
+ "source": {
+  "attribution": "Work of the United States government (17 U.S.C. 105); original URL in source_url; unmodified",
+  "license": "US-Government-Work",
+  "source_url": "http://fishbull.noaa.gov/864/cahoon.pdf",
+  "upstream_ref": "GovDocs1 (digitalcorpora.org), crawled 2009"
+ }
+}

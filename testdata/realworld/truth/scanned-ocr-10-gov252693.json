@@ -1,0 +1,30 @@
+{
+ "category": "scanned-ocr",
+ "generator": "real-world file; reference text built as described in reference.method",
+ "name": "scanned-ocr-10-gov252693",
+ "pageCount": 10,
+ "pages": [
+  {
+   "text": "Special Collections at the National Agricultural Library: Edward Fred Knipling Papers: Screwworm Eradication Program Records Knipling considered his work on insect parasites to be as equally important as SIT. He also believed that when combined with SIT, the parasitoid augmentation technique could be more effective for managing insect populations than either one operating alone. Knipling’s second book, Principles of Insect Parasitism Analyzed from New Perspectives: Practical Implications for Regulating Insect Populations by Biological Means (USDA Agriculture Handbook 693), published in 1992, contains information on the use of parasites for insect control. Knipling served as the director of the Entomology Research Division until 1971, at which time he became the science advisor to George W. Irving, Jr., Administrator of the ARS. Two years later, Knipling retired from the USDA, having served for over 40 years. After retirement, he continued to collaborate with ARS and contribute to the literature of entomology. During this period, he completed about 30 of his more than 200 publications on insects, and many more works that were not published. Knipling remained active in the field of entomology until the weeks prior to his death in March 2000. Throughout his career, Knipling was honored with fellowships and honorary memberships from such organizations as the Entomological Society of America, the National Academy of Sciences, and the American Academy for the Advancement of Science. Knipling was also the recipient of numerous awards and honors, including several honorary doctor of science degrees. These awards include the British King’s Medal for Service in the Cause of Freedom, the Presidential Medal for Merit, the National Medal of Science, an ARS Science Hall of Fame induction, the World Food Prize, and the Japan Prize. In 1988, the U. S. Livestock Insects Laboratory in Kerrville, Texas, which was created in 1946 as the merger of the Dallas, Uvalde, and Menard laboratories, was rededicated in honor of Knipling and Bushland. Special Collections would like to thank Waldemar Klassen for his extensive contributions to this section. Klassen worked closely with Knipling and the USDA’s pest management programs throughout his career. He has served as the National Program Leader for Pest Management (ARS, USDA, 1972-1983), Director of the Beltsville Agricultural Research Center (ARS, USDA, 1983-1988), Associate Deputy Administrator for Plant Sciences and Natural Resources (ARS, USDA, 1988-1990), before moving on to positions within the Joint FAO/IAEA Division for Nuclear Techniques in Food and Agriculture in Vienna, Austria (1990-1994). Klassen currently serves as the director of the Tropical Research and Education Center at the University of Florida. Materials involving Klassen can be found within this collection in Series I, IV, and VI.\n\nhttp://www.nal.usda.gov/speccoll"
+  }
+ ],
+ "reference": {
+  "checkedPages": [],
+  "confidence": "low",
+  "extractorAgreement": {
+   "10": 1.0
+  },
+  "method": "Draft from the text layer as recovered by two black-box extractors (poppler pdftotext reading-order mode; MuPDF via its Python binding), compared with each other and, for Latin text, with tesseract OCR of the rendered page; block order and completeness checked against the page image; characters are the text layer, not re-read from pixels. For scanned pages the reference is the embedded OCR layer, with its recognition errors; it measures extraction, not OCR.",
+  "notes": "Reference is the embedded OCR layer including its recognition errors. Not yet reviewed against the page image (only compared across extractors): treat as a draft."
+ },
+ "schema": 1,
+ "scoredPages": [
+  9
+ ],
+ "source": {
+  "attribution": "Work of the United States government (17 U.S.C. 105); original URL in source_url; unmodified",
+  "license": "US-Government-Work",
+  "source_url": "http://www.nal.usda.gov/speccoll/collectionsguide/knipling/210ExtBio.pdf",
+  "upstream_ref": "GovDocs1 (digitalcorpora.org), crawled 2009"
+ }
+}

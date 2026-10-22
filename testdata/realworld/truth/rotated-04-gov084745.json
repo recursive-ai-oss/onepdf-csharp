@@ -1,0 +1,32 @@
+{
+ "category": "rotated",
+ "generator": "real-world file; reference text built as described in reference.method",
+ "name": "rotated-04-gov084745",
+ "pageCount": 15,
+ "pages": [
+  {
+   "text": "Table. Nelson’s Sharp-tailed Sparrow habitat characteristics. Author(s)\n\nLocation(s)\n\nHabitat(s) Studied*\n\nSpecies-specific Habitat Characteristics\n\nBownan 1904\n\nNorth Dakota\n\nIdle, wetland\n\nInhabited dense clumps of grass near wetlands\n\nBreckenridge and Kilgore 1929\n\nMinnesota\n\nIdle, wetland\n\nNested in vegetation above damp soil on the edge of a 500-ha wetland dominated by moss (Sphagnum) and sedge (Carex)\n\nDhol et al. 1994\n\nManitoba\n\nDense nesting cover (DNC; idle seedednative, idle tame), idle mixed-grass\n\nSingle occurrence in idle mixed-grass; absent from seedednative and tame DNC; mixed-grass grasslands had average vegetation values of 6.8 cm litter depth and 27.5 cm vegetation height; percent cover of dominant plant species were 2.5% slender wheatgrass (Agropyron caninum), 7.3% western wheatgrass (Pascopyrum smithii), 1.7% green needlegrass (Stipa viridula), 21% Kentucky bluegrass (Poa pratensis), 7.9% smooth brome (Bromus inermis), 9.1% Baltic rush (Juncus balticus), and 6.2% sedge (Carex spp.)\n\nFaanes 1981\n\nMinnesota, Wisconsin\n\nCropland, idle, idle tallgrass/tame, shrub carr, tame hayland, tame pasture, wet meadow, wetland, woodland\n\nNested in sedge meadow with mannagrass (Glyceria), bluejoint (Calamagrostis canadensis), and water sedge (Carex aquatilis)\n\nHanowski and Niemi 1986, 1988; Niemi and Hanowski 1983\n\nMinnesota\n\nIdle tallgrass, peatland, shrub carr, wetland\n\nUsed areas with average habitat variables as follows: 9.9% ground cover, 121.9 cm vegetation height, 11.7 cm water depth, 53 cm phanerophyte (shrubs, forbs, or graminoids >40 cm tall and present each year) height, and 130 ha wetland size; mean density measurements were 181.9 stems/m2 graminoids, 17.2 stems/m2 forbs, and 0.06 stems/m2 phanerophytes; coverages of forb species were 76% mint (Lamiaceae), 10% bur-reed (Sparganium spp.), 5% parsley\n\n6"
+  }
+ ],
+ "reference": {
+  "checkedPages": [
+   8
+  ],
+  "confidence": "medium",
+  "extractorAgreement": {
+   "9": 0.953
+  },
+  "method": "Draft from the text layer as recovered by two black-box extractors (poppler pdftotext reading-order mode; MuPDF via its Python binding), compared with each other and, for Latin text, with tesseract OCR of the rendered page; block order and completeness checked against the page image; characters are the text layer, not re-read from pixels.",
+  "notes": "Page chosen because it is rotated (page /Rotate or text running sideways); reading order is as displayed."
+ },
+ "schema": 1,
+ "scoredPages": [
+  8
+ ],
+ "source": {
+  "attribution": "Work of the United States government (17 U.S.C. 105); original URL in source_url; unmodified",
+  "license": "US-Government-Work",
+  "source_url": "http://www.npwrc.usgs.gov/resource/literatr/grasbird/download/nsts.pdf",
+  "upstream_ref": "GovDocs1 (digitalcorpora.org), crawled 2009"
+ }
+}

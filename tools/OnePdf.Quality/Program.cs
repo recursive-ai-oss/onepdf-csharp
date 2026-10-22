@@ -17,7 +17,11 @@ namespace OnePdf.Quality;
 /// </summary>
 internal static class Program
 {
-    private sealed record Truth(string Name, string Category, string[] Pages, string? UserPassword, string? OwnerPassword);
+    /// <summary>Truth for one file. <see cref="Scored"/> (real-world files) lists the zero-based document pages the truth pages belong to; null means pages 0..n-1.</summary>
+    private sealed record Truth(string Name, string Category, string[] Pages, string? UserPassword, string? OwnerPassword, string PdfPath, int[]? Scored)
+    {
+        public int DocPage(int i) => Scored is null ? i : Scored[i];
+    }
 
     private sealed record Column(string Name, Func<string, Truth, string[]>? Extract);
 
@@ -37,15 +41,70 @@ internal static class Program
         string? dir = Opt(args, "--dir");
         string? md = Opt(args, "--md");
         string? json = Opt(args, "--json");
+        string set = Opt(args, "--set") ?? (dir is null ? "generated" : "dir");
         bool perFile = args.Contains("--files");
-        dir ??= FindDir();
-        if (dir is null || !Directory.Exists(Path.Combine(dir, "truth")))
+        List<(string Label, List<Truth> Truths)> sets = [];
+        if (set == "dir")
         {
-            Console.Error.WriteLine("Cannot find testdata/generated; pass --dir.");
-            return 2;
+            sets.Add((dir!, LoadTruth(dir!)));
         }
 
-        List<Truth> truths = LoadTruth(dir);
+        if (set is "generated" or "all")
+        {
+            string? g = FindDir("generated");
+            if (g is null)
+            {
+                Console.Error.WriteLine("Cannot find testdata/generated; pass --dir.");
+                return 2;
+            }
+
+            sets.Add(("generated set", LoadTruth(g)));
+        }
+
+        if (set is "realworld" or "all")
+        {
+            List<Truth> rw = [];
+            string? r = FindDir("realworld");
+            if (r is not null)
+            {
+                rw.AddRange(LoadTruth(r));
+            }
+
+            // Files whose terms do not allow committing live outside the repository; the cache directory has the same pdf/ and truth/ layout.
+            string? cache = Environment.GetEnvironmentVariable("ONEPDF_QUALITY_CACHE");
+            if (!string.IsNullOrEmpty(cache) && Directory.Exists(Path.Combine(cache, "truth")))
+            {
+                rw.AddRange(LoadTruth(cache));
+            }
+
+            if (rw.Count == 0)
+            {
+                Console.Error.WriteLine("Cannot find testdata/realworld; run from the repository.");
+                return 2;
+            }
+
+            sets.Add(("real-world set" + (string.IsNullOrEmpty(cache) ? "" : " (committed + local-only)"), rw));
+        }
+
+        StringBuilder report = new();
+        foreach ((string label, List<Truth> truths) in sets)
+        {
+            report.AppendLine($"=== {label} ===").AppendLine();
+            RunSet(command, truths, perFile, json is null || sets.Count == 1 ? json : Path.ChangeExtension(json, null) + "-" + (label.StartsWith("real", StringComparison.Ordinal) ? "realworld" : "generated") + ".json", report);
+            report.AppendLine();
+        }
+
+        Console.Write(report);
+        if (md is not null)
+        {
+            File.WriteAllText(md, report.ToString());
+        }
+
+        return 0;
+    }
+
+    private static void RunSet(string command, List<Truth> truths, bool perFile, string? json, StringBuilder report)
+    {
         List<Column> columns = [];
         if (command is "all" or "pdfpig")
         {
@@ -61,7 +120,6 @@ internal static class Program
         // Results[column][file] = per-page scores (null = column unavailable)
         Dictionary<string, Dictionary<string, Metrics.Score>> results = [];
         Dictionary<string, List<string>> failures = [];
-        StringBuilder report = new();
         foreach (Column c in columns)
         {
             Dictionary<string, Metrics.Score> perFileScores = [];
@@ -69,7 +127,7 @@ internal static class Program
             bool available = true;
             foreach (Truth t in truths)
             {
-                string pdf = Path.Combine(dir, "pdf", t.Name + ".pdf");
+                string pdf = t.PdfPath;
                 string[] pages;
                 try
                 {
@@ -111,7 +169,7 @@ internal static class Program
         string[] names = [.. columns.Select(c => c.Name).Where(results.ContainsKey)];
         if (names.Length == 0)
         {
-            return 0;
+            return;
         }
 
         Table(report, truths, names, results, perFile);
@@ -127,18 +185,10 @@ internal static class Program
             }
         }
 
-        Console.Write(report);
-        if (md is not null)
-        {
-            File.WriteAllText(md, report.ToString());
-        }
-
         if (json is not null)
         {
             WriteJson(json, truths, names, results);
         }
-
-        return 0;
     }
 
     /// <summary>Checks the scorer on cases whose answers are known.</summary>
@@ -208,11 +258,11 @@ internal static class Program
         return i >= 0 && i + 1 < args.Length ? args[i + 1] : null;
     }
 
-    private static string? FindDir()
+    private static string? FindDir(string set)
     {
         for (DirectoryInfo? d = new(Directory.GetCurrentDirectory()); d is not null; d = d.Parent)
         {
-            string p = Path.Combine(d.FullName, "testdata", "generated");
+            string p = Path.Combine(d.FullName, "testdata", set);
             if (Directory.Exists(Path.Combine(p, "truth")))
             {
                 return p;
@@ -230,7 +280,8 @@ internal static class Program
             using JsonDocument d = JsonDocument.Parse(File.ReadAllText(f));
             JsonElement r = d.RootElement;
             string[] pages = [.. r.GetProperty("pages").EnumerateArray().Select(p => p.GetProperty("text").GetString() ?? "")];
-            if (pages.Length == 0 || !File.Exists(Path.Combine(dir, "pdf", r.GetProperty("name").GetString() + ".pdf")))
+            string pdfPath = Path.Combine(dir, "pdf", r.GetProperty("name").GetString() + ".pdf");
+            if (pages.Length == 0 || !File.Exists(pdfPath))
             {
                 continue; // nothing to score (an unrecoverable repair case)
             }
@@ -242,7 +293,8 @@ internal static class Program
                 owner = pw.TryGetProperty("owner", out JsonElement o) ? o.GetString() : null;
             }
 
-            list.Add(new Truth(r.GetProperty("name").GetString()!, r.GetProperty("category").GetString() ?? "other", pages, user, owner));
+            int[]? scored = r.TryGetProperty("scoredPages", out JsonElement sp) ? [.. sp.EnumerateArray().Select(x => x.GetInt32())] : null;
+            list.Add(new Truth(r.GetProperty("name").GetString()!, r.GetProperty("category").GetString() ?? "other", pages, user, owner, pdfPath, scored));
         }
 
         return list;
@@ -270,7 +322,7 @@ internal static class Program
     private static string[] PdfPigDefault(string path, Truth t)
     {
         using PigDocument doc = OpenPig(path, t);
-        return [.. doc.GetPages().Select(p => p.Text)];
+        return [.. Enumerable.Range(0, t.Pages.Length).Select(i => t.DocPage(i) < doc.NumberOfPages ? doc.GetPage(t.DocPage(i) + 1).Text : "")];
     }
 
     /// <summary>PdfPig's documented layout pipeline: nearest-neighbour words, Docstrum blocks, unsupervised reading order.</summary>
@@ -278,8 +330,15 @@ internal static class Program
     {
         using PigDocument doc = OpenPig(path, t);
         List<string> pages = [];
-        foreach (Page p in doc.GetPages())
+        for (int i = 0; i < t.Pages.Length; i++)
         {
+            if (t.DocPage(i) >= doc.NumberOfPages)
+            {
+                pages.Add("");
+                continue;
+            }
+
+            Page p = doc.GetPage(t.DocPage(i) + 1);
             IEnumerable<Word> words = p.GetWords(NearestNeighbourWordExtractor.Instance);
             var blocks = DocstrumBoundingBoxes.Instance.GetBlocks(words);
             var ordered = UnsupervisedReadingOrderDetector.Instance.Get(blocks);
@@ -298,7 +357,7 @@ internal static class Program
             throw new NotSupportedException();
         }
 
-        return [.. ex.ExtractDocument().Select(p => p.Text)];
+        return [.. Enumerable.Range(0, t.Pages.Length).Select(i => t.DocPage(i) < doc.Pages.Count ? ex.ExtractPage(t.DocPage(i)).Text : "")];
     }
 
     // ---- report -------------------------------------------------------------------------------------------------------------------

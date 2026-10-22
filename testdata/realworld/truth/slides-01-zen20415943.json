@@ -1,0 +1,32 @@
+{
+ "category": "slides",
+ "generator": "real-world file; reference text built as described in reference.method",
+ "name": "slides-01-zen20415943",
+ "pageCount": 14,
+ "pages": [
+  {
+   "text": "Editorial Universitaria y Ciencia Abierta • Transformación de procesos y procedimientos para la adopción de la Ciencia Abierta .\n\n• Cambio conceptual de la publicación académica-científica.\n\n• De producto a servicio de calidad, visible, veraz, reconocible, transparente y legal.\n\n• Necesidad de revisión y modificación de normativas, reglamentos y derechos."
+  }
+ ],
+ "reference": {
+  "checkedPages": [
+   3
+  ],
+  "confidence": "high",
+  "extractorAgreement": {
+   "4": 1.0
+  },
+  "method": "Draft from the text layer as recovered by two black-box extractors (poppler pdftotext reading-order mode; MuPDF via its Python binding), compared with each other and, for Latin text, with tesseract OCR of the rendered page; block order and completeness checked against the page image; characters are the text layer, not re-read from pixels.",
+  "notes": "Text of the scored slides in visual order, title first."
+ },
+ "schema": 1,
+ "scoredPages": [
+  3
+ ],
+ "source": {
+  "attribution": "López Carreño, Rosana: Editorial universitaria: modelo integral de gestión editorial institucional (Zenodo, doi:10.5281/zenodo.20415943), CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/); unmodified",
+  "license": "CC-BY-4.0",
+  "source_url": "https://zenodo.org/records/20415943",
+  "upstream_ref": "doi:10.5281/zenodo.20415943; file Rosana-mesa-gestioin-revistas.pdf"
+ }
+}

@@ -1,0 +1,32 @@
+{
+ "category": "rotated",
+ "generator": "real-world file; reference text built as described in reference.method",
+ "name": "rotated-03-gov084449",
+ "pageCount": 15,
+ "pages": [
+  {
+   "text": "Item D-2(a) JUNE 2006\n\nAppendix 2: Habitat Areas of Particular Concern (HAPC) previous 2004 proposals for the Bering Sea. 1. Zhemchug Canyon and Pinnacles and Pribilof Canyon are located in the Bering Sea. The immense deepwater canyons and pinnacles are part of the Bering Sea continental shelf edge which is known to be areas of high biodiversity and productivity. The concentration of primary and secondary producers in this region attracts large numbers of fish, squid, marine mammals and birds. These canyons and pinnacles are possible sources of dispersal and export for surrounding systems and require protection as HAPC for the benefit of future research, fisheries health, and the conservation of several sensitive species including long-lived and slow-reproducing fish such as rougheye and shortraker rockfish, rare marine mammals such as the harbor seal, and rare seabirds such as the short-tailed albatross. 2. Areas of Soft corals- Dense aggregations of Gersemia. The EBS has aggregations of Gersemia sp., also known as sea raspberries. This species are examples of a myriad of sea vegetables that may provide essential habitat for many EFH species including rockfish, Pacific Ocean perch, walleye pollock, flatfish, Atka mackerel, golden king crab, shrimp, Pacific cod, pollock, : yellowfin sole, arrowtooth flounder flathead sole, rex sole, greenling, Greenland turbot, and sablefish. These species are short lived and soft in structure. The HAPC proposal process occurs on a three year cycle when the Council may wish to set priorities and call for proposals. Future focuses for HAPC designation may stem from current research efforts. HAPC designation does not require any management measures attached.\n\nS:\\4cathy\\BS_Hab_cons\\D2(a)BS_habc.doc\n\n5/19/2006\n\n12"
+  }
+ ],
+ "reference": {
+  "checkedPages": [
+   11
+  ],
+  "confidence": "medium",
+  "extractorAgreement": {
+   "12": 1.0
+  },
+  "method": "Draft from the text layer as recovered by two black-box extractors (poppler pdftotext reading-order mode; MuPDF via its Python binding), compared with each other and, for Latin text, with tesseract OCR of the rendered page; block order and completeness checked against the page image; characters are the text layer, not re-read from pixels.",
+  "notes": "Page chosen because it is rotated (page /Rotate or text running sideways); reading order is as displayed."
+ },
+ "schema": 1,
+ "scoredPages": [
+  11
+ ],
+ "source": {
+  "attribution": "Work of the United States government (17 U.S.C. 105); original URL in source_url; unmodified",
+  "license": "US-Government-Work",
+  "source_url": "http://www.fakr.noaa.gov/npfmc/current_issues/BSHC/BSHC_background.pdf",
+  "upstream_ref": "GovDocs1 (digitalcorpora.org), crawled 2009"
+ }
+}

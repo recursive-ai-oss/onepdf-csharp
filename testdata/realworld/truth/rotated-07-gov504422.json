@@ -1,0 +1,32 @@
+{
+ "category": "rotated",
+ "generator": "real-world file; reference text built as described in reference.method",
+ "name": "rotated-07-gov504422",
+ "pageCount": 6,
+ "pages": [
+  {
+   "text": "Signes cliniques des fièvres hémorragiques virales\n\nMaladie Période d’incubation Taux de Signes caractéristiques\nen jours létalité\n\n• Parmi les FHV, celle où les hémorragies et les ecchymoses sont les plus sévères.\nFièvre hémorragique de 3 à 12 15 à 30%\nCrimée-Congo\n\n• Les plus graves des FHV\nFièvre hémorragique à virus 3 à 16 25 à 90%\nEbola et maladie de Marburg • Perte de poids\n• Fatigue et faiblesse intenses\n• Éruption maculopapulaire fréquente\n• Complications post-infectieuses possibles : hépatite, uvéite et orchite\n• Fatigue et faiblesse intenses\nFièvre de Lassa 5 à 16 environ 15%\n• Choc\n• Surdité survenant en période de convalescence dans 20% des cas\n147\n• Choc\nFièvre de la vallée du Rift 2à5 50% des cas\ngraves (environ • Saignements\n1,5% de tous • Oligo-anurie\nles cas)\n• Ictère\n• Encéphalite\n• Inflammation des vaisseaux de la rétine\n• Phase aiguë fébrile suivie d’une courte phase de rémission.\nFièvre jaune 3à6 20%\n• Après la rémission, phase toxique avec jaunisse et insuffisance rénale dans les cas\ngraves."
+  }
+ ],
+ "reference": {
+  "checkedPages": [
+   2
+  ],
+  "confidence": "medium",
+  "extractorAgreement": {
+   "3": 0.914
+  },
+  "method": "Draft from the text layer as recovered by two black-box extractors (poppler pdftotext reading-order mode; MuPDF via its Python binding), compared with each other and, for Latin text, with tesseract OCR of the rendered page; block order and completeness checked against the page image; characters are the text layer, not re-read from pixels.",
+  "notes": "Page chosen because it is rotated (page /Rotate or text running sideways); reading order is as displayed."
+ },
+ "schema": 1,
+ "scoredPages": [
+  2
+ ],
+ "source": {
+  "attribution": "Work of the United States government (17 U.S.C. 105); original URL in source_url; unmodified",
+  "license": "US-Government-Work",
+  "source_url": "http://www.cdc.gov/ncidod/dvrd/spb/mnpages/vhfmanual/vhfmanualfr/annexe2.pdf",
+  "upstream_ref": "GovDocs1 (digitalcorpora.org), crawled 2009"
+ }
+}

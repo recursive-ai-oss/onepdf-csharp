@@ -1,0 +1,32 @@
+{
+ "category": "form",
+ "generator": "real-world file; reference text built as described in reference.method",
+ "name": "form-01-gov336501",
+ "pageCount": 2,
+ "pages": [
+  {
+   "text": "CHECK EACH ITEM\n\n11. FEMALES ONLY DATE OF LAST PAP SMEAR\n\nDON'T DATE OF LAST MENSTRUAL YES NO KNOW PERIOD\n\nDATE OF LAST MAMMOGRAM\n\nTreated for female disorder Change in menstrual pattern CHECK EACH ITEM. IF \"YES\" EXPLAIN IN BLANK SPACE TO RIGHT. LIST EXPLANATION BY ITEM NUMBER. ITEM YES NO 12. Have you been refused employment or been unable to hold a job or stay in school because of.\n\na. Sensitivity to chemicals, dust, sunlight, etc. b. Inability to perform certain motions. c. Inability to assume certain positions. d. Other medical reasons (If yes, give reasons.) 13. Have you ever been treated for a mental condition? (If yes, specify when, where, and give details.)\n\n14. Have you ever been denied life insurance? (If yes, state reason and give details.)\n\n15. Have you had, or have you been advised to have, any operation? (If yes, describe and give age at which occurred.)\n\n16. Have you ever been a patient in any type of hospital? (If yes, specify when, where, why, and name of doctor and complete address of hospital.) 17. Have you consulted or been treated by clinics, physicians, healers, or other practitioners within the past 5 years for other than minor illnesses? (If yes, give complete address of doctor, hospital, clinic, and details.) 18. Have you ever been rejected for military service because of physical, mental or other reasons? (If yes, give date and reason for rejection.) 19. Have you ever been discharged from military service because of physical, mental, or other reasons? (If yes, give date, reason, and type of discharge; whether honorable, other than honorable, for unfitness or unsuitability.)\n\n20. Have you ever received, is there pending, or have you applied for pension or compensation for existing disability? (If yes, specify what kind, granted by whom, and what amount, when, why.) 21. Have you ever been arrested or convicted of a crime, other than minor traffic violations. (If yes, provide details.)\n\n22. Have you ever been diagnosed with a learning disability? (If yes, give type, where, and how diagnosed.)\n\n23. LIST ALL IMMUNIZATIONS RECEIVED\n\nI certify that I have reviewed the foregoing information supplied by me and that it is true and complete to the best of my knowledge. I authorize any of the doctors, hospitals, or clinics mentioned above to furnish the Government a complete transcript of my medical record for purposes of processing my application for this employment or service. I understand that falsification of information on Government forms is punishable by fine and/or imprisonment.\n\n24a. TYPED OR PRINTED NAME OF EXAMINEE\n\n24b. SIGNATURE\n\n24c. DATE\n\nNOTE: HAND TO THE DOCTOR OR NURSE, OR IF MAILED MARK ENVELOPE \"TO BE OPENED BY MEDICAL OFFICER ONLY\". 25. PHYSICIAN'S SUMMARY AND ELABORATION OF ALL PERTINENT DATA (Physician shall comment on all positive answers in Items 7 through 11. Physician may develop by interview any additional medical history deemed important, and record any significant findings here.)\n\n26a. TYPED OR PRINTED NAME OF PHYSICIAN OR EXAMINER\n\n26b. SIGNATURE\n\n26c. DATE\n\nSTANDARD FORM 93 (REV. 6-96) BACK"
+  }
+ ],
+ "reference": {
+  "checkedPages": [
+   1
+  ],
+  "confidence": "medium",
+  "extractorAgreement": {
+   "2": 0.996
+  },
+  "method": "Draft from the text layer as recovered by two black-box extractors (poppler pdftotext reading-order mode; MuPDF via its Python binding), compared with each other and, for Latin text, with tesseract OCR of the rendered page; block order and completeness checked against the page image; characters are the text layer, not re-read from pixels.",
+  "notes": "Static form text only; field values and widgets are not page text."
+ },
+ "schema": 1,
+ "scoredPages": [
+  1
+ ],
+ "source": {
+  "attribution": "Work of the United States government (17 U.S.C. 105); original URL in source_url; unmodified",
+  "license": "US-Government-Work",
+  "source_url": "http://forms.cit.nih.gov/adobe/personnel/SF93.PDF",
+  "upstream_ref": "GovDocs1 (digitalcorpora.org), crawled 2009"
+ }
+}
