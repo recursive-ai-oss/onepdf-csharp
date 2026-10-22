@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Text;
 using OnePdf;
 using OnePdf.Fonts;
@@ -57,5 +58,32 @@ if (page.Rotate != 90 || page.MediaBox.Width != 200 || page.Label != "i"
     return 1;
 }
 
+// Fonts: resolve a Standard 14 font and a predefined-CMap CID font, decode strings (metrics, Unicode, CMaps under trimming).
+string fontPdf =
+    "%PDF-1.4\n1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n" +
+    "2 0 obj\n<< /Type /Pages /Kids [3 0 R] /Count 1 /MediaBox [0 0 10 10] >>\nendobj\n" +
+    "3 0 obj\n<< /Type /Page /Parent 2 0 R >>\nendobj\n" +
+    "4 0 obj\n<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>\nendobj\n" +
+    "5 0 obj\n<< /Type /Font /Subtype /Type0 /BaseFont /X /Encoding /90ms-RKSJ-H /DescendantFonts [6 0 R] >>\nendobj\n" +
+    "6 0 obj\n<< /Type /Font /Subtype /CIDFontType0 /BaseFont /X /CIDSystemInfo << /Registry (Adobe) /Ordering (Japan1) /Supplement 2 >> >>\nendobj\n" +
+    "trailer\n<< /Root 1 0 R >>\n";
+using PdfDocument fdoc = PdfDocument.Open(Encoding.ASCII.GetBytes(fontPdf));
+fdoc.FontProvider = new NoSubstitutes();
+var helv = new List<OnePdf.PdfFonts.PdfGlyph>();
+fdoc.GetFont((PdfDictionary?)fdoc.GetObject(4)).Decode("AB "u8, helv);
+var sjis = new List<OnePdf.PdfFonts.PdfGlyph>();
+fdoc.GetFont((PdfDictionary?)fdoc.GetObject(5)).Decode([0x82, 0xA0, 0x41], sjis);
+if (helv.Count != 3 || Math.Abs(helv[0].Advance - 0.667) > 1e-9 || helv[2].Unicode != " "
+    || sjis.Count != 2 || sjis[0].Unicode != "\u3042" || sjis[0].CodeLength != 2 || sjis[1].Unicode != "A")
+{
+    Console.Error.WriteLine("fonts did not decode as expected");
+    return 1;
+}
+
 Console.WriteLine("ok");
 return 0;
+
+internal sealed class NoSubstitutes : IPdfFontProvider
+{
+    public PdfSubstituteFont? FindFont(PdfFontRequest request) => null;
+}

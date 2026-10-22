@@ -87,7 +87,7 @@ internal static class Type1Builder
     }
 
     /// <summary>Glyph names and their charstrings (unencrypted). The test font has: .notdef, A (a square), acute, Aacute (seac), F (flex), H (hint replacement).</summary>
-    public static byte[] Font(bool hexEexec = false, bool pfb = false, int lenIV = 4)
+    public static byte[] Font(bool hexEexec = false, bool pfb = false, int lenIV = 4, bool compactCharStringsTag = false)
     {
         byte[][] subrs =
         [
@@ -130,7 +130,8 @@ internal static class Type1Builder
             Text(" NP\n");
         }
 
-        Text("ND\n2 index /CharStrings " + glyphs.Count + " dict dup begin\n");
+        // Some producers write the dictionary entry as "dup/CharStrings" straight after the last Subrs entry.
+        Text(compactCharStringsTag ? "ND\nend noaccess put\ndup/CharStrings " + glyphs.Count + " dict dup begin\n" : "ND\n2 index /CharStrings " + glyphs.Count + " dict dup begin\n");
         foreach ((string name, byte[] code) in glyphs)
         {
             byte[] enc = lenIV >= 0 ? Encrypt(code, 4330, lenIV) : code;
