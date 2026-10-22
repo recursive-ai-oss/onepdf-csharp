@@ -141,21 +141,29 @@ internal static class StreamFilters
                     break;
             }
 
-            if (kind is Kind.Flate or Kind.Lzw && p.Predictor > 1)
-            {
-                int n = Predictors.Undo(output.Buffer, output.Length, p, ref issues, ref message);
-                if (n >= 0)
-                {
-                    output.SetLength(n);
-                }
-            }
-
             if (output.Exceeded)
             {
                 issues |= FilterIssues.LimitExceeded;
             }
 
-            return new FilterResult(output.Detach(), issues, message, (issues & FilterIssues.LimitExceeded) != 0 ? 0 : -1);
+            if ((issues & FilterIssues.LimitExceeded) != 0 && limits.DiscardOnLimit)
+            {
+                return new FilterResult(ReadOnlyMemory<byte>.Empty, issues, message, 0);
+            }
+
+            // The predictor works in place on the exact-size result; PNG rows lose their tag byte, so the result may be a slice.
+            byte[] decoded = output.DetachArray();
+            ReadOnlyMemory<byte> data = decoded;
+            if (kind is Kind.Flate or Kind.Lzw && p.Predictor > 1)
+            {
+                int n = Predictors.Undo(decoded, decoded.Length, p, ref issues, ref message);
+                if (n >= 0)
+                {
+                    data = decoded.AsMemory(0, n);
+                }
+            }
+
+            return new FilterResult(data, issues, message, (issues & FilterIssues.LimitExceeded) != 0 ? 0 : -1);
         }
         finally
         {

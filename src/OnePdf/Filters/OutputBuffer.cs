@@ -1,30 +1,43 @@
 using System;
 using System.Buffers;
+using System.Collections.Generic;
 
 namespace OnePdf.Filters;
 
 /// <summary>
-/// Growable output that refuses to grow past the decoded-size cap. The working array is rented from the shared pool
-/// and growth rents a bigger one, so a decode allocates only the final exact-size result (<see cref="Detach"/>), never
-/// the doubling garbage. Always <see cref="Dispose"/> it.
+/// Growable output that refuses to grow past the decoded-size cap.
+/// <para>
+/// Up to <see cref="SmallMax"/> bytes the working array is rented from the shared pool (small arrays are cheap to keep
+/// there) and the result is one exact-size copy. Beyond that the output is written into a few plain arrays of growing
+/// size that are never pooled, and joined into one exact-size array at the end, so a huge stream never leaves big
+/// buffers behind in a pool and never produces doubling garbage: peak memory is about twice the result, briefly.
+/// Always <see cref="Dispose"/> it.
+/// </para>
 /// </summary>
 internal sealed class OutputBuffer : IDisposable
 {
-    private byte[] _a;
+    // Largest array that is rented from the shared pool.
+    private const int SmallMax = 1 << 20;
+
+    // Segments of the large mode grow from 4 MiB, doubling, up to this size.
+    private const int FirstSegment = 4 << 20;
+    private const int MaxSegment = 32 << 20;
+
     private readonly long _cap;
+    private byte[] _cur;
+    private bool _pooled;
+    private int _curLen;
+    private List<(byte[] Data, int Used)>? _done;
+    private int _lastSegment;
 
     public OutputBuffer(long cap, long initial)
     {
         _cap = Math.Min(Math.Max(cap, 0), Array.MaxLength);
-        _a = ArrayPool<byte>.Shared.Rent((int)Math.Min(Math.Max(initial, 16), Math.Min(_cap, InitialMax)));
+        _cur = ArrayPool<byte>.Shared.Rent((int)Math.Min(Math.Max(initial, 16), Math.Min(_cap, SmallMax)));
+        _pooled = true;
     }
 
-    // Starting bigger than this only wastes memory on streams that turn out small; growth doubles from here.
-    private const long InitialMax = 4L << 20;
-
-    /// <summary>Bytes that may be held right now without growing: the rented array, but never past the cap.</summary>
-    private int Room => (int)Math.Min(_a.Length, _cap);
-
+    /// <summary>Bytes held.</summary>
     public int Length { get; private set; }
 
     /// <summary>The most bytes this buffer will hold.</summary>
@@ -33,41 +46,77 @@ internal sealed class OutputBuffer : IDisposable
     /// <summary>True once a write was refused because of the cap.</summary>
     public bool Exceeded { get; private set; }
 
-    public ReadOnlySpan<byte> Written => _a.AsSpan(0, Length);
+    // Free bytes in the current array, never past the cap.
+    private int Room => (int)Math.Min(_cur.Length - _curLen, _cap - Length);
 
     /// <summary>Free space at the end, growing (within the cap) so at least <paramref name="want"/> bytes are available if possible.</summary>
     public Span<byte> Free(int want)
     {
-        if (Room - Length < want && Room < _cap)
+        if (_cur.Length - _curLen < want && Length < _cap)
         {
-            long target = Math.Max((long)_a.Length * 2, (long)Length + want);
-            target = Math.Min(target, _cap);
-            byte[] bigger = ArrayPool<byte>.Shared.Rent((int)target);
-            _a.AsSpan(0, Length).CopyTo(bigger);
-            ArrayPool<byte>.Shared.Return(_a);
-            _a = bigger;
+            Grow(want);
         }
 
-        return _a.AsSpan(Length, Room - Length);
+        return _cur.AsSpan(_curLen, Room);
     }
 
-    public void Advance(int n) => Length += n;
+    private void Grow(int want)
+    {
+        long needed = Math.Min((long)Length + want, _cap);
+        if (_pooled && needed <= SmallMax)
+        {
+            // Still small: rent a bigger pooled array and move over.
+            byte[] bigger = ArrayPool<byte>.Shared.Rent((int)Math.Min(Math.Max((long)_cur.Length * 2, needed), SmallMax));
+            _cur.AsSpan(0, _curLen).CopyTo(bigger);
+            ArrayPool<byte>.Shared.Return(_cur);
+            _cur = bigger;
+            return;
+        }
+
+        _done ??= [];
+        if (_pooled)
+        {
+            // Leaving the pool: what was written so far becomes the first segment, an exact copy.
+            _done.Add((_cur.AsSpan(0, _curLen).ToArray(), _curLen));
+            ArrayPool<byte>.Shared.Return(_cur);
+            _pooled = false;
+            _lastSegment = FirstSegment / 2;
+        }
+        else
+        {
+            _done.Add((_cur, _curLen));
+        }
+
+        long size = Math.Min(Math.Max((long)_lastSegment * 2, want), Math.Max(MaxSegment, want));
+        size = Math.Min(size, Math.Max(_cap - Length, 1));
+        size = Math.Max(size, 1);
+        _lastSegment = (int)Math.Min(size, MaxSegment);
+        _cur = new byte[size];
+        _curLen = 0;
+    }
+
+    public void Advance(int n)
+    {
+        _curLen += n;
+        Length += n;
+    }
 
     /// <summary>Appends one byte; false (and <see cref="Exceeded"/>) when the cap is reached.</summary>
     public bool Put(byte b)
     {
-        if (Length == Room)
+        if (Length >= _cap)
         {
-            if (Room >= _cap)
-            {
-                Exceeded = true;
-                return false;
-            }
-
-            Free(1);
+            Exceeded = true;
+            return false;
         }
 
-        _a[Length++] = b;
+        if (_cur.Length == _curLen)
+        {
+            Grow(1);
+        }
+
+        _cur[_curLen++] = b;
+        Length++;
         return true;
     }
 
@@ -81,7 +130,7 @@ internal sealed class OutputBuffer : IDisposable
         }
 
         Free(count).Slice(0, count).Fill(b);
-        Length += count;
+        Advance(count);
         return true;
     }
 
@@ -95,34 +144,56 @@ internal sealed class OutputBuffer : IDisposable
         }
 
         data.CopyTo(Free(data.Length));
-        Length += data.Length;
+        Advance(data.Length);
         return true;
     }
 
     public void MarkExceeded() => Exceeded = true;
 
-    /// <summary>Copies the bytes into an exact-size array and gives the working array back to the pool.</summary>
-    public ReadOnlyMemory<byte> Detach()
+    /// <summary>Copies the bytes into one exact-size array and releases everything else.</summary>
+    public byte[] DetachArray()
     {
-        ReadOnlyMemory<byte> result = Length == 0 ? ReadOnlyMemory<byte>.Empty : _a.AsSpan(0, Length).ToArray();
+        byte[] result;
+        if (Length == 0)
+        {
+            result = [];
+        }
+        else if (_done is null)
+        {
+            result = _cur.AsSpan(0, _curLen).ToArray();
+        }
+        else
+        {
+            result = new byte[Length];
+            int at = 0;
+            foreach ((byte[] data, int used) in _done)
+            {
+                data.AsSpan(0, used).CopyTo(result.AsSpan(at));
+                at += used;
+            }
+
+            _cur.AsSpan(0, _curLen).CopyTo(result.AsSpan(at));
+        }
+
         Dispose();
         return result;
     }
 
-    /// <summary>Returns the working array to the pool; the buffer is empty afterwards.</summary>
+    /// <summary>Like <see cref="DetachArray"/>.</summary>
+    public ReadOnlyMemory<byte> Detach() => DetachArray();
+
+    /// <summary>Returns a pooled array to the pool and drops the rest; the buffer is empty afterwards.</summary>
     public void Dispose()
     {
-        byte[] a = _a;
-        _a = [];
-        Length = 0;
-        if (a.Length > 0)
+        if (_pooled && _cur.Length > 0)
         {
-            ArrayPool<byte>.Shared.Return(a);
+            ArrayPool<byte>.Shared.Return(_cur);
         }
+
+        _cur = [];
+        _pooled = false;
+        _done = null;
+        _curLen = 0;
+        Length = 0;
     }
-
-    /// <summary>The raw array and in-place edit access for predictors.</summary>
-    public byte[] Buffer => _a;
-
-    public void SetLength(int n) => Length = n;
 }
