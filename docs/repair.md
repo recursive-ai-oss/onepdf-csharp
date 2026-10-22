@@ -47,14 +47,31 @@ Limit violations (`PdfLimitException`) are never repaired: they propagate.
 - **Strings and names.** Unterminated strings run to the end of data. Bad `#xx` escapes in names stay literal. Name
   bytes that are not valid UTF-8 are read as Latin-1.
 - **Object streams.** The entry's index is checked against the stream's header; a wrong index is found by number
-  (warning). `/N` and `/First` are validated against the decoded size before anything is allocated.
+  (warning). `/N` and `/First` are validated against the decoded size before anything is allocated. When `/N` or `/First`
+  is missing, negative, too large, or `/First` lies inside the header, the header is salvaged (warning "invalid /N or
+  /First"): the leading run of `number offset` integer pairs is the header (at most `/N` pairs when `/N` is sane, else
+  as many as the data allows), and `/First` is taken to be where that run ends. A header that stops early keeps the
+  pairs read so far and the rest of the stream's objects read as null (warning). An object stream that is missing or not
+  a stream makes its objects read as null (warning). Strict mode throws for each of these.
 - **References.** A reference to a missing, free or null object resolves to null. A chain of references to references
   longer than `PdfLimits.MaxRecursionDepth` (or a loop) reads as null (warning). A load that needs itself is a
   `PdfFormatException`.
-- **Page tree.** `PageCount` walks `/Pages` iteratively. A node reached twice is skipped (warning); a kid that is not a
+- **Page tree.** `Pages` (and `PageCount`) walk `/Pages` iteratively once; the inheritable attributes `Resources`,
+  `MediaBox`, `CropBox` and `Rotate` come from the nearest ancestor that has them. A page without a usable `MediaBox`
+  is US Letter (warning); a `CropBox` is clipped to the `MediaBox`; a `Rotate` that is not a multiple of 90 is 0 (warning).
+  Nesting beyond `MaxNestingDepth` is skipped (warning). A node reached twice is skipped (warning); a kid that is not a
   dictionary is skipped (warning); a node without `/Kids` is a page unless `/Type` is `/Pages`.
 - **External streams.** A stream with `/F` reads as empty (warning). Nothing outside the document is ever opened.
-- **Encryption.** Not decrypted yet. `IsEncrypted` is true and an Info note is recorded.
+- **Encryption.** `/Encrypt` is read as soon as the cross-reference data is, before the catalog or any object stream is
+  trusted (a file rebuilt by scanning authenticates before its object streams are opened). `PdfOpenOptions.Password`
+  is tried as user then owner password; the empty password is always tried. A wrong or missing password is
+  `PdfPasswordException`; an unsupported or malformed handler is `PdfEncryptionException`. Everything parsed before
+  authentication is dropped from the cache. Strings are decrypted when their object is parsed, stream data when it is
+  read (before filters), under the object number and generation of the containing indirect object. Exempt: the
+  `/Encrypt` dictionary, cross-reference streams, strings inside object streams (the stream is encrypted as a whole) and
+  the trailer `/ID`. A `Crypt` filter names the crypt filter to use (`Identity` leaves the data alone) and is not part of
+  the decode chain. A metadata stream is left in the clear when `/EncryptMetadata` is false. Damaged ciphertext (bad
+  padding, partial block) decrypts as far as it goes with a warning.
 
 ## The rebuild scan
 
@@ -80,3 +97,13 @@ One pass over the file, byte by byte, no whole-file buffer:
 | `MaxNestingDepth` | on entering each array or dictionary level (explicit stack, no recursion) |
 | `MaxDecodedStreamBytes`, `MaxExpansionRatio` | by the filters while they run; raw stored size before reading it |
 | `MaxRecursionDepth` | reference-to-reference chains |
+
+## The typed layer
+
+Name trees, number trees, outlines, form field trees and action chains are walked iteratively with a visited set, so a
+node reached twice (a cycle) is skipped with one warning, and with `MaxObjects` / `MaxNestingDepth` bounds. A malformed
+tree key, a non-dictionary page or annotation entry, a destination that leads nowhere, an unparseable date or an XMP
+packet that is not well-formed XML never throws: the value reads as null or empty (XMP keeps its raw bytes). DTDs in XMP
+are refused, never expanded. Stream-backed text (embedded files, XFA, XMP) is size-checked against the limits before it is
+read; over the limit the item is ignored with a warning, except `PdfEmbeddedFile.ReadContent`, which throws
+`PdfLimitException` because the caller asked for it.

@@ -1,4 +1,6 @@
 using System;
+using System.Collections.Generic;
+using System.Linq;
 using OnePdf;
 using OnePdf.Internal;
 
@@ -74,6 +76,121 @@ internal static class ReaderTargets
         }
         catch (PdfException)
         {
+        }
+    }
+
+    /// <summary>Opens the bytes as a document and walks the whole typed layer: pages, annotations and their actions, outline, labels, metadata, embedded files, form and scripts.</summary>
+    public static void DocumentModel(ReadOnlySpan<byte> data)
+    {
+        var options = new PdfOpenOptions { Limits = PdfLimits.Default with { MaxDecodedStreamBytes = 8 << 20, MaxObjects = 200_000 } };
+        try
+        {
+            using PdfDocument doc = PdfDocument.Open(data.ToArray(), options);
+            WalkModel(doc, static (_, _) => { });
+        }
+        catch (PdfException)
+        {
+        }
+    }
+
+    /// <summary>
+    /// Touches every part of the typed layer. A typed library exception from one part is passed to <paramref name="onTyped"/>
+    /// and the walk continues with the next part; anything else escapes.
+    /// </summary>
+    public static void WalkModel(PdfDocument doc, Action<string, PdfException> onTyped)
+    {
+        Section("pages", () =>
+        {
+            foreach (PdfPage p in doc.Pages.Take(500))
+            {
+                _ = (p.MediaBox, p.CropBox, p.Rotate, p.UserUnit, p.Label, p.Resources.Count, p.ContentStreams.Count);
+                foreach (PdfAnnotation a in p.Annotations.Take(500))
+                {
+                    _ = (a.Subtype, a.Rect, a.Contents, a.Title, a.Flags, a.Color, a.QuadPoints, a.HasAppearance, a.ModifiedDate);
+                    _ = a.GetAppearanceStream();
+                    _ = (a.Destination, a.Uri);
+                    if (a.Action is { } act)
+                    {
+                        _ = (act.ActionType, act.Uri, act.FileName, act.NamedAction, act.JavaScript, act.Destination, act.Next.Count);
+                    }
+
+                    _ = a.AttachedFile?.Name;
+                }
+            }
+        });
+        Section("outline", () =>
+        {
+            var stack = new Stack<PdfOutlineItem>(doc.Outline);
+            while (stack.Count > 0)
+            {
+                PdfOutlineItem i = stack.Pop();
+                _ = (i.Title, i.Destination, i.Action?.ActionType, i.Color, i.IsOpen);
+                foreach (PdfOutlineItem c in i.Children)
+                {
+                    stack.Push(c);
+                }
+            }
+        });
+        Section("labels", () =>
+        {
+            for (int i = 0; i < Math.Min(doc.Pages.Count, 500); i++)
+            {
+                _ = doc.PageLabels?.GetLabel(i);
+            }
+        });
+        Section("metadata", () =>
+        {
+            DocumentInfo info = doc.Info;
+            _ = (info.Title, info.Author, info.CreationDate, info.ModificationDate, info.Trapped, info.Entries.Count);
+            _ = (doc.Xmp?.Title, doc.Xmp?.Creators.Count, doc.Xmp?.CreateDate);
+            _ = (doc.Permissions, doc.Encryption, doc.Language, doc.IsTagged);
+        });
+        Section("embedded", () =>
+        {
+            foreach (PdfEmbeddedFile f in doc.EmbeddedFiles.Take(50))
+            {
+                _ = (f.Name, f.Description, f.MimeType, f.Size, f.CreationDate);
+                try
+                {
+                    _ = f.ReadContent();
+                }
+                catch (PdfLimitException)
+                {
+                }
+            }
+        });
+        Section("form", () =>
+        {
+            if (doc.Form is { } form)
+            {
+                foreach (PdfFormField f in form.AllFields.Take(2000))
+                {
+                    _ = (f.FullName, f.Kind, f.Value, f.Values, f.Options, f.Flags, f.MaxLength, f.IsSigned, f.Widgets.Count);
+                }
+
+                _ = form.GetXfaXml();
+            }
+        });
+        Section("scripts", () =>
+        {
+            _ = doc.JavaScript.Count;
+            _ = doc.OptionalContentGroups.Count;
+            foreach (string name in doc.NamedDestinationNames.Take(500))
+            {
+                _ = doc.GetNamedDestination(name);
+            }
+        });
+
+        void Section(string name, Action body)
+        {
+            try
+            {
+                body();
+            }
+            catch (PdfException e)
+            {
+                onTyped(name, e);
+            }
         }
     }
 }

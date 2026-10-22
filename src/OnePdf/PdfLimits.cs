@@ -72,6 +72,14 @@ public sealed record PdfOpenOptions
     /// </summary>
     public long ObjectCacheBytes { get; init; } = 64L << 20;
 
+    /// <summary>
+    /// The password to open an encrypted document with, tried as the user password and then as the owner password. Null or
+    /// empty means the empty password, which opens documents that have no user password. A wrong password raises
+    /// <see cref="PdfPasswordException"/>. For revisions 5 and 6 the text is prepared as the specification says (SASLprep-style
+    /// normalization, UTF-8, at most 127 bytes); earlier revisions use the PDFDocEncoding / Latin-1 bytes.
+    /// </summary>
+    public string? Password { get; init; }
+
     /// <summary>For stream sources: leave the stream open when the document is disposed. Default false.</summary>
     public bool LeaveOpen { get; init; }
 }

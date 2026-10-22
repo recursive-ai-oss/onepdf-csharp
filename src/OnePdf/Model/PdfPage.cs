@@ -1,3 +1,4 @@
+using System.Linq;
 namespace OnePdf;
 
 /// <summary>The attributes a page inherits from its ancestors in the page tree, resolved at the node that is a page.</summary>
@@ -85,7 +86,7 @@ public sealed class PdfPageCollection : IReadOnlyList<PdfPage>
 public sealed class PdfPage
 {
     private readonly PdfPageNode _node;
-    private readonly Lazy<IReadOnlyList<PdfAnnotation>> _annotations;
+    private Lazy<IReadOnlyList<PdfAnnotation>> _annotations = null!;
 
     internal PdfPage(PdfDocument document, int index, PdfPageNode node)
     {
@@ -209,7 +210,7 @@ public sealed class PdfPage
     /// <summary>The annotations whose subtype is <c>Link</c>.</summary>
     public IReadOnlyList<PdfAnnotation> Links => [.. Annotations.Where(static a => a.Subtype == "Link")];
 
-    private IReadOnlyList<PdfAnnotation> LoadAnnotations()
+    private List<PdfAnnotation> LoadAnnotations()
     {
         var list = new List<PdfAnnotation>();
         if (Dictionary.Get("Annots") is not PdfArray arr)
