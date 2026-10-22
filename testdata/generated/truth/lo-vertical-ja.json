@@ -1,0 +1,13 @@
+{
+ "category": "cjk-vertical",
+ "generator": "LibreOffice 26.2.6.3",
+ "name": "lo-vertical-ja",
+ "notes": "page writing mode tb-rl; truth is logical order",
+ "pageCount": 1,
+ "pages": [
+  {
+   "text": "すべての人間は、生れながらにして自由であり、かつ、尊厳と権利とについて平等である。人間は、理性と良心とを授けられており、互いに同胞の精神をもって行動しなければならない。"
+  }
+ ],
+ "schema": 1
+}

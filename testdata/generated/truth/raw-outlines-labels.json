@@ -1,0 +1,50 @@
+{
+ "category": "outlines-labels",
+ "generator": "hand-assembled by tools/corpus/generate.py",
+ "name": "raw-outlines-labels",
+ "outline": [
+  [
+   "Chapter 1",
+   2,
+   [
+    [
+     "Section 1.1",
+     2,
+     []
+    ],
+    [
+     "Section 1.2",
+     2,
+     []
+    ]
+   ]
+  ],
+  [
+   "Chapter 2",
+   3,
+   []
+  ]
+ ],
+ "pageCount": 4,
+ "pageLabels": [
+  "i",
+  "ii",
+  "A-1",
+  "A-2"
+ ],
+ "pages": [
+  {
+   "text": "Preface text on a roman-numbered page."
+  },
+  {
+   "text": "Contents text on a second roman page."
+  },
+  {
+   "text": "Chapter one opens here."
+  },
+  {
+   "text": "Chapter two opens here."
+  }
+ ],
+ "schema": 1
+}

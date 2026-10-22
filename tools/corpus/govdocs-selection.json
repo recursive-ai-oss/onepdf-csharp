@@ -1,0 +1,152 @@
+[
+ {
+  "path": "testdata/govdocs/000162.pdf",
+  "url": "http://oceanservice.noaa.gov/education/kits/estuaries/lessons/estuary_subrev.pdf",
+  "sha1": "b6bafef9b39e63e3ef84d1519881cb2ee00322e9"
+ },
+ {
+  "path": "testdata/govdocs/000594.pdf",
+  "url": "http://fjallfoss.fcc.gov/edocs_public/attachmatch/DA-07-2358A1.pdf",
+  "sha1": "11ff53dbf43ebaa10bcf97bdd84c9f7e018fbd72"
+ },
+ {
+  "path": "testdata/govdocs/084532.pdf",
+  "url": "http://walrus.wr.usgs.gov/infobank/p/p295mb/samp/B238.pdf",
+  "sha1": "0007c93ec8e8dd9018b717ae676355f20598d1cf"
+ },
+ {
+  "path": "testdata/govdocs/084687.pdf",
+  "url": "http://www.nr.nps.gov/Red%20Books/75000398.red.pdf",
+  "sha1": "18f809177a2b869e0d35d3bd2a006583bcc7b3f7"
+ },
+ {
+  "path": "testdata/govdocs/210477.pdf",
+  "url": "http://webgis.wr.usgs.gov/pigwad/downloads/digeol/io/IO/iocor.pdf",
+  "sha1": "cfff71fde428555144deb6a43b340e970b039197"
+ },
+ {
+  "path": "testdata/govdocs/336381.pdf",
+  "url": "http://fedbbs.access.gpo.gov/library/fac_bro/iran.pdf",
+  "sha1": "7c388f7cae1f97831cec45580aeeb13cfeeebbcb"
+ },
+ {
+  "path": "testdata/govdocs/336606.pdf",
+  "url": "http://www.sba.gov/disasternotices/NY-00066/NY00066-0.pdf",
+  "sha1": "303ff1e1eeb40ee278798af01a6f30a17667a278"
+ },
+ {
+  "path": "testdata/govdocs/378647.pdf",
+  "url": "http://lcweb2.loc.gov/pnp/habshaer/ia/ia0000/ia0037/data/ia0037.pdf",
+  "sha1": "8c9cc4ed3fd9bf7cb0711358de6edfa112db886c"
+ },
+ {
+  "path": "testdata/govdocs/378701.pdf",
+  "url": "http://www.ornl.gov/~webworks/cpr/pres/109047_.pdf",
+  "sha1": "e88e871e040ab8e5211ce00cd70dc38816bf2760"
+ },
+ {
+  "path": "testdata/govdocs/378716.pdf",
+  "url": "http://www.niehs.nih.gov/news/events/pastmtg/2002/spintrap/docs/AllaS01AB.pdf",
+  "sha1": "65afcbabca17db6c40876be348f913b53bec487a"
+ },
+ {
+  "path": "testdata/govdocs/378793.pdf",
+  "url": "http://www.fas.usda.gov/dlp2/traderuns/2000/00-01/d_wpc.pdf",
+  "sha1": "542512d750eab86de99bacfa163376d8d1281059"
+ },
+ {
+  "path": "testdata/govdocs/420025.pdf",
+  "url": "http://ks.water.usgs.gov/pubs/reports/wsp.2499.tab35.pdf",
+  "sha1": "924fcc15ddae82b5a85b89ec2b6a9d7330376738"
+ },
+ {
+  "path": "testdata/govdocs/462501.pdf",
+  "url": "http://www.nr.nps.gov/Red%20Books/66000112.red.pdf",
+  "sha1": "fb54c9f42d689390fb025b6a335d4c7b983e8326"
+ },
+ {
+  "path": "testdata/govdocs/504550.pdf",
+  "url": "http://www.nps.gov/noat/parkmgmt/upload/NOAT_CP_List%207-8-08.pdf",
+  "sha1": "3e45a66e1068ba8948e654bfb71658415d1a2fc1"
+ },
+ {
+  "path": "testdata/govdocs/504561.pdf",
+  "url": "http://www.census.gov/geo/www/cd109th/AL/zcta_c9_01.pdf",
+  "sha1": "838e3c8f3010c581b96d248e910b6fe7cce2a4d7"
+ },
+ {
+  "path": "testdata/govdocs/504617.pdf",
+  "url": "http://www.epa.gov/oar/caaac/mstrs/nov8fa981014.pdf",
+  "sha1": "9f2c48f1da00e6d1c6e1d955cef924fbb23576b9"
+ },
+ {
+  "path": "testdata/govdocs/504791.pdf",
+  "url": "http://csrc.nist.gov/nissc/2000/proceedings/papers/314.pdf",
+  "sha1": "af073f3080ef343e9ae326def854fe8ffd4ff4d4"
+ },
+ {
+  "path": "testdata/govdocs/546126.pdf",
+  "url": "http://www.fda.gov/cder/foi/appletter/2000/75103ltr.pdf",
+  "sha1": "8a5f14658597be9f92742a82eb1159cf8b61d386"
+ },
+ {
+  "path": "testdata/govdocs/546294.pdf",
+  "url": "https://www.fas.usda.gov/dlp2/traderuns/2002/02-05/k_ppscn.pdf",
+  "sha1": "a326dacff8ad2bd44731b7706e0601b4a266e8c7"
+ },
+ {
+  "path": "testdata/govdocs/546417.pdf",
+  "url": "http://cnst.nist.gov/epg/Pubs/pdf/epg715.pdf",
+  "sha1": "e845a780fb6d152f190de06aa81ca2fdec51315f"
+ },
+ {
+  "path": "testdata/govdocs/546980.pdf",
+  "url": "http://fjallfoss.fcc.gov/prod/ecfs/retrieve.cgi?native_or_pdf=pdf&id_document=6518444445",
+  "sha1": "a3e5ab1942fbefc39c8c5a0325af0d556802eb34"
+ },
+ {
+  "path": "testdata/govdocs/588782.pdf",
+  "url": "http://www.sba.gov/idc/groups/public/documents/sba_homepage/form_cont990.pdf",
+  "sha1": "a0fcecf02c370db283f2734ff0f83f9ff836e19c"
+ },
+ {
+  "path": "testdata/govdocs/630925.pdf",
+  "url": "http://www.sefsc.noaa.gov/PDFdocs/LionelLaforce.pdf",
+  "sha1": "4b55bdc788cb0c8607f860934e4618b7cef8a322"
+ },
+ {
+  "path": "testdata/govdocs/672045.pdf",
+  "url": "http://www.whitehouse.gov/omb/circulars/a11/current_year/s95.pdf",
+  "sha1": "0959877c1da8286b35b5f2885cdc42ee9294a811"
+ },
+ {
+  "path": "testdata/govdocs/798339.pdf",
+  "url": "http://www.fda.gov/cder/foi/appletter/1999/74988ltr.pdf",
+  "sha1": "0aefd9a5fc537796db629844b22a4811fe4f63d0"
+ },
+ {
+  "path": "testdata/govdocs/798963.pdf",
+  "url": "http://www.fda.gov/cder/foi/appletter/1999/74993ltr.pdf",
+  "sha1": "68cf18cb1c384f3e0af847116b3b5ed77d73bbfd"
+ },
+ {
+  "path": "testdata/govdocs/882313.pdf",
+  "url": "https://www.fe.doe.gov/programs/gasregulation/authorizations/orders/ord1643a.pdf",
+  "sha1": "4ff5063914eb198a5c2907f351d660c227fc5d05"
+ },
+ {
+  "path": "testdata/govdocs/882325.pdf",
+  "url": "http://www.sba.gov/disasternotices/NH-00002/NH00002-1.pdf",
+  "sha1": "e8b8f8c94579000c47dc1f8dcc09d578c301c379"
+ },
+ {
+  "path": "testdata/govdocs/882890.pdf",
+  "url": "http://winapps.access.gpo.gov/ppd/abstracts/seattle/ab1648s.pdf",
+  "sha1": "a51055aca17222b03c3f7db6ab0b1fcfbb73fe85"
+ },
+ {
+  "path": "testdata/govdocs/966677.pdf",
+  "url": "http://www.epa.gov/oppfead1/Publications/roombyroom-checklist.pdf",
+  "sha1": "2471f67701a4d053ac2d0edf112b6bc2de107acb"
+ }
+]

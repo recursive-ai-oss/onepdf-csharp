@@ -1,0 +1,41 @@
+{
+ "annotations": [
+  {
+   "subtype": "Link",
+   "uri": "https://example.com/ref"
+  },
+  {
+   "dest": "page 0 XYZ",
+   "subtype": "Link"
+  },
+  {
+   "contents": "Check this reference",
+   "subtype": "Text",
+   "title": "Reviewer"
+  },
+  {
+   "contents": "Highlighted sentence",
+   "subtype": "Highlight"
+  },
+  {
+   "contents": "Draft stamp text",
+   "subtype": "FreeText"
+  },
+  {
+   "contents": "A square",
+   "subtype": "Square"
+  }
+ ],
+ "category": "structure",
+ "generator": "qpdf (black-box) qpdf version 12.4.2 from raw-annotations",
+ "name": "raw-annotations-objstm",
+ "notes": "annotation objects inside an object stream",
+ "pageCount": 1,
+ "pages": [
+  {
+   "text": "Annotated page.\nReview the highlighted sentence before the link."
+  }
+ ],
+ "schema": 1,
+ "source": "raw-annotations"
+}

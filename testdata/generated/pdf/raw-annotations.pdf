@@ -1,0 +1,64 @@
+%PDF-1.7
+%‚„œ”
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Kids [6 0 R] /Count 1 >>
+endobj
+3 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>
+endobj
+4 0 obj
+<< /Title (OnePdf test document) /Author (OnePdf) /Producer (hand-assembled) /CreationDate (D:20260101000000Z) >>
+endobj
+5 0 obj
+<<  /Length 112 >>
+stream
+BT /F1 14 Tf 20 TL 72 760 Td
+(Annotated page.) Tj T*
+(Review the highlighted sentence before the link.) Tj T*
+ET
+endstream
+endobj
+6 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 3 0 R  >> >> /Contents 5 0 R /Annots [7 0 R 8 0 R 9 0 R 10 0 R 11 0 R 12 0 R] >>
+endobj
+7 0 obj
+<< /Type /Annot /Subtype /Link /Rect [72 700 200 715] /Border [0 0 0] /A << /S /URI /URI (https://example.com/ref) >> >>
+endobj
+8 0 obj
+<< /Type /Annot /Subtype /Link /Rect [72 680 200 695] /Border [0 0 0] /Dest [6 0 R /XYZ 0 792 null] >>
+endobj
+9 0 obj
+<< /Type /Annot /Subtype /Text /Rect [400 740 420 760] /Contents (Check this reference) /T (Reviewer) /Name /Comment /F 28 /C [1 1 0] >>
+endobj
+10 0 obj
+<< /Type /Annot /Subtype /Highlight /Rect [72 735 300 752] /QuadPoints [72 752 300 752 72 735 300 735] /Contents (Highlighted sentence) /C [1 1 0] /F 4 >>
+endobj
+11 0 obj
+<< /Type /Annot /Subtype /FreeText /Rect [320 600 540 640] /Contents (Draft stamp text) /DA (/Helv 12 Tf 0 g) /F 4 >>
+endobj
+12 0 obj
+<< /Type /Annot /Subtype /Square /Rect [72 500 200 560] /Contents (A square) /C [1 0 0] /IC [0.9 0.9 1] /F 4 >>
+endobj
+xref
+0 13
+0000000000 65535 f 
+0000000015 00000 n 
+0000000064 00000 n 
+0000000121 00000 n 
+0000000218 00000 n 
+0000000347 00000 n 
+0000000511 00000 n 
+0000000687 00000 n 
+0000000823 00000 n 
+0000000941 00000 n 
+0000001093 00000 n 
+0000001264 00000 n 
+0000001398 00000 n 
+trailer
+<< /Size 13 /Root 1 0 R /Info 4 0 R /ID [<4f6e65506466546573744f6e6550646620> <4f6e65506466546573744f6e6550646620>]  >>
+startxref
+1526
+%%EOF

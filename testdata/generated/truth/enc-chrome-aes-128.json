@@ -1,0 +1,21 @@
+{
+ "category": "encrypted",
+ "generator": "qpdf (black-box) qpdf version 12.4.2 from chrome-single-column-en",
+ "name": "enc-chrome-aes-128",
+ "pageCount": 2,
+ "pages": [
+  {
+   "text": "The harbor town woke slowly. Fishing boats rocked against their moorings while gulls argued over the morning catch.\n\nBy nine the market stalls were open, and the smell of fresh bread drifted along the quay toward the old customs house.\n\nVisitors who arrived early could watch the ferry load: crates of lemons, bicycles, a piano wrapped in blankets, and one very patient goat.\n\nAt noon the bell on the clock tower rang twelve times, although the clock itself had been running four minutes slow for as long as anyone remembered.\n\nIn the afternoon the wind turned, and the sails of the small regatta filled together like a flock of white birds.\n\nEvening came with long shadows and the clatter of dishes. Lamps were lit along the pier, one after another, until the whole shore glowed."
+  },
+  {
+   "text": "Section two begins on a new page. It repeats nothing from the first page and uses entirely different words so that extraction errors are easy to spot.\n\nQuartz, jasper, and obsidian were sorted into wooden trays by an apprentice who hummed while he worked.\n\nBeyond the workshop door a narrow stair led to the roof, where the cats kept their own strict timetable."
+  }
+ ],
+ "passwords": {
+  "owner": "owner-pw",
+  "user": "user-pw"
+ },
+ "schema": 1,
+ "securityRevision": "R4",
+ "source": "chrome-single-column-en"
+}

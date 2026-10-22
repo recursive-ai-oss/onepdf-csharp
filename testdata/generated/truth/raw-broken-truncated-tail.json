@@ -1,0 +1,21 @@
+{
+ "blackBoxCheck": "may-fail",
+ "category": "repair",
+ "expect": "recovers-all-text",
+ "generator": "hand-assembled by tools/corpus/generate.py",
+ "name": "raw-broken-truncated-tail",
+ "notes": "xref table, trailer and startxref cut off: objects and the catalog must be found by scanning (some viewers cannot recover this)",
+ "pageCount": 3,
+ "pages": [
+  {
+   "text": "The first page of the base document.\nIt has two lines of plain Helvetica text."
+  },
+  {
+   "text": "A second page follows with its own words.\nNothing here repeats the first page."
+  },
+  {
+   "text": "The third and last page ends the document."
+  }
+ ],
+ "schema": 1
+}

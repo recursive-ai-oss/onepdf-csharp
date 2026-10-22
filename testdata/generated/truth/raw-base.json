@@ -1,0 +1,19 @@
+{
+ "category": "structure",
+ "generator": "hand-assembled by tools/corpus/generate.py",
+ "name": "raw-base",
+ "notes": "uncompressed three-page file with a classic xref table; base for the repair and encryption variants",
+ "pageCount": 3,
+ "pages": [
+  {
+   "text": "The first page of the base document.\nIt has two lines of plain Helvetica text."
+  },
+  {
+   "text": "A second page follows with its own words.\nNothing here repeats the first page."
+  },
+  {
+   "text": "The third and last page ends the document."
+  }
+ ],
+ "schema": 1
+}

@@ -1,0 +1,58 @@
+{
+ "category": "forms",
+ "fields": [
+  {
+   "name": "name",
+   "type": "Tx",
+   "value": "Ada Lovelace"
+  },
+  {
+   "name": "city",
+   "type": "Tx",
+   "value": "London"
+  },
+  {
+   "name": "agree",
+   "type": "Btn/checkbox",
+   "value": "Yes"
+  },
+  {
+   "name": "size",
+   "type": "Btn/radio",
+   "value": "Medium"
+  },
+  {
+   "name": "color",
+   "options": [
+    "Red",
+    "Green",
+    "Blue"
+   ],
+   "type": "Ch/combo",
+   "value": "Green"
+  },
+  {
+   "name": "tags",
+   "options": [
+    "alpha",
+    "beta",
+    "gamma"
+   ],
+   "type": "Ch/list",
+   "value": [
+    "alpha",
+    "gamma"
+   ]
+  }
+ ],
+ "generator": "hand-assembled by tools/corpus/generate.py",
+ "name": "raw-acroform",
+ "notes": "text-field appearance streams contain the field values; the two Tx values are visible content only when widgets are drawn",
+ "pageCount": 1,
+ "pages": [
+  {
+   "text": "Registration form.\nFill in every field."
+  }
+ ],
+ "schema": 1
+}

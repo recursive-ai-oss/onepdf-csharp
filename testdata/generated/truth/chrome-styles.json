@@ -1,0 +1,13 @@
+{
+ "category": "fonts-styles",
+ "generator": "Chrome Google Chrome 149.0.7827.155",
+ "name": "chrome-styles",
+ "notes": "sup/sub digits appear inline; expect no spaces around them",
+ "pageCount": 1,
+ "pages": [
+  {
+   "text": "Plain, bold, italic, bold italic, monospace and tiny and large text share one line.\n\nA second paragraph in a sans-serif face with superscript x2 and subscript H2O."
+  }
+ ],
+ "schema": 1
+}

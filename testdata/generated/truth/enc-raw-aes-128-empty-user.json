@@ -1,0 +1,24 @@
+{
+ "category": "encrypted",
+ "generator": "qpdf (black-box) qpdf version 12.4.2 from raw-base",
+ "name": "enc-raw-aes-128-empty-user",
+ "notes": "opens with the empty password; the owner password also works",
+ "pageCount": 3,
+ "pages": [
+  {
+   "text": "The first page of the base document.\nIt has two lines of plain Helvetica text."
+  },
+  {
+   "text": "A second page follows with its own words.\nNothing here repeats the first page."
+  },
+  {
+   "text": "The third and last page ends the document."
+  }
+ ],
+ "passwords": {
+  "owner": "owner-pw",
+  "user": ""
+ },
+ "schema": 1,
+ "securityRevision": "R4"
+}
