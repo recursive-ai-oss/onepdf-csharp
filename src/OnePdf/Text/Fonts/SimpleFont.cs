@@ -269,6 +269,15 @@ internal sealed class SimpleFont : PdfFont
             }
         }
 
+        // A subset TrueType font with no /Encoding and only a (1,0) or (3,0) cmap has no source of text for its codes; the printable
+        // ASCII range means the same character in every Latin encoding, so the code stands for itself (ISO 32000-2 9.6.5.4 leaves
+        // these codes to the font's cmap, and producers of such subsets use ASCII codes for ASCII text).
+        if (!hasUnicode && code is >= 0x20 and <= 0x7E && Subtype == "TrueType")
+        {
+            text = ((char)code).ToString();
+            hasUnicode = true;
+        }
+
         double width = Width(code, name, gid);
         FontProgram? gp = face > 0 ? Fallbacks[face - 1] : p;
         double[]? matrix = gp?.FontMatrix;

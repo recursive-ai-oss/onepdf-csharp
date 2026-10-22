@@ -140,25 +140,49 @@ internal sealed partial class ContentInterpreter
         _device.BeginPage(in _page);
         try
         {
+            // ISO 32000-2 7.8.2: the streams of a /Contents array are one content stream split at token boundaries. Files in the
+            // wild split inside a token or an array, so they are joined (with a space) and read as one; a page whose pieces
+            // together exceed the decoded-size limit falls back to reading them one by one.
+            List<ReadOnlyMemory<byte>> pieces = [];
+            long total = 0;
             foreach (PdfStream s in page.ContentStreams)
             {
-                if (_stopped)
-                {
-                    break;
-                }
-
-                ReadOnlyMemory<byte> data;
                 try
                 {
-                    data = s.GetDecodedBytes(_ct);
+                    ReadOnlyMemory<byte> data = s.GetDecodedBytes(_ct);
+                    pieces.Add(data);
+                    total += data.Length + 1;
                 }
                 catch (PdfException e)
                 {
                     Report(PdfSeverity.Error, "A content stream could not be decoded and was skipped: " + e.Message);
-                    continue;
+                }
+            }
+
+            if (pieces.Count == 1 || total > _limits.MaxDecodedStreamBytes)
+            {
+                foreach (ReadOnlyMemory<byte> piece in pieces)
+                {
+                    if (_stopped)
+                    {
+                        break;
+                    }
+
+                    Execute(new ContentLexer(piece, _limits.MaxNestingDepth));
+                }
+            }
+            else if (pieces.Count > 1)
+            {
+                byte[] joined = new byte[checked((int)total)];
+                int at = 0;
+                foreach (ReadOnlyMemory<byte> piece in pieces)
+                {
+                    piece.Span.CopyTo(joined.AsSpan(at));
+                    at += piece.Length;
+                    joined[at++] = (byte)' ';
                 }
 
-                Execute(new ContentLexer(data, _limits.MaxNestingDepth));
+                Execute(new ContentLexer(joined, _limits.MaxNestingDepth));
             }
 
             UnwindTo(0, 0, "the page content");

@@ -181,6 +181,22 @@ public class FontJoinTests
     }
 
     [Fact]
+    public void ContentStreamsSplitInsideAnArrayAreJoined()
+    {
+        // ISO 32000-2 7.8.2 allows a split only between tokens, but files split inside a TJ array; the pieces are one stream.
+        var b = new PdfBuilder();
+        b.Obj(1, "<< /Type /Catalog /Pages 2 0 R >>");
+        b.Obj(2, "<< /Type /Pages /Kids [3 0 R] /Count 1 >>");
+        b.Obj(3, "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 200 200] /Contents [4 0 R 5 0 R] " + Helv + " >>");
+        b.Stream(4, string.Empty, System.Text.Encoding.Latin1.GetBytes("BT /F1 12 Tf 20 100 Td [(Sub)-10(mit To)"));
+        b.Stream(5, string.Empty, System.Text.Encoding.Latin1.GetBytes(" (Agency)] TJ ET"));
+        long x = b.XrefTable(6);
+        b.Trailer("/Size 6 /Root 1 0 R", x);
+        using PdfDocument doc = TestPdf.Open(b.ToArray());
+        Assert.Equal("Submit ToAgency", doc.Pages[0].ExtractText().Text.Trim());
+    }
+
+    [Fact]
     public void CompatibilityFormsFoldToTheirBaseCharacters()
     {
         Assert.Equal("\u4E00\u4E28", GlyphPrep.FoldCompatibility("\u2F00\u2F01"));
