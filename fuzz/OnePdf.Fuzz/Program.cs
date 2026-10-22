@@ -26,6 +26,7 @@ internal static class Program
         ["parser"] = ReaderTargets.Parser,
         ["document"] = ReaderTargets.Document,
         ["filters"] = FilterTarget.Run,
+        ["security"] = SecurityTarget.Run,
     };
 
     private static int Main(string[] args)
