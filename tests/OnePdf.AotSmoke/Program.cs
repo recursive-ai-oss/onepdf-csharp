@@ -117,6 +117,13 @@ if (!text.StartsWith("onepdf-display-list 4", StringComparison.Ordinal) || !text
     return 1;
 }
 
+// Text extraction: fonts decoded, glyphs positioned, words in reading order.
+if (!doc2.Pages[0].ExtractText().Text.Contains("Hi", StringComparison.Ordinal) || !doc2.ExtractText()[0].Text.Contains("Hi", StringComparison.Ordinal))
+{
+    Console.Error.WriteLine("text extraction did not find the page text");
+    return 1;
+}
+
 // Shadings and patterns: an axial shading, a Coons patch mesh and a tiling pattern, evaluated and recorded.
 {
     var patch = new System.Text.StringBuilder();

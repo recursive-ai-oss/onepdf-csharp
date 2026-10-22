@@ -15,7 +15,7 @@ internal static class ExtractionTarget
     private static readonly string[] Texts =
     [
         "a", "b", "e", "f", " ", "-", "1", "2", ".", "\uFB01", "\uFB03", "\u05D0", "\u05D1", "\u05E9", "\u0627", "\u0644", "\u0661", "\u3042", "\u6F22", "\uD800",
-        "\u202B", "\u202E", "\u202C", "\u2067", "\u2069", "\u200F", "(", ")", "\uD83D\uDE00", "", "ab",
+        "\u2F00", "\uFB50", "\uFE70", "\uFDFA", "\U0002F800", "\u202B", "\u202E", "\u202C", "\u2067", "\u2069", "\u200F", "(", ")", "\uD83D\uDE00", "", "ab",
     ];
 
     /// <summary>Reads the options and glyphs a fuzz input stands for; null when the input is too short.</summary>

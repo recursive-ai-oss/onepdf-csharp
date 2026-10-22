@@ -118,6 +118,10 @@ internal static class InterpretSweep
 
         public override void EndGroup() => Others--;
 
+        public override void BeginType3Glyph(in PdfType3GlyphInfo glyph, in PdfGraphicsState state) => Others++;
+
+        public override void EndType3Glyph() => Others--;
+
         public override void BeginSoftMask(in PdfSoftMaskInfo mask, in PdfGraphicsState state) => Others++;
 
         public override void EndSoftMask() => Others--;
