@@ -40,15 +40,31 @@ internal static class FontEnv
 
     public static IEnumerable<string> SystemFonts(params string[] extensions)
     {
-        string root = "/usr/share/fonts";
-        if (!Directory.Exists(root))
-        {
-            return [];
-        }
-
-        return Directory.EnumerateFiles(root, "*.*", SearchOption.AllDirectories)
+        return SystemFontRoots()
+            .Where(Directory.Exists)
+            .SelectMany(root => Directory.EnumerateFiles(root, "*.*", SearchOption.AllDirectories))
             .Where(f => extensions.Any(e => f.EndsWith(e, StringComparison.OrdinalIgnoreCase)))
             .OrderBy(f => f, StringComparer.Ordinal);
+    }
+
+    /// <summary>The conventional font directories of the host platform.</summary>
+    public static IEnumerable<string> SystemFontRoots()
+    {
+        if (OperatingSystem.IsMacOS())
+        {
+            yield return "/System/Library/Fonts";
+            yield return "/Library/Fonts";
+            yield return Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Library", "Fonts");
+        }
+        else if (OperatingSystem.IsWindows())
+        {
+            yield return Environment.GetFolderPath(Environment.SpecialFolder.Fonts);
+        }
+        else
+        {
+            yield return "/usr/share/fonts";
+            yield return "/usr/local/share/fonts";
+        }
     }
 
     /// <summary>Runs every glyph of a program through outline and width extraction and returns a summary of what failed.</summary>
