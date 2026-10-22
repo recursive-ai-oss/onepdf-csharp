@@ -161,13 +161,7 @@ public sealed class PdfTextExtractor
 
         if (blocks is null)
         {
-            int[] all = new int[g.Length];
-            for (int i = 0; i < all.Length; i++)
-            {
-                all[i] = i;
-            }
-
-            blocks = TextLayout.Run(g, all, ct);
+            blocks = TextLayout.RunAll(g, ct);
         }
 
         return new PdfPageText(page.PageIndex, page.Width, page.Height, g, blocks.ToArray(), used, diag, o);

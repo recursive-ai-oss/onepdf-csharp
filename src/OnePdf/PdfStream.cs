@@ -188,7 +188,7 @@ public sealed class PdfStream : PdfObject
         }
 
         PdfLimits lim = doc.Limits;
-        var limits = new DecodeLimits(Math.Min(lim.MaxDecodedStreamBytes, Array.MaxLength), lim.MaxExpansionRatio, lim.ExpansionCheckThreshold);
+        var limits = new DecodeLimits(Math.Min(lim.MaxDecodedStreamBytes, Array.MaxLength), lim.MaxExpansionRatio, lim.ExpansionCheckThreshold, DiscardOnLimit: true);
         if (filters.Contains("Crypt"))
         {
             // The Crypt filter only names the decryption that was just applied; it is not part of the decode chain.

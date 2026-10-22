@@ -14,6 +14,7 @@ public class FlateBenchmarks
     private byte[] _zlib = [];
     private byte[] _png = [];
     private byte[] _pngZlib = [];
+    private byte[] _work = [];
 
     [Params("text", "mixed")]
     public string Data { get; set; } = "text";
@@ -57,6 +58,7 @@ public class FlateBenchmarks
         }
 
         _pngZlib = Compress(_png);
+        _work = new byte[_png.Length];
     }
 
     private static byte[] Compress(byte[] d)
@@ -94,4 +96,22 @@ public class FlateBenchmarks
     [Benchmark]
     public int OnePdfFlateWithPngPredictor() =>
         StreamFilters.Decode("FlateDecode", _pngZlib, new FilterParameters(Predictor: 15, Columns: 3000), DecodeLimits.Default).Data.Length;
+
+    /// <summary>Cost of refreshing the working copy; subtract it from <see cref="OnePdfPngPredictorOnly"/>.</summary>
+    [Benchmark]
+    public int CopyOnlyForPredictorRow()
+    {
+        Array.Copy(_png, _work, _png.Length);
+        return _work.Length;
+    }
+
+    /// <summary>The PNG predictor alone (rows cycling through all five filter tags), on a fresh copy of the encoded rows.</summary>
+    [Benchmark]
+    public int OnePdfPngPredictorOnly()
+    {
+        Array.Copy(_png, _work, _png.Length);
+        FilterIssues issues = FilterIssues.None;
+        string? message = null;
+        return Predictors.Undo(_work, _work.Length, new FilterParameters(Predictor: 15, Columns: 3000), ref issues, ref message);
+    }
 }

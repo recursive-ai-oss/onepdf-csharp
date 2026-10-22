@@ -8,9 +8,10 @@
   </PropertyGroup>
 
   <PropertyGroup Label="Output">
-    <!-- Build output stays outside the checkout. Set ONEPDF_ARTIFACTS to choose where; the default is a sibling directory of the repo. -->
+    <!-- Build output stays out of the source folders. Set ONEPDF_ARTIFACTS to choose where; the default is artifacts/ at the repository
+         root, which .gitignore covers. -->
     <ArtifactsPath Condition="'$(ONEPDF_ARTIFACTS)' != ''">$(ONEPDF_ARTIFACTS)</ArtifactsPath>
-    <ArtifactsPath Condition="'$(ONEPDF_ARTIFACTS)' == ''">$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)../$(LibName)-artifacts'))</ArtifactsPath>
+    <ArtifactsPath Condition="'$(ONEPDF_ARTIFACTS)' == ''">$(MSBuildThisFileDirectory)artifacts</ArtifactsPath>
   </PropertyGroup>
 
   <PropertyGroup Label="Language and analysis">
@@ -25,8 +26,15 @@
     <EnableNETAnalyzers>true</EnableNETAnalyzers>
     <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
     <Deterministic>true</Deterministic>
-    <ContinuousIntegrationBuild Condition="'$(CI)' == 'true'">true</ContinuousIntegrationBuild>
     <InvariantGlobalization>true</InvariantGlobalization>
+  </PropertyGroup>
+
+  <PropertyGroup Label="Reproducible packages">
+    <!-- Path mapping is for the packages only (projects under src/). Test projects keep real paths: some tests locate test data from
+         [CallerFilePath], which a mapped path would break on CI. -->
+    <_ProjectDir>$([MSBuild]::NormalizeDirectory('$(MSBuildProjectDirectory)'))</_ProjectDir>
+    <_SrcDir>$([MSBuild]::NormalizeDirectory('$(MSBuildThisFileDirectory)', 'src'))</_SrcDir>
+    <ContinuousIntegrationBuild Condition="'$(CI)' == 'true' and $(_ProjectDir.StartsWith('$(_SrcDir)'))">true</ContinuousIntegrationBuild>
   </PropertyGroup>
 
   <PropertyGroup Label="Package metadata">
