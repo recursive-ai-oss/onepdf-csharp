@@ -172,12 +172,99 @@ public class ImageSemanticsTests
     }
 
     [Fact]
-    public void SeparationWithoutTintFunctionApproximatesInk()
+    public void SeparationRunsItsTintFunction()
+    {
+        using Result r = Make("/Width 3 /Height 1 /BitsPerComponent 8 /ColorSpace [/Separation /Spot /DeviceCMYK 12 0 R]", [0, 255, 51], null, null,
+            new Obj(12, "<< /FunctionType 2 /Domain [0 1] /C0 [0 0 0 0] /C1 [0 1 1 0] /N 1 >>"));
+        Assert.Equal(PdfColorSpaceKind.DeviceCmyk, r.Img.ColorSpace!.Kind);
+        Assert.Equal(new byte[] { 0, 0, 0, 0, 0, 255, 255, 0, 0, 51, 51, 0 }, Samples(r.Img));
+    }
+
+    [Fact]
+    public void DeviceNRunsAType4Function()
+    {
+        // Two inks into RGB: r = 1 - a, g = 1 - b, b = 0.5.
+        byte[] fn = Latin1("{ 1 exch sub exch 1 exch sub exch 0.5 }");
+        using Result r = Make("/Width 2 /Height 1 /BitsPerComponent 8 /ColorSpace [/DeviceN [/A /B] /DeviceRGB 12 0 R]", [255, 0, 0, 255], null, null,
+            new Obj(12, "/FunctionType 4 /Domain [0 1 0 1] /Range [0 1 0 1 0 1]", fn));
+        Assert.Equal(PdfColorSpaceKind.DeviceRgb, r.Img.ColorSpace!.Kind);
+        Assert.Equal(new byte[] { 0, 255, 128, 255, 0, 128 }, Samples(r.Img));
+        Assert.DoesNotContain(r.Warnings, w => w.Contains("tint"));
+    }
+
+    [Fact]
+    public void SeparationWithoutUsableFunctionApproximatesInk()
     {
         using Result r = Make("/Width 2 /Height 1 /BitsPerComponent 8 /ColorSpace [/Separation /Spot /DeviceGray 12 0 R]", [0, 255], null, null,
-            new Obj(12, "<< /FunctionType 2 /Domain [0 1] /N 1 >>"));
+            new Obj(12, "<< /FunctionType 9 >>"));
         Assert.Equal(PdfColorSpaceKind.DeviceGray, r.Img.ColorSpace!.Kind);
         Assert.Equal(new byte[] { 255, 0 }, Samples(r.Img));
+        Assert.Contains(r.Warnings, w => w.Contains("tint transform"));
+    }
+
+    [Fact]
+    public void SeparationWithWrongOutputCountIsRejected()
+    {
+        using Result r = Make("/Width 1 /Height 1 /BitsPerComponent 8 /ColorSpace [/Separation /Spot /DeviceRGB 12 0 R]", [255], null, null,
+            new Obj(12, "<< /FunctionType 2 /Domain [0 1] /C0 [0] /C1 [1] /N 1 >>"));
+        Assert.Contains(r.Warnings, w => w.Contains("inputs"));
+    }
+
+    // 16x4 test pattern, CCITT Group 4 (made with an independent encoder; the first row is a white run of 0 then a
+    // black run of 16). With the default BlackIs1 false the rows decode to 0000, FF00, CCCC, 0FF0.
+    private static readonly byte[] G4 = Convert.FromHexString("26a0b998a5f08ee778510e002002");
+
+    [Fact]
+    public void CcittImageIsDecodedLikeAnyOtherFilter()
+    {
+        using Result r = Make("/Width 16 /Height 4 /BitsPerComponent 1 /ColorSpace /DeviceGray /Filter /CCITTFaxDecode /DecodeParms << /K -1 /Columns 16 /Rows 4 >>", G4);
+        Assert.True(r.Img.IsDecoded);
+        Assert.Null(r.Img.EncodedFilter);
+        byte[] s = Samples(r.Img);
+        Assert.Equal(64, s.Length);
+        Assert.All(s[..16], v => Assert.Equal(0, v));
+        Assert.Equal(new byte[] { 255, 255, 255, 255, 255, 255, 255, 255, 0, 0, 0, 0, 0, 0, 0, 0 }, s[16..32]);
+        Assert.Equal(new byte[] { 255, 255, 0, 0, 255, 255, 0, 0, 255, 255, 0, 0, 255, 255, 0, 0 }, s[32..48]);
+    }
+
+    [Fact]
+    public void CcittBlackIs1AndDecodeCompose()
+    {
+        using Result b1 = Make("/Width 16 /Height 4 /BitsPerComponent 1 /ColorSpace /DeviceGray /Filter /CCITTFaxDecode /DecodeParms << /K -1 /Columns 16 /Rows 4 /BlackIs1 true >>", G4);
+        Assert.All(Samples(b1.Img)[..16], v => Assert.Equal(255, v));
+        using Result inv = Make("/Width 16 /Height 4 /BitsPerComponent 1 /ColorSpace /DeviceGray /Decode [1 0] /Filter /CCITTFaxDecode /DecodeParms << /K -1 /Columns 16 /Rows 4 >>", G4);
+        Assert.All(Samples(inv.Img)[..16], v => Assert.Equal(255, v));
+    }
+
+    [Fact]
+    public void CcittImageMaskPaintsBlackPixels()
+    {
+        using Result r = Make("/Width 16 /Height 4 /ImageMask true /Filter /CCITTFaxDecode /DecodeParms << /K -1 /Columns 16 /Rows 4 >>", G4);
+        Assert.True(r.Img.IsStencil);
+        byte[] a = Alpha(r.Img);
+        Assert.All(a[..16], v => Assert.Equal(255, v));
+        Assert.Equal(0, a[16]);
+        Assert.Equal(255, a[31]);
+    }
+
+    [Fact]
+    public void InlineCcittImage()
+    {
+        using Result host = Make("/Width 1 /Height 1 /BitsPerComponent 8 /ColorSpace /DeviceGray", [0]);
+        var dict = new PdfDictionary(null);
+        dict.Set("W", new PdfInteger(16));
+        dict.Set("H", new PdfInteger(4));
+        dict.Set("BPC", new PdfInteger(1));
+        dict.Set("CS", new PdfName("G"));
+        dict.Set("F", new PdfName("CCF"));
+        var dp = new PdfDictionary(null);
+        dp.Set("K", new PdfInteger(-1));
+        dp.Set("Columns", new PdfInteger(16));
+        dict.Set("DP", dp);
+        PdfImage? img = PdfImage.FromInline(host.Doc, dict, G4);
+        Assert.True(img!.IsDecoded);
+        Assert.Equal(0, img.Samples.Span[0]);
+        Assert.Equal(255, img.Samples.Span[16]);
     }
 
     [Fact]

@@ -345,15 +345,7 @@ internal static class ColorSpaceResolver
             return null;
         }
 
-        IColorTransform? tint = null;
-        if (a[3] is { } fn && ColorTransforms.Factory is { } make)
-        {
-            tint = make(doc, fn, names.Count, alt.ComponentCount);
-            if (tint is null)
-            {
-                doc.ReportWarning("A tint transform is unusable; the ink is approximated.", objNum, -1);
-            }
-        }
+        IColorTransform? tint = a[3] is { } fn ? FunctionTint.Create(doc, fn, names.Count, alt.ComponentCount, objNum) : null;
 
         return new PdfColorSpace(device ? PdfColorSpaceKind.DeviceN : PdfColorSpaceKind.Separation, names.Count)
         {

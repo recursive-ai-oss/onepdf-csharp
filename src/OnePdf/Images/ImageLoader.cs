@@ -102,9 +102,21 @@ internal static class ImageLoader
             };
             if (p is not null)
             {
+                bool ccitt = names[i] == "CCITTFaxDecode";
                 fp[i] = new FilterParameters(
-                    Clamp(p.GetInt("Predictor", 1)), Clamp(p.GetInt("Colors", 1)), Clamp(p.GetInt("BitsPerComponent", 8)),
-                    Clamp(p.GetInt("Columns", 1)), Clamp(p.GetInt("EarlyChange", 1)));
+                    Predictor: Clamp(p.GetInt("Predictor", 1)),
+                    Colors: Clamp(p.GetInt("Colors", 1)),
+                    BitsPerComponent: Clamp(p.GetInt("BitsPerComponent", 8)),
+                    Columns: Clamp(p.GetInt("Columns", 1)),
+                    EarlyChange: Clamp(p.GetInt("EarlyChange", 1)),
+                    K: ccitt ? Clamp(p.GetInt("K", 0)) : 0,
+                    EndOfLine: ccitt && p.GetBool("EndOfLine"),
+                    EncodedByteAlign: ccitt && p.GetBool("EncodedByteAlign"),
+                    CcittColumns: ccitt ? Clamp(p.GetInt("Columns", 1728)) : 1728,
+                    Rows: ccitt ? Clamp(p.GetInt("Rows", 0)) : 0,
+                    EndOfBlock: !ccitt || p.GetBool("EndOfBlock", true),
+                    BlackIs1: ccitt && p.GetBool("BlackIs1"),
+                    DamagedRowsBeforeError: ccitt ? Clamp(p.GetInt("DamagedRowsBeforeError", 0)) : 0);
             }
         }
 
