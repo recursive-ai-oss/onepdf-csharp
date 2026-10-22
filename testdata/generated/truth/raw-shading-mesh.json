@@ -1,0 +1,16 @@
+{
+ "category": "graphics",
+ "generator": "hand-assembled by tools/corpus/generate.py",
+ "name": "raw-shading-mesh",
+ "notes": "mesh shadings: free-form triangles (types 4), a lattice (5), a Coons patch (6) and a tensor patch (7)",
+ "pageCount": 2,
+ "pages": [
+  {
+   "text": "Free-form and lattice meshes"
+  },
+  {
+   "text": "Coons and tensor patches"
+  }
+ ],
+ "schema": 1
+}

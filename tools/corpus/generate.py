@@ -729,6 +729,111 @@ def gen_raw():
                  xmp={"title": "XMP Title \u00e9", "creators": ["Ada", "Grace"], "creatorTool": "onepdf-generator", "keywords": "alpha, beta"})
 
 
+# ---------------------------------------------------------------- shadings and patterns
+def graphics_doc():
+    r = Raw()
+    cat = r.reserve(); pgs = r.reserve()
+    font = r.add("<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>")
+    return r, cat, pgs, font
+
+
+def gen_graphics():
+    import struct
+
+    def finish(r, cat, pgs, font, pages, name, notes):
+        nums = []
+        for title, content, res in pages:
+            body = f"BT /F1 16 Tf 72 740 Td {pdfstr(title)} Tj ET\n".encode("latin-1") + content
+            c = r.stream("", body)
+            nums.append(r.add(f"<< /Type /Page /Parent {pgs} 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 {font} 0 R >> {res} >> /Contents {c} 0 R >>"))
+        r.set(pgs, f"<< /Type /Pages /Kids [{' '.join(f'{p} 0 R' for p in nums)}] /Count {len(nums)} >>")
+        r.set(cat, f"<< /Type /Catalog /Pages {pgs} 0 R >>")
+        save_raw(name, r.build(cat), [p[0] for p in pages], "graphics", notes=notes)
+
+    # ---- axial, radial and function-based shadings
+    n = "raw-shading-axial-radial"
+    if want(n):
+        r, cat, pgs, font = graphics_doc()
+        f_rb = r.add("<< /FunctionType 2 /Domain [0 1] /C0 [1 0 0] /C1 [0 0 1] /N 1 >>")
+        f_a = r.add("<< /FunctionType 2 /Domain [0 1] /C0 [1 1 0] /C1 [0 0.6 0] /N 1 >>")
+        f_b = r.add("<< /FunctionType 2 /Domain [0 1] /C0 [0 0.6 0] /C1 [0 0 0.5] /N 2 >>")
+        f_st = r.add(f"<< /FunctionType 3 /Domain [0 1] /Functions [{f_a} 0 R {f_b} 0 R] /Bounds [0.4] /Encode [0 1 0 1] >>")
+        f_ps = r.stream("/FunctionType 4 /Domain [0 1 0 1] /Range [0 1 0 1 0 1]", b"{ 2 copy mul 3 1 roll exch }")
+        sh_ax = r.add(f"<< /ShadingType 2 /ColorSpace /DeviceRGB /Coords [72 0 272 0] /Function {f_rb} 0 R /Extend [true true] >>")
+        sh_rad = r.add(f"<< /ShadingType 3 /ColorSpace /DeviceRGB /Coords [400 600 10 420 590 70] /Function {f_st} 0 R /Extend [false true] /Background [0.9 0.9 0.9] >>")
+        sh_fn = r.add(f"<< /ShadingType 1 /ColorSpace /DeviceRGB /Domain [0 1 0 1] /Matrix [200 0 0 120 72 450] /Function {f_ps} 0 R >>")
+        sh_ax2 = r.add(f"<< /ShadingType 2 /ColorSpace /DeviceRGB /Coords [0 0 100 100] /Function {f_a} 0 R /Extend [false false] /BBox [0 0 100 100] >>")
+        res = f"/Shading << /Ax {sh_ax} 0 R /Rad {sh_rad} 0 R /Fn {sh_fn} 0 R /Ax2 {sh_ax2} 0 R >>"
+        p1 = (b"q 72 560 200 120 re W n /Ax sh Q\n"
+              b"q 330 530 200 200 re W n /Rad sh Q\n"
+              b"q 1 0 0 1 72 300 cm /Ax2 sh Q\n"
+              b"q 0.5 0 0 0.5 300 300 cm /Ax2 sh Q\n")
+        p2 = b"q 72 450 200 120 re W n /Fn sh Q\n"
+        finish(r, cat, pgs, font, [("Axial and radial shadings", p1, res), ("Function-based shading", p2, res)], n,
+               "axial (extended, with BBox), radial with a stitching function and Background, and a type 1 PostScript-function shading; all painted with sh")
+
+    # ---- mesh shadings 4-7
+    n = "raw-shading-mesh"
+    if want(n):
+        r, cat, pgs, font = graphics_doc()
+
+        def q16(v, lo, hi):
+            return min(65535, max(0, round((v - lo) / (hi - lo) * 65535)))
+
+        def vtx(x, y, c, flag=None):
+            b = b"" if flag is None else bytes([flag])
+            return b + struct.pack(">HH", q16(x, 0, 612), q16(y, 0, 792)) + bytes(c)
+
+        red, green, blue, yellow = (255, 0, 0), (0, 160, 0), (0, 0, 255), (255, 220, 0)
+        # type 4: a triangle, then a second one sharing an edge (flag 1) and a third starting fresh
+        t4 = (vtx(80, 520, red, 0) + vtx(280, 520, green, 0) + vtx(180, 700, blue, 0)
+              + vtx(300, 690, yellow, 1) + vtx(400, 520, red, 0) + vtx(500, 520, green, 0) + vtx(450, 650, blue, 0))
+        m4 = r.stream("/ShadingType 4 /ColorSpace /DeviceRGB /BitsPerCoordinate 16 /BitsPerComponent 8 /BitsPerFlag 8 /Decode [0 612 0 792 0 1 0 1 0 1]", t4)
+        # type 5: a lattice of 3 vertices per row, 3 rows
+        rows = [[(80, 250 + 70 * j, red if (i + j) % 2 else yellow) for i in range(3)] for j in range(3)]
+        t5 = b"".join(vtx(x + 90 * i, y, c) for j, row in enumerate(rows) for i, (x, y, c) in enumerate(row))
+        m5 = r.stream("/ShadingType 5 /ColorSpace /DeviceRGB /BitsPerCoordinate 16 /BitsPerComponent 8 /VerticesPerRow 3 /Decode [0 612 0 792 0 1 0 1 0 1]", t5)
+        # type 6: one Coons patch with bulging edges; 12 boundary points then 4 corner colours
+        def patch(flag, pts, cols):
+            return bytes([flag]) + b"".join(struct.pack(">HH", q16(x, 0, 612), q16(y, 0, 792)) for x, y in pts) + b"".join(bytes(c) for c in cols)
+        x0, y0, s = 80, 450, 200
+        p12 = [(x0, y0), (x0 - 20, y0 + s / 3), (x0 + 20, y0 + 2 * s / 3), (x0, y0 + s), (x0 + s / 3, y0 + s + 20), (x0 + 2 * s / 3, y0 + s - 20),
+               (x0 + s, y0 + s), (x0 + s + 20, y0 + 2 * s / 3), (x0 + s - 20, y0 + s / 3), (x0 + s, y0), (x0 + 2 * s / 3, y0 - 20), (x0 + s / 3, y0 + 20)]
+        m6 = r.stream("/ShadingType 6 /ColorSpace /DeviceRGB /BitsPerCoordinate 16 /BitsPerComponent 8 /BitsPerFlag 8 /Decode [0 612 0 792 0 1 0 1 0 1]",
+                      patch(0, p12, [red, green, blue, yellow]))
+        # type 7: tensor patch = the 12 boundary points plus 4 interior points
+        x0 = 340
+        p16 = [(x0, y0), (x0, y0 + s / 3), (x0, y0 + 2 * s / 3), (x0, y0 + s), (x0 + s / 3, y0 + s), (x0 + 2 * s / 3, y0 + s), (x0 + s, y0 + s),
+               (x0 + s, y0 + 2 * s / 3), (x0 + s, y0 + s / 3), (x0 + s, y0), (x0 + 2 * s / 3, y0), (x0 + s / 3, y0),
+               (x0 + s / 3, y0 + s / 3), (x0 + s / 3, y0 + 2 * s / 3), (x0 + 2 * s / 3, y0 + 2 * s / 3), (x0 + 2 * s / 3, y0 + s / 3)]
+        m7 = r.stream("/ShadingType 7 /ColorSpace /DeviceRGB /BitsPerCoordinate 16 /BitsPerComponent 8 /BitsPerFlag 8 /Decode [0 612 0 792 0 1 0 1 0 1]",
+                      patch(0, p16, [yellow, blue, green, red]))
+        res = f"/Shading << /M4 {m4} 0 R /M5 {m5} 0 R /M6 {m6} 0 R /M7 {m7} 0 R >>"
+        finish(r, cat, pgs, font, [("Free-form and lattice meshes", b"/M4 sh /M5 sh\n", res), ("Coons and tensor patches", b"/M6 sh /M7 sh\n", res)], n,
+               "mesh shadings: free-form triangles (types 4), a lattice (5), a Coons patch (6) and a tensor patch (7)")
+
+    # ---- tiling and shading patterns
+    n = "raw-pattern-tiling"
+    if want(n):
+        r, cat, pgs, font = graphics_doc()
+        p_col = r.stream("/Type /Pattern /PatternType 1 /PaintType 1 /TilingType 1 /BBox [0 0 20 20] /XStep 20 /YStep 20 /Resources << >>",
+                         b"1 0 0 rg 0 0 10 10 re f 0 0 1 rg 10 10 10 10 re f")
+        p_unc = r.stream("/Type /Pattern /PatternType 1 /PaintType 2 /TilingType 2 /BBox [0 0 16 16] /XStep 18 /YStep 18 /Matrix [0.8 0.2 -0.2 0.8 5 5] /Resources << >>",
+                         b"2 w 0 0 m 16 16 l S 0 16 m 16 0 l S")
+        f_a = r.add("<< /FunctionType 2 /Domain [0 1] /C0 [1 0.8 0] /C1 [0 0.4 0.8] /N 1 >>")
+        sh = r.add(f"<< /ShadingType 2 /ColorSpace /DeviceRGB /Coords [0 0 200 0] /Function {f_a} 0 R /Extend [true true] >>")
+        p_sh = r.add(f"<< /Type /Pattern /PatternType 2 /Shading {sh} 0 R /Matrix [1 0 0 1 72 0] >>")
+        res = f"/Pattern << /Pc {p_col} 0 R /Pu {p_unc} 0 R /Ps {p_sh} 0 R >> /ColorSpace << /CsU [/Pattern /DeviceRGB] >>"
+        content = (b"/Pattern cs /Pc scn 72 560 200 120 re f\n"
+                   b"/CsU cs 0 0.6 0 /Pu scn 330 560 200 120 re f\n"
+                   b"0.8 0 0.8 /Pu scn 330 400 200 120 re f\n"
+                   b"/Pattern cs /Ps scn 72 400 200 120 re f\n"
+                   b"/Pattern CS /Pc SCN 12 w 72 340 m 272 340 l S\n"
+                   b"/CsU CS 0.2 0.2 0.2 /Pu SCN 8 w 330 340 m 530 340 l S\n")
+        finish(r, cat, pgs, font, [("Tiling and shading patterns", content, res)], n,
+               "a coloured tiling pattern, an uncoloured one in two tints (with a skewed matrix), a shading pattern, and patterns used for stroking")
+
+
 # ---------------------------------------------------------------- qpdf-derived variants
 ENC = [
     # name, qpdf args after the passwords, revision note
@@ -809,6 +914,7 @@ def gen_qpdf():
 
 def main():
     gen_raw()
+    gen_graphics()
     gen_chrome()
     gen_lo()
     gen_tex()
