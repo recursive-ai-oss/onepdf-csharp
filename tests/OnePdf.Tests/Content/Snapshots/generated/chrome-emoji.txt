@@ -1,0 +1,37 @@
+# page 1
+onepdf-display-list 3
+page box=0 0 594.96 841.92 name=CropBox rotate=0 unit=1 scale=1 size=594.96 841.92 base=[1 0 0 -1 0 841.92]
+  gs ctm=[0.24 0 0 0.24 0 0] fill=gray(0) stroke=gray(0) lw=1 cap=0 join=0 miter=10 dash=[] phase=0 flat=1 ri=RelativeColorimetric fa=1 sa=1 bm=Normal sm=0 ais=0 op=000
+  clip evenodd M 237.5 237.5 L 2245.459 237.5 L 2245.459 3272.998 L 237.5 3272.998 Z
+    begin-mc /NonStruct props=<</MCID 0>>
+      gs ctm=[0.75 0 0 0.75 57 57] fill=rgb(0 0 0) stroke=rgb(0 0 0) lw=1 cap=0 join=0 miter=10 dash=[] phase=0 flat=1 ri=RelativeColorimetric fa=1 sa=1 bm=Normal sm=0 ais=0 op=000
+      text font=/F4 size=16 mode=0 tc=0 tw=0 th=1 rise=0 tm=[1 0 0 -1 8 24] vert=0 adv=15.8203 0 codes=003a glyphs=[58@0,0,0.9888]
+      text font=/F4 size=16 mode=0 tc=0 tw=0 th=1 rise=0 tm=[1 0 0 -1 22.8828 24] vert=0 adv=52.4844 0 codes=004800440057004b00480055 glyphs=[72@0,0,0.6152 68@9.8438,0,0.6128 87@19.6484,0,0.3921 75@25.9219,0,0.6338 72@36.0625,0,0.6152 85@45.9063,0,0.4111]
+      text font=/F5 size=16 mode=0 tc=0 tw=0 th=1 rise=0 tm=[1 0 0 -1 75.3672 24] vert=0 adv=19.9219 0 codes=03 glyphs=[3@0,0,1.2451]
+      text font=/F4 size=16 mode=0 tc=0 tw=0 th=1 rise=0 tm=[1 0 0 -1 95.3672 24] vert=0 adv=6.5781 0 codes=0055 glyphs=[85@0,0,0.4111]
+      text font=/F4 size=16 mode=0 tc=0 tw=0 th=1 rise=0 tm=[1 0 0 -1 101.5938 24] vert=0 adv=48.0313 0 codes=00480053005200550057001d glyphs=[72@0,0,0.6152 83@9.8438,0,0.6348 82@20,0,0.6118 85@29.7891,0,0.4111 87@36.3672,0,0.3921 29@42.6406,0,0.3369]
+      text font=/F5 size=16 mode=0 tc=0 tw=0 th=1 rise=0 tm=[1 0 0 -1 149.625 24] vert=0 adv=19.9219 0 codes=03 glyphs=[3@0,0,1.2451]
+      text font=/F4 size=16 mode=0 tc=0 tw=0 th=1 rise=0 tm=[1 0 0 -1 169.625 24] vert=0 adv=48.2266 0 codes=0056005800510051005c glyphs=[86@0,0,0.521 88@8.3359,0,0.6338 81@18.4766,0,0.6338 81@28.6172,0,0.6338 92@38.7578,0,0.5918]
+      text font=/F5 size=16 mode=0 tc=0 tw=0 th=1 rise=0 tm=[1 0 0 -1 217.8516 24] vert=0 adv=19.9219 0 codes=03 glyphs=[3@0,0,1.2451]
+      text font=/F5 size=16 mode=0 tc=0 tw=0 th=1 rise=0 tm=[1 0 0 -1 237.8516 24] vert=0 adv=19.9633 0 codes=3b glyphs=[59@0,0,1.2477]
+      text font=/F5 size=16 mode=0 tc=0 tw=0 th=1 rise=0 tm=[1 0 0 -1 257.8516 24] vert=0 adv=19.9219 0 codes=03 glyphs=[3@0,0,1.2451]
+      text font=/F4 size=16 mode=0 tc=0 tw=0 th=1 rise=0 tm=[1 0 0 -1 277.8516 24] vert=0 adv=33.9453 0 codes=005a004c0057004b glyphs=[90@0,0,0.8179 76@13.0859,0,0.2778 87@17.5312,0,0.3921 75@23.8047,0,0.6338]
+      text font=/F5 size=16 mode=0 tc=0 tw=0 th=1 rise=0 tm=[1 0 0 -1 311.7969 24] vert=0 adv=19.9219 0 codes=03 glyphs=[3@0,0,1.2451]
+      text font=/F4 size=16 mode=0 tc=0 tw=0 th=1 rise=0 tm=[1 0 0 -1 331.7969 24] vert=0 adv=9.8047 0 codes=0044 glyphs=[68@0,0,0.6128]
+      text font=/F5 size=16 mode=0 tc=0 tw=0 th=1 rise=0 tm=[1 0 0 -1 341.6016 24] vert=0 adv=19.9219 0 codes=03 glyphs=[3@0,0,1.2451]
+      text font=/F4 size=16 mode=0 tc=0 tw=0 th=1 rise=0 tm=[1 0 0 -1 361.6016 24] vert=0 adv=57.5234 0 codes=0046004b0044005100460048 glyphs=[70@0,0,0.5498 75@8.7969,0,0.6338 68@18.9375,0,0.6128 81@28.7422,0,0.6338 70@38.8828,0,0.5498 72@47.6797,0,0.6152]
+      text font=/F5 size=16 mode=0 tc=0 tw=0 th=1 rise=0 tm=[1 0 0 -1 419.125 24] vert=0 adv=19.9219 0 codes=03 glyphs=[3@0,0,1.2451]
+      text font=/F4 size=16 mode=0 tc=0 tw=0 th=1 rise=0 tm=[1 0 0 -1 439.125 24] vert=0 adv=15.4219 0 codes=00520049 glyphs=[82@0,0,0.6118 73@9.7891,0,0.3521]
+      text font=/F5 size=16 mode=0 tc=0 tw=0 th=1 rise=0 tm=[1 0 0 -1 454.5469 24] vert=0 adv=19.9219 0 codes=03 glyphs=[3@0,0,1.2451]
+      text font=/F4 size=16 mode=0 tc=0 tw=0 th=1 rise=0 tm=[1 0 0 -1 474.5469 24] vert=0 adv=30.9687 0 codes=00550044004c0051 glyphs=[85@0,0,0.4111 68@6.5781,0,0.6128 76@16.3828,0,0.2778 81@20.8281,0,0.6338]
+      text font=/F5 size=16 mode=0 tc=0 tw=0 th=1 rise=0 tm=[1 0 0 -1 505.5156 24] vert=0 adv=19.9219 0 codes=03 glyphs=[3@0,0,1.2451]
+      text font=/F5 size=16 mode=0 tc=0 tw=0 th=1 rise=0 tm=[1 0 0 -1 525.5156 24] vert=0 adv=19.9633 0 codes=42 glyphs=[66@0,0,1.2477]
+      text font=/F5 size=16 mode=0 tc=0 tw=0 th=1 rise=0 tm=[1 0 0 -1 545.5156 24] vert=0 adv=19.9219 0 codes=03 glyphs=[3@0,0,1.2451]
+      text font=/F4 size=16 mode=0 tc=0 tw=0 th=1 rise=0 tm=[1 0 0 -1 565.5156 24] vert=0 adv=30.1016 0 codes=004400510047 glyphs=[68@0,0,0.6128 81@9.8047,0,0.6338 71@19.9453,0,0.6348]
+      text font=/F5 size=16 mode=0 tc=0 tw=0 th=1 rise=0 tm=[1 0 0 -1 595.6172 24] vert=0 adv=19.9219 0 codes=03 glyphs=[3@0,0,1.2451]
+      text font=/F4 size=16 mode=0 tc=0 tw=0 th=1 rise=0 tm=[1 0 0 -1 615.6172 24] vert=0 adv=9.8047 0 codes=0044 glyphs=[68@0,0,0.6128]
+      text font=/F4 size=16 mode=0 tc=0 tw=0 th=1 rise=0 tm=[1 0 0 -1 8 46] vert=0 adv=64 0 codes=00550044004c005100450052005a glyphs=[85@0,0,0.4111 68@6.5781,0,0.6128 76@16.3828,0,0.2778 81@20.8281,0,0.6338 69@30.9687,0,0.6348 82@41.125,0,0.6118 90@50.9141,0,0.8179]
+      text font=/F4 size=16 mode=0 tc=0 tw=0 th=1 rise=0 tm=[1 0 0 -1 70.5312 46] vert=0 adv=5.0859 0 codes=0011 glyphs=[17@0,0,0.3179]
+    pop-clip
+  end-mc
+end-page

@@ -29,9 +29,13 @@ Regenerate: `python3 tools/corpus/generate.py` (needs `google-chrome`, `soffice`
 | `chrome-*` | single, two and three columns; table; Arabic and Hebrew; mixed bidirectional text; Chinese, Japanese, Korean; vertical Japanese; rotated text; ligatures; links and outline; font styles; emoji (embedded as Type 3) |
 | `lo-*` | LibreOffice: report with header/footer, list, table, link, bookmarks (plain and tagged PDF); two columns; vertical Japanese; password-protected export (RC4-128, R3) |
 | `tex-*` | TeX ligatures and a multi-column page (embedded Type 1C/CFF fonts) |
-| `raw-*` | hand-assembled: base file, annotations, AcroForm fields, embedded files, outlines and page labels, Type 3 font, standard-14 fonts and encodings, page rotation/boxes/UserUnit, incremental update, Info and XMP metadata |
+| `raw-*` | hand-assembled: base file, annotations, AcroForm fields, embedded files, outlines and page labels, Type 3 font, standard-14 fonts and encodings, page rotation/boxes/UserUnit, incremental update, Info and XMP metadata, shadings (axial, radial, function-based, mesh types 4-7) and tiling and shading patterns |
 | `raw-broken-*` | repair cases made from `raw-base`: missing trailer, missing xref, bad `startxref`, junk before the header, wrong xref offsets, wrong `/Length` (too long, too short), no `endobj`, truncated, cyclic page tree |
 | `enc-*` | the standard security handler: RC4-40 (R2), RC4-128 (R3), AES-128 (R4), AES-256 (R5 and R6); user and owner passwords; empty user password; cleartext metadata |
 | `*-objstm`, `*-linearized`, `*-rotated-*` | repacked variants (object streams with an xref stream, linearized, `/Rotate`) |
 
 Not covered: Type 3 from a text producer other than the hand-assembled file and Chrome's emoji (no other installed tool emits it).
+
+## Images
+
+`images/*.jpg` are 16×16 gradients (gray, RGB, CMYK with an Adobe APP14 marker and inverted ink) written by `tools/make_test_jpegs.py` with Pillow. The image tests decode them through a test-only JPEG decoder and compare against the gradient with a tolerance.

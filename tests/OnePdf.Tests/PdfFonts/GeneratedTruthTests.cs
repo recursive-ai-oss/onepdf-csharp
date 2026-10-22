@@ -133,9 +133,9 @@ public class GeneratedTruthTests
 
     private static void Show(PdfFont font, byte[] text, StringBuilder sb)
     {
-        var glyphs = new List<PdfGlyph>();
+        var glyphs = new List<FontGlyph>();
         font.Decode(text, glyphs);
-        foreach (PdfGlyph g in glyphs)
+        foreach (FontGlyph g in glyphs)
         {
             sb.Append(g.Unicode);
         }

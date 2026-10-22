@@ -1,0 +1,6 @@
+# page 1
+onepdf-display-list 3
+page box=0 0 595 842 name=CropBox rotate=0 unit=1 scale=1 size=595 842 base=[1 0 0 -1 0 842]
+  gs ctm=[1 0 0 -1 0 842] fill=gray(0) stroke=gray(0) lw=1 cap=0 join=0 miter=10 dash=[] phase=0 flat=1 ri=RelativeColorimetric fa=1 sa=1 bm=Normal sm=0 ais=0 op=000
+  text font=/F1 size=14 mode=0 tc=0 tw=0 th=1 rise=0 tm=[1 0 0 1 72 760] vert=0 adv=119 0 codes=4d6574616461746120636172726965722e glyphs=[77@0,0,0.5 101@7,0,0.5 116@14,0,0.5 97@21,0,0.5 100@28,0,0.5 97@35,0,0.5 116@42,0,0.5 97@49,0,0.5 32@56,0,0.5 99@63,0,0.5 97@70,0,0.5 114@77,0,0.5 114@84,0,0.5 105@91,0,0.5 101@98,0,0.5 114@105,0,0.5 46@112,0,0.5]
+end-page

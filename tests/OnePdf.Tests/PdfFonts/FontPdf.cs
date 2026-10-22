@@ -43,14 +43,14 @@ internal static class FontPdf
     public static PdfFont Font(PdfDocument doc, int objectNumber) =>
         doc.GetFont((PdfDictionary?)doc.GetObject(objectNumber));
 
-    public static List<PdfGlyph> Decode(PdfFont font, params byte[] text)
+    public static List<FontGlyph> Decode(PdfFont font, params byte[] text)
     {
-        var list = new List<PdfGlyph>();
+        var list = new List<FontGlyph>();
         font.Decode(text, list);
         return list;
     }
 
-    public static string Text(IEnumerable<PdfGlyph> glyphs) => string.Concat(glyphs.Select(static g => g.Unicode));
+    public static string Shown(IEnumerable<FontGlyph> glyphs) => string.Concat(glyphs.Select(static g => g.Unicode));
 
     public static byte[] Ascii(string s) => Encoding.Latin1.GetBytes(s);
 }

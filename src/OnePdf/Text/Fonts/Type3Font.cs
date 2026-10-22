@@ -14,7 +14,7 @@ internal sealed class Type3Font : PdfFont
     private readonly int _firstChar;
     private readonly double _missingWidth;
     private readonly PdfDictionary? _charProcs;
-    private readonly PdfGlyph?[] _cache = new PdfGlyph?[256];
+    private readonly FontGlyph?[] _cache = new FontGlyph?[256];
 
     public Type3Font(PdfDictionary dictionary, FontContext context)
         : base(dictionary, context)
@@ -76,7 +76,7 @@ internal sealed class Type3Font : PdfFont
     public PdfDictionary? Resources { get; }
 
     /// <inheritdoc />
-    public override int Next(ReadOnlySpan<byte> text, int position, out PdfGlyph? glyph)
+    public override int Next(ReadOnlySpan<byte> text, int position, out FontGlyph? glyph)
     {
         if ((uint)position >= (uint)text.Length)
         {
@@ -86,10 +86,10 @@ internal sealed class Type3Font : PdfFont
 
         int code = text[position];
         // Racing threads may both build a glyph; exactly one instance is published and shared.
-        PdfGlyph? g = Volatile.Read(ref _cache[code]);
+        FontGlyph? g = Volatile.Read(ref _cache[code]);
         if (g is null)
         {
-            PdfGlyph built = Build(code);
+            FontGlyph built = Build(code);
             g = Interlocked.CompareExchange(ref _cache[code], built, null) ?? built;
         }
 
@@ -97,14 +97,14 @@ internal sealed class Type3Font : PdfFont
         return position + 1;
     }
 
-    private PdfGlyph Build(int code)
+    private FontGlyph Build(int code)
     {
         string? name = _names[code];
         PdfStream? proc = name is not null ? _charProcs?.Get(name) as PdfStream : null;
         bool hasUnicode = FontSupport.TryToUnicode(_toUnicode, (uint)code, 1, out string text) || FontSupport.NameToUnicode(name, false, out text);
         int idx = code - _firstChar;
         double w = _widths is not null && (uint)idx < (uint)_widths.Length ? _widths[idx] : _missingWidth;
-        return new PdfGlyph(this)
+        return new FontGlyph(this)
         {
             Code = (uint)code,
             CodeLength = 1,

@@ -100,7 +100,7 @@ internal sealed class SimpleFont : PdfFont
     private readonly StandardFontMetrics? _std;
     private readonly bool _zapf;
     private readonly ProgramUnicode? _programUnicode;
-    private readonly PdfGlyph?[] _cache = new PdfGlyph?[256];
+    private readonly FontGlyph?[] _cache = new FontGlyph?[256];
     private readonly CmapSubtable? _cmap31;
     private readonly CmapSubtable? _cmap30;
     private readonly CmapSubtable? _cmap10;
@@ -196,7 +196,7 @@ internal sealed class SimpleFont : PdfFont
     }
 
     /// <inheritdoc />
-    public override int Next(ReadOnlySpan<byte> text, int position, out PdfGlyph? glyph)
+    public override int Next(ReadOnlySpan<byte> text, int position, out FontGlyph? glyph)
     {
         if ((uint)position >= (uint)text.Length)
         {
@@ -206,10 +206,10 @@ internal sealed class SimpleFont : PdfFont
 
         int code = text[position];
         // Racing threads may both build a glyph; exactly one instance is published and shared.
-        PdfGlyph? g = Volatile.Read(ref _cache[code]);
+        FontGlyph? g = Volatile.Read(ref _cache[code]);
         if (g is null)
         {
-            PdfGlyph built = Build(code);
+            FontGlyph built = Build(code);
             g = Interlocked.CompareExchange(ref _cache[code], built, null) ?? built;
         }
 
@@ -217,7 +217,7 @@ internal sealed class SimpleFont : PdfFont
         return position + 1;
     }
 
-    private PdfGlyph Build(int code)
+    private FontGlyph Build(int code)
     {
         string? name = _names[code];
         bool hasUnicode = FontSupport.TryToUnicode(_toUnicode, (uint)code, 1, out string text) || FontSupport.NameToUnicode(name, _zapf, out text);
@@ -263,7 +263,7 @@ internal sealed class SimpleFont : PdfFont
             matrix = ScaleToWidth(p, gid, width);
         }
 
-        return new PdfGlyph(this)
+        return new FontGlyph(this)
         {
             Code = (uint)code,
             CodeLength = 1,

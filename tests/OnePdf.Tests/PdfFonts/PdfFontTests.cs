@@ -21,9 +21,9 @@ public class PdfFontTests
             b.Obj(11, "<< /Type /Font /Subtype /TrueType /BaseFont /Arial,Bold >>");
         });
         PdfFont f = Font(doc, 10);
-        List<PdfGlyph> g = Decode(f, Ascii("AB "));
+        List<FontGlyph> g = Decode(f, Ascii("AB "));
         Assert.Equal(3, g.Count);
-        Assert.Equal("AB ", Text(g));
+        Assert.Equal("AB ", Shown(g));
         Assert.Equal(0.667, g[0].Advance, 3);
         Assert.Equal(0.667, g[1].Advance, 3);
         Assert.Equal(0.278, g[2].Advance, 3);
@@ -39,12 +39,12 @@ public class PdfFontTests
     public void SymbolUsesItsBuiltInEncodingAndGreekNames()
     {
         using PdfDocument doc = Open(static b => b.Obj(10, "<< /Type /Font /Subtype /Type1 /BaseFont /Symbol >>"));
-        PdfGlyph a = Decode(Font(doc, 10), 0x61)[0];
+        FontGlyph a = Decode(Font(doc, 10), 0x61)[0];
         Assert.Equal("alpha", a.Name);
         Assert.Equal("\u03B1", a.Unicode);
         Assert.Equal(0.631, a.Advance, 3);
         using PdfDocument z = Open(static b => b.Obj(10, "<< /Type /Font /Subtype /Type1 /BaseFont /ZapfDingbats >>"));
-        PdfGlyph d = Decode(Font(z, 10), 0x21)[0];
+        FontGlyph d = Decode(Font(z, 10), 0x21)[0];
         Assert.Equal("a1", d.Name);
         Assert.Equal("\u2701", d.Unicode);
     }
@@ -54,7 +54,7 @@ public class PdfFontTests
     {
         using PdfDocument doc = Open(static b => b.Obj(10,
             "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding << /Type /Encoding /BaseEncoding /WinAnsiEncoding /Differences [65 /uni0042 /g23 /Euro /fi /a.sc 200 /Delta /u1F600] >> >>"));
-        List<PdfGlyph> g = Decode(Font(doc, 10), 65, 66, 67, 68, 69, 200, 201, 70);
+        List<FontGlyph> g = Decode(Font(doc, 10), 65, 66, 67, 68, 69, 200, 201, 70);
         Assert.Equal("B", g[0].Unicode);
         Assert.False(g[1].HasUnicode);
         Assert.Equal("\uFFFD", g[1].Unicode);
@@ -75,7 +75,7 @@ public class PdfFontTests
             b.Obj(10, "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding /ToUnicode 11 0 R >>");
             b.Stream(11, string.Empty, Ascii("/CIDInit /ProcSet findresource begin 12 dict begin begincmap 1 begincodespacerange <00> <FF> endcodespacerange 1 beginbfchar <41> <0058> endbfchar endcmap end end"));
         });
-        Assert.Equal("XB", Text(Decode(Font(doc, 10), Ascii("AB"))));
+        Assert.Equal("XB", Shown(Decode(Font(doc, 10), Ascii("AB"))));
     }
 
     // ---- TrueType ---------------------------------------------------------------------------------------------------
@@ -91,7 +91,7 @@ public class PdfFontTests
             AddFontFile(b, 12, ttf);
         });
         PdfFont f = Font(doc, 10);
-        List<PdfGlyph> g = Decode(f, Ascii("AB"));
+        List<FontGlyph> g = Decode(f, Ascii("AB"));
         Assert.True(f.IsEmbedded);
         Assert.Equal([1, 2], g.Select(static x => x.Gid));
         Assert.All(g, static x => Assert.True(x.Exists));
@@ -101,7 +101,7 @@ public class PdfFontTests
         Assert.False(g[0].GetOutline().IsEmpty);
         Assert.False(g[0].HasUnicode);
         // Code 67 has no glyph: .notdef, no existence, and the missing width.
-        PdfGlyph missing = Decode(f, Ascii("C"))[0];
+        FontGlyph missing = Decode(f, Ascii("C"))[0];
         Assert.False(missing.Exists);
         Assert.Equal(0, missing.Gid);
         Assert.Equal(0, missing.Advance);
@@ -134,14 +134,14 @@ public class PdfFontTests
             b.Obj(14, "<< /Type /FontDescriptor /FontName /A+Two /Flags 32 /FontFile2 15 0 R >>");
             AddFontFile(b, 15, postOnly);
         });
-        List<PdfGlyph> a = Decode(Font(doc, 10), 0x41, 0x80);
+        List<FontGlyph> a = Decode(Font(doc, 10), 0x41, 0x80);
         // WinAnsi 0x80 is Euro, found through the (3,1) cmap.
         Assert.Equal(1, a[0].Gid);
         Assert.Equal("A", a[0].Unicode);
         Assert.Equal(2, a[1].Gid);
         Assert.Equal("\u20AC", a[1].Unicode);
 
-        List<PdfGlyph> p = Decode(Font(doc, 13), Ascii("AB"));
+        List<FontGlyph> p = Decode(Font(doc, 13), Ascii("AB"));
         Assert.Equal([1, 2], p.Select(static x => x.Gid));
         Assert.All(p, static x => Assert.True(x.Exists));
     }
@@ -167,7 +167,7 @@ public class PdfFontTests
         byte[] ttf = TinyTrueType.Build(4, [new(3, 1, Pairs((0x41, 1), (0x42, 2), (0x3042, 3)))]);
         using PdfDocument doc = Open(b => AddType0(b, "Identity-H", ttf));
         PdfFont f = Font(doc, 10);
-        List<PdfGlyph> g = Decode(f, 0, 1, 0, 2, 0, 3, 0, 9);
+        List<FontGlyph> g = Decode(f, 0, 1, 0, 2, 0, 3, 0, 9);
         Assert.True(f.IsComposite);
         Assert.Equal(0, f.WMode);
         Assert.Equal([2, 1, 3, 0], g.Select(static x => x.Gid));
@@ -177,7 +177,7 @@ public class PdfFontTests
         Assert.Equal(0.4, g[1].Advance, 6);
         Assert.Equal(1.0, g[2].Advance, 6);
         // Unicode from the embedded program's cmap, run backwards: gid 2 is 'B', gid 1 'A', gid 3 hiragana A.
-        Assert.Equal("BA\u3042\uFFFD", Text(g));
+        Assert.Equal("BA\u3042\uFFFD", Shown(g));
         Assert.False(g[3].HasUnicode);
         Assert.False(g[3].Exists);
     }
@@ -188,7 +188,7 @@ public class PdfFontTests
         byte[] ttf = TinyTrueType.Build(4, [new(3, 1, Pairs((0x41, 1), (0x42, 2)))]);
         using PdfDocument doc = Open(b => AddType0(b, "Identity-H", ttf, toUnicode:
             "/CIDInit /ProcSet findresource begin 12 dict begin begincmap 1 begincodespacerange <0000> <FFFF> endcodespacerange 1 beginbfrange <0001> <0002> <0058> endbfrange endcmap end end"));
-        Assert.Equal("XY", Text(Decode(Font(doc, 10), 0, 1, 0, 2)));
+        Assert.Equal("XY", Shown(Decode(Font(doc, 10), 0, 1, 0, 2)));
     }
 
     [Fact]
@@ -202,13 +202,13 @@ public class PdfFontTests
             b.Obj(13, "<< /Type /Font /Subtype /CIDFontType0 /BaseFont /SimSun /CIDSystemInfo << /Registry (Adobe) /Ordering (GB1) /Supplement 2 >> >>");
         });
         // Shift-JIS: a two-byte hiragana then a one-byte Latin letter.
-        List<PdfGlyph> j = Decode(Font(doc, 10), 0x82, 0xA0, 0x41);
+        List<FontGlyph> j = Decode(Font(doc, 10), 0x82, 0xA0, 0x41);
         Assert.Equal([2, 1], j.Select(static x => x.CodeLength));
-        Assert.Equal("\u3042A", Text(j));
+        Assert.Equal("\u3042A", Shown(j));
         Assert.True(j.All(static x => x.HasUnicode));
         // UCS2: the code is the character.
-        List<PdfGlyph> c = Decode(Font(doc, 12), 0x4E, 0x2D, 0x00, 0x41);
-        Assert.Equal("\u4E2DA", Text(c));
+        List<FontGlyph> c = Decode(Font(doc, 12), 0x4E, 0x2D, 0x00, 0x41);
+        Assert.Equal("\u4E2DA", Shown(c));
         Assert.Equal(2, c[0].CodeLength);
     }
 
@@ -221,7 +221,7 @@ public class PdfFontTests
             b.Obj(11, "<< /Type /Font /Subtype /CIDFontType0 /BaseFont /X /CIDSystemInfo << /Registry (Adobe) /Ordering (Japan1) /Supplement 6 >> >>");
         });
         // CID 232 is the half-width exclamation mark; 7891 is a vertical variant form.
-        List<PdfGlyph> g = Decode(Font(doc, 10), 0, 232, 0x1E, 0xD3, 0, 1);
+        List<FontGlyph> g = Decode(Font(doc, 10), 0, 232, 0x1E, 0xD3, 0, 1);
         Assert.Equal("!", g[0].Unicode);
         Assert.True(g[1].HasUnicode);
         Assert.True(g[2].HasUnicode);
@@ -237,7 +237,7 @@ public class PdfFontTests
         });
         PdfFont f = Font(doc, 10);
         Assert.Equal(1, f.WMode);
-        List<PdfGlyph> g = Decode(f, 0, 1, 0, 5);
+        List<FontGlyph> g = Decode(f, 0, 1, 0, 5);
         Assert.Equal(0.8, g[0].Advance, 6);
         Assert.Equal(-0.8, g[0].VerticalAdvance, 6);
         Assert.Equal(0.4, g[0].OriginX, 6);
@@ -257,7 +257,7 @@ public class PdfFontTests
             b.Obj(11, "<< /Type /Font /Subtype /CIDFontType0 /BaseFont /X /CIDSystemInfo << /Registry (Adobe) /Ordering (Identity) /Supplement 0 >> /W [100 [250] 500 500 777] >>");
             b.Stream(12, "/Type /CMap /CMapName /Test", Ascii(cmap));
         });
-        List<PdfGlyph> g = Decode(Font(doc, 10), 0x20, 0x80, 0x01, 0x21);
+        List<FontGlyph> g = Decode(Font(doc, 10), 0x20, 0x80, 0x01, 0x21);
         Assert.Equal([1, 2, 1], g.Select(static x => x.CodeLength));
         Assert.Equal([100, 500, 101], g.Select(static x => x.Cid));
         Assert.Equal(0.25, g[0].Advance, 6);
@@ -276,7 +276,7 @@ public class PdfFontTests
             b.Stream(11, string.Empty, Ascii("50 0 0 0 50 50 d1 0 0 50 50 re f"));
         });
         var f = Assert.IsType<Type3Font>(Font(doc, 10));
-        List<PdfGlyph> g = Decode(f, Ascii("AB"));
+        List<FontGlyph> g = Decode(f, Ascii("AB"));
         Assert.True(f.IsType3);
         Assert.Equal(0.01, f.FontMatrix[0], 9);
         Assert.NotNull(f.Resources);
@@ -310,7 +310,7 @@ public class PdfFontTests
         var provider = new FixedFont(sub);
         using PdfDocument doc = Open(AddBroken, provider);
         PdfFont f = Font(doc, 10);
-        PdfGlyph g = Decode(f, Ascii("A"))[0];
+        FontGlyph g = Decode(f, Ascii("A"))[0];
         Assert.True(f.EmbeddedFailed);
         Assert.False(f.IsEmbedded);
         Assert.True(f.IsSubstituted);
@@ -330,7 +330,7 @@ public class PdfFontTests
     {
         using PdfDocument doc = Open(AddBroken);
         PdfFont f = Font(doc, 10);
-        PdfGlyph g = Decode(f, Ascii("A"))[0];
+        FontGlyph g = Decode(f, Ascii("A"))[0];
         Assert.True(f.EmbeddedFailed);
         Assert.Null(f.Program);
         Assert.Equal(-1, g.Gid);
@@ -365,7 +365,7 @@ public class PdfFontTests
         Parallel.For(0, fonts.Length, i => fonts[i] = Font(doc, 10));
         Assert.All(fonts, f => Assert.Same(fonts[0], f));
         Assert.True(fonts[0].Id > 0);
-        var glyphs = new PdfGlyph[64];
+        var glyphs = new FontGlyph[64];
         Parallel.For(0, glyphs.Length, i => glyphs[i] = Decode(fonts[0], 65)[0]);
         Assert.All(glyphs, g => Assert.Same(glyphs[0], g));
     }
@@ -400,7 +400,7 @@ public class PdfFontTests
 
         using PdfDocument doc = Open(static b => b.Obj(10, "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>"), PdfFontProviders.Default);
         PdfFont f = Font(doc, 10);
-        PdfGlyph g = Decode(f, Ascii("A"))[0];
+        FontGlyph g = Decode(f, Ascii("A"))[0];
         Assert.True(f.IsSubstituted);
         Assert.True(g.Exists);
         Assert.False(g.GetOutline().IsEmpty);

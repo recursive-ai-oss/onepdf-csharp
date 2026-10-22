@@ -8,37 +8,121 @@ namespace OnePdf;
 /// </summary>
 public sealed class PdfDictionary : PdfObject
 {
-    private readonly Dictionary<string, PdfObject> _map;
+    // Most dictionaries have a handful of entries, so they are two parallel arrays searched linearly (keys are mostly
+    // interned names, so the reference check usually settles it); a dictionary of more than IndexThreshold entries also
+    // gets a hash index. Entries keep the order they were set in; setting an existing key replaces its value in place.
+    private const int IndexThreshold = 8;
+    private string[] _keys = [];
+    private PdfObject[] _vals = [];
+    private int _n;
+    private Dictionary<string, int>? _index;
     private readonly PdfResolver? _resolver;
 
-    internal PdfDictionary(PdfResolver? resolver)
-    {
-        _resolver = resolver;
-        _map = new Dictionary<string, PdfObject>(StringComparer.Ordinal);
-    }
+    internal PdfDictionary(PdfResolver? resolver) => _resolver = resolver;
 
     /// <summary>Number of entries.</summary>
-    public int Count => _map.Count;
+    public int Count => _n;
 
     /// <summary>The keys, without the leading slash, in the order they were read.</summary>
-    public IEnumerable<string> Keys => _map.Keys;
+    public IEnumerable<string> Keys
+    {
+        get
+        {
+            for (int i = 0; i < _n; i++)
+            {
+                yield return _keys[i];
+            }
+        }
+    }
 
     /// <summary>The raw entries (references unresolved), in the order they were read.</summary>
-    public IEnumerable<KeyValuePair<string, PdfObject>> Entries => _map;
+    public IEnumerable<KeyValuePair<string, PdfObject>> Entries
+    {
+        get
+        {
+            for (int i = 0; i < _n; i++)
+            {
+                yield return new KeyValuePair<string, PdfObject>(_keys[i], _vals[i]);
+            }
+        }
+    }
+
+    private int IndexOfKey(string key)
+    {
+        if (_index is not null)
+        {
+            return _index.TryGetValue(key, out int at) ? at : -1;
+        }
+
+        string[] keys = _keys;
+        for (int i = 0; i < _n; i++)
+        {
+            if ((object)keys[i] == key)
+            {
+                return i;
+            }
+        }
+
+        for (int i = 0; i < _n; i++)
+        {
+            if (string.Equals(keys[i], key, StringComparison.Ordinal))
+            {
+                return i;
+            }
+        }
+
+        return -1;
+    }
 
     /// <summary>The resolved value for <paramref name="key"/>, or null when absent or null.</summary>
     public PdfObject? this[string key] => Get(key);
 
-    internal void Set(string key, PdfObject value) => _map[key] = value;
+    internal void Set(string key, PdfObject value)
+    {
+        int at = IndexOfKey(key);
+        if (at >= 0)
+        {
+            _vals[at] = value;
+            return;
+        }
+
+        if (_n == _keys.Length)
+        {
+            int size = _n == 0 ? 6 : _n * 2;
+            Array.Resize(ref _keys, size);
+            Array.Resize(ref _vals, size);
+        }
+
+        _keys[_n] = key;
+        _vals[_n] = value;
+        _index?.Add(key, _n);
+        _n++;
+        if (_index is null && _n > IndexThreshold)
+        {
+            _index = new Dictionary<string, int>(_n * 2, StringComparer.Ordinal);
+            for (int i = 0; i < _n; i++)
+            {
+                _index[_keys[i]] = i;
+            }
+        }
+    }
 
     /// <summary>True when the dictionary has an entry for <paramref name="key"/>, even a null one.</summary>
-    public bool ContainsKey(string key) => _map.ContainsKey(key);
+    public bool ContainsKey(string key) => IndexOfKey(key) >= 0;
 
     /// <summary>The stored object for <paramref name="key"/> without following references, or null when absent.</summary>
-    public PdfObject? GetRaw(string key) => _map.GetValueOrDefault(key);
+    public PdfObject? GetRaw(string key)
+    {
+        int at = IndexOfKey(key);
+        return at < 0 ? null : _vals[at];
+    }
 
     /// <summary>The value for <paramref name="key"/> with references followed, or null when absent or null.</summary>
-    public PdfObject? Get(string key) => _map.TryGetValue(key, out PdfObject? v) ? Unwrap(v, _resolver) : null;
+    public PdfObject? Get(string key)
+    {
+        int at = IndexOfKey(key);
+        return at < 0 ? null : Unwrap(_vals[at], _resolver);
+    }
 
     /// <summary>An integer value (a real is truncated), or <paramref name="defaultValue"/>.</summary>
     public long GetInt(string key, long defaultValue = 0) => Get(key) switch

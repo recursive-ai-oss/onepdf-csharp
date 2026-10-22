@@ -118,7 +118,7 @@ internal static class FontSweep
             st.NoProgram++;
         }
 
-        var seen = new HashSet<PdfGlyph>(ReferenceEqualityComparer.Instance);
+        var seen = new HashSet<FontGlyph>(ReferenceEqualityComparer.Instance);
         var gidsDone = new HashSet<int>();
         int outlines = 0;
         int limit = 256;
@@ -143,7 +143,7 @@ internal static class FontSweep
                 s = buf.AsSpan(0, 1);
             }
 
-            font.Next(s, 0, out PdfGlyph? g);
+            font.Next(s, 0, out FontGlyph? g);
             if (g is null || !seen.Add(g))
             {
                 continue;
@@ -198,7 +198,7 @@ internal static class FontSweep
         font.ClearGlyphCache();
     }
 
-    private static bool GlyphOutlineCheck(PdfGlyph g, FontStats st)
+    private static bool GlyphOutlineCheck(FontGlyph g, FontStats st)
     {
         var o = g.GetOutline();
         if (o.IsEmpty)

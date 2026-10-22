@@ -184,14 +184,30 @@ public class FlateTests
     [Fact]
     public void DecompressionBombIsStoppedByTheRatioBeforeItGrows()
     {
-        byte[] z = FilterTestUtil.Zlib(new byte[200_000_000], CompressionLevel.SmallestSize);
+        // The input is streamed through the compressor in 1 MiB pieces: no 200 MB array exists at any time.
+        byte[] z;
+        using (var ms = new MemoryStream())
+        {
+            using (var zs = new ZLibStream(ms, CompressionLevel.SmallestSize, leaveOpen: true))
+            {
+                byte[] zeros = new byte[1 << 20];
+                for (int i = 0; i < 200; i++)
+                {
+                    zs.Write(zeros);
+                }
+            }
+
+            z = ms.ToArray();
+        }
+
         Assert.True(z.Length < 300_000);
         // Default limits: 1100x applies past 16 MiB; deflate tops out near 1032x so only the cap can stop this one,
         // which is 256 MiB and not hit. Use a tighter ratio to show the ratio check runs and bounds the allocation.
         var limits = new DecodeLimits(1L << 30, 100, 1 << 20);
-        long before = GC.GetTotalAllocatedBytes(precise: true);
+        // Per-thread count: other tests running in parallel do not add to it (the decode runs on this thread).
+        long before = GC.GetAllocatedBytesForCurrentThread();
         FilterResult r = FilterTestUtil.Flate(z, null, limits);
-        long allocated = GC.GetTotalAllocatedBytes(precise: true) - before;
+        long allocated = GC.GetAllocatedBytesForCurrentThread() - before;
         Assert.True((r.Issues & FilterIssues.LimitExceeded) != 0);
         long allowed = (long)(100.0 * z.Length) + (1 << 20);
         Assert.True(r.Data.Length <= allowed + (1 << 18), "produced " + r.Data.Length);
@@ -615,7 +631,6 @@ public class UnsupportedFilterTests
 {
     [Theory]
     [InlineData("DCTDecode")]
-    [InlineData("CCITTFaxDecode")]
     [InlineData("Crypt")]
     [InlineData("Bogus")]
     public void ReportedNotThrown(string name)

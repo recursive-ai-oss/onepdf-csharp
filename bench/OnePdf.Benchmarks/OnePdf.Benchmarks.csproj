@@ -12,6 +12,9 @@
 
   <ItemGroup>
     <PackageReference Include="BenchmarkDotNet" />
+    <!-- Competitors, compiled packages used as black boxes; they exist in this project only. Docnet.Core wraps PDFium. -->
+    <PackageReference Include="PdfPig" />
+    <PackageReference Include="Docnet.Core" />
   </ItemGroup>
 
   <ItemGroup>

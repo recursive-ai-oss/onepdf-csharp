@@ -4,7 +4,7 @@ How a font dictionary becomes glyphs. Code: `src/OnePdf/Text/Fonts/`. The font p
 
 ## What a font gives the caller
 
-`PdfDocument.GetFont(dictionary)` (internal) returns a `PdfFont`, built once per font object and shared by all threads. `font.Next(bytes, position, out glyph)` / `font.Decode(bytes, list)` split a shown string into `PdfGlyph`s. A glyph is immutable and shared by every use of the same code:
+`PdfDocument.GetFont(dictionary)` (internal) returns a `PdfFont`, built once per font object and shared by all threads. `font.Next(bytes, position, out glyph)` / `font.Decode(bytes, list)` split a shown string into `FontGlyph`s. A glyph is immutable and shared by every use of the same code:
 
 | Member | Meaning |
 |---|---|

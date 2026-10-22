@@ -22,6 +22,11 @@
 bin/
 obj/
 artifacts/
+TestResults/
+*.trx
+*.binlog
+.vs/
+.idea/
 *.user
 BenchmarkDotNet.Artifacts/
 __pycache__/

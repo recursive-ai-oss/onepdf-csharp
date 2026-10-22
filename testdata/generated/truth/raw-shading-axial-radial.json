@@ -1,0 +1,16 @@
+{
+ "category": "graphics",
+ "generator": "hand-assembled by tools/corpus/generate.py",
+ "name": "raw-shading-axial-radial",
+ "notes": "axial (extended, with BBox), radial with a stitching function and Background, and a type 1 PostScript-function shading; all painted with sh",
+ "pageCount": 2,
+ "pages": [
+  {
+   "text": "Axial and radial shadings"
+  },
+  {
+   "text": "Function-based shading"
+  }
+ ],
+ "schema": 1
+}

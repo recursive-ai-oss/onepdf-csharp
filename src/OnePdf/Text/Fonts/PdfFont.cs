@@ -18,11 +18,11 @@ internal static class FontFlags
 /// One character of a shown string, resolved: its code, the glyph it selects, its Unicode text and its metrics. Instances are
 /// immutable and shared by every use of the same code in a font, so decoding a string allocates nothing once a font is warm.
 /// </summary>
-internal sealed class PdfGlyph
+internal sealed class FontGlyph
 {
     private readonly PdfFont _font;
 
-    internal PdfGlyph(PdfFont font) => _font = font;
+    internal FontGlyph(PdfFont font) => _font = font;
 
     /// <summary>The character code as read from the string (big endian for multi-byte codes).</summary>
     public uint Code { get; init; }
@@ -156,7 +156,7 @@ internal abstract class PdfFont
     /// Reads the glyph starting at <paramref name="position"/> in <paramref name="text"/> and returns the position after it.
     /// An empty remainder returns <paramref name="position"/> and a null glyph.
     /// </summary>
-    public abstract int Next(ReadOnlySpan<byte> text, int position, out PdfGlyph? glyph);
+    public abstract int Next(ReadOnlySpan<byte> text, int position, out FontGlyph? glyph);
 
     /// <summary>Drops the decoded-glyph cache (glyphs are rebuilt on demand). For tools that decode a font's whole code range.</summary>
     internal virtual void ClearGlyphCache()
@@ -164,12 +164,12 @@ internal abstract class PdfFont
     }
 
     /// <summary>Decodes a whole string, appending its glyphs.</summary>
-    public void Decode(ReadOnlySpan<byte> text, List<PdfGlyph> into)
+    public void Decode(ReadOnlySpan<byte> text, List<FontGlyph> into)
     {
         int pos = 0;
         while (pos < text.Length)
         {
-            int next = Next(text, pos, out PdfGlyph? g);
+            int next = Next(text, pos, out FontGlyph? g);
             if (g is null || next <= pos)
             {
                 break;
@@ -181,7 +181,7 @@ internal abstract class PdfFont
     }
 
     /// <summary>The glyph outline for a glyph of this font (never null; empty when there is none).</summary>
-    internal GlyphOutline GetOutline(PdfGlyph glyph)
+    internal GlyphOutline GetOutline(FontGlyph glyph)
     {
         FontProgram? p = Program;
         int gid = glyph.Gid;

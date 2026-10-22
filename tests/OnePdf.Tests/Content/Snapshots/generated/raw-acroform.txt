@@ -1,0 +1,47 @@
+# page 1
+onepdf-display-list 3
+page box=0 0 612 792 name=CropBox rotate=0 unit=1 scale=1 size=612 792 base=[1 0 0 -1 0 792]
+  gs ctm=[1 0 0 -1 0 792] fill=gray(0) stroke=gray(0) lw=1 cap=0 join=0 miter=10 dash=[] phase=0 flat=1 ri=RelativeColorimetric fa=1 sa=1 bm=Normal sm=0 ais=0 op=000
+  text font=/F1 size=14 mode=0 tc=0 tw=0 th=1 rise=0 tm=[1 0 0 1 72 760] vert=0 adv=126 0 codes=526567697374726174696f6e20666f726d2e glyphs=[82@0,0,0.5 101@7,0,0.5 103@14,0,0.5 105@21,0,0.5 115@28,0,0.5 116@35,0,0.5 114@42,0,0.5 97@49,0,0.5 116@56,0,0.5 105@63,0,0.5 111@70,0,0.5 110@77,0,0.5 32@84,0,0.5 102@91,0,0.5 111@98,0,0.5 114@105,0,0.5 109@112,0,0.5 46@119,0,0.5]
+  text font=/F1 size=14 mode=0 tc=0 tw=0 th=1 rise=0 tm=[1 0 0 1 72 740] vert=0 adv=140 0 codes=46696c6c20696e206576657279206669656c642e glyphs=[70@0,0,0.5 105@7,0,0.5 108@14,0,0.5 108@21,0,0.5 32@28,0,0.5 105@35,0,0.5 110@42,0,0.5 32@49,0,0.5 101@56,0,0.5 118@63,0,0.5 101@70,0,0.5 114@77,0,0.5 121@84,0,0.5 32@91,0,0.5 102@98,0,0.5 105@105,0,0.5 101@112,0,0.5 108@119,0,0.5 100@126,0,0.5 46@133,0,0.5]
+  begin-annot /Widget rect=72 600 272 620 flags=4
+    gs ctm=[1 0 0 -1 72 192] fill=gray(0) stroke=gray(0) lw=1 cap=0 join=0 miter=10 dash=[] phase=0 flat=1 ri=RelativeColorimetric fa=1 sa=1 bm=Normal sm=0 ais=0 op=000
+    clip nonzero M 0 0 L 200 0 L 200 20 L 0 20 Z
+      begin-mc /Tx props=null
+        text font=/Helv size=12 mode=0 tc=0 tw=0 th=1 rise=0 tm=[1 0 0 1 2 6] vert=0 adv=72 0 codes=416461204c6f76656c616365 glyphs=[65@0,0,0.5 100@6,0,0.5 97@12,0,0.5 32@18,0,0.5 76@24,0,0.5 111@30,0,0.5 118@36,0,0.5 101@42,0,0.5 108@48,0,0.5 97@54,0,0.5 99@60,0,0.5 101@66,0,0.5]
+      end-mc
+    pop-clip
+  end-annot
+  begin-annot /Widget rect=72 570 272 590 flags=4
+    gs ctm=[1 0 0 -1 72 222] fill=gray(0) stroke=gray(0) lw=1 cap=0 join=0 miter=10 dash=[] phase=0 flat=1 ri=RelativeColorimetric fa=1 sa=1 bm=Normal sm=0 ais=0 op=000
+    clip nonzero M 0 0 L 200 0 L 200 20 L 0 20 Z
+      begin-mc /Tx props=null
+        text font=/Helv size=12 mode=0 tc=0 tw=0 th=1 rise=0 tm=[1 0 0 1 2 6] vert=0 adv=36 0 codes=4c6f6e646f6e glyphs=[76@0,0,0.5 111@6,0,0.5 110@12,0,0.5 100@18,0,0.5 111@24,0,0.5 110@30,0,0.5]
+      end-mc
+    pop-clip
+  end-annot
+  begin-annot /Widget rect=72 540 86 554 flags=4
+    gs ctm=[1 0 0 -1 72 252] fill=gray(0) stroke=gray(0) lw=1 cap=0 join=0 miter=10 dash=[] phase=0 flat=1 ri=RelativeColorimetric fa=1 sa=1 bm=Normal sm=0 ais=0 op=000
+    clip nonzero M 0 0 L 14 0 L 14 14 L 0 14 Z
+      fill nonzero M 2 2 L 12 2 L 12 12 L 2 12 Z
+    pop-clip
+  end-annot
+  begin-annot /Widget rect=72 510 86 524 flags=4
+    gs ctm=[1 0 0 -1 72 282] fill=gray(0) stroke=gray(0) lw=1 cap=0 join=0 miter=10 dash=[] phase=0 flat=1 ri=RelativeColorimetric fa=1 sa=1 bm=Normal sm=0 ais=0 op=000
+    clip nonzero M 0 0 L 14 0 L 14 14 L 0 14 Z
+      stroke M 0.5 0.5 L 13.5 0.5 L 13.5 13.5 L 0.5 13.5 Z
+    pop-clip
+  end-annot
+  begin-annot /Widget rect=112 510 126 524 flags=4
+    gs ctm=[1 0 0 -1 112 282] fill=gray(0) stroke=gray(0) lw=1 cap=0 join=0 miter=10 dash=[] phase=0 flat=1 ri=RelativeColorimetric fa=1 sa=1 bm=Normal sm=0 ais=0 op=000
+    clip nonzero M 0 0 L 14 0 L 14 14 L 0 14 Z
+      fill nonzero M 2 2 L 12 2 L 12 12 L 2 12 Z
+    pop-clip
+  end-annot
+  begin-annot /Widget rect=152 510 166 524 flags=4
+    gs ctm=[1 0 0 -1 152 282] fill=gray(0) stroke=gray(0) lw=1 cap=0 join=0 miter=10 dash=[] phase=0 flat=1 ri=RelativeColorimetric fa=1 sa=1 bm=Normal sm=0 ais=0 op=000
+    clip nonzero M 0 0 L 14 0 L 14 14 L 0 14 Z
+      stroke M 0.5 0.5 L 13.5 0.5 L 13.5 13.5 L 0.5 13.5 Z
+    pop-clip
+  end-annot
+end-page

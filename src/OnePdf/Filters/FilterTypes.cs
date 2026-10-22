@@ -11,12 +11,28 @@ namespace OnePdf.Filters;
 /// <param name="BitsPerComponent">1, 2, 4, 8 or 16.</param>
 /// <param name="Columns">Samples per row, at least 1.</param>
 /// <param name="EarlyChange">LZW only: 1 (default) widens codes one table entry early, 0 does not.</param>
+/// <param name="K">CCITTFaxDecode: negative = Group 4, 0 = Group 3 one-dimensional (default), positive = Group 3 mixed.</param>
+/// <param name="EndOfLine">CCITTFaxDecode: EOL codes are present (they are accepted either way).</param>
+/// <param name="EncodedByteAlign">CCITTFaxDecode: each encoded row starts on a byte boundary.</param>
+/// <param name="CcittColumns">CCITTFaxDecode: pixels per row (<c>/Columns</c>; 1728 when absent).</param>
+/// <param name="Rows">CCITTFaxDecode: height in rows, 0 when unknown (decode until the data ends).</param>
+/// <param name="EndOfBlock">CCITTFaxDecode: the data ends with an end-of-block code (decoding stops at one regardless).</param>
+/// <param name="BlackIs1">CCITTFaxDecode: black pixels are 1 bits; default false (black is 0).</param>
+/// <param name="DamagedRowsBeforeError">CCITTFaxDecode: read for completeness; damaged rows never stop decoding.</param>
 internal sealed record FilterParameters(
     int Predictor = 1,
     int Colors = 1,
     int BitsPerComponent = 8,
     int Columns = 1,
-    int EarlyChange = 1)
+    int EarlyChange = 1,
+    int K = 0,
+    bool EndOfLine = false,
+    bool EncodedByteAlign = false,
+    int CcittColumns = 1728,
+    int Rows = 0,
+    bool EndOfBlock = true,
+    bool BlackIs1 = false,
+    int DamagedRowsBeforeError = 0)
 {
     /// <summary>All defaults: no predictor, early change.</summary>
     public static FilterParameters Default { get; } = new();
@@ -28,7 +44,9 @@ internal sealed record FilterParameters(
 /// <param name="MaxExpansionRatio">The most output bytes per input byte for Flate and LZW once the output is past
 /// <paramref name="RatioAppliesAfterBytes"/>; 0 disables the ratio.</param>
 /// <param name="RatioAppliesAfterBytes">Output up to this size is never rejected by the ratio, so small streams of repetitive data pass.</param>
-internal readonly record struct DecodeLimits(long MaxDecodedBytes, double MaxExpansionRatio, long RatioAppliesAfterBytes)
+/// <param name="DiscardOnLimit">When a stage breaches the limit, return no data instead of the part produced within the bound.
+/// For callers that raise an error and never look at it: it saves copying up to the whole cap just to throw it away.</param>
+internal readonly record struct DecodeLimits(long MaxDecodedBytes, double MaxExpansionRatio, long RatioAppliesAfterBytes, bool DiscardOnLimit = false)
 {
     /// <summary>256 MiB per stage, ratio 1100 once past 16 MiB of output.</summary>
     public static DecodeLimits Default { get; } = new(256L << 20, 1100, 16L << 20);

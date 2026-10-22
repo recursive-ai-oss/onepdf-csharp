@@ -143,7 +143,7 @@ internal sealed class CompositeFont : PdfFont
     private readonly double _dw;
     private readonly double _dw2Y;
     private readonly double _dw2W;
-    private readonly ConcurrentDictionary<long, PdfGlyph> _cache = new();
+    private readonly ConcurrentDictionary<long, FontGlyph> _cache = new();
 
     public CompositeFont(PdfDictionary dictionary, FontContext context)
         : base(dictionary, context)
@@ -291,7 +291,7 @@ internal sealed class CompositeFont : PdfFont
     }
 
     /// <inheritdoc />
-    public override int Next(ReadOnlySpan<byte> text, int position, out PdfGlyph? glyph)
+    public override int Next(ReadOnlySpan<byte> text, int position, out FontGlyph? glyph)
     {
         if ((uint)position >= (uint)text.Length || !_cmap.ReadCode(text[position..], out uint code, out int length, out bool valid) || length <= 0)
         {
@@ -312,7 +312,7 @@ internal sealed class CompositeFont : PdfFont
         return position + length;
     }
 
-    private PdfGlyph Build(uint code, int length, bool valid)
+    private FontGlyph Build(uint code, int length, bool valid)
     {
         int cid = valid ? _cmap.ToCid(code, length) : 0;
         if (cid < 0)
@@ -410,7 +410,7 @@ internal sealed class CompositeFont : PdfFont
             matrix = SimpleFont.ScaleToWidth(p, gid, w);
         }
 
-        return new PdfGlyph(this)
+        return new FontGlyph(this)
         {
             Code = code,
             CodeLength = length,
