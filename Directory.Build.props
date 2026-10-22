@@ -1,0 +1,44 @@
+<Project>
+
+  <PropertyGroup Label="Name">
+    <!-- The one place the project name lives. Assembly and namespace names stay $(LibName). -->
+    <LibName>OnePdf</LibName>
+    <!-- NuGet package IDs carry the publisher prefix; this is the only place it is written. -->
+    <PackagePrefix>RecursiveAI.</PackagePrefix>
+  </PropertyGroup>
+
+  <PropertyGroup Label="Output">
+    <!-- Build output stays outside the checkout. Set ONEPDF_ARTIFACTS to choose where; the default is a sibling directory of the repo. -->
+    <ArtifactsPath Condition="'$(ONEPDF_ARTIFACTS)' != ''">$(ONEPDF_ARTIFACTS)</ArtifactsPath>
+    <ArtifactsPath Condition="'$(ONEPDF_ARTIFACTS)' == ''">$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)../$(LibName)-artifacts'))</ArtifactsPath>
+  </PropertyGroup>
+
+  <PropertyGroup Label="Language and analysis">
+    <TargetFramework>net10.0</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <!-- The library is safe, bounds-checked C# throughout: no pointers, no reinterpret casts. -->
+    <AllowUnsafeBlocks>false</AllowUnsafeBlocks>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <AnalysisLevel>latest-recommended</AnalysisLevel>
+    <EnableNETAnalyzers>true</EnableNETAnalyzers>
+    <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
+    <Deterministic>true</Deterministic>
+    <ContinuousIntegrationBuild Condition="'$(CI)' == 'true'">true</ContinuousIntegrationBuild>
+    <InvariantGlobalization>true</InvariantGlobalization>
+  </PropertyGroup>
+
+  <PropertyGroup Label="Package metadata">
+    <Authors>Recursive AI, LLC</Authors>
+    <Company>Recursive AI, LLC</Company>
+    <Copyright>Copyright (c) Recursive AI, LLC</Copyright>
+    <PackageLicenseExpression>MIT OR Apache-2.0</PackageLicenseExpression>
+    <!-- The one place the package version lives. -->
+    <Version>0.0.0-dev</Version>
+    <RepositoryType>git</RepositoryType>
+    <RepositoryUrl>https://github.com/recursive-ai-oss/onepdf-csharp</RepositoryUrl>
+    <PackageProjectUrl>$(RepositoryUrl)</PackageProjectUrl>
+  </PropertyGroup>
+
+</Project>

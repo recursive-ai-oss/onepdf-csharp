@@ -1,0 +1,25 @@
+# Allowlist: everything is ignored unless listed here.
+/*
+!/.gitignore
+!/.editorconfig
+!/.github/
+!/global.json
+!/Directory.Build.props
+!/Directory.Packages.props
+!/OnePdf.slnx
+!/LICENSE-MIT
+!/LICENSE-APACHE
+!/README.md
+!/THIRD-PARTY-NOTICES.md
+!/src/
+!/tests/
+!/bench/
+!/fuzz/
+!/tools/
+!/testdata/
+
+bin/
+obj/
+artifacts/
+*.user
+BenchmarkDotNet.Artifacts/

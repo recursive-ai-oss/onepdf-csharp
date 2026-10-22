@@ -1,0 +1,30 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <AssemblyName>$(LibName)</AssemblyName>
+    <RootNamespace>$(LibName)</RootNamespace>
+    <PackageId>$(PackagePrefix)$(LibName)</PackageId>
+    <Description>A pure-managed, read-only .NET PDF library with no dependencies beyond the base class library.</Description>
+    <IsAotCompatible>true</IsAotCompatible>
+    <IsTrimmable>true</IsTrimmable>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageTags>pdf;parser;text-extraction;nativeaot;trimmable</PackageTags>
+    <IncludeSymbols>true</IncludeSymbols>
+    <SymbolPackageFormat>snupkg</SymbolPackageFormat>
+    <PublishRepositoryUrl>true</PublishRepositoryUrl>
+    <EmbedUntrackedSources>true</EmbedUntrackedSources>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="$(LibName).Tests" />
+    <InternalsVisibleTo Include="$(LibName).Benchmarks" />
+    <InternalsVisibleTo Include="$(LibName).AotSmoke" />
+    <InternalsVisibleTo Include="$(LibName).Fuzz" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="../../README.md" Pack="true" PackagePath="/" />
+  </ItemGroup>
+
+</Project>

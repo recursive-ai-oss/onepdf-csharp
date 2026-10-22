@@ -1,0 +1,16 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/OnePdf/OnePdf.csproj" />
+    <Project Path="src/OnePdf.Fonts/OnePdf.Fonts.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/OnePdf.Tests/OnePdf.Tests.csproj" />
+    <Project Path="tests/OnePdf.AotSmoke/OnePdf.AotSmoke.csproj" />
+  </Folder>
+  <Folder Name="/bench/">
+    <Project Path="bench/OnePdf.Benchmarks/OnePdf.Benchmarks.csproj" />
+  </Folder>
+  <Folder Name="/fuzz/">
+    <Project Path="fuzz/OnePdf.Fuzz/OnePdf.Fuzz.csproj" />
+  </Folder>
+</Solution>

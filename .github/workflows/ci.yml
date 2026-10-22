@@ -1,0 +1,56 @@
+name: ci
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: windows-latest, rid: win-x64 }
+          - { os: ubuntu-latest, rid: linux-x64 }
+          - { os: ubuntu-24.04-arm, rid: linux-arm64 }
+          - { os: macos-latest, rid: osx-arm64 }
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      # Build output goes outside the checkout, as it does locally; the runner context is only available inside steps.
+      - name: Artifacts directory
+        shell: bash
+        run: echo "ONEPDF_ARTIFACTS=$RUNNER_TEMP/artifacts" >> "$GITHUB_ENV"
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+      - name: Build
+        run: dotnet build -c Release
+      - name: Test
+        run: dotnet test -c Release --no-build
+      - name: Publish AOT smoke app (warnings are errors)
+        run: dotnet publish tests/OnePdf.AotSmoke -c Release -r ${{ matrix.rid }} -o ${{ runner.temp }}/smoke -warnaserror
+      - name: Run AOT smoke app
+        shell: bash
+        run: '"$RUNNER_TEMP/smoke/OnePdf.AotSmoke"'
+
+  pack:
+    # Builds the packages as artifacts only; nothing is pushed anywhere.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Artifacts directory
+        shell: bash
+        run: echo "ONEPDF_ARTIFACTS=$RUNNER_TEMP/artifacts" >> "$GITHUB_ENV"
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+      - name: Pack
+        run: dotnet pack OnePdf.slnx -c Release -o ${{ runner.temp }}/packages
+      - uses: actions/upload-artifact@v4
+        with:
+          name: packages
+          path: ${{ runner.temp }}/packages/*
