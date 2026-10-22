@@ -1,3 +1,4 @@
+using System.Linq;
 using OnePdf.Filters;
 using OnePdf.Internal;
 
@@ -68,7 +69,7 @@ public sealed class PdfStream : PdfObject
         {
             foreach (string f in FilterNames)
             {
-                if (!StreamFilters.IsSupported(f))
+                if (f != "Crypt" && !StreamFilters.IsSupported(f))
                 {
                     return f;
                 }
@@ -146,6 +147,11 @@ public sealed class PdfStream : PdfObject
         PdfDocument doc = _resolver.Doc;
         ReadOnlyMemory<byte> raw = GetRawBytes();
         IReadOnlyList<string> filters = FilterNames;
+        if (raw.Length > 0 && Reference is { } self && !IsExternal)
+        {
+            raw = doc.DecryptStreamData(this, raw, self, filters);
+        }
+
         if (filters.Count == 0)
         {
             return raw;
@@ -183,6 +189,29 @@ public sealed class PdfStream : PdfObject
 
         PdfLimits lim = doc.Limits;
         var limits = new DecodeLimits(Math.Min(lim.MaxDecodedStreamBytes, Array.MaxLength), lim.MaxExpansionRatio, lim.ExpansionCheckThreshold);
+        if (filters.Contains("Crypt"))
+        {
+            // The Crypt filter only names the decryption that was just applied; it is not part of the decode chain.
+            var keptNames = new List<string>(filters.Count);
+            var keptParams = new List<FilterParameters?>(filters.Count);
+            for (int i = 0; i < filters.Count; i++)
+            {
+                if (filters[i] != "Crypt")
+                {
+                    keptNames.Add(filters[i]);
+                    keptParams.Add(parameters[i]);
+                }
+            }
+
+            if (keptNames.Count == 0)
+            {
+                return raw;
+            }
+
+            filters = keptNames;
+            parameters = [.. keptParams];
+        }
+
         FilterResult r = StreamFilters.DecodeChain(filters, parameters, raw, limits, ct);
         int objNum = Reference?.Number ?? -1;
         if ((r.Issues & FilterIssues.LimitExceeded) != 0)

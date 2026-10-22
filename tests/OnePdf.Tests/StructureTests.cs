@@ -397,16 +397,14 @@ public class StructureTests
     }
 
     [Fact]
-    public void EncryptedFilesOpenWithAnInfoNote()
+    public void MalformedEncryptionDictionaryIsAnEncryptionError()
     {
         var b = new PdfBuilder();
         b.BasicPages();
         b.Obj(4, "<< /Filter /Standard /V 1 /R 2 >>");
         long x = b.XrefTable(5);
         b.Trailer("/Size 5 /Root 1 0 R /Encrypt 4 0 R", x);
-        using PdfDocument doc = Open(b.ToArray(), new PdfOpenOptions { Strict = true });
-        Assert.True(doc.IsEncrypted);
-        Assert.Contains(doc.Diagnostics, d => d.Severity == PdfSeverity.Info);
+        Assert.Throws<PdfEncryptionException>(() => Open(b.ToArray()));
     }
 
     [Fact]

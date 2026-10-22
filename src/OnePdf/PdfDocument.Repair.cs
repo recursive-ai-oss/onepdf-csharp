@@ -207,6 +207,9 @@ public sealed partial class PdfDocument
         _merged = entries;
         Trailer = trailer;
 
+        // Object streams of an encrypted file are encrypted: the keys must be known before their headers are read.
+        SetupEncryption();
+
         // Objects inside object streams: a stream's contents count as defined where the stream is, so a later
         // direct definition of the same number wins over them.
         foreach ((long streamPos, int streamNumber) in scan.ObjectStreams)
