@@ -17,6 +17,8 @@ internal static class Program
     {
         ["noop"] = static data => _ = Library.Name.Length + data.Length,
         ["filters"] = FilterTarget.Run,
+        ["fontprogram"] = FontProgramTarget.Run,
+        ["cmap"] = CMapTarget.Run,
     };
 
     private static int Main(string[] args)

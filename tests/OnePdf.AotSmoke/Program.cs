@@ -9,5 +9,11 @@ if (Library.Name != "OnePDF" || FontsPackage.Name != "OnePdf.Fonts")
     return 1;
 }
 
+if (OnePdf.AotSmoke.FontSmoke.Run() is { } failure)
+{
+    Console.Error.WriteLine("font data: " + failure);
+    return 1;
+}
+
 Console.WriteLine("ok");
 return 0;

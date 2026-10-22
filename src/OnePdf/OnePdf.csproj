@@ -24,7 +24,13 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- Generated font data (tools/fontdata): metrics, glyph names, encodings, CMaps. Read with GetManifestResourceStream. -->
+    <EmbeddedResource Include="FontData/Resources/*.bin" LogicalName="$(LibName).FontData.%(Filename)%(Extension)" />
+  </ItemGroup>
+
+  <ItemGroup>
     <None Include="../../README.md" Pack="true" PackagePath="/" />
+    <None Include="../../THIRD-PARTY-NOTICES.md" Pack="true" PackagePath="/" />
   </ItemGroup>
 
 </Project>
