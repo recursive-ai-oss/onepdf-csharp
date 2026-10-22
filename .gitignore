@@ -17,6 +17,7 @@
 !/fuzz/
 !/tools/
 !/testdata/
+!/docs/
 
 bin/
 obj/
