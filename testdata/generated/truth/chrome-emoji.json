@@ -1,0 +1,13 @@
+{
+ "category": "symbols",
+ "generator": "Chrome Google Chrome 149.0.7827.155",
+ "name": "chrome-emoji",
+ "notes": "symbol glyphs may be embedded as bitmap/Type 3 fonts depending on the available fonts",
+ "pageCount": 1,
+ "pages": [
+  {
+   "text": "Weather report: sunny ☀ with a chance of rain ☔ and a rainbow."
+  }
+ ],
+ "schema": 1
+}

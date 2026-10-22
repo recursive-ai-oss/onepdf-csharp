@@ -1,0 +1,13 @@
+{
+ "category": "cjk-vertical",
+ "generator": "Chrome Google Chrome 149.0.7827.155",
+ "name": "chrome-cjk-ja-vertical",
+ "notes": "vertical-rl: the first paragraph is the rightmost column; truth is in logical order",
+ "pageCount": 1,
+ "pages": [
+  {
+   "text": "すべての人間は、生れながらにして自由であり、かつ、尊厳と権利とについて平等である。人間は、理性と良心とを授けられており、互いに同胞の精神をもって行動しなければならない。\n\n吾輩は猫である。名前はまだ無い。どこで生れたかとんと見当がつかぬ。"
+  }
+ ],
+ "schema": 1
+}

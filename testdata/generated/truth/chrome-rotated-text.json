@@ -1,0 +1,13 @@
+{
+ "category": "rotated-text",
+ "generator": "Chrome Google Chrome 149.0.7827.155",
+ "name": "chrome-rotated-text",
+ "notes": "a horizontal paragraph and a paragraph rotated 90 degrees clockwise; the rotated one is read last",
+ "pageCount": 1,
+ "pages": [
+  {
+   "text": "The harbor town woke slowly. Fishing boats rocked against their moorings while gulls argued over the morning catch.\n\nBy nine the market stalls were open, and the smell of fresh bread drifted along the quay toward the old customs house."
+  }
+ ],
+ "schema": 1
+}

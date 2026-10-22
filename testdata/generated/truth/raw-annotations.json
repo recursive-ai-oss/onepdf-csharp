@@ -1,0 +1,40 @@
+{
+ "annotations": [
+  {
+   "subtype": "Link",
+   "uri": "https://example.com/ref"
+  },
+  {
+   "dest": "page 0 XYZ",
+   "subtype": "Link"
+  },
+  {
+   "contents": "Check this reference",
+   "subtype": "Text",
+   "title": "Reviewer"
+  },
+  {
+   "contents": "Highlighted sentence",
+   "subtype": "Highlight"
+  },
+  {
+   "contents": "Draft stamp text",
+   "subtype": "FreeText"
+  },
+  {
+   "contents": "A square",
+   "subtype": "Square"
+  }
+ ],
+ "category": "annotations",
+ "generator": "hand-assembled by tools/corpus/generate.py",
+ "name": "raw-annotations",
+ "notes": "annotations have no appearance streams; annotation text is not page text",
+ "pageCount": 1,
+ "pages": [
+  {
+   "text": "Annotated page.\nReview the highlighted sentence before the link."
+  }
+ ],
+ "schema": 1
+}

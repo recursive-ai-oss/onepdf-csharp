@@ -1,0 +1,13 @@
+{
+ "category": "rtl",
+ "generator": "Chrome Google Chrome 149.0.7827.155",
+ "name": "chrome-bidi-mixed",
+ "notes": "embedded RTL runs inside LTR paragraphs; logical order",
+ "pageCount": 1,
+ "pages": [
+  {
+   "text": "The Hebrew sentence כל בני האדם נולדו בני חורין ושווים בערכם ובזכויותיהם appears inside English text and then the line continues in English.\n\nArabic works too: يولد جميع الناس أحرارا متساوين في الكرامة والحقوق. Numbers like 2026 stay in place."
+  }
+ ],
+ "schema": 1
+}

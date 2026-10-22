@@ -1,5 +1,8 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
+using System.IO;
+using System.Linq;
 using OnePdf;
 using OnePdf.Fuzz;
 using SharpFuzz;
@@ -9,6 +12,10 @@ using SharpFuzz;
 //
 // To add a target: write a static method `Run(ReadOnlySpan<byte> data)` that lets only the library's typed exceptions
 // escape, then add one line to `Targets` below.
+//
+// Without a libFuzzer host there are two local modes:
+//   mutate <target> <seconds> <seed file or directory>...   random byte-level mutation of the seeds, in process
+//   open-dir <directory> [seconds-per-file]                 opens, walks and times every .pdf in a directory tree
 internal static class Program
 {
     private delegate void Target(ReadOnlySpan<byte> data);
@@ -16,13 +23,27 @@ internal static class Program
     private static readonly Dictionary<string, Target> Targets = new(StringComparer.Ordinal)
     {
         ["noop"] = static data => _ = Library.Name.Length + data.Length,
+        ["parser"] = ReaderTargets.Parser,
+        ["document"] = ReaderTargets.Document,
+        ["model"] = ReaderTargets.DocumentModel,
         ["filters"] = FilterTarget.Run,
         ["fontprogram"] = FontProgramTarget.Run,
         ["cmap"] = CMapTarget.Run,
+        ["security"] = SecurityTarget.Run,
     };
 
     private static int Main(string[] args)
     {
+        if (args.Length > 0 && args[0] == "mutate")
+        {
+            return Mutate(args);
+        }
+
+        if (args.Length > 0 && args[0] == "open-dir")
+        {
+            return OpenDir(args);
+        }
+
         string? name = Environment.GetEnvironmentVariable("ONEPDF_FUZZ_TARGET") ?? (args.Length > 0 ? args[0] : null);
         if (name is null || !Targets.TryGetValue(name, out Target? target))
         {
@@ -32,5 +53,143 @@ internal static class Program
 
         Fuzzer.LibFuzzer.Run(data => target(data));
         return 0;
+    }
+
+    private static int Mutate(string[] args)
+    {
+        if (args.Length < 4 || !Targets.TryGetValue(args[1], out Target? target))
+        {
+            Console.Error.WriteLine("usage: mutate <target> <seconds> <seed>...");
+            return 2;
+        }
+
+        var seeds = new List<byte[]>();
+        foreach (string p in args.Skip(3))
+        {
+            foreach (string f in Directory.Exists(p) ? Directory.EnumerateFiles(p, "*", SearchOption.AllDirectories) : [p])
+            {
+                if (new FileInfo(f).Length < 1 << 20)
+                {
+                    seeds.Add(File.ReadAllBytes(f));
+                }
+            }
+        }
+
+        var rnd = new Random(12345);
+        var clock = Stopwatch.StartNew();
+        double limit = double.Parse(args[2], System.Globalization.CultureInfo.InvariantCulture);
+        long runs = 0;
+        double worst = 0;
+        while (clock.Elapsed.TotalSeconds < limit)
+        {
+            var buf = new List<byte>(seeds[rnd.Next(seeds.Count)]);
+            int edits = 1 + rnd.Next(8);
+            for (int e = 0; e < edits && buf.Count > 0; e++)
+            {
+                int at = rnd.Next(buf.Count);
+                switch (rnd.Next(5))
+                {
+                    case 0: buf[at] = (byte)rnd.Next(256); break;
+                    case 1: buf[at] ^= (byte)(1 << rnd.Next(8)); break;
+                    case 2: buf.RemoveRange(at, Math.Min(1 + rnd.Next(16), buf.Count - at)); break;
+                    case 3:
+                        int from = rnd.Next(buf.Count);
+                        buf.InsertRange(at, buf.GetRange(from, Math.Min(64, buf.Count - from)));
+                        break;
+                    default:
+                        int len = rnd.Next(1, 12);
+                        for (int k = 0; k < len; k++)
+                        {
+                            buf.Insert(at, (byte)('0' + rnd.Next(10)));
+                        }
+
+                        break;
+                }
+            }
+
+            byte[] input = [.. buf];
+
+            double t0 = clock.Elapsed.TotalSeconds;
+            try
+            {
+                target(input);
+            }
+#pragma warning disable CA1031 // A fuzz driver must record any escaping exception.
+            catch (Exception ex)
+#pragma warning restore CA1031
+            {
+                string path = Path.Combine(Path.GetTempPath(), $"crash-{args[1]}-{runs}.bin");
+                File.WriteAllBytes(path, input);
+                Console.WriteLine($"CRASH {ex.GetType().Name}: {ex.Message}\n{ex.StackTrace}\nsaved {path}");
+                return 1;
+            }
+
+            worst = Math.Max(worst, clock.Elapsed.TotalSeconds - t0);
+            runs++;
+        }
+
+        Console.WriteLine($"target={args[1]} seeds={seeds.Count} runs={runs} slowest={worst:F3}s crashes=0");
+        return 0;
+    }
+
+    private static int OpenDir(string[] args)
+    {
+        int ok = 0, failed = 0, slow = 0, crashes = 0, modelErrors = 0;
+        var typed = new Dictionary<string, int>();
+        foreach (string f in Directory.EnumerateFiles(args[1], "*.pdf", SearchOption.AllDirectories).Order(StringComparer.Ordinal))
+        {
+            var sw = Stopwatch.StartNew();
+            try
+            {
+                using PdfDocument doc = PdfDocument.Open(f);
+                _ = doc.PageCount;
+                string fileName = Path.GetFileName(f);
+                ReaderTargets.WalkModel(doc, (part, e) =>
+                {
+                    modelErrors++;
+                    Console.WriteLine($"MODEL {fileName} [{part}]: {e.GetType().Name}: {e.Message}");
+                });
+                for (int i = 0; i < Math.Min(doc.ObjectCount, 5000); i++)
+                {
+                    try
+                    {
+                        if (doc.GetObject(i) is PdfStream s)
+                        {
+                            _ = s.GetDecodedBytes();
+                        }
+                    }
+                    catch (PdfLimitException)
+                    {
+                    }
+                    catch (PdfFormatException)
+                    {
+                    }
+                }
+
+                ok++;
+            }
+            catch (PdfException ex)
+            {
+                failed++;
+                typed[ex.GetType().Name] = typed.GetValueOrDefault(ex.GetType().Name) + 1;
+                Console.WriteLine($"{Path.GetFileName(f)}: {ex.GetType().Name}: {ex.Message}");
+            }
+#pragma warning disable CA1031 // The sweep must report any other exception as a crash.
+            catch (Exception ex)
+#pragma warning restore CA1031
+            {
+                crashes++;
+                Console.WriteLine($"CRASH {f}: {ex}");
+            }
+
+            if (sw.Elapsed.TotalSeconds > 10)
+            {
+                slow++;
+                Console.WriteLine($"SLOW {f}: {sw.Elapsed.TotalSeconds:F1}s");
+            }
+        }
+
+        Console.WriteLine($"opened={ok} typed-errors={failed} ({string.Join(", ", typed.Select(kv => kv.Key + "=" + kv.Value))}) crashes={crashes} slow={slow} model-errors={modelErrors}");
+        return crashes == 0 ? 0 : 1;
     }
 }
