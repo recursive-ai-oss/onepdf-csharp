@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <RootNamespace>$(LibName).Quality</RootNamespace>
+    <AssemblyName>$(LibName).Quality</AssemblyName>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Using Include="System" />
+    <Using Include="System.Collections.Generic" />
+    <Using Include="System.IO" />
+    <Using Include="System.Linq" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- PdfPig is the comparison library. It is referenced here and nowhere else. -->
+    <PackageReference Include="PdfPig" />
+    <ProjectReference Include="../../src/OnePdf/OnePdf.csproj" />
+  </ItemGroup>
+
+</Project>

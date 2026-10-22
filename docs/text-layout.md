@@ -1,0 +1,98 @@
+# Text layout and reading order
+
+How glyphs become words, lines and blocks, and the parameters that decide it. The code is in `src/OnePdf/Text/Extraction/`;
+every number below is a constant in `LayoutParameters`. Distances are in em of the glyphs concerned, so the analysis does not depend on the
+page scale. The analysis is deterministic: no randomness and no dependence on thread count; the same glyphs in the same order give the same result.
+
+## Input
+
+A producer supplies, per page, glyphs in content order in *upright page space* (points, y up, `/Rotate` applied). Each glyph has its
+Unicode text, a matrix from em space to the page, an advance, ascent and descent, a vertical-writing flag, fill colour, render mode,
+visible/clipped flags, a marked-content id and, for `/ActualText` spans, a span number plus the string on the span's first glyph. See
+`PdfGlyph` for the glyph box definition.
+
+## Clean-up (before layout)
+
+1. Glyphs with a non-finite matrix or metrics are dropped.
+2. Unless `IncludeClippedAndOffPage`: glyphs the clip removes (`IsClipped`) and glyphs whose centre is more than 1 pt outside the page are dropped.
+3. `/ActualText`: in a span that has the string, the first glyph carries it and the rest carry empty text (they keep their geometry).
+4. Ligatures U+FB00–U+FB06 are replaced by their letters (`DecomposeLigatures`).
+5. Unpaired surrogates become U+FFFD.
+6. Duplicates (`CollapseDuplicates`): a glyph with the same text, direction and size (within 5%) as an earlier one, whose origin is within
+   0.1 em on both axes, is dropped (fake bold, drop shadows). Candidate neighbours are looked up by x; at most 32 are compared.
+
+## Reading direction
+
+Each glyph's reading direction is its baseline direction (the matrix x axis; for vertical writing the downward glyph axis), snapped to the nearest of the four axis
+directions. Glyphs are laid out per direction: the direction with most glyphs first, then the others (right, up, left, down order). All geometry
+below is done in a frame where *x runs along the text* and *y towards the next line*, so rotated pages and vertical writing use the same code.
+Text at other angles is analyzed by its nearest axis direction.
+
+## Lines
+
+Glyphs sorted by baseline join the current line while their baseline is within 0.3 × the smaller size of the line's mean baseline.
+A smaller run (size ≤ 0.8 × a neighbouring line's median size) whose baseline is within 0.7 em of that line and that comes within 0.4 em of
+one of its glyphs joins that line (superscripts and subscripts).
+
+## Fragments
+
+A line is cut into fragments where two successive non-space glyphs are more than 1.25 em apart (mean of their sizes). Fragments are the
+atoms of block segmentation; a cell of a table or a column of a multi-column page is made of fragments.
+
+## Blocks (XY-cut on fragments)
+
+A region (initially the whole page, per direction) is split recursively, with an explicit stack:
+
+1. A region with one fragment, or fragments of one line only, is a block.
+2. **Vertical cut:** if an empty stripe at least 1.25 em (of the region's median fragment size) wide separates the fragments' extents along the line,
+   split at every such stripe. Columns are ordered left to right, or right to left when more right-to-left than left-to-right letters occupy the region.
+   Before cutting, if the region looks like a **table** it becomes one block instead: at least 3 rows (distinct lines), at least 60% of the rows have
+   fragments in more than one column, and the median fragment width is at most 10 em. A table's lines are its rows; cells are separated by a tab.
+3. **Horizontal cut:** otherwise, if an empty band at least 0.5 em tall separates the fragments, split at every such band, top to bottom.
+4. **Mixed cut:** otherwise, if lines with a gutter (several fragments) alternate with single-fragment lines, split at the changes (a heading set tight
+   above two columns).
+5. Otherwise the region is a block.
+
+The vertical cut is tried first so columns whose paragraphs happen to share gaps are not cut across; a full-width title is separated by the
+horizontal cut because it blocks every vertical stripe.
+
+## Words
+
+Within a fragment, glyphs sorted along the line start a new word at a space glyph or when the gap exceeds 0.15 em (0.6 em next to ideographs, kana
+and hangul, which are written without spaces). The first word of each fragment after the first starts a cell.
+
+## Bidirectional text (UAX #9)
+
+Lines are read in visual order (by x) and put into logical order by running the Unicode Bidirectional Algorithm (UAX #9, Unicode 16 data, rules
+X1–X10, W1–W7, N0–N2, I1–I2, L1, L2 in `Bidi.cs`) on the visual string and reordering it: applying the reordering to text that a layout engine already reordered
+gives back the logical text. The paragraph direction of a block is right-to-left when its right-to-left letters (R, AL) outnumber its left-to-right letters.
+Words and the words of a line come out in logical order. Mirrored-bracket glyph substitution (rule L4) is not undone; brackets are taken as extracted.
+Conformance: all 91,707 cases of `BidiCharacterTest.txt` (Unicode 16.0.0) pass (set `ONEPDF_UNICODE` to its directory to run them).
+
+## Structure tree
+
+When the document is tagged (`/StructTreeRoot`), the tree is walked depth first through `/K` (explicit stack, each indirect element once, at most 2²² nodes).
+For each page, marked-content ids are ranked in tree order; the ids under one structure element form a group. A page uses the tree when **at least 90%** of its visible,
+non-blank glyphs carry an id the tree lists; otherwise it falls back to geometry and records an informational diagnostic. With the tree, groups are laid out
+separately and emitted in tree order. Glyphs the tree does not list (artifacts such as running heads) are laid out on their own and placed above the content when their
+centre is in the top 24% of the page, otherwise below it.
+
+## Headers and footers
+
+Whole-document extraction flags a block as header (or footer) when it lies entirely in the top (bottom) 12% of the page and the same text (digits replaced by `#`,
+lower-cased, white space collapsed) appears in that band on at least half of the pages and at least two. Flagged blocks keep their place in the reading order and
+`Role`; `ExcludeHeadersAndFooters` omits them from the reading-order text.
+
+## Plain text modes
+
+- **ReadingOrder:** blocks separated by a blank line, lines by a line feed, cells by a tab. With `JoinHyphenatedWords`, a line ending in a hyphen (`-`, U+00AD, U+2010) after a
+  letter, followed by a line starting with a lowercase letter, is joined to it without the hyphen.
+- **ContentOrder:** glyphs in producer order. A new line starts when the direction or baseline changes by more than 0.5 em or the position jumps back by more than 3 em;
+  a space is inserted for a gap over the word-gap threshold.
+- **Layout:** lines are formed over the whole page by baseline (no block segmentation), words are put on a grid whose cell is 0.5 × the median glyph size wide
+  (column = round((x − left margin) / cell), at least one blank after the previous word, at most 400 columns); a gap between baselines over 1.6 line pitches adds up to 3 blank lines.
+
+## Not done yet
+
+Table cell spans, justified-text hyphen detection by font, non-axis text angles, mirrored-bracket repair and an `/Artifact`-aware header detector (the tagged-page rule above
+is the only artifact handling). Thresholds are untuned beyond the synthetic and generated test sets.
