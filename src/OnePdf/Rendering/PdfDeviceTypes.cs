@@ -188,17 +188,21 @@ public readonly record struct PdfGlyphRun(
 }
 
 /// <summary>
-/// An image the content drew, undecoded: its dictionary and encoded data. The image occupies the unit square of the
-/// call's CTM. For inline images the dictionary keys and the colour-space and filter names are in their long forms.
+/// An image the content drew: its dictionary and encoded data, and on request the finished samples
+/// (<see cref="GetData"/>). The image occupies the unit square of the call's CTM. For inline images the dictionary keys and
+/// the colour-space and filter names are in their long forms.
 /// </summary>
 public readonly struct PdfImage
 {
-    internal PdfImage(PdfDictionary dictionary, PdfStream? stream, ReadOnlyMemory<byte> inlineData, string name)
+    private readonly ImageSource? _source;
+
+    internal PdfImage(PdfDictionary dictionary, PdfStream? stream, ReadOnlyMemory<byte> inlineData, string name, PdfDocument document, PdfDictionary? resources)
     {
         Dictionary = dictionary;
         Stream = stream;
         InlineData = inlineData;
         Name = name;
+        _source = new ImageSource(document, dictionary, stream, inlineData, resources);
     }
 
     /// <summary>The image dictionary.</summary>
@@ -221,6 +225,52 @@ public readonly struct PdfImage
     /// the stream is external or damaged.
     /// </summary>
     public ReadOnlyMemory<byte> GetEncodedData() => Stream is null ? InlineData : Stream.GetRawBytes();
+
+    /// <summary>
+    /// The finished image: samples in a final colour space with every PDF rule applied (<c>/Decode</c>, masks, colour keys,
+    /// Indexed and tint conversion), a stencil's coverage, or, when no decoder is registered for its codec or
+    /// <see cref="PdfImageOptions.PreferEncoded"/> is set, the encoded bytes plus the semantics as data (see
+    /// <see cref="PdfImageData.IsDecoded"/>). With <paramref name="options"/> null the result is computed once and shared by
+    /// every call, including replays of a display list; with options it is computed for that call and not kept.
+    /// </summary>
+    /// <param name="options">Decoder registry and preferences, or null for the defaults.</param>
+    /// <param name="cancellationToken">Cancellation.</param>
+    /// <returns>The image, or null when its dictionary is unusable (a diagnostic was recorded), or for a default-constructed value.</returns>
+    /// <exception cref="PdfLimitException">The image is larger than <see cref="PdfLimits.MaxImagePixels"/> or the decoded-size limit.</exception>
+    public PdfImageData? GetData(PdfImageOptions? options = null, CancellationToken cancellationToken = default) =>
+        _source?.Load(options, cancellationToken);
+}
+
+/// <summary>What <see cref="PdfImage.GetData"/> needs to build the finished image, and the shared result for default options.</summary>
+internal sealed class ImageSource(PdfDocument document, PdfDictionary dictionary, PdfStream? stream, ReadOnlyMemory<byte> inlineData, PdfDictionary? resources)
+{
+    private readonly object _gate = new();
+    private PdfImageData? _default;
+    private bool _haveDefault;
+
+    public PdfImageData? Load(PdfImageOptions? options, CancellationToken ct)
+    {
+        if (options is not null)
+        {
+            return Build(options, ct);
+        }
+
+        lock (_gate)
+        {
+            if (!_haveDefault)
+            {
+                _default = Build(PdfImageOptions.Default, ct);
+                _haveDefault = true;
+            }
+
+            return _default;
+        }
+    }
+
+    private PdfImageData? Build(PdfImageOptions options, CancellationToken ct) =>
+        stream is not null
+            ? PdfImageData.FromXObject(document, stream, resources, options, ct)
+            : PdfImageData.FromInline(document, dictionary, inlineData, resources, options, ct);
 }
 
 /// <summary>A transparency group about to be painted as a unit.</summary>

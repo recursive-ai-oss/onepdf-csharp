@@ -4,8 +4,8 @@ namespace OnePdf.Content;
 internal sealed class GState
 {
     public PdfMatrix Ctm = PdfMatrix.Identity;
-    public ColorSpaceDef FillCs = DeviceColorSpaceDef.Gray;
-    public ColorSpaceDef StrokeCs = DeviceColorSpaceDef.Gray;
+    public PdfColorSpace FillCs = PdfColorSpace.Gray;
+    public PdfColorSpace StrokeCs = PdfColorSpace.Gray;
     public PdfColor Fill = PdfColor.Black;
     public PdfColor Stroke = PdfColor.Black;
     public double LineWidth = 1;
