@@ -372,6 +372,29 @@ internal sealed class Type1Font : FontProgram
             return true;
         }
 
+        if (first.Kind == PsKind.Name && first.Text == "ISOLatin1Encoding")
+        {
+            // PostScript's ISOLatin1Encoding: ASCII with typographic quotes and minus, accents at 0x90-0x9F, then ISO 8859-1.
+            string?[] win = Encodings.Get(PredefinedEncoding.WinAnsi);
+            for (int c = 32; c < 256; c++)
+            {
+                encoding[c] = c < 127 || c >= 161 ? win[c] : null;
+            }
+
+            encoding[39] = "quoteright";
+            encoding[45] = "minus";
+            encoding[96] = "quoteleft";
+            encoding[160] = "space";
+            encoding[173] = "hyphen";
+            string[] accents = ["dotlessi", "grave", "acute", "circumflex", "tilde", "macron", "breve", "dotaccent", "dieresis", "", "ring", "cedilla", "", "hungarumlaut", "ogonek", "caron"];
+            for (int i = 0; i < accents.Length; i++)
+            {
+                encoding[144 + i] = accents[i].Length == 0 ? null : accents[i];
+            }
+
+            return true;
+        }
+
         if (first.Kind != PsKind.Number)
         {
             return false;
@@ -457,7 +480,13 @@ internal sealed class Type1Font : FontProgram
 
             if (t.Kind == PsKind.Name && t.Text == "dup" && t.IsExecutable)
             {
-                if (s.Next(out PsToken idx) && idx.Kind == PsKind.Number && s.Next(out PsToken len) && len.Kind == PsKind.Number && s.Next(out PsToken rd) && rd.Kind == PsKind.Name)
+                int afterDup = s.Position;
+                if (!(s.Next(out PsToken idx) && idx.Kind == PsKind.Number && s.Next(out PsToken len) && len.Kind == PsKind.Number && s.Next(out PsToken rd) && rd.Kind == PsKind.Name))
+                {
+                    // Not a Subrs entry (for example "dup/CharStrings" after the last one): the token after dup is not ours to consume.
+                    s.Position = afterDup;
+                }
+                else
                 {
                     byte[]? data = s.ReadBinary((int)len.Number);
                     if (data is null)
