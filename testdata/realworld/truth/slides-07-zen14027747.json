@@ -5,21 +5,24 @@
  "pageCount": 15,
  "pages": [
   {
-   "text": "HISTORY\n\n• The FDA licensed Merck’s Recombivax HB. • This hepatitis B vaccine was the first human vaccine produced by recombinant DNA methods in 1981.\n\n• In 1986, research resulted in a second generation of genetically engineered (or DNA recombinant hepatitis) B vaccines.\n\nDr. H.K. GARG | ANUJA VYAS"
+   "text": "HISTORY\n\n• The FDA licensed Merck’s Recombivax HB.\n\n• This hepatitis B vaccine was the first human vaccine produced by recombinant DNA methods in 1981.\n\n• In 1986, research resulted in a second generation of genetically engineered (or DNA recombinant hepatitis) B vaccines.\n\nDr. H.K. GARG | ANUJA VYAS"
   },
   {
-   "text": "TYPES OF RECOMBINANT VACCINE\n\n• Subunit vaccines: Subunit vaccine are the vaccines that include the purified components of the pathogenic organisms such as protein, peptides and DNA. • Attenuated Recombinant vaccines: These are the genetically modified pathogenic organisms that are made non pathogenic and used as vaccines. • Vector Recombinant vaccines: These are the genetically modified viral vectors that can be used as vaccine against certain pathogens.\n\nDr. H.K. GARG | ANUJA VYAS"
+   "text": "TYPES OF RECOMBINANT VACCINE\n\n• Subunit vaccines: Subunit vaccine are the vaccines that include the purified components of the pathogenic organisms such as protein, peptides and DNA.\n\n• Attenuated Recombinant vaccines: These are the genetically modified pathogenic organisms that are made non pathogenic and used as vaccines.\n\n• Vector Recombinant vaccines: These are the genetically modified viral vectors that can be used as vaccine against certain pathogens.\n\nDr. H.K. GARG | ANUJA VYAS"
   }
  ],
  "reference": {
-  "checkedPages": [],
-  "confidence": "low",
+  "checkedPages": [
+   2,
+   3
+  ],
+  "confidence": "high",
   "extractorAgreement": {
    "3": 1.0,
    "4": 1.0
   },
-  "method": "Draft from the text layer as recovered by two black-box extractors (poppler pdftotext reading-order mode; MuPDF via its Python binding), compared with each other and, for Latin text, with tesseract OCR of the rendered page; block order and completeness checked against the page image; characters are the text layer, not re-read from pixels.",
-  "notes": "Text of the scored slides in visual order, title first. Not yet reviewed against the page image (only compared across extractors): treat as a draft."
+  "method": "Draft from the text layer as recovered by two black-box extractors (poppler pdftotext reading-order mode; MuPDF via its Python binding), compared with each other and, for Latin text, with tesseract OCR of the rendered page; every scored page then compared with its rendered image: block order, completeness, columns, headers and footers corrected. Characters are the text layer, not re-read from pixels.",
+  "notes": "Slide text compared with the slide image; one block per bullet, title first, footer last. The photographs are images."
  },
  "schema": 1,
  "scoredPages": [

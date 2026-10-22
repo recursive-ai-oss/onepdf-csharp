@@ -73,6 +73,19 @@ def main():
             if row[3] == "US-Government-Work" and "govdocs" in row[0]:
                 if not row[1].startswith("http") or len(row[5]) != 40:
                     print("govdocs row without url/sha1:", row[0]); bad = 1
+        # Every selection entry must still name the bytes on disk: a changed or truncated file would otherwise only show up as a stale manifest.
+        for r2 in json.load(open(os.path.join(HERE, "realworld-selection.json"))):
+            if r2["path"] is None:
+                continue
+            p2 = os.path.join(ROOT, r2["path"])
+            if not os.path.exists(p2) or digest(p2, "sha256") != r2["sha256"]:
+                print("selection sha256 differs from the file on disk:", r2["path"]); bad = 1
+            elif r2["sha1"] and digest(p2, "sha1") != r2["sha1"]:
+                print("selection sha1 differs from the file on disk:", r2["path"]); bad = 1
+        for r3 in json.load(open(os.path.join(HERE, "govdocs-selection.json"))):
+            p3 = os.path.join(ROOT, r3["path"])
+            if not os.path.exists(p3) or digest(p3, "sha1") != r3["sha1"]:
+                print("selection sha1 differs from the file on disk:", r3["path"]); bad = 1
         listed = {x[0] for x in r}
         tracked = [os.path.relpath(os.path.join(dp, f), ROOT).replace(os.sep, "/") for dp, _, fs in os.walk(TD) for f in fs]
         for t in tracked:

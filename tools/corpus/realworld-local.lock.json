@@ -7,7 +7,7 @@
   "licence_note": "United Nations document; terms are not an open licence, so the file and its reference text stay local-only",
   "sha256": "9cbc78e9464d492c22a1e912308a0271191819aa0a65cf433078b57a3c5cd5ea",
   "size": 289304,
-  "truth_sha256": "fbeadd88f79321f06bb0e2f8fa991d69ec86e6e75b8ad02341f0498a4a6fe295",
+  "truth_sha256": "1eba1c694d2205bbaee52db50721df1434bd27664c48ac3186253c9cd264c65c",
   "scoredPages": [
    3
   ]
@@ -20,7 +20,7 @@
   "licence_note": "United Nations document; terms are not an open licence, so the file and its reference text stay local-only",
   "sha256": "fcc460559cd57edc330ea3e1a9cbd1cf5787a6f3f2ae990eca2d64052af97c7b",
   "size": 96745,
-  "truth_sha256": "e7187ae610a0b776aa95027b874297722eb6d114f48da7b4ec4dc51d8bfcc023",
+  "truth_sha256": "1b703e0b273ea4ca59ba69a567272760c1631b83146e23e5f174d68d517d50a8",
   "scoredPages": [
    2
   ]
@@ -33,7 +33,7 @@
   "licence_note": "United Nations document; terms are not an open licence, so the file and its reference text stay local-only",
   "sha256": "040eb91fb954316295dffd152ec1f5e5c46a2b2f9821245b1410ca6cff0a7bd9",
   "size": 700110,
-  "truth_sha256": "af0d92079f0e101aa8fb44ae961506c67c51813dbb74598585d7862143b4af4c",
+  "truth_sha256": "5660ada371cd6dcb9a8d942b7a6bb83bced4a9ca6cf09d9b20553cb86a6301af",
   "scoredPages": [
    2
   ]
@@ -46,7 +46,7 @@
   "licence_note": "United Nations document; terms are not an open licence, so the file and its reference text stay local-only",
   "sha256": "b00fab56dec64a14eddbde73243b40c45cb0455226e94e106def4fbb15ba7211",
   "size": 282380,
-  "truth_sha256": "b1c0204a5cf9401405075e04ee86fba3e9f304804e1c5b5ea698ab762a65f305",
+  "truth_sha256": "c75486d647c0db3de4e24d4c62f73686533b45e92751bd45e93ad92cf44f63af",
   "scoredPages": [
    2
   ]
@@ -59,7 +59,7 @@
   "licence_note": "United Nations document; terms are not an open licence, so the file and its reference text stay local-only",
   "sha256": "0cab81027783564eb808bc8d7ff08b21492e50396cd5610d7bd0831c740f33f0",
   "size": 192064,
-  "truth_sha256": "50a53f0469e72c265377b04362d591798133c085b12aac534e1fe6324ad71d88",
+  "truth_sha256": "b7076fcd529583cf8ebe531803728113264c72b1a6e26a02b81f6029bf93ff83",
   "scoredPages": [
    2
   ]
@@ -72,7 +72,7 @@
   "licence_note": "United Nations document; terms are not an open licence, so the file and its reference text stay local-only",
   "sha256": "302c1a66d260f6d0a9510d77a6f5aa4506b5d22f39484096496b203b920db29a",
   "size": 831241,
-  "truth_sha256": "9ee71226bd4d7007d3adc03a25200f91c8d702a3e4e1c76b948027eaf54ed0f1",
+  "truth_sha256": "7e6c451b66e24e9c0a3293396fdbef8ffa4a7f763bd61797f6bb77ba1e5b5edd",
   "scoredPages": [
    13
   ]
@@ -85,7 +85,7 @@
   "licence_note": "United Nations document; terms are not an open licence, so the file and its reference text stay local-only",
   "sha256": "b8eacacf8215c40e745a0bba5801f1e02f4e9b57635a3972af383dc716a252e7",
   "size": 271231,
-  "truth_sha256": "61962398ec50ecf8f2e793998e8c434b5c2c575bbc98a6f317cf1631c2ebd081",
+  "truth_sha256": "182a5c316ad0f3ba0ab7c7ffa60e672baeaf6417b71cea70acaa3eb3a7772051",
   "scoredPages": [
    2
   ]
@@ -98,7 +98,7 @@
   "licence_note": "United Nations document; terms are not an open licence, so the file and its reference text stay local-only",
   "sha256": "d28e0ed19481a2183eb37d92cd6afa14de8645a800fec6f39e4f8a9ed63d0928",
   "size": 579204,
-  "truth_sha256": "7e66b4327ed70f6489018676001e3a1f5e7f35b0cf3c615fae4420401d1af004",
+  "truth_sha256": "eaca44ca450e7def47b08b207b16beae3978050f2bb45af719eea90b5d18f40a",
   "scoredPages": [
    8
   ]
