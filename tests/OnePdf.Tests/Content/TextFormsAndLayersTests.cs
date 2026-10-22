@@ -21,7 +21,8 @@ public class TextFormsAndLayersTests
         string t = T("BT /F1 10 Tf 1 Tc 50 Tz 20 100 Td (AB) Tj (C) Tj ET", Font);
         string[] runs = TestPdf.Lines(t, "text");
         Assert.Equal(2, runs.Length);
-        Assert.Contains("size=10 mode=0 tc=1 tw=0 th=0.5 rise=0 tm=[1 0 0 1 20 100] vert=0 adv=6.5 0 codes=4142 glyphs=[65@0,0,0.5 66@3,0,0.6]", runs[0]);
+        Assert.Contains("size=10 mode=0 tc=1 tw=0 th=0.5 rise=0 tm=[1 0 0 1 20 100] vert=0 adv=6.5 0 codes=4142 glyphs=[65@0,0,0.5", runs[0]);
+        Assert.Contains(" 66@3,0,0.6", runs[0]);
         // The second string starts where the first ended.
         Assert.Contains("tm=[1 0 0 1 26.5 100]", runs[1]);
     }
@@ -93,7 +94,10 @@ public class TextFormsAndLayersTests
         byte[] data = TestPdf.Build("BT /F2 10 Tf <00410042004300ff> Tj ET", res, b =>
             b.Obj(5, "<< /Type /Font /Subtype /Type0 /BaseFont /X /Encoding /Identity-H /DescendantFonts [<< /Type /Font /Subtype /CIDFontType2 /DW 500 /W [65 [600] 66 67 800] >>] >>"), objects: 6);
         string t = TestPdf.Text(data);
-        Assert.Contains("glyphs=[65@0,0,0.6 66@6,0,0.8 67@14,0,0.8 255@22,0,0.5]", t);
+        Assert.Contains("glyphs=[65@0,0,0.6", t);
+        Assert.Contains(" 66@6,0,0.8", t);
+        Assert.Contains(" 67@14,0,0.8", t);
+        Assert.Contains(" 255@22,0,0.5", t);
         Assert.Contains("adv=27 0", t);
     }
 

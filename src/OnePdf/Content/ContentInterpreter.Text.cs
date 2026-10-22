@@ -1,11 +1,12 @@
+using OnePdf.FontPrograms;
+using OnePdf.PdfFonts;
+
 namespace OnePdf.Content;
 
 internal sealed partial class ContentInterpreter
 {
     /// <summary>Glyphs delivered per run at most; longer strings are split (the text position carries on exactly).</summary>
     private const int MaxGlyphsPerRun = 4096;
-
-    private static readonly IPdfFontMetrics FallbackMetrics = DictionaryFontMetrics.Create(new PdfDictionary(null), static _ => { });
 
     private bool DispatchText(ContentOp op)
     {
@@ -208,29 +209,39 @@ internal sealed partial class ContentInterpreter
         PdfDictionary? dict = fonts?.GetDictionary(name);
         if (dict is null)
         {
-            Report(PdfSeverity.Warning, "Font /" + name + " is not in the resources; text is positioned with estimated widths.");
-            _g.Font = new FontInfo(name, null, FallbackMetrics);
-            return;
+            // The default font keeps the text decodable; its glyphs and widths are only approximate.
+            Report(PdfSeverity.Warning, "Font /" + name + " is not in the resources; a default font is used.");
         }
 
         _g.Font = GetFont(name, dict, raw as PdfReference);
     }
 
-    private FontInfo GetFont(string name, PdfDictionary dict, PdfReference? reference)
+    private FontInfo GetFont(string name, PdfDictionary? dict, PdfReference? reference)
     {
-        if (reference is not null && _fontsByRef.TryGetValue(reference.Number, out FontInfo? hit) && hit.Name == name)
+        if (dict is not null)
         {
-            return hit;
+            if (reference is not null && _fontsByRef.TryGetValue(reference.Number, out FontInfo? hit) && hit.Name == name)
+            {
+                return hit;
+            }
+
+            if (_fontsByDict.TryGetValue(dict, out FontInfo? hit2) && hit2.Name == name)
+            {
+                return hit2;
+            }
+        }
+        else if (_defaultFont is { } known && known.Name == name)
+        {
+            return known;
         }
 
-        if (_fontsByDict.TryGetValue(dict, out FontInfo? hit2) && hit2.Name == name)
+        var info = new FontInfo(name, dict, _doc.GetFont(dict));
+        if (dict is null)
         {
-            return hit2;
+            _defaultFont = info;
+            return info;
         }
 
-        IPdfFontMetrics? metrics = _options.FontResolver?.Resolve(dict);
-        metrics ??= DictionaryFontMetrics.Create(dict, m => Report(PdfSeverity.Info, m));
-        var info = new FontInfo(name, dict, metrics);
         if (reference is not null)
         {
             _fontsByRef[reference.Number] = info;
@@ -261,10 +272,10 @@ internal sealed partial class ContentInterpreter
                     continue;
                 }
 
-                // A TJ number moves the text position by thousandths of the font size, against the writing direction.
-                IPdfFontMetrics m = _g.Font?.Metrics ?? FallbackMetrics;
+                // A TJ number moves the text position by thousandths of the font size, against the writing direction
+                // (ISO 32000-2 9.4.3): tx = -Tj/1000·Tfs·Th horizontally, ty = -Tj/1000·Tfs vertically.
                 double d = -it.Num / 1000.0 * _g.FontSize;
-                _tm = m.IsVertical
+                _tm = _g.Font?.Font.WMode == 1
                     ? PdfMatrix.Translation(0, d).Then(_tm)
                     : PdfMatrix.Translation(d * _g.HorizScale, 0).Then(_tm);
             }
@@ -278,7 +289,9 @@ internal sealed partial class ContentInterpreter
     /// <summary>
     /// Shows a string: one run per call (long strings in pieces), advancing the text matrix by the width of each code
     /// (ISO 32000-2 9.4.4): horizontal <c>tx = (w0·Tfs + Tc + Tw)·Th</c>, vertical <c>ty = w1·Tfs + Tc + Tw</c>, where
-    /// <c>Tw</c> applies only to a single-byte code 32.
+    /// <c>Tw</c> applies only to a single-byte code 32. In vertical mode the glyph is drawn at the text position minus the
+    /// position vector v (9.7.4.3), so the run's offsets are those of the glyph origin and the vector travels with the glyph.
+    /// A code the font has no glyph for draws nothing and still advances.
     /// </summary>
     private void ShowString(ReadOnlyMemory<byte> str)
     {
@@ -289,23 +302,32 @@ internal sealed partial class ContentInterpreter
 
         ReadOnlySpan<byte> s = str.Span;
         FontInfo? fi = _g.Font;
-        IPdfFontMetrics m = fi?.Metrics ?? FallbackMetrics;
         if (fi is null)
         {
-            Report(PdfSeverity.Warning, "Text was shown before any font was selected; estimated widths are used.");
+            Report(PdfSeverity.Warning, "Text was shown before any font was selected; a default font is used.");
+            fi = _g.Font = GetFont(string.Empty, null, null);
         }
 
-        bool vertical = m.IsVertical;
+        PdfFont font = fi.Font;
+        bool vertical = font.WMode == 1;
+        bool type3 = font.IsType3;
+        bool outlines = _options.GlyphOutlines && !type3 && _g.RenderMode != 3 && _hidden == 0;
         double fs = _g.FontSize, tc = _g.CharSpace, tw = _g.WordSpace, th = _g.HorizScale;
         double x = 0, y = 0;
         int count = 0;
         int chunkStart = 0;
-        int i = 0;
-        while (i < s.Length)
+        int pos = 0;
+        while (pos < s.Length)
         {
-            int n = m.ReadCode(s[i..], out int code);
-            n = Math.Clamp(n, 1, s.Length - i);
-            double w = m.GetWidth(code);
+            int next = font.Next(s, pos, out FontGlyph? g);
+            if (g is null || next <= pos)
+            {
+                // A font that cannot split the remainder: skip a byte so interpretation always progresses.
+                next = pos + 1;
+                g = null;
+            }
+
+            double w = g?.Advance ?? 0;
             if (!double.IsFinite(w))
             {
                 w = 0;
@@ -314,35 +336,54 @@ internal sealed partial class ContentInterpreter
             if (count == _glyphs.Length)
             {
                 Array.Resize(ref _glyphs, _glyphs.Length * 2);
+                Array.Resize(ref _fontGlyphs, _glyphs.Length);
             }
 
-            _glyphs[count++] = new PdfGlyph(code, n, x, y, w);
-            bool word = n == 1 && code == 32;
-            if (vertical)
+            bool word = g is not null && g.CodeLength == 1 && g.Code == 32;
+            double spacing = tc + (word ? tw : 0);
+            if (g is null)
             {
-                double v = m.GetVerticalAdvance(code);
-                y += ((double.IsFinite(v) ? v : -1) * fs) + tc + (word ? tw : 0);
+                _glyphs[count] = new PdfGlyph(0, next - pos, x, y, 0);
+            }
+            else if (vertical)
+            {
+                double vy = FiniteOr(g.VerticalAdvance, -1);
+                double ox = FiniteOr(g.OriginX, 0), oy = FiniteOr(g.OriginY, 0);
+                _glyphs[count] = new PdfGlyph(
+                    unchecked((int)g.Code), g.CodeLength, x - (ox * fs * th), y - (oy * fs), w, g.Gid, g.HasUnicode ? g.Unicode : null,
+                    outlines ? OutlineOf(g) : default, ox, oy, vy);
+                y += (vy * fs) + spacing;
             }
             else
             {
-                x += ((w * fs) + tc + (word ? tw : 0)) * th;
+                _glyphs[count] = new PdfGlyph(
+                    unchecked((int)g.Code), g.CodeLength, x, y, w, g.Gid, g.HasUnicode ? g.Unicode : null,
+                    outlines ? OutlineOf(g) : default);
+                x += ((w * fs) + spacing) * th;
             }
 
-            i += n;
-            if (count == MaxGlyphsPerRun || i >= s.Length)
+            _fontGlyphs[count] = g;
+            count++;
+            pos = next;
+            if (count == MaxGlyphsPerRun || pos >= s.Length)
             {
-                FlushRun(str.Slice(chunkStart, i - chunkStart), count, x, y, vertical, fi);
+                FlushRun(str.Slice(chunkStart, pos - chunkStart), count, x, y, vertical, fi);
                 x = 0;
                 y = 0;
                 count = 0;
-                chunkStart = i;
+                chunkStart = pos;
             }
         }
     }
 
-    private void FlushRun(ReadOnlyMemory<byte> codes, int count, double advX, double advY, bool vertical, FontInfo? fi)
+    private static double FiniteOr(double v, double fallback) => double.IsFinite(v) ? v : fallback;
+
+    private void FlushRun(ReadOnlyMemory<byte> codes, int count, double advX, double advY, bool vertical, FontInfo fi)
     {
-        if (_g.RenderMode >= 4)
+        bool type3 = fi.Font.IsType3;
+
+        // Type 3 glyphs are content, not outlines; the clipping modes have no effect on them (ISO 32000-2 9.3.6).
+        if (_g.RenderMode >= 4 && !type3)
         {
             _textClipPending = true;
         }
@@ -350,10 +391,14 @@ internal sealed partial class ContentInterpreter
         if (_hidden == 0)
         {
             var run = new PdfGlyphRun(
-                fi?.Name ?? string.Empty, fi?.Dictionary, _g.FontSize, (PdfTextRenderMode)_g.RenderMode,
+                fi.Name, fi.Dictionary, _g.FontSize, (PdfTextRenderMode)_g.RenderMode,
                 _g.CharSpace, _g.WordSpace, _g.HorizScale, _g.Rise, _tm, vertical, codes, _glyphs.AsMemory(0, count), advX, advY);
             PdfGraphicsState state = Snapshot();
             _device.ShowGlyphRun(in run, in state);
+            if (type3 && _options.GlyphOutlines && _g.RenderMode != 3)
+            {
+                ShowType3Glyphs(fi, count);
+            }
         }
 
         _tm = PdfMatrix.Translation(advX, advY).Then(_tm);

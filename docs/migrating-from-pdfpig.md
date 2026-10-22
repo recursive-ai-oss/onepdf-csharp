@@ -4,10 +4,6 @@ This maps the PdfPig calls most programs use to their OnePDF equivalents. It is 
 check its docs for details of its behavior. OnePDF's API is smaller in some places and larger in others, so this is a map, not a
 drop-in replacement.
 
-<!-- TODO(text-api): document-level text extraction is not public yet. The text rows below use the page-level extractor
-     (`PdfTextExtractor`), whose `TryCreate` returns null in builds where the font join is not wired. Update the table and the
-     examples when the document-level call lands. -->
-
 ## The differences that matter first
 
 | | PdfPig | OnePDF |
@@ -100,20 +96,15 @@ foreach (Page page in document.GetPages())
 
 // OnePDF
 using var doc = OnePdf.PdfDocument.Open("a.pdf");
-var extractor = OnePdf.Text.PdfTextExtractor.TryCreate(doc);   // TODO(text-api): becomes a document-level call
-if (extractor is not null)
+foreach (OnePdf.Text.PdfPageText page in doc.ExtractText())    // pages in parallel
 {
-    for (int i = 0; i < extractor.PageCount; i++)
-    {
-        OnePdf.Text.PdfPageText page = extractor.ExtractPage(i);
-        Console.WriteLine(page.Text);
-        foreach (OnePdf.Text.PdfTextWord word in page.Words)
-            Console.WriteLine($"{word.Text} {word.Bounds}");
-    }
+    Console.WriteLine(page.Text);
+    foreach (OnePdf.Text.PdfTextWord word in page.Words)
+        Console.WriteLine($"{word.Text} {word.Bounds}");
 }
 ```
 
-`extractor.ExtractDocument()` does every page in parallel and also flags headers and footers by their repetition across pages; the
+`doc.ExtractText()` does every page in parallel and also flags headers and footers by their repetition across pages; the
 degree is `PdfTextOptions.MaxDegreeOfParallelism` (default min(4, cores)).
 
 Things that behave differently and can change your output:

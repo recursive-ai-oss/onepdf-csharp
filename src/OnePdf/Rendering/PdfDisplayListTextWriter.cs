@@ -10,7 +10,7 @@ namespace OnePdf;
 internal sealed class PdfDisplayListTextWriter(TextWriter output) : IPdfDevice
 {
     /// <summary>The version of the text format. Bump it with any change to the output.</summary>
-    public const int FormatVersion = 3;
+    public const int FormatVersion = 4;
 
     /// <summary>First token of the header line.</summary>
     public const string Magic = "onepdf-display-list";
@@ -19,7 +19,7 @@ internal sealed class PdfDisplayListTextWriter(TextWriter output) : IPdfDevice
     public static readonly string[] Records =
     [
         "page", "end-page", "gs", "fill", "stroke", "clip", "text-clip", "pop-clip", "text", "image", "shading", "pattern-def", "end-pattern-def",
-        "begin-group", "end-group", "begin-softmask", "end-softmask", "begin-mc", "end-mc", "begin-annot", "end-annot",
+        "begin-group", "end-group", "begin-softmask", "end-softmask", "begin-mc", "end-mc", "begin-annot", "end-annot", "begin-glyph", "end-glyph",
     ];
 
     private const int MaxDictDepth = 8;
@@ -528,6 +528,16 @@ internal sealed class PdfDisplayListTextWriter(TextWriter output) : IPdfDevice
                 sb.Append(":u");
                 Hex(sb, Encoding.UTF8.GetBytes(u));
             }
+
+            if (run.IsVertical)
+            {
+                sb.Append(":v");
+                AppendNum(sb, g[i].VectorX);
+                sb.Append(',');
+                AppendNum(sb, g[i].VectorY);
+                sb.Append(',');
+                AppendNum(sb, g[i].VerticalAdvance);
+            }
         }
 
         sb.Append(']');
@@ -870,5 +880,41 @@ internal sealed class PdfDisplayListTextWriter(TextWriter output) : IPdfDevice
     {
         _indent = Math.Max(0, _indent - 1);
         Line("end-annot");
+    }
+
+    public void BeginType3Glyph(in PdfType3GlyphInfo glyph, in PdfGraphicsState state)
+    {
+        EmitState(state);
+        StringBuilder sb = _sb;
+        sb.Clear();
+        sb.Append("begin-glyph font=");
+        Name(sb, glyph.FontName);
+        sb.Append(" code=").Append(glyph.Code.ToString(CultureInfo.InvariantCulture));
+        sb.Append(" name=");
+        if (glyph.GlyphName is { } gn)
+        {
+            Name(sb, gn);
+        }
+        else
+        {
+            sb.Append("none");
+        }
+
+        sb.Append(" adv=");
+        AppendNum(sb, glyph.Advance);
+        if (glyph.Unicode is { } u)
+        {
+            sb.Append(" u=");
+            Hex(sb, Encoding.UTF8.GetBytes(u));
+        }
+
+        Line(sb.ToString());
+        _indent++;
+    }
+
+    public void EndType3Glyph()
+    {
+        _indent = Math.Max(0, _indent - 1);
+        Line("end-glyph");
     }
 }

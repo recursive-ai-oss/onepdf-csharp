@@ -130,6 +130,15 @@ public sealed class PdfPage
         _annotations = new Lazy<IReadOnlyList<PdfAnnotation>>(LoadAnnotations, LazyThreadSafetyMode.ExecutionAndPublication);
     }
 
+    /// <summary>
+    /// Extracts this page's text: words, lines and blocks in reading order, and <see cref="Text.PdfPageText.Text"/> in the mode the
+    /// options choose. Headers and footers are only flagged by whole-document extraction (<see cref="PdfDocument.ExtractText"/>).
+    /// </summary>
+    /// <param name="options">Options; null for the defaults.</param>
+    /// <param name="cancellationToken">Cancels the extraction with <see cref="OperationCanceledException"/>.</param>
+    public Text.PdfPageText ExtractText(Text.PdfTextOptions? options = null, CancellationToken cancellationToken = default) =>
+        Text.PdfTextExtractor.Create(Document, options).ExtractPage(Index, cancellationToken);
+
     private PdfRectangle Box(string key, PdfRectangle fallback) => PdfRectangle.From(Dictionary.Get(key)) ?? fallback;
 
     /// <summary>The document this page belongs to.</summary>

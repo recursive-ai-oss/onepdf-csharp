@@ -1,3 +1,6 @@
+using OnePdf.FontPrograms;
+using OnePdf.PdfFonts;
+
 namespace OnePdf.Content;
 
 /// <summary>
@@ -65,6 +68,12 @@ internal sealed partial class ContentInterpreter
     private PdfMatrix _tm = PdfMatrix.Identity;
     private PdfMatrix _tlm = PdfMatrix.Identity;
     private PdfGlyph[] _glyphs = new PdfGlyph[256];
+    private FontGlyph?[] _fontGlyphs = new FontGlyph?[256];
+    private readonly Dictionary<FontGlyph, PdfPath> _outlinePaths = new(ReferenceEqualityComparer.Instance);
+    private readonly List<(PdfGlyph[] Glyphs, FontGlyph?[] Fonts)> _spareBuffers = [];
+    private FontInfo? _defaultFont;
+    private int _type3Depth;
+    private bool _inCharProc;
 
     private ContentInterpreter(PdfDocument doc, IPdfDevice device, PdfInterpretOptions options, CancellationToken ct)
     {
@@ -131,25 +140,49 @@ internal sealed partial class ContentInterpreter
         _device.BeginPage(in _page);
         try
         {
+            // ISO 32000-2 7.8.2: the streams of a /Contents array are one content stream split at token boundaries. Files in the
+            // wild split inside a token or an array, so they are joined (with a space) and read as one; a page whose pieces
+            // together exceed the decoded-size limit falls back to reading them one by one.
+            List<ReadOnlyMemory<byte>> pieces = [];
+            long total = 0;
             foreach (PdfStream s in page.ContentStreams)
             {
-                if (_stopped)
-                {
-                    break;
-                }
-
-                ReadOnlyMemory<byte> data;
                 try
                 {
-                    data = s.GetDecodedBytes(_ct);
+                    ReadOnlyMemory<byte> data = s.GetDecodedBytes(_ct);
+                    pieces.Add(data);
+                    total += data.Length + 1;
                 }
                 catch (PdfException e)
                 {
                     Report(PdfSeverity.Error, "A content stream could not be decoded and was skipped: " + e.Message);
-                    continue;
+                }
+            }
+
+            if (pieces.Count == 1 || total > _limits.MaxDecodedStreamBytes)
+            {
+                foreach (ReadOnlyMemory<byte> piece in pieces)
+                {
+                    if (_stopped)
+                    {
+                        break;
+                    }
+
+                    Execute(new ContentLexer(piece, _limits.MaxNestingDepth));
+                }
+            }
+            else if (pieces.Count > 1)
+            {
+                byte[] joined = new byte[checked((int)total)];
+                int at = 0;
+                foreach (ReadOnlyMemory<byte> piece in pieces)
+                {
+                    piece.Span.CopyTo(joined.AsSpan(at));
+                    at += piece.Length;
+                    joined[at++] = (byte)' ';
                 }
 
-                Execute(new ContentLexer(data, _limits.MaxNestingDepth));
+                Execute(new ContentLexer(joined, _limits.MaxNestingDepth));
             }
 
             UnwindTo(0, 0, "the page content");
@@ -725,7 +758,15 @@ internal sealed partial class ContentInterpreter
 
                 break;
             case ContentOp.CharProcWidth:
+                break;
             case ContentOp.CharProcBox:
+                // d1 declares a glyph that carries shape only: colour operators after it are ignored and the glyph paints in the
+                // colour current when it was shown (ISO 32000-2 9.6.5, Table 113). d1 outside a Type 3 glyph is ignored.
+                if (_inCharProc)
+                {
+                    _noColor = true;
+                }
+
                 break;
 
             default:

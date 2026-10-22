@@ -99,7 +99,9 @@ public class PdfFontTests
         Assert.Equal(0.7, g[1].Advance, 6);
         Assert.Equal(0.001, g[0].OutlineMatrix![0], 9);
         Assert.False(g[0].GetOutline().IsEmpty);
-        Assert.False(g[0].HasUnicode);
+        // No ToUnicode, no encoding and only a (3,0) cmap: printable ASCII codes stand for themselves.
+        Assert.True(g[0].HasUnicode);
+        Assert.Equal("A", g[0].Unicode);
         // Code 67 has no glyph: .notdef, no existence, and the missing width.
         FontGlyph missing = Decode(f, Ascii("C"))[0];
         Assert.False(missing.Exists);

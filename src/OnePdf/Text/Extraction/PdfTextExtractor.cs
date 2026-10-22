@@ -19,33 +19,37 @@ internal interface IGlyphSource
 /// </summary>
 public sealed class PdfTextExtractor
 {
-    /// <summary>Set by the glyph producer when it is part of the build; null while there is none.</summary>
-    internal static Func<PdfDocument, IGlyphSource?>? ProducerFactory { get; set; }
-
     private readonly IGlyphSource _source;
     private readonly PdfDocument? _doc;
     private readonly PdfTextOptions _options;
-    private readonly Lazy<StructureOrder?> _structure;
 
     internal PdfTextExtractor(IGlyphSource source, PdfDocument? document, PdfTextOptions? options)
     {
         _source = source;
         _doc = document;
         _options = options ?? new PdfTextOptions();
-        _structure = new Lazy<StructureOrder?>(() => _doc is not null && _options.UseStructureTree ? StructureOrder.Read(_doc, CancellationToken.None) : null);
     }
 
     /// <summary>
-    /// Creates an extractor for a document, or returns null when this build has no glyph producer (the interpreter and PDF fonts are not joined yet).
+    /// Creates an extractor for a document: its pages are interpreted for glyphs (fonts decoded, positions and advances resolved)
+    /// and analyzed into words, lines and blocks in reading order. The extractor holds no state beyond the document and can be
+    /// used from several threads.
     /// </summary>
     /// <param name="document">The open document.</param>
     /// <param name="options">Options; null for the defaults.</param>
-    public static PdfTextExtractor? TryCreate(PdfDocument document, PdfTextOptions? options = null)
+    public static PdfTextExtractor Create(PdfDocument document, PdfTextOptions? options = null)
     {
         ArgumentNullException.ThrowIfNull(document);
-        IGlyphSource? s = ProducerFactory?.Invoke(document);
-        return s is null ? null : new PdfTextExtractor(s, document, options);
+        return new PdfTextExtractor(new PdfGlyphSource(document), document, options);
     }
+
+    /// <summary>Same as <see cref="Create"/>; kept for callers written against the earlier shape. Never returns null.</summary>
+    /// <param name="document">The open document.</param>
+    /// <param name="options">Options; null for the defaults.</param>
+    public static PdfTextExtractor? TryCreate(PdfDocument document, PdfTextOptions? options = null) => Create(document, options);
+
+    private StructureOrder? Structure(CancellationToken ct) =>
+        _doc is not null && _options.UseStructureTree ? _doc.GetStructureOrder(ct) : null;
 
     /// <summary>The number of pages.</summary>
     public int PageCount => _source.PageCount;
@@ -60,7 +64,8 @@ public sealed class PdfTextExtractor
             throw new ArgumentOutOfRangeException(nameof(pageIndex));
         }
 
-        return AnalyzeCore(_source.GetPage(pageIndex, cancellationToken), _options, _structure.Value?.ForPage(pageIndex), _structure.Value is not null, cancellationToken);
+        StructureOrder? structure = Structure(cancellationToken);
+        return AnalyzeCore(_source.GetPage(pageIndex, cancellationToken), _options, structure?.ForPage(pageIndex), structure is not null, cancellationToken);
     }
 
     /// <summary>Extracts every page, in parallel (see <see cref="PdfTextOptions.MaxDegreeOfParallelism"/>), and flags headers and footers by their repetition.</summary>
@@ -70,7 +75,7 @@ public sealed class PdfTextExtractor
         int n = _source.PageCount;
         PdfPageText[] pages = new PdfPageText[n];
         int dop = _options.MaxDegreeOfParallelism > 0 ? _options.MaxDegreeOfParallelism : Math.Min(4, Environment.ProcessorCount);
-        _ = _structure.Value; // read the tree once, before the pages run
+        _ = Structure(cancellationToken); // read the tree once, before the pages run
         if (dop <= 1 || n <= 1)
         {
             for (int i = 0; i < n; i++)

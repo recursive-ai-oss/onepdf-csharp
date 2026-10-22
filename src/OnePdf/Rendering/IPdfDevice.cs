@@ -39,6 +39,19 @@ public interface IPdfDevice
     /// <summary>Shows a string of text.</summary>
     void ShowGlyphRun(in PdfGlyphRun run, in PdfGraphicsState state);
 
+    /// <summary>
+    /// A Type 3 glyph procedure follows, up to the matching <see cref="EndType3Glyph"/>: the glyph's content as ordinary drawing
+    /// calls. <see cref="PdfGraphicsState.Ctm"/> of <paramref name="state"/> already includes the font matrix, so the glyph
+    /// coordinates in the content map straight to the output. Glyphs of a font in render mode 3 are not delivered, and nothing is
+    /// delivered for a code the font has no procedure for. Glyphs whose procedure starts with <c>d1</c> declare that they carry
+    /// shape only: colour operators in them are already skipped, so the content paints in the state's fill colour.
+    /// The text itself (codes, Unicode, advances) was delivered by the <see cref="ShowGlyphRun"/> call before.
+    /// </summary>
+    void BeginType3Glyph(in PdfType3GlyphInfo glyph, in PdfGraphicsState state);
+
+    /// <summary>Ends the Type 3 glyph.</summary>
+    void EndType3Glyph();
+
     /// <summary>Draws an image into the unit square of <see cref="PdfGraphicsState.Ctm"/>. The image is passed with its dictionary and encoded data; <see cref="PdfImage.GetData"/> builds the finished image.</summary>
     void DrawImage(in PdfImage image, in PdfGraphicsState state);
 
@@ -118,6 +131,16 @@ public abstract class PdfDevice : IPdfDevice
     }
 
     /// <inheritdoc/>
+    public virtual void BeginType3Glyph(in PdfType3GlyphInfo glyph, in PdfGraphicsState state)
+    {
+    }
+
+    /// <inheritdoc/>
+    public virtual void EndType3Glyph()
+    {
+    }
+
+    /// <inheritdoc/>
     public virtual void DrawImage(in PdfImage image, in PdfGraphicsState state)
     {
     }
@@ -168,33 +191,6 @@ public abstract class PdfDevice : IPdfDevice
     }
 }
 
-/// <summary>
-/// Width and code-splitting information for a font, as the interpreter needs it to advance the text position. A font
-/// layer supplies it through <see cref="IPdfFontResolver"/>; without one the interpreter reads <c>/Widths</c>,
-/// <c>/W</c> and <c>/DW</c> from the font dictionary itself.
-/// </summary>
-public interface IPdfFontMetrics
-{
-    /// <summary>True for vertical writing mode (<c>WMode 1</c>).</summary>
-    bool IsVertical { get; }
-
-    /// <summary>Reads the next character code from the start of <paramref name="bytes"/> (not empty) and returns how many bytes it took (at least 1).</summary>
-    int ReadCode(ReadOnlySpan<byte> bytes, out int code);
-
-    /// <summary>The horizontal advance of <paramref name="code"/> in em units (1 = font size).</summary>
-    double GetWidth(int code);
-
-    /// <summary>The vertical advance of <paramref name="code"/> in em units, normally negative (vertical mode only).</summary>
-    double GetVerticalAdvance(int code);
-}
-
-/// <summary>Supplies <see cref="IPdfFontMetrics"/> for font dictionaries; called once per distinct font per interpretation.</summary>
-public interface IPdfFontResolver
-{
-    /// <summary>Returns metrics for the font, or null to use the interpreter's own reading of the dictionary.</summary>
-    IPdfFontMetrics? Resolve(PdfDictionary fontDictionary);
-}
-
 /// <summary>Options for <c>Interpret</c>. All members have defaults.</summary>
 public sealed record PdfInterpretOptions
 {
@@ -222,6 +218,10 @@ public sealed record PdfInterpretOptions
     /// </summary>
     public Func<PdfDictionary, bool?>? OptionalContentOverride { get; init; }
 
-    /// <summary>Supplies font metrics; default null (widths are read from the font dictionary).</summary>
-    public IPdfFontResolver? FontResolver { get; init; }
+    /// <summary>
+    /// Whether glyph runs carry outlines and Type 3 glyph procedures are executed (<see cref="IPdfDevice.BeginType3Glyph"/>).
+    /// Set false for a device that only needs the text, positions and advances: it skips outline conversion and glyph content.
+    /// Default true.
+    /// </summary>
+    public bool GlyphOutlines { get; init; } = true;
 }

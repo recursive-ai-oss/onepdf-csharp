@@ -29,6 +29,7 @@ internal static class ContentTarget
                 list.Replay(sink);
                 list.Replay(sink, new PdfBounds(0, 0, 100, 100));
                 _ = list.ToText().Length;
+                _ = doc.Pages[i].ExtractText().Text.Length;
                 if (sink.Depth != 0)
                 {
                     throw new InvalidOperationException("unbalanced display list");

@@ -233,6 +233,14 @@ internal sealed class CheckingDevice : PdfDevice
 
     public override void EndSoftMask() => Close("mask");
 
+    public override void BeginType3Glyph(in PdfType3GlyphInfo glyph, in PdfGraphicsState state)
+    {
+        Check(state);
+        Open("glyph");
+    }
+
+    public override void EndType3Glyph() => Close("glyph");
+
     public override void BeginMarkedContent(string tag, PdfDictionary? properties) => Open("mc");
 
     public override void EndMarkedContent() => Close("mc");

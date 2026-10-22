@@ -47,3 +47,7 @@ A font with no usable program (none embedded, or the embedded one failed to pars
 ## Limits
 
 Font programs ≤ 64 MiB, CMap/ToUnicode streams ≤ 8 MiB, `CIDToGIDMap` ≤ 128 KiB, `/W` and `/W2` ≤ 2²⁰ entries, ≤ 2¹⁸ cached glyphs per composite font, ≤ 4096 cached outlines per font, ≤ 4096 direct (unnumbered) font dictionaries cached per document. Decoding errors in a font's streams are diagnostics, never exceptions.
+
+## In the interpreter
+
+The content interpreter reads each shown string with `font.Next` (so the Unicode chain, widths and vertical metrics above are what text positioning uses). A glyph run's `PdfGlyph` carries the glyph id, Unicode (null when unknown) and the outline as a path in text-space units for font size 1 (the font's outline matrix applied; quadratic segments raised to cubics); a missing glyph has no outline and still advances. In vertical writing the offsets are those of the glyph origin and the glyph carries v and w1. A Type 3 run carries the text with no outlines, then each glyph with a procedure runs as content between `BeginType3Glyph` and `EndType3Glyph`: CTM = font matrix x text space, the font's `/Resources` (else the current ones), patterns anchored to glyph space, `d1` ignoring later colour operators, nesting and cycles limited with forms and patterns. Only render mode 3 affects Type 3 text.
