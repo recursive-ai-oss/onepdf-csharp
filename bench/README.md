@@ -31,6 +31,8 @@ Information rows (`--anyCategories info`): `InterpretBenchmarks` (one page into 
 
 OnePDF text and words rows are marked `[Pending("text")]` and left out of runs until the extraction API is wired into `TextSeam.cs` (two methods and one flag). Nothing else changes when it is.
 
+`ExtractionLayoutBenchmarks` times the layout pipeline alone on synthetic two-column pages of about 3,400 glyphs (one page, a 300-page document through `ExtractDocument` at degree 1 and the default degree, the JSON writer). It needs no input files. It is not a gate row; it guards the allocation and speed of the layout code.
+
 ## Running
 
     export ONEPDF_BENCH_DATA=/scratch/benchdata ONEPDF_TESTDATA=$PWD/testdata
