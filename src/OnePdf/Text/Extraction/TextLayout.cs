@@ -1,3 +1,4 @@
+using System.Buffers;
 using System.Text;
 
 namespace OnePdf.Text;
@@ -14,12 +15,110 @@ internal struct Item
     internal int FirstCp;
 }
 
-internal sealed class Frag
+/// <summary>A run of items on one line with no wide gap inside; its items are <c>ids[Start .. Start + Count)</c> of the class's item-id array.</summary>
+internal struct Frag
 {
     internal int Line;
-    internal int[] Items = [];
+    internal int Start;
+    internal int Count;
     internal double X0, X1, Top, Bot, Base, Size;
     internal int NonSpace;
+}
+
+/// <summary>A sort key with the index it belongs to.</summary>
+internal struct KeyIdx
+{
+    internal double Key;
+    internal int Idx;
+}
+
+/// <summary>A sort key of two values (compared in order) with its index.</summary>
+internal struct Key2Idx
+{
+    internal double A, B;
+    internal int Idx;
+}
+
+/// <summary>A word as a run of the item-id array.</summary>
+internal struct WordRec
+{
+    internal int Start;
+    internal int Len;
+    internal bool Cell;
+}
+
+/// <summary>Arrays rented from the shared pool for the duration of one analysis, all returned together.</summary>
+internal struct Rental<T>
+{
+    private List<T[]>? _rented;
+
+    internal T[] Rent(int length)
+    {
+        T[] a = ArrayPool<T>.Shared.Rent(Math.Max(length, 1));
+        (_rented ??= []).Add(a);
+        return a;
+    }
+
+    internal void ReturnAll()
+    {
+        if (_rented is null)
+        {
+            return;
+        }
+
+        foreach (T[] a in _rented)
+        {
+            ArrayPool<T>.Shared.Return(a);
+        }
+
+        _rented.Clear();
+    }
+}
+
+/// <summary>Working storage of the layout of one reading-direction class. Rented arrays hold stale data; every user writes before it reads.</summary>
+internal sealed class LayoutWork : IDisposable
+{
+    internal Rental<int> Ints;
+    internal Rental<double> Doubles;
+    internal Rental<KeyIdx> Keys;
+    internal Rental<Key2Idx> Keys2;
+    internal Rental<Item> Items;
+    internal Rental<Frag> Frags;
+    internal Rental<WordRec> Words;
+
+    /// <summary>Per-line stamps: an entry is valid only when it equals the current generation.</summary>
+    internal int[] Stamp = [];
+
+    internal int Generation;
+
+    internal int[] Aux1 = [];
+    internal int[] Aux2 = [];
+    internal int[] Aux3 = [];
+    internal double[] DAux = [];
+
+    internal void InitLines(int lineCount)
+    {
+        Stamp = Ints.Rent(lineCount);
+        Array.Clear(Stamp, 0, lineCount);
+        Aux1 = Ints.Rent(lineCount);
+        Aux2 = Ints.Rent(lineCount);
+        Aux3 = Ints.Rent(lineCount);
+        DAux = Doubles.Rent(lineCount);
+        Generation = 0;
+    }
+
+    public void Dispose()
+    {
+        Ints.ReturnAll();
+        Doubles.ReturnAll();
+        Keys.ReturnAll();
+        Keys2.ReturnAll();
+        Items.ReturnAll();
+        Frags.ReturnAll();
+        Words.ReturnAll();
+        Stamp = Aux1 = Aux2 = Aux3 = [];
+        DAux = [];
+    }
 }
 
 /// <summary>Builds items from glyphs and turns them into blocks of lines and words. See <c>docs/text-layout.md</c>.</summary>
@@ -28,6 +127,16 @@ internal static class TextLayout
     // Unit vectors of the four quantized reading directions in page space (y up): right, up, left, down.
     private static readonly double[] Dx = [1, 0, -1, 0];
     private static readonly double[] Dy = [0, 1, 0, -1];
+
+    // Static comparisons: no delegate or closure is allocated per sort. The sort is the same introsort whatever the element type, so the
+    // order of equal keys is what sorting the plain indices with the same comparison gave.
+    private static readonly Comparison<KeyIdx> ByKey = static (a, b) => a.Key.CompareTo(b.Key);
+
+    private static readonly Comparison<Key2Idx> ByKey2 = static (a, b) =>
+    {
+        int c = a.A.CompareTo(b.A);
+        return c != 0 ? c : a.B.CompareTo(b.B);
+    };
 
     internal static int Quantize(in PdfTextGlyph g)
     {
@@ -53,9 +162,10 @@ internal static class TextLayout
         return ((k % 4) + 4) % 4;
     }
 
-    internal static Item MakeItem(in PdfTextGlyph g, int index)
+    internal static Item MakeItem(in PdfTextGlyph g, int index) => MakeItem(g, index, Quantize(g));
+
+    internal static Item MakeItem(in PdfTextGlyph g, int index, int k)
     {
-        int k = Quantize(g);
         double ux = Dx[k], uy = Dy[k];
         double nx = uy, ny = -ux;
         PdfQuad q = g.Quad;
@@ -105,64 +215,119 @@ internal static class TextLayout
         (cp >= 0x2E80 && cp <= 0x9FFF) || (cp >= 0xAC00 && cp <= 0xD7AF) || (cp >= 0xF900 && cp <= 0xFAFF) ||
         (cp >= 0xFF00 && cp <= 0xFFEF) || (cp >= 0x20000 && cp <= 0x3FFFF);
 
-    /// <summary>Lays out the glyphs of <paramref name="subset"/> (indices into <paramref name="g"/>) and returns blocks in reading order.</summary>
-    internal static List<PdfTextBlock> Run(PdfTextGlyph[] g, ReadOnlySpan<int> subset, CancellationToken ct)
+    /// <summary>
+    /// Groups glyph indices by reading direction, keeping their order within a direction. <paramref name="subset"/> is the list of glyph indices, or empty
+    /// with <paramref name="count"/> glyphs taken in order when <paramref name="all"/> is set. Returns the dominant direction.
+    /// </summary>
+    internal static int Classify(LayoutWork w, PdfTextGlyph[] g, ReadOnlySpan<int> subset, bool all, int count, out int[] grouped, Span<int> start)
     {
-        List<PdfTextBlock> result = [];
-        if (subset.Length == 0)
+        // start has 5 entries: the offsets of the four direction classes in grouped, then the end.
+        Span<int> n = stackalloc int[4];
+        int[] ks = w.Ints.Rent(count);
+        for (int i = 0; i < count; i++)
         {
-            return result;
-        }
-
-        List<int>[] byK = [[], [], [], []];
-        for (int i = 0; i < subset.Length; i++)
-        {
-            byK[Quantize(g[subset[i]])].Add(subset[i]);
+            int k = Quantize(g[all ? i : subset[i]]);
+            ks[i] = k;
+            n[k]++;
         }
 
         int dominant = 0;
         for (int k = 1; k < 4; k++)
         {
-            if (byK[k].Count > byK[dominant].Count)
+            if (n[k] > n[dominant])
             {
                 dominant = k;
             }
         }
 
+        start[0] = 0;
+        for (int k = 0; k < 4; k++)
+        {
+            start[k + 1] = start[k] + n[k];
+        }
+
+        Span<int> cur = stackalloc int[4];
+        for (int k = 0; k < 4; k++)
+        {
+            cur[k] = start[k];
+        }
+
+        grouped = w.Ints.Rent(count);
+        for (int i = 0; i < count; i++)
+        {
+            grouped[cur[ks[i]]++] = all ? i : subset[i];
+        }
+
+        return dominant;
+    }
+
+    /// <summary>Lays out the glyphs of <paramref name="subset"/> (indices into <paramref name="g"/>) and returns blocks in reading order.</summary>
+    internal static List<PdfTextBlock> Run(PdfTextGlyph[] g, ReadOnlySpan<int> subset, CancellationToken ct) => RunCore(g, subset, false, subset.Length, ct);
+
+    /// <summary>Lays out every glyph of <paramref name="g"/>.</summary>
+    internal static List<PdfTextBlock> RunAll(PdfTextGlyph[] g, CancellationToken ct) => RunCore(g, default, true, g.Length, ct);
+
+    private static List<PdfTextBlock> RunCore(PdfTextGlyph[] g, ReadOnlySpan<int> subset, bool all, int count, CancellationToken ct)
+    {
+        List<PdfTextBlock> result = [];
+        if (count == 0)
+        {
+            return result;
+        }
+
+        using LayoutWork w = new();
+        Span<int> start = stackalloc int[5];
+        int dominant = Classify(w, g, subset, all, count, out int[] grouped, start);
         for (int pass = -1; pass < 4; pass++)
         {
             int k = pass < 0 ? dominant : pass;
-            if ((pass >= 0 && k == dominant) || byK[k].Count == 0)
+            int cnt = start[k + 1] - start[k];
+            if ((pass >= 0 && k == dominant) || cnt == 0)
             {
                 continue;
             }
 
             ct.ThrowIfCancellationRequested();
-            LayoutClass(g, byK[k], result, ct);
+            LayoutClass(g, grouped, start[k], cnt, k, result, ct);
         }
 
         return result;
     }
 
-    internal static Item[] MakeItems(PdfTextGlyph[] g, List<int> idx)
+    internal static Item[] MakeItems(LayoutWork w, PdfTextGlyph[] g, int[] idx, int offset, int count, int k)
     {
-        Item[] items = new Item[idx.Count];
-        for (int i = 0; i < items.Length; i++)
+        Item[] items = w.Items.Rent(count);
+        for (int i = 0; i < count; i++)
         {
-            items[i] = MakeItem(g[idx[i]], idx[i]);
+            items[i] = MakeItem(g[idx[offset + i]], idx[offset + i], k);
         }
 
         return items;
     }
 
-    private static void LayoutClass(PdfTextGlyph[] g, List<int> idx, List<PdfTextBlock> output, CancellationToken ct)
+    private static void LayoutClass(PdfTextGlyph[] g, int[] idx, int offset, int n, int k, List<PdfTextBlock> output, CancellationToken ct)
     {
-        Item[] items = MakeItems(g, idx);
-        int lineCount = ClusterLines(items);
-        List<Frag> frags = Fragment(items, lineCount);
-        foreach ((List<Frag> fr, bool table) in XyCut(frags, items, ct))
+        using LayoutWork w = new();
+        Item[] items = MakeItems(w, g, idx, offset, n, k);
+        int lineCount = ClusterLines(w, items, n);
+        w.InitLines(lineCount);
+        int[] ids = BucketLines(w, items, n, lineCount, out int[] lineStart);
+        Frag[] frags = Fragment(w, items, ids, lineCount, lineStart, out int nf);
+
+        // XY-cut: regions are runs of the fragment-id array; a split reorders a region in place and pushes its parts.
+        int[] reg = w.Ints.Rent(nf);
+        for (int i = 0; i < nf; i++)
         {
-            PdfTextBlock? b = MakeBlock(g, items, fr, table);
+            reg[i] = i;
+        }
+
+        int[] leafStart = w.Ints.Rent(nf);
+        int[] leafLen = w.Ints.Rent(nf);
+        int[] leafTable = w.Ints.Rent(nf);
+        int leaves = XyCut(w, frags, items, ids, nf, reg, leafStart, leafLen, leafTable, ct);
+        for (int i = 0; i < leaves; i++)
+        {
+            PdfTextBlock? b = MakeBlock(w, g, items, ids, frags, reg, leafStart[i], leafLen[i], leafTable[i] != 0);
             if (b is not null)
             {
                 output.Add(b);
@@ -173,57 +338,64 @@ internal static class TextLayout
     // ---- lines ------------------------------------------------------------------------------------------------------------------
 
     /// <summary>Assigns <see cref="Item.Line"/>: glyphs on one baseline, with sub/superscripts joined to the line they touch. Returns the line count.</summary>
-    internal static int ClusterLines(Item[] items)
+    internal static int ClusterLines(LayoutWork w, Item[] items, int n)
     {
-        int n = items.Length;
-        int[] order = new int[n];
+        Key2Idx[] ord = w.Keys2.Rent(n);
         for (int i = 0; i < n; i++)
         {
-            order[i] = i;
+            ord[i] = new Key2Idx { A = items[i].Base, B = items[i].X0, Idx = i };
         }
 
-        Array.Sort(order, (a, b) =>
-        {
-            int c = items[a].Base.CompareTo(items[b].Base);
-            return c != 0 ? c : items[a].X0.CompareTo(items[b].X0);
-        });
+        ord.AsSpan(0, n).Sort(ByKey2);
 
-        List<List<int>> clusters = [];
-        List<int>? cur = null;
+        // Clusters are consecutive runs of the sorted order: cluster c is ord[cs[c] .. cs[c + 1]).
+        int[] cs = w.Ints.Rent(n + 1);
+        int cc = 0;
         double sum = 0, minSize = 0;
-        foreach (int i in order)
+        for (int p = 0; p < n; p++)
         {
-            ref Item it = ref items[i];
-            if (cur is not null)
+            ref Item it = ref items[ord[p].Idx];
+            if (cc > 0)
             {
-                double mean = sum / cur.Count;
+                double mean = sum / (p - cs[cc - 1]);
                 double tol = LayoutParameters.BaselineToleranceEm * Math.Min(minSize, it.Size);
                 if (Math.Abs(it.Base - mean) <= tol)
                 {
-                    cur.Add(i);
                     sum += it.Base;
                     minSize = Math.Min(minSize, it.Size);
                     continue;
                 }
             }
 
-            cur = [i];
-            clusters.Add(cur);
+            cs[cc++] = p;
             sum = it.Base;
             minSize = it.Size;
         }
 
+        cs[cc] = n;
+
         // Join script runs (small clusters) to a larger neighbouring line they touch.
-        int cc = clusters.Count;
-        double[] medSize = new double[cc];
-        double[] medBase = new double[cc];
+        double[] scratch = w.Doubles.Rent(n);
+        double[] medSize = w.Doubles.Rent(cc);
+        double[] medBase = w.Doubles.Rent(cc);
         for (int c = 0; c < cc; c++)
         {
-            medSize[c] = Median(clusters[c], items, static it => it.Size);
-            medBase[c] = Median(clusters[c], items, static it => it.Base);
+            int len = cs[c + 1] - cs[c];
+            for (int q = 0; q < len; q++)
+            {
+                scratch[q] = items[ord[cs[c] + q].Idx].Size;
+            }
+
+            medSize[c] = Median(scratch.AsSpan(0, len));
+            for (int q = 0; q < len; q++)
+            {
+                scratch[q] = items[ord[cs[c] + q].Idx].Base;
+            }
+
+            medBase[c] = Median(scratch.AsSpan(0, len));
         }
 
-        int[] parent = new int[cc];
+        int[] parent = w.Ints.Rent(cc);
         for (int c = 0; c < cc; c++)
         {
             parent[c] = c;
@@ -246,7 +418,7 @@ internal static class TextLayout
                     continue;
                 }
 
-                if (Touches(clusters[a], clusters[b], items, LayoutParameters.ScriptTouchEm * medSize[b]))
+                if (Touches(items, ord, cs[a], cs[a + 1], cs[b], cs[b + 1], LayoutParameters.ScriptTouchEm * medSize[b]))
                 {
                     best = b;
                     bestD = d;
@@ -259,9 +431,9 @@ internal static class TextLayout
             }
         }
 
-        int[] id = new int[cc];
+        int[] id = w.Ints.Rent(cc);
+        Array.Fill(id, -1, 0, cc);
         int count = 0;
-        Array.Fill(id, -1);
         for (int c = 0; c < cc; c++)
         {
             int r = c;
@@ -277,22 +449,24 @@ internal static class TextLayout
             }
 
             id[c] = id[r];
-            foreach (int i in clusters[c])
+            for (int p = cs[c]; p < cs[c + 1]; p++)
             {
-                items[i].Line = id[r];
+                items[ord[p].Idx].Line = id[r];
             }
         }
 
         return count;
     }
 
-    private static bool Touches(List<int> small, List<int> big, Item[] items, double dist)
+    private static bool Touches(Item[] items, Key2Idx[] ord, int s0, int s1, int b0, int b1, double dist)
     {
-        foreach (int i in small)
+        for (int p = s0; p < s1; p++)
         {
-            foreach (int j in big)
+            ref Item a = ref items[ord[p].Idx];
+            for (int q = b0; q < b1; q++)
             {
-                double gap = Math.Max(items[i].X0 - items[j].X1, items[j].X0 - items[i].X1);
+                ref Item b = ref items[ord[q].Idx];
+                double gap = Math.Max(a.X0 - b.X1, b.X0 - a.X1);
                 if (gap <= dist)
                 {
                     return true;
@@ -303,92 +477,123 @@ internal static class TextLayout
         return false;
     }
 
-    internal static double Median(List<int> idx, Item[] items, Func<Item, double> f)
-    {
-        double[] v = new double[idx.Count];
-        for (int i = 0; i < v.Length; i++)
-        {
-            v[i] = f(items[idx[i]]);
-        }
-
-        return Median(v);
-    }
-
-    internal static double Median(double[] v)
+    /// <summary>The median of the values; sorts them in place.</summary>
+    internal static double Median(Span<double> v)
     {
         if (v.Length == 0)
         {
             return 0;
         }
 
-        Array.Sort(v);
+        v.Sort();
         return (v[(v.Length - 1) / 2] + v[v.Length / 2]) / 2;
+    }
+
+    /// <summary>
+    /// Buckets the items by line (in item order within a line) and sorts each line by x. Returns the item indices line after line;
+    /// <paramref name="lineStart"/> has <c>lineCount + 1</c> offsets into it.
+    /// </summary>
+    internal static int[] BucketLines(LayoutWork w, Item[] items, int n, int lineCount, out int[] lineStart)
+    {
+        lineStart = w.Ints.Rent(lineCount + 1);
+        Array.Clear(lineStart, 0, lineCount + 1);
+        for (int i = 0; i < n; i++)
+        {
+            lineStart[items[i].Line + 1]++;
+        }
+
+        int maxLen = 0;
+        for (int l = 0; l < lineCount; l++)
+        {
+            maxLen = Math.Max(maxLen, lineStart[l + 1]);
+            lineStart[l + 1] += lineStart[l];
+        }
+
+        int[] fill = w.Ints.Rent(lineCount);
+        Array.Copy(lineStart, fill, lineCount);
+        int[] sorted = w.Ints.Rent(n);
+        for (int i = 0; i < n; i++)
+        {
+            sorted[fill[items[i].Line]++] = i;
+        }
+
+        KeyIdx[] ks = w.Keys.Rent(maxLen);
+        for (int l = 0; l < lineCount; l++)
+        {
+            int s = lineStart[l], len = lineStart[l + 1] - s;
+            if (len < 2)
+            {
+                continue;
+            }
+
+            for (int q = 0; q < len; q++)
+            {
+                int i = sorted[s + q];
+                ks[q] = new KeyIdx { Key = items[i].X0, Idx = i };
+            }
+
+            ks.AsSpan(0, len).Sort(ByKey);
+            for (int q = 0; q < len; q++)
+            {
+                sorted[s + q] = ks[q].Idx;
+            }
+        }
+
+        return sorted;
     }
 
     // ---- fragments --------------------------------------------------------------------------------------------------------------
 
-    private static List<Frag> Fragment(Item[] items, int lineCount)
+    private static Frag[] Fragment(LayoutWork w, Item[] items, int[] ids, int lineCount, int[] lineStart, out int count)
     {
-        List<int>[] lines = new List<int>[lineCount];
-        for (int i = 0; i < lineCount; i++)
-        {
-            lines[i] = [];
-        }
-
-        for (int i = 0; i < items.Length; i++)
-        {
-            lines[items[i].Line].Add(i);
-        }
-
-        List<Frag> frags = [];
+        Frag[] frags = w.Frags.Rent(lineStart[lineCount]);
+        double[] scratch = w.Doubles.Rent(lineStart[lineCount]);
+        int nf = 0;
         for (int l = 0; l < lineCount; l++)
         {
-            List<int> li = lines[l];
-            li.Sort((a, b) => items[a].X0.CompareTo(items[b].X0));
-            List<int> cur = [];
+            int s = lineStart[l], e = lineStart[l + 1];
+            int curStart = s;
             double lastX1 = double.NaN;
             double lastSize = 0;
-            foreach (int i in li)
+            for (int p = s; p < e; p++)
             {
-                ref Item it = ref items[i];
+                ref Item it = ref items[ids[p]];
                 if (!it.Space)
                 {
-                    if (!double.IsNaN(lastX1) && cur.Count > 0)
+                    if (!double.IsNaN(lastX1) && p > curStart)
                     {
                         double gap = it.X0 - lastX1;
                         if (gap > LayoutParameters.FragmentGapEm * (lastSize + it.Size) / 2)
                         {
-                            frags.Add(MakeFrag(items, cur, l));
-                            cur = [];
+                            frags[nf++] = MakeFrag(items, ids, curStart, p, l, scratch);
+                            curStart = p;
                         }
                     }
 
                     lastX1 = double.IsNaN(lastX1) ? it.X1 : Math.Max(lastX1, it.X1);
                     lastSize = it.Size;
                 }
-
-                cur.Add(i);
             }
 
-            if (cur.Count > 0)
+            if (e > curStart)
             {
-                frags.Add(MakeFrag(items, cur, l));
+                frags[nf++] = MakeFrag(items, ids, curStart, e, l, scratch);
             }
         }
 
+        count = nf;
         return frags;
     }
 
-    private static Frag MakeFrag(Item[] items, List<int> idx, int line)
+    private static Frag MakeFrag(Item[] items, int[] ids, int start, int end, int line, double[] scratch)
     {
-        Frag f = new() { Line = line, Items = idx.ToArray(), X0 = double.MaxValue, X1 = double.MinValue, Top = double.MaxValue, Bot = double.MinValue };
-        double[] sizes = new double[idx.Count];
+        Frag f = new() { Line = line, Start = start, Count = end - start, X0 = double.MaxValue, X1 = double.MinValue, Top = double.MaxValue, Bot = double.MinValue };
         double bs = 0;
         int ns = 0;
-        for (int i = 0; i < idx.Count; i++)
+        for (int p = start; p < end; p++)
         {
-            ref Item it = ref items[idx[i]];
-            sizes[i] = it.Size;
+            ref Item it = ref items[ids[p]];
+            scratch[p - start] = it.Size;
             if (it.Space)
             {
                 continue;
@@ -405,7 +610,7 @@ internal static class TextLayout
         f.NonSpace = ns;
         if (ns == 0)
         {
-            ref Item it0 = ref items[idx[0]];
+            ref Item it0 = ref items[ids[start]];
             f.X0 = it0.X0;
             f.X1 = it0.X1;
             f.Top = it0.Top;
@@ -415,146 +620,197 @@ internal static class TextLayout
         }
 
         f.Base = bs / ns;
-        f.Size = Median(sizes);
+        f.Size = Median(scratch.AsSpan(0, end - start));
         return f;
     }
 
     // ---- XY-cut -----------------------------------------------------------------------------------------------------------------
 
-    private static List<(List<Frag>, bool)> XyCut(List<Frag> all, Item[] items, CancellationToken ct)
+    /// <summary>
+    /// Cuts the fragments into leaf regions in reading order. A region is a run of <paramref name="reg"/>; a split rewrites it in place as its parts
+    /// (sorted along the cut axis, or in their original order for a line-kind split) and pushes them on an explicit stack. A table keeps its region as it was.
+    /// </summary>
+    private static int XyCut(LayoutWork w, Frag[] f, Item[] items, int[] ids, int nf, int[] reg, int[] leafStart, int[] leafLen, int[] leafTable, CancellationToken ct)
     {
-        List<(List<Frag>, bool)> leaves = [];
-        Stack<List<Frag>> stack = new();
-        stack.Push(all);
+        int leaves = 0;
+        int[] stS = w.Ints.Rent(nf + 1);
+        int[] stL = w.Ints.Rent(nf + 1);
+        int sp = 0;
+        stS[sp] = 0;
+        stL[sp++] = nf;
+        KeyIdx[] ks = w.Keys.Rent(nf);
+        int[] gb = w.Ints.Rent(nf + 2);
+        int[] tmp = w.Ints.Rent(nf);
+        double[] dscr = w.Doubles.Rent(nf);
         int guard = 0;
-        while (stack.Count > 0)
+        while (sp > 0)
         {
             if ((++guard & 255) == 0)
             {
                 ct.ThrowIfCancellationRequested();
             }
 
-            List<Frag> r = stack.Pop();
-            if (r.Count == 0)
+            sp--;
+            int s = stS[sp], len = stL[sp];
+            if (len == 0)
             {
                 continue;
             }
 
-            if (r.Count == 1 || DistinctLines(r) <= 1)
+            if (len == 1 || DistinctLines(w, f, reg, s, len) <= 1)
             {
-                leaves.Add((r, false));
+                AddLeaf(s, len, false);
                 continue;
             }
 
-            double[] sizes = new double[r.Count];
-            for (int i = 0; i < sizes.Length; i++)
+            for (int i = 0; i < len; i++)
             {
-                sizes[i] = r[i].Size;
+                dscr[i] = f[reg[s + i]].Size;
             }
 
-            double ms = Median(sizes);
-            List<List<Frag>>? parts = Partition(r, static f => f.X0, static f => f.X1, LayoutParameters.ColumnGutterEm * ms);
-            if (parts is not null)
+            double ms = Median(dscr.AsSpan(0, len));
+            int groups = Partition(f, reg, s, len, true, LayoutParameters.ColumnGutterEm * ms, ks, gb);
+            bool reverse = false;
+            if (groups > 0)
             {
-                if (IsTable(r, parts, ms))
+                if (IsTable(w, f, reg, s, len, ks, gb, groups, ms, dscr))
                 {
-                    leaves.Add((r, true));
+                    AddLeaf(s, len, true);
                     continue;
                 }
 
-                if (MajorityRtl(r, items))
+                reverse = MajorityRtl(f, items, ids, reg, s, len);
+            }
+            else
+            {
+                groups = Partition(f, reg, s, len, false, LayoutParameters.BlockGapEm * ms, ks, gb);
+            }
+
+            if (groups > 0)
+            {
+                for (int i = 0; i < len; i++)
                 {
-                    parts.Reverse();
+                    reg[s + i] = ks[i].Idx;
                 }
             }
             else
             {
-                parts = Partition(r, static f => f.Top, static f => f.Bot, LayoutParameters.BlockGapEm * ms) ?? SplitByLineKind(r);
+                groups = SplitByLineKind(w, f, reg, s, len, ks, gb, tmp);
+                if (groups == 0)
+                {
+                    AddLeaf(s, len, false);
+                    continue;
+                }
             }
 
-            if (parts is null)
+            // Popped in group order; right-to-left text reverses the groups of a column split.
+            if (reverse)
             {
-                leaves.Add((r, false));
-                continue;
+                for (int j = 0; j < groups; j++)
+                {
+                    stS[sp] = s + gb[j];
+                    stL[sp++] = gb[j + 1] - gb[j];
+                }
             }
-
-            for (int i = parts.Count - 1; i >= 0; i--)
+            else
             {
-                stack.Push(parts[i]);
+                for (int j = groups - 1; j >= 0; j--)
+                {
+                    stS[sp] = s + gb[j];
+                    stL[sp++] = gb[j + 1] - gb[j];
+                }
             }
         }
 
         return leaves;
-    }
 
-    private static int DistinctLines(List<Frag> r)
-    {
-        HashSet<int> s = [];
-        foreach (Frag f in r)
+        void AddLeaf(int s, int len, bool table)
         {
-            s.Add(f.Line);
+            leafStart[leaves] = s;
+            leafLen[leaves] = len;
+            leafTable[leaves++] = table ? 1 : 0;
         }
-
-        return s.Count;
     }
 
-    /// <summary>Splits at every empty stripe of at least <paramref name="gap"/> along one axis; null when there is none.</summary>
-    private static List<List<Frag>>? Partition(List<Frag> r, Func<Frag, double> start, Func<Frag, double> end, double gap)
+    private static int DistinctLines(LayoutWork w, Frag[] f, int[] reg, int s, int len)
     {
-        Frag[] s = r.ToArray();
-        Array.Sort(s, (a, b) => start(a).CompareTo(start(b)));
-        List<List<Frag>> groups = [];
-        List<Frag> cur = [s[0]];
-        double curEnd = end(s[0]);
-        for (int i = 1; i < s.Length; i++)
+        int gen = ++w.Generation;
+        int[] stamp = w.Stamp;
+        int c = 0;
+        for (int i = 0; i < len; i++)
         {
-            if (start(s[i]) - curEnd >= gap)
+            int line = f[reg[s + i]].Line;
+            if (stamp[line] != gen)
             {
-                groups.Add(cur);
-                cur = [];
-            }
-
-            cur.Add(s[i]);
-            curEnd = Math.Max(curEnd, end(s[i]));
-        }
-
-        groups.Add(cur);
-        return groups.Count >= 2 ? groups : null;
-    }
-
-    private static bool IsTable(List<Frag> r, List<List<Frag>> cols, double ms)
-    {
-        Dictionary<int, int> rowFirstCol = [];
-        Dictionary<int, bool> rowMulti = [];
-        for (int c = 0; c < cols.Count; c++)
-        {
-            foreach (Frag f in cols[c])
-            {
-                if (!rowFirstCol.TryGetValue(f.Line, out int first))
+                stamp[line] = gen;
+                if (++c > 1)
                 {
-                    rowFirstCol[f.Line] = c;
-                    rowMulti[f.Line] = false;
-                }
-                else if (first != c)
-                {
-                    rowMulti[f.Line] = true;
+                    break;
                 }
             }
         }
 
-        int rows = rowMulti.Count;
+        return c;
+    }
+
+    /// <summary>
+    /// Sorts the region's fragments along one axis into <paramref name="ks"/> and finds every empty stripe of at least <paramref name="gap"/>. Returns the number of
+    /// groups with their offsets in <paramref name="gb"/> (<c>groups + 1</c> entries), or 0 when there is no such stripe. The region itself is not changed.
+    /// </summary>
+    private static int Partition(Frag[] f, int[] reg, int s, int len, bool xAxis, double gap, KeyIdx[] ks, int[] gb)
+    {
+        for (int i = 0; i < len; i++)
+        {
+            int id = reg[s + i];
+            ks[i] = new KeyIdx { Key = xAxis ? f[id].X0 : f[id].Top, Idx = id };
+        }
+
+        ks.AsSpan(0, len).Sort(ByKey);
+        int groups = 1;
+        gb[0] = 0;
+        double curEnd = xAxis ? f[ks[0].Idx].X1 : f[ks[0].Idx].Bot;
+        for (int i = 1; i < len; i++)
+        {
+            if (ks[i].Key - curEnd >= gap)
+            {
+                gb[groups++] = i;
+            }
+
+            curEnd = Math.Max(curEnd, xAxis ? f[ks[i].Idx].X1 : f[ks[i].Idx].Bot);
+        }
+
+        gb[groups] = len;
+        return groups >= 2 ? groups : 0;
+    }
+
+    private static bool IsTable(LayoutWork w, Frag[] f, int[] reg, int s, int len, KeyIdx[] cols, int[] gb, int groups, double ms, double[] dscr)
+    {
+        int gen = ++w.Generation;
+        int[] stamp = w.Stamp, firstCol = w.Aux1, multiRow = w.Aux2;
+        int rows = 0, multi = 0;
+        for (int c = 0; c < groups; c++)
+        {
+            for (int q = gb[c]; q < gb[c + 1]; q++)
+            {
+                int line = f[cols[q].Idx].Line;
+                if (stamp[line] != gen)
+                {
+                    stamp[line] = gen;
+                    firstCol[line] = c;
+                    multiRow[line] = 0;
+                    rows++;
+                }
+                else if (firstCol[line] != c && multiRow[line] == 0)
+                {
+                    multiRow[line] = 1;
+                    multi++;
+                }
+            }
+        }
+
         if (rows < LayoutParameters.TableMinRows)
         {
             return false;
-        }
-
-        int multi = 0;
-        foreach (bool v in rowMulti.Values)
-        {
-            if (v)
-            {
-                multi++;
-            }
         }
 
         if (multi < LayoutParameters.TableRowFraction * rows)
@@ -562,60 +818,90 @@ internal static class TextLayout
             return false;
         }
 
-        double[] widths = new double[r.Count];
-        for (int i = 0; i < widths.Length; i++)
+        for (int i = 0; i < len; i++)
         {
-            widths[i] = (r[i].X1 - r[i].X0) / Math.Max(ms, 1e-6);
+            ref Frag fr = ref f[reg[s + i]];
+            dscr[i] = (fr.X1 - fr.X0) / Math.Max(ms, 1e-6);
         }
 
-        return Median(widths) <= LayoutParameters.TableCellWidthEm;
+        return Median(dscr.AsSpan(0, len)) <= LayoutParameters.TableCellWidthEm;
     }
 
-    private static bool MajorityRtl(List<Frag> r, Item[] items)
+    private static bool MajorityRtl(Frag[] f, Item[] items, int[] ids, int[] reg, int s, int len)
     {
         int rtl = 0, ltr = 0;
-        foreach (Frag f in r)
+        for (int q = 0; q < len; q++)
         {
-            foreach (int i in f.Items)
-            {
-                if (items[i].FirstCp == 0)
-                {
-                    continue;
-                }
-
-                BidiClass c = Bidi.GetClass(items[i].FirstCp);
-                if (Bidi.IsRtl(c))
-                {
-                    rtl++;
-                }
-                else if (c == BidiClass.L)
-                {
-                    ltr++;
-                }
-            }
+            ref Frag fr = ref f[reg[s + q]];
+            CountDirections(items, ids, fr.Start, fr.Start + fr.Count, ref rtl, ref ltr);
         }
 
         return rtl > ltr;
     }
 
-    /// <summary>Splits a region where lines with a gutter (several fragments) alternate with single-fragment lines.</summary>
-    private static List<List<Frag>>? SplitByLineKind(List<Frag> r)
+    private static void CountDirections(Item[] items, int[] ids, int start, int end, ref int rtl, ref int ltr)
     {
-        Dictionary<int, int> count = [];
-        Dictionary<int, double> top = [];
-        foreach (Frag f in r)
+        for (int p = start; p < end; p++)
         {
-            count[f.Line] = count.GetValueOrDefault(f.Line) + 1;
-            top[f.Line] = top.TryGetValue(f.Line, out double t) ? Math.Min(t, f.Base) : f.Base;
+            int cp = items[ids[p]].FirstCp;
+            if (cp == 0)
+            {
+                continue;
+            }
+
+            BidiClass c = Bidi.GetClass(cp);
+            if (Bidi.IsRtl(c))
+            {
+                rtl++;
+            }
+            else if (c == BidiClass.L)
+            {
+                ltr++;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Splits a region where lines with a gutter (several fragments) alternate with single-fragment lines. Rewrites the region as its runs
+    /// (each in the region's order) and returns the run count with offsets in <paramref name="gb"/>; 0 when the lines are all of one kind.
+    /// </summary>
+    private static int SplitByLineKind(LayoutWork w, Frag[] f, int[] reg, int s, int len, KeyIdx[] ks, int[] gb, int[] tmp)
+    {
+        int gen = ++w.Generation;
+        int[] stamp = w.Stamp, count = w.Aux1, runOf = w.Aux3;
+        double[] top = w.DAux;
+        int nl = 0;
+        int[] lines = w.Ints.Rent(len);
+        for (int i = 0; i < len; i++)
+        {
+            ref Frag fr = ref f[reg[s + i]];
+            int line = fr.Line;
+            if (stamp[line] != gen)
+            {
+                stamp[line] = gen;
+                count[line] = 0;
+                top[line] = fr.Base;
+                lines[nl++] = line;
+            }
+            else
+            {
+                top[line] = Math.Min(top[line], fr.Base);
+            }
+
+            count[line]++;
         }
 
-        int[] lines = [.. count.Keys];
-        Array.Sort(lines, (a, b) => top[a].CompareTo(top[b]));
-        Dictionary<int, int> runOf = [];
-        int run = 0;
-        bool prevMulti = count[lines[0]] > 1;
-        foreach (int l in lines)
+        for (int i = 0; i < nl; i++)
         {
+            ks[i] = new KeyIdx { Key = top[lines[i]], Idx = lines[i] };
+        }
+
+        ks.AsSpan(0, nl).Sort(ByKey);
+        int run = 0;
+        bool prevMulti = count[ks[0].Idx] > 1;
+        for (int i = 0; i < nl; i++)
+        {
+            int l = ks[i].Idx;
             bool multi = count[l] > 1;
             if (multi != prevMulti)
             {
@@ -628,77 +914,117 @@ internal static class TextLayout
 
         if (run == 0)
         {
-            return null;
+            return 0;
         }
 
-        List<List<Frag>> runs = [];
-        for (int i = 0; i <= run; i++)
+        // Stable arrangement by run.
+        int runs = run + 1;
+        for (int j = 0; j <= runs; j++)
         {
-            runs.Add([]);
+            gb[j] = 0;
         }
 
-        foreach (Frag f in r)
+        for (int i = 0; i < len; i++)
         {
-            runs[runOf[f.Line]].Add(f);
+            gb[runOf[f[reg[s + i]].Line] + 1]++;
         }
 
+        for (int j = 0; j < runs; j++)
+        {
+            gb[j + 1] += gb[j];
+        }
+
+        Span<int> cur = runs <= 64 ? stackalloc int[runs] : new int[runs];
+        for (int j = 0; j < runs; j++)
+        {
+            cur[j] = gb[j];
+        }
+
+        for (int i = 0; i < len; i++)
+        {
+            int id = reg[s + i];
+            tmp[cur[runOf[f[id].Line]]++] = id;
+        }
+
+        Array.Copy(tmp, 0, reg, s, len);
         return runs;
     }
 
     // ---- blocks, lines, words ---------------------------------------------------------------------------------------------------
 
-    private sealed class WordBuild
+    private static PdfTextBlock? MakeBlock(LayoutWork w, PdfTextGlyph[] g, Item[] items, int[] ids, Frag[] f, int[] reg, int s, int len, bool table)
     {
-        internal List<int> Items = [];
-        internal bool CellStart;
-    }
-
-    private static PdfTextBlock? MakeBlock(PdfTextGlyph[] g, Item[] items, List<Frag> frags, bool table)
-    {
-        Dictionary<int, List<Frag>> byLine = [];
-        foreach (Frag f in frags)
+        // Lines in order of first appearance, then sorted by the baseline of their first fragment.
+        int gen = ++w.Generation;
+        int[] stamp = w.Stamp, rank = w.Aux1;
+        int[] firstFrag = w.Ints.Rent(len);
+        int[] cnt = w.Ints.Rent(len);
+        int nl = 0;
+        int rtl = 0, ltr = 0;
+        for (int i = 0; i < len; i++)
         {
-            if (!byLine.TryGetValue(f.Line, out List<Frag>? l))
+            int fr = reg[s + i];
+            int line = f[fr].Line;
+            if (stamp[line] != gen)
             {
-                byLine[f.Line] = l = [];
+                stamp[line] = gen;
+                rank[line] = nl;
+                firstFrag[nl] = fr;
+                cnt[nl] = 0;
+                nl++;
             }
 
-            l.Add(f);
+            cnt[rank[line]]++;
+            CountDirections(items, ids, f[fr].Start, f[fr].Start + f[fr].Count, ref rtl, ref ltr);
         }
 
-        List<List<Frag>> lines = [.. byLine.Values];
-        lines.Sort((a, b) => a[0].Base.CompareTo(b[0].Base));
-
-        int rtl = 0, ltr = 0;
-        foreach (Frag f in frags)
+        KeyIdx[] ks = w.Keys.Rent(nl);
+        for (int r = 0; r < nl; r++)
         {
-            foreach (int i in f.Items)
-            {
-                if (items[i].FirstCp == 0)
-                {
-                    continue;
-                }
+            ks[r] = new KeyIdx { Key = f[firstFrag[r]].Base, Idx = r };
+        }
 
-                BidiClass c = Bidi.GetClass(items[i].FirstCp);
-                if (Bidi.IsRtl(c))
-                {
-                    rtl++;
-                }
-                else if (c == BidiClass.L)
-                {
-                    ltr++;
-                }
-            }
+        ks.AsSpan(0, nl).Sort(ByKey);
+
+        int[] off = w.Ints.Rent(nl + 1);
+        int[] cur = w.Ints.Rent(nl);
+        off[0] = 0;
+        for (int r = 0; r < nl; r++)
+        {
+            off[r + 1] = off[r] + cnt[r];
+            cur[r] = off[r];
+        }
+
+        int[] bk = w.Ints.Rent(len);
+        for (int i = 0; i < len; i++)
+        {
+            int fr = reg[s + i];
+            bk[cur[rank[f[fr].Line]]++] = fr;
         }
 
         int para = rtl > ltr ? 1 : 0;
-
-        List<PdfTextLine> outLines = [];
+        KeyIdx[] ks2 = w.Keys.Rent(len);
+        List<PdfTextLine> outLines = new(nl);
         double bl = double.MaxValue, bb = double.MaxValue, br = double.MinValue, bt = double.MinValue;
-        foreach (List<Frag> lf in lines)
+        for (int e = 0; e < nl; e++)
         {
-            lf.Sort((a, b) => a.X0.CompareTo(b.X0));
-            PdfTextLine? line = MakeLine(g, items, lf, para);
+            int r = ks[e].Idx;
+            int os = off[r], oc = off[r + 1] - os;
+            if (oc > 1)
+            {
+                for (int q = 0; q < oc; q++)
+                {
+                    ks2[q] = new KeyIdx { Key = f[bk[os + q]].X0, Idx = bk[os + q] };
+                }
+
+                ks2.AsSpan(0, oc).Sort(ByKey);
+                for (int q = 0; q < oc; q++)
+                {
+                    bk[os + q] = ks2[q].Idx;
+                }
+            }
+
+            PdfTextLine? line = MakeLine(w, g, items, ids, f, bk, os, oc, para);
             if (line is null)
             {
                 continue;
@@ -714,162 +1040,219 @@ internal static class TextLayout
         return outLines.Count == 0 ? null : new PdfTextBlock(outLines.ToArray(), new PdfRectangle(bl, bb, br, bt), table);
     }
 
-    /// <summary>Splits a run of items (in x order) into words: at space glyphs and at gaps wider than the word-gap thresholds.</summary>
-    internal static List<List<int>> SplitWords(Item[] items, IEnumerable<int> run)
+    /// <summary>
+    /// Finds the next word in <c>ids[p .. end)</c>, starting at <paramref name="p"/>: runs of non-space items, split at gaps wider than the word-gap thresholds.
+    /// Space items are skipped. Returns false at the end.
+    /// </summary>
+    internal static bool NextWord(Item[] items, int[] ids, ref int p, int end, out int start, out int length)
     {
-        List<List<int>> words = [];
-        List<int>? cur = null;
-        Item prev = default;
-        bool havePrev = false;
-        foreach (int i in run)
+        while (p < end && items[ids[p]].Space)
         {
-            ref Item it = ref items[i];
+            p++;
+        }
+
+        if (p >= end)
+        {
+            start = length = 0;
+            return false;
+        }
+
+        start = p;
+        ref Item prev = ref items[ids[p]];
+        p++;
+        while (p < end)
+        {
+            ref Item it = ref items[ids[p]];
             if (it.Space)
             {
-                cur = null;
-                continue;
+                break;
             }
 
-            if (cur is not null && havePrev)
+            double gap = it.X0 - prev.X1;
+            double size = (prev.Size + it.Size) / 2;
+            double thr = (prev.Cjk || it.Cjk ? LayoutParameters.CjkWordGapEm : LayoutParameters.WordGapEm) * size;
+            if (gap > thr)
             {
-                double gap = it.X0 - prev.X1;
-                double size = (prev.Size + it.Size) / 2;
-                double thr = (prev.Cjk || it.Cjk ? LayoutParameters.CjkWordGapEm : LayoutParameters.WordGapEm) * size;
-                if (gap > thr)
-                {
-                    cur = null;
-                }
+                break;
             }
 
-            if (cur is null)
-            {
-                cur = [];
-                words.Add(cur);
-            }
-
-            cur.Add(i);
-            prev = it;
-            havePrev = true;
+            prev = ref it;
+            p++;
         }
 
-        return words;
+        length = p - start;
+        return true;
     }
 
-    private static PdfTextLine? MakeLine(PdfTextGlyph[] g, Item[] items, List<Frag> frags, int para)
+    private static string WordText(PdfTextGlyph[] g, Item[] items, int[] ids, int start, int len)
     {
-        List<WordBuild> words = [];
-        for (int f = 0; f < frags.Count; f++)
+        if (len == 1)
         {
-            List<List<int>> fw = SplitWords(items, frags[f].Items);
-            for (int w = 0; w < fw.Count; w++)
+            return g[items[ids[start]].G].Text;
+        }
+
+        int total = 0;
+        for (int k = 0; k < len; k++)
+        {
+            total += g[items[ids[start + k]].G].Text.Length;
+        }
+
+        if (total == 0)
+        {
+            return "";
+        }
+
+        return string.Create(total, (g, items, ids, start, len), static (span, st) =>
+        {
+            int pos = 0;
+            for (int k = 0; k < st.len; k++)
             {
-                words.Add(new WordBuild { Items = fw[w], CellStart = w == 0 && f > 0 });
+                string t = st.g[st.items[st.ids[st.start + k]].G].Text;
+                t.CopyTo(span.Slice(pos));
+                pos += t.Length;
+            }
+        });
+    }
+
+    private static PdfTextLine? MakeLine(LayoutWork w, PdfTextGlyph[] g, Item[] items, int[] ids, Frag[] f, int[] bk, int off, int nfr, int para)
+    {
+        int total = 0;
+        for (int fi = 0; fi < nfr; fi++)
+        {
+            total += f[bk[off + fi]].Count;
+        }
+
+        WordRec[] wr = w.Words.Rent(total);
+        int wc = 0;
+        for (int fi = 0; fi < nfr; fi++)
+        {
+            ref Frag fr = ref f[bk[off + fi]];
+            int p = fr.Start, end = fr.Start + fr.Count;
+            bool first = true;
+            while (NextWord(items, ids, ref p, end, out int ws, out int wl))
+            {
+                wr[wc++] = new WordRec { Start = ws, Len = wl, Cell = first && fi > 0 };
+                first = false;
             }
         }
 
-        if (words.Count == 0)
+        if (wc == 0)
         {
             return null;
         }
 
-        words[0].CellStart = true;
+        wr[0].Cell = true;
 
-        int wc = words.Count;
-        string[] visual = new string[wc];
         bool needBidi = para == 1;
-        for (int w = 0; w < wc; w++)
+        for (int i = 0; i < wc && !needBidi; i++)
         {
-            StringBuilder sb = new();
-            foreach (int i in words[w].Items)
+            for (int k = 0; k < wr[i].Len && !needBidi; k++)
             {
-                string t = g[items[i].G].Text;
-                sb.Append(t);
-                if (!needBidi && t.Length > 0)
-                {
-                    needBidi = MayBeRtl(t);
-                }
+                string t = g[items[ids[wr[i].Start + k]].G].Text;
+                needBidi = t.Length > 0 && MayBeRtl(t);
             }
-
-            visual[w] = sb.ToString();
         }
 
-        int[] order = new int[wc];
-        string[] logical = visual;
-        bool[] cellStart = new bool[wc];
-        for (int w = 0; w < wc; w++)
-        {
-            order[w] = w;
-            cellStart[w] = words[w].CellStart;
-        }
-
+        string[]? logical = null;
+        int[]? order = null;
+        bool[]? cellStart = null;
         if (needBidi)
         {
+            string[] visual = new string[wc];
+            cellStart = new bool[wc];
+            for (int i = 0; i < wc; i++)
+            {
+                visual[i] = WordText(g, items, ids, wr[i].Start, wr[i].Len);
+                cellStart[i] = wr[i].Cell;
+            }
+
             Reorder(visual, cellStart, para, out logical, out order, out cellStart);
         }
 
-        List<PdfTextWord> outWords = new(wc);
-        List<int> cells = [];
+        PdfTextWord[] outWords = new PdfTextWord[wc];
+        int ow = 0;
+        int[] cells = w.Ints.Rent(wc + 1);
+        int cellCount = 0;
         double ll = double.MaxValue, lb = double.MaxValue, lr = double.MinValue, lt = double.MinValue;
-        for (int w = 0; w < wc; w++)
+        for (int i = 0; i < wc; i++)
         {
-            string text = logical[w];
+            WordRec rec = needBidi ? wr[order![i]] : wr[i];
+            string text = needBidi ? logical![i] : WordText(g, items, ids, rec.Start, rec.Len);
             if (text.Length == 0)
             {
                 continue;
             }
 
-            WordBuild wb = words[order[w]];
-            int[] gi = new int[wb.Items.Count];
-            double wl = double.MaxValue, wbm = double.MaxValue, wr = double.MinValue, wt = double.MinValue;
+            int[] gi = new int[rec.Len];
+            double wl = double.MaxValue, wbm = double.MaxValue, wr2 = double.MinValue, wt = double.MinValue;
             bool vis = false;
             for (int k = 0; k < gi.Length; k++)
             {
-                int gx = items[wb.Items[k]].G;
+                int gx = items[ids[rec.Start + k]].G;
                 gi[k] = gx;
                 PdfRectangle b = g[gx].Bounds;
                 wl = Math.Min(wl, b.Left);
                 wbm = Math.Min(wbm, b.Bottom);
-                wr = Math.Max(wr, b.Right);
+                wr2 = Math.Max(wr2, b.Right);
                 wt = Math.Max(wt, b.Top);
                 vis |= g[gx].IsVisible;
             }
 
-            if (cellStart[w])
+            if (needBidi ? cellStart![i] : rec.Cell)
             {
-                cells.Add(outWords.Count);
+                cells[cellCount++] = ow;
             }
 
-            outWords.Add(new PdfTextWord(text, new PdfRectangle(wl, wbm, wr, wt), gi, vis));
+            outWords[ow++] = new PdfTextWord(text, new PdfRectangle(wl, wbm, wr2, wt), gi, vis);
             ll = Math.Min(ll, wl);
             lb = Math.Min(lb, wbm);
-            lr = Math.Max(lr, wr);
+            lr = Math.Max(lr, wr2);
             lt = Math.Max(lt, wt);
         }
 
-        if (outWords.Count == 0)
+        if (ow == 0)
         {
             return null;
         }
 
-        if (cells.Count == 0 || cells[0] != 0)
+        if (ow != wc)
         {
-            cells.Insert(0, 0);
+            Array.Resize(ref outWords, ow);
         }
 
-        HashSet<int> cellSet = [.. cells];
-        StringBuilder line = new();
-        for (int w = 0; w < outWords.Count; w++)
+        bool lead = cellCount == 0 || cells[0] != 0;
+        int[] cellStarts = new int[cellCount + (lead ? 1 : 0)];
+        Array.Copy(cells, 0, cellStarts, lead ? 1 : 0, cellCount);
+
+        int lineLen = ow - 1;
+        foreach (PdfTextWord word in outWords)
         {
-            if (w > 0)
+            lineLen += word.Text.Length;
+        }
+
+        string lineText = string.Create(lineLen, (outWords, cellStarts), static (span, st) =>
+        {
+            int pos = 0, ci = 0;
+            for (int i = 0; i < st.outWords.Length; i++)
             {
-                line.Append(cellSet.Contains(w) ? '\t' : ' ');
+                if (i > 0)
+                {
+                    while (ci < st.cellStarts.Length && st.cellStarts[ci] < i)
+                    {
+                        ci++;
+                    }
+
+                    span[pos++] = ci < st.cellStarts.Length && st.cellStarts[ci] == i ? '\t' : ' ';
+                }
+
+                string t = st.outWords[i].Text;
+                t.CopyTo(span.Slice(pos));
+                pos += t.Length;
             }
+        });
 
-            line.Append(outWords[w].Text);
-        }
-
-        return new PdfTextLine(outWords.ToArray(), new PdfRectangle(ll, lb, lr, lt),
-            para == 1 ? PdfTextDirection.RightToLeft : PdfTextDirection.LeftToRight, g[items[words[0].Items[0]].G].IsVertical, cells.ToArray(), line.ToString());
+        return new PdfTextLine(outWords, new PdfRectangle(ll, lb, lr, lt),
+            para == 1 ? PdfTextDirection.RightToLeft : PdfTextDirection.LeftToRight, g[items[ids[wr[0].Start]].G].IsVertical, cellStarts, lineText);
     }
 
     private static bool MayBeRtl(string t)

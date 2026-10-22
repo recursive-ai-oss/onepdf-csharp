@@ -18,11 +18,12 @@ internal static class ExtractionTarget
         "\u202B", "\u202E", "\u202C", "\u2067", "\u2069", "\u200F", "(", ")", "\uD83D\uDE00", "", "ab",
     ];
 
-    public static void Run(ReadOnlySpan<byte> data)
+    /// <summary>Reads the options and glyphs a fuzz input stands for; null when the input is too short.</summary>
+    internal static (PdfTextOptions Options, List<PdfTextGlyph> Glyphs)? Decode(ReadOnlySpan<byte> data)
     {
         if (data.Length < 2)
         {
-            return;
+            return null;
         }
 
         PdfTextOptions o = new()
@@ -60,6 +61,18 @@ internal static class ExtractionTarget
                 FillColor = r[9],
             });
         }
+
+        return (o, glyphs);
+    }
+
+    public static void Run(ReadOnlySpan<byte> data)
+    {
+        if (Decode(data) is not var (o, glyphs))
+        {
+            return;
+        }
+
+        ReadOnlySpan<byte> rest = data.Slice(1);
 
         PdfPageText page = PdfTextExtractor.Analyze(new PdfPageGlyphs(0, 600, 800, glyphs), o);
         foreach (PdfTextWord w in page.Words)

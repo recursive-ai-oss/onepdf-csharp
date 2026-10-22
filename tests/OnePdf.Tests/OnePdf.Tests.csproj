@@ -38,6 +38,10 @@
   </ItemGroup>
 
   <ItemGroup>
+    <EmbeddedResource Include="Extraction/golden.txt" LogicalName="golden.txt" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="../../src/OnePdf/OnePdf.csproj" />
     <ProjectReference Include="../../src/OnePdf.Fonts/OnePdf.Fonts.csproj" />
   </ItemGroup>
