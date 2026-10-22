@@ -29,12 +29,34 @@ internal sealed class OutputBuffer : IDisposable
     private int _curLen;
     private List<(byte[] Data, int Used)>? _done;
     private int _lastSegment;
+    private readonly bool _exact;
 
     public OutputBuffer(long cap, long initial)
     {
         _cap = Math.Min(Math.Max(cap, 0), Array.MaxLength);
         _cur = ArrayPool<byte>.Shared.Rent((int)Math.Min(Math.Max(initial, 16), Math.Min(_cap, SmallMax)));
         _pooled = true;
+    }
+
+    /// <summary>
+    /// A buffer for output whose final size is expected to be <paramref name="exactSize"/> (more than <see cref="SmallMax"/>
+    /// and within the cap; the caller has checked it is plausible for the input). The whole result is one plain array
+    /// allocated up front, and <see cref="DetachArray"/> hands it over without a copy when the output fills it exactly.
+    /// Output that turns out longer continues in further segments; shorter output is copied to an exact-size array as usual.
+    /// </summary>
+    public OutputBuffer(long cap, long initial, long exactSize)
+    {
+        _cap = Math.Min(Math.Max(cap, 0), Array.MaxLength);
+        if (exactSize <= SmallMax || exactSize > _cap)
+        {
+            _cur = ArrayPool<byte>.Shared.Rent((int)Math.Min(Math.Max(initial, 16), Math.Min(_cap, SmallMax)));
+            _pooled = true;
+            return;
+        }
+
+        _cur = new byte[exactSize];
+        _exact = true;
+        _lastSegment = FirstSegment / 2;
     }
 
     /// <summary>Bytes held.</summary>
@@ -52,7 +74,8 @@ internal sealed class OutputBuffer : IDisposable
     /// <summary>Free space at the end, growing (within the cap) so at least <paramref name="want"/> bytes are available if possible.</summary>
     public Span<byte> Free(int want)
     {
-        if (_cur.Length - _curLen < want && Length < _cap)
+        // An exact-size array is used to its end before any further segment is started.
+        if (_cur.Length - _curLen < want && Length < _cap && !(_exact && _cur.Length > _curLen))
         {
             Grow(want);
         }
@@ -157,6 +180,10 @@ internal sealed class OutputBuffer : IDisposable
         if (Length == 0)
         {
             result = [];
+        }
+        else if (_done is null && !_pooled && _curLen == _cur.Length)
+        {
+            result = _cur;
         }
         else if (_done is null)
         {

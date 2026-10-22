@@ -34,7 +34,9 @@ internal sealed partial class ContentInterpreter
     private readonly List<GState> _saved = [];
     private readonly List<byte> _mc = [];
     private readonly HashSet<string> _reported = new(StringComparer.Ordinal);
-    private readonly HashSet<int> _activeForms = [];
+    private readonly HashSet<int> _activeForms;
+    private readonly Dictionary<(int Number, string Name, PdfMatrix Base), PdfPattern?> _patterns = [];
+    private readonly Dictionary<PdfObject, PdfShading?> _shadings = new(ReferenceEqualityComparer.Instance);
     private readonly ColorSpaceCache _spaces;
     private readonly OptionalContentState _oc;
     private readonly Dictionary<int, FontInfo> _fontsByRef = [];
@@ -58,6 +60,8 @@ internal sealed partial class ContentInterpreter
     private bool _clipEvenOdd;
     private bool _inText;
     private bool _textClipPending;
+    private bool _noColor;
+    private PdfMatrix _patternBase = PdfMatrix.Identity;
     private PdfMatrix _tm = PdfMatrix.Identity;
     private PdfMatrix _tlm = PdfMatrix.Identity;
     private PdfGlyph[] _glyphs = new PdfGlyph[256];
@@ -71,6 +75,23 @@ internal sealed partial class ContentInterpreter
         _limits = doc.Limits;
         _spaces = new ColorSpaceCache(doc);
         _oc = new OptionalContentState(doc, options.OptionalContentOverride);
+        _activeForms = [];
+    }
+
+    /// <summary>An interpreter for a pattern cell: same document, limits and recursion bookkeeping as its parent, its own device.</summary>
+    private ContentInterpreter(ContentInterpreter parent, IPdfDevice device)
+    {
+        _doc = parent._doc;
+        _device = device;
+        _options = parent._options;
+        _ct = parent._ct;
+        _limits = parent._limits;
+        _spaces = parent._spaces;
+        _oc = parent._oc;
+        _activeForms = parent._activeForms;
+        _page = parent._page;
+        _formDepth = parent._formDepth + 1;
+        _opCount = parent._opCount;
     }
 
     /// <summary>
@@ -105,6 +126,7 @@ internal sealed partial class ContentInterpreter
     {
         _page = PageGeometry.Compute(page, _options, m => Report(PdfSeverity.Warning, m));
         _res = page.Resources;
+        _patternBase = _page.BaseMatrix;
         ResetState(_page.BaseMatrix);
         _device.BeginPage(in _page);
         try
@@ -290,12 +312,39 @@ internal sealed partial class ContentInterpreter
     private void BadOperands(ContentOp op) =>
         Report(PdfSeverity.Warning, "Operator " + op + " has missing or invalid operands and was skipped.");
 
-    private PdfGraphicsState Snapshot() => new(
+    private PdfGraphicsState Snapshot()
+    {
+        // A tiling pattern's cell is interpreted the first time a paint call is about to carry it.
+        if (_hidden == 0)
+        {
+            if (_g.Fill.Pattern is PdfTilingPattern { CellBuilt: false } fp)
+            {
+                BuildCell(fp);
+            }
+
+            if (_g.Stroke.Pattern is PdfTilingPattern { CellBuilt: false } sp)
+            {
+                BuildCell(sp);
+            }
+        }
+
+        return SnapshotCore();
+    }
+
+    private PdfGraphicsState SnapshotCore() => new(
         _g.Ctm, _g.Fill, _g.Stroke, _g.LineWidth, _g.LineCap, _g.LineJoin, _g.MiterLimit, _g.Dash, _g.DashPhase, _g.Flatness,
         _g.Intent, _g.FillAlpha, _g.StrokeAlpha, _g.Blend, _g.SoftMask, _g.Ais, _g.FillOverprint, _g.StrokeOverprint, _g.OverprintMode);
 
     private void Dispatch(ContentOp op, ContentLexer lx)
     {
+        // The cell of an uncoloured tiling pattern must not choose colours (ISO 32000-2 8.7.3.3).
+        if (_noColor && op is ContentOp.FillGray or ContentOp.StrokeGray or ContentOp.FillRgb or ContentOp.StrokeRgb
+            or ContentOp.FillCmyk or ContentOp.StrokeCmyk or ContentOp.FillSpaceName or ContentOp.StrokeSpaceName
+            or ContentOp.FillColor or ContentOp.FillColorN or ContentOp.StrokeColor or ContentOp.StrokeColorN or ContentOp.Shading)
+        {
+            return;
+        }
+
         switch (op)
         {
             // ---- graphics state ----
@@ -850,8 +899,8 @@ internal sealed partial class ContentInterpreter
                 return;
             }
 
-            PdfObject? pattern = _res?.GetDictionary("Pattern")?.Get(patternName);
-            if (pattern is not (PdfDictionary or PdfStream))
+            PdfObject? patternObj = _res?.GetDictionary("Pattern")?.Get(patternName);
+            if (patternObj is not (PdfDictionary or PdfStream))
             {
                 Report(PdfSeverity.Warning, "Pattern /" + patternName + " is not defined; the colour was not changed.");
                 return;
@@ -876,9 +925,14 @@ internal sealed partial class ContentInterpreter
                 _a[i] = o.Num;
             }
 
+            PdfPattern? pattern = GetPattern(patternName, patternObj);
+            if (pattern is null)
+            {
+                return;
+            }
+
             PdfColor tint = ColorOps.ToColor(cs, _a.AsSpan(0, n));
-            color = tint with { Pattern = pattern, PatternName = patternName };
-            Report(PdfSeverity.Info, "Pattern colours are passed to the device unevaluated.");
+            color = tint with { Pattern = pattern };
         }
         else
         {

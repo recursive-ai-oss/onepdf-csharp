@@ -159,6 +159,7 @@ public sealed class PdfPageText
         Width = width;
         Height = height;
         Glyphs = glyphs;
+        GlyphArray = glyphs;
         Blocks = blocks;
         UsedStructureTree = usedStructureTree;
         Diagnostics = diagnostics;
@@ -176,6 +177,9 @@ public sealed class PdfPageText
 
     /// <summary>The glyphs that took part in extraction (after exclusions, ligature decomposition and <c>/ActualText</c>), in content order.</summary>
     public IReadOnlyList<PdfTextGlyph> Glyphs { get; }
+
+    /// <summary>The same glyphs as an array, for the code that reads them by index without going through the interface.</summary>
+    internal PdfTextGlyph[] GlyphArray { get; }
 
     /// <summary>Blocks in reading order.</summary>
     public IReadOnlyList<PdfTextBlock> Blocks { get; }

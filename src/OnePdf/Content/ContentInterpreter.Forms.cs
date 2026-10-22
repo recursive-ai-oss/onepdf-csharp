@@ -345,7 +345,7 @@ internal sealed partial class ContentInterpreter
         PdfDictionary? savedRes = _res;
         int savedQBase = _qBase, savedMcBase = _mcBase, savedCompat = _compat, savedSkipped = _skippedSaves;
         bool savedInText = _inText, savedTextClip = _textClipPending, savedPending = _pendingClip, savedEo = _clipEvenOdd;
-        PdfMatrix savedTm = _tm, savedTlm = _tlm;
+        PdfMatrix savedTm = _tm, savedTlm = _tlm, savedPatternBase = _patternBase;
         int baseSaved = _saved.Count, baseMc = _mc.Count;
         bool grouped = false;
 
@@ -384,6 +384,9 @@ internal sealed partial class ContentInterpreter
             {
                 _g.Ctm = next;
             }
+
+            // Patterns selected inside the form are anchored to the form's space (ISO 32000-2 8.7.3.1).
+            _patternBase = _g.Ctm;
 
             if (bbox is { } b)
             {
@@ -425,6 +428,7 @@ internal sealed partial class ContentInterpreter
                 _clipEvenOdd = savedEo;
                 _tm = savedTm;
                 _tlm = savedTlm;
+                _patternBase = savedPatternBase;
                 _path.Clear();
             }
         }
@@ -441,12 +445,19 @@ internal sealed partial class ContentInterpreter
             return;
         }
 
-        Report(PdfSeverity.Info, "Shading fills are passed to the device unevaluated.");
-        if (_hidden == 0)
+        if (_hidden != 0)
         {
-            PdfGraphicsState s = Snapshot();
-            _device.PaintShading(sh, name, in s);
+            return;
         }
+
+        PdfShading? shading = LoadShading(sh);
+        if (shading is null)
+        {
+            return;
+        }
+
+        PdfGraphicsState s = Snapshot();
+        _device.PaintShading(shading, in s);
     }
 
     // ---- inline images ----
@@ -581,7 +592,7 @@ internal sealed partial class ContentInterpreter
         double sx = tb.Width > 0 ? rect.Width / tb.Width : 1;
         double sy = tb.Height > 0 ? rect.Height / tb.Height : 1;
         var fit = new PdfMatrix(sx, 0, 0, sy, rect.Left - (tb.Left * sx), rect.Bottom - (tb.Bottom * sy));
-        PdfMatrix ctm = fit.Then(_page.BaseMatrix);
+        PdfMatrix ctm = fit.Then(AnnotationBaseMatrix(f, rect));
         if (!ctm.IsFinite)
         {
             return;
@@ -606,5 +617,32 @@ internal sealed partial class ContentInterpreter
                 _device.EndAnnotation();
             }
         }
+    }
+
+    // ISO 32000-2 12.5.3 Table 167: NoZoom keeps the appearance at its size at 100% magnification and NoRotate keeps it upright,
+    // in both cases with the upper-left corner of the annotation rectangle (in default user space) staying where the page
+    // matrix puts it. Magnification here is the caller's scale or DPI; /UserUnit is part of the page, not of the zoom.
+    private PdfMatrix AnnotationBaseMatrix(PdfAnnotationOptions flags, in PdfBounds rect)
+    {
+        bool noZoom = (flags & PdfAnnotationOptions.NoZoom) != 0;
+        bool noRotate = (flags & PdfAnnotationOptions.NoRotate) != 0;
+        double s = noZoom ? _page.UserUnit : _page.Scale;
+        int rotation = noRotate ? 0 : _page.Rotation;
+        if ((!noZoom || s == _page.Scale) && (!noRotate || _page.Rotation == 0))
+        {
+            return _page.BaseMatrix;
+        }
+
+        PdfMatrix flip = new(s, 0, 0, -s, 0, 0);
+        PdfMatrix linear = rotation switch
+        {
+            90 => flip.Then(new PdfMatrix(0, 1, -1, 0, 0, 0)),
+            180 => flip.Then(new PdfMatrix(-1, 0, 0, -1, 0, 0)),
+            270 => flip.Then(new PdfMatrix(0, -1, 1, 0, 0, 0)),
+            _ => flip,
+        };
+        (double px, double py) = _page.BaseMatrix.Transform(rect.Left, rect.Top);
+        (double lx, double ly) = linear.Transform(rect.Left, rect.Top);
+        return linear with { E = px - lx, F = py - ly };
     }
 }

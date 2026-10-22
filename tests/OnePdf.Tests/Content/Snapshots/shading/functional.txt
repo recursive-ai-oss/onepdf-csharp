@@ -1,0 +1,13 @@
+onepdf-display-list 3
+page box=0 0 200 200 name=CropBox rotate=0 unit=1 scale=1 size=200 200 base=[1 0 0 -1 0 200]
+  gs ctm=[1 0 0 -1 0 200] fill=gray(0) stroke=gray(0) lw=1 cap=0 join=0 miter=10 dash=[] phase=0 flat=1 ri=RelativeColorimetric fa=1 sa=1 bm=Normal sm=0 ais=0 op=000
+  clip nonzero M 0 0 L 100 0 L 100 100 L 0 100 Z
+    shading type=2 cs=rgb fn=1 bbox=0 0 100 100 bg=none aa=0 coords=(0 0 100 0) domain=(0 1) extend=10 at-start=(1 0 0) at-mid=(0.5 0 0.5) at-end=(0 0 1)
+  pop-clip
+  clip nonzero M 100 0 L 200 0 L 200 100 L 100 100 Z
+    shading type=3 cs=rgb fn=1 bbox=none bg=none aa=0 coords=(150 50 5 150 50 40) domain=(0 1) extend=01 at-start=(1 0 0) at-mid=(0.5 0 0.5) at-end=(0 0 1)
+  pop-clip
+  clip nonzero M 0 100 L 200 100 L 200 200 L 0 200 Z
+    shading type=1 cs=rgb fn=1 bbox=none bg=none aa=0 domain=(0 1 0 1) matrix=[200 0 0 100 0 100] at-centre=(0.5 0.5 0.25)
+  pop-clip
+end-page

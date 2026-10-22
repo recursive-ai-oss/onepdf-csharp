@@ -1,0 +1,13 @@
+{
+ "category": "graphics",
+ "generator": "hand-assembled by tools/corpus/generate.py",
+ "name": "raw-pattern-tiling",
+ "notes": "a coloured tiling pattern, an uncoloured one in two tints (with a skewed matrix), a shading pattern, and patterns used for stroking",
+ "pageCount": 1,
+ "pages": [
+  {
+   "text": "Tiling and shading patterns"
+  }
+ ],
+ "schema": 1
+}

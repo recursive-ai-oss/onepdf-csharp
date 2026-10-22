@@ -11,9 +11,12 @@ One executable (`fuzz/OnePdf.Fuzz`) holds one target per input surface. SharpFuz
 | `filters` | 6 parameter bytes, then an encoded stream | Flate, LZW, ASCIIHex, ASCII85, RunLength, predictors |
 | `ccitt` | 6 parameter bytes, then an encoded stream | CCITTFaxDecode |
 | `security` | encryption-dictionary values, a document ID, a password | standard security handler R2–R6 |
+| `pdffont` | a PDF file | PDF font dictionaries: every font of every page, whole code range through metrics, Unicode, outlines |
 | `fontprogram` | a mode byte, then a font program | Type 1, CFF, TrueType/OpenType outlines and cmaps |
 | `cmap` | a flag byte, then CMap text | CMap parser and lookups |
+| `shading` | 12 parameter bytes (type, bit widths, colour space, geometry), then mesh data | shading types 1 to 7: mesh decoding, tessellation, evaluators |
 | `type4` | 2 parameter bytes, then program text | PostScript calculator functions |
+| `extraction` | an options byte, then 10-byte glyph records | text layout, plain-text modes, extraction JSON, bidirectional reordering |
 
 Only the library's typed exceptions (and `OperationCanceledException`) may come out of a target. Any other exception, a hang (`-timeout`) or a memory blow-up (`-rss_limit_mb`) is a finding.
 

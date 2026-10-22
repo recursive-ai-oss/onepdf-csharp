@@ -1,0 +1,47 @@
+onepdf-display-list 3
+page box=0 0 200 200 name=CropBox rotate=0 unit=1 scale=1 size=200 200 base=[1 0 0 -1 0 200]
+  pattern-def #1 /Col tiling paint=1 tile=1 bbox=0 0 10 10 step=10 10 matrix=[1 -0.5 -0.5 -1 0 200]
+    gs ctm=[1 0 0 1 0 0] fill=gray(0) stroke=gray(0) lw=1 cap=0 join=0 miter=10 dash=[] phase=0 flat=1 ri=RelativeColorimetric fa=1 sa=1 bm=Normal sm=0 ais=0 op=000
+    clip nonzero M 0 0 L 10 0 L 10 10 L 0 10 Z
+      gs ctm=[1 0 0 1 0 0] fill=rgb(1 0 0) stroke=gray(0) lw=1 cap=0 join=0 miter=10 dash=[] phase=0 flat=1 ri=RelativeColorimetric fa=1 sa=1 bm=Normal sm=0 ais=0 op=000
+      fill nonzero M 0 0 L 5 0 L 5 5 L 0 5 Z
+      gs ctm=[1 0 0 1 0 0] fill=rgb(0 0 1) stroke=gray(0) lw=1 cap=0 join=0 miter=10 dash=[] phase=0 flat=1 ri=RelativeColorimetric fa=1 sa=1 bm=Normal sm=0 ais=0 op=000
+      fill nonzero M 5 5 L 10 5 L 10 10 L 5 10 Z
+    pop-clip
+  end-pattern-def
+  gs ctm=[1 0 0 -1 0 200] fill=pattern(#1 /Col) stroke=gray(0) lw=1 cap=0 join=0 miter=10 dash=[] phase=0 flat=1 ri=RelativeColorimetric fa=1 sa=1 bm=Normal sm=0 ais=0 op=000
+  fill nonzero M 0 0 L 100 0 L 100 100 L 0 100 Z
+  pattern-def #2 /Unc tiling paint=2 tile=1 bbox=0 0 8 8 step=12 12 matrix=[1 0 0 -1 0 200]
+    gs ctm=[1 0 0 1 0 0] fill=gray(0) stroke=gray(0) lw=1 cap=0 join=0 miter=10 dash=[] phase=0 flat=1 ri=RelativeColorimetric fa=1 sa=1 bm=Normal sm=0 ais=0 op=000
+    clip nonzero M 0 0 L 8 0 L 8 8 L 0 8 Z
+      fill nonzero M 0 0 L 6 0 L 6 6 L 0 6 Z
+    pop-clip
+  end-pattern-def
+  gs ctm=[1 0 0 -1 0 200] fill=pattern(#2 /Unc rgb 0 0.5 1) stroke=gray(0) lw=1 cap=0 join=0 miter=10 dash=[] phase=0 flat=1 ri=RelativeColorimetric fa=1 sa=1 bm=Normal sm=0 ais=0 op=000
+  fill nonzero M 100 0 L 200 0 L 200 100 L 100 100 Z
+  pattern-def #3 /Nest tiling paint=1 tile=1 bbox=0 0 20 20 step=20 20 matrix=[1 0 0 -1 0 200]
+    gs ctm=[1 0 0 1 0 0] fill=gray(0) stroke=gray(0) lw=1 cap=0 join=0 miter=10 dash=[] phase=0 flat=1 ri=RelativeColorimetric fa=1 sa=1 bm=Normal sm=0 ais=0 op=000
+    clip nonzero M 0 0 L 20 0 L 20 20 L 0 20 Z
+      pattern-def #4 /In tiling paint=1 tile=1 bbox=0 0 4 4 step=4 4 matrix=[1 0 0 1 0 0]
+        gs ctm=[1 0 0 1 0 0] fill=gray(0) stroke=gray(0) lw=1 cap=0 join=0 miter=10 dash=[] phase=0 flat=1 ri=RelativeColorimetric fa=1 sa=1 bm=Normal sm=0 ais=0 op=000
+        clip nonzero M 0 0 L 4 0 L 4 4 L 0 4 Z
+          gs ctm=[1 0 0 1 0 0] fill=rgb(0 0.6 0) stroke=gray(0) lw=1 cap=0 join=0 miter=10 dash=[] phase=0 flat=1 ri=RelativeColorimetric fa=1 sa=1 bm=Normal sm=0 ais=0 op=000
+          fill nonzero M 0 0 L 2 0 L 2 2 L 0 2 Z
+        pop-clip
+      end-pattern-def
+      gs ctm=[1 0 0 1 0 0] fill=pattern(#4 /In) stroke=gray(0) lw=1 cap=0 join=0 miter=10 dash=[] phase=0 flat=1 ri=RelativeColorimetric fa=1 sa=1 bm=Normal sm=0 ais=0 op=000
+      fill nonzero M 0 0 L 20 0 L 20 20 L 0 20 Z
+      gs ctm=[1 0 0 1 0 0] fill=gray(0) stroke=gray(0) lw=1 cap=0 join=0 miter=10 dash=[] phase=0 flat=1 ri=RelativeColorimetric fa=1 sa=1 bm=Normal sm=0 ais=0 op=000
+      fill nonzero M 0 0 L 20 0 L 20 1 L 0 1 Z
+    pop-clip
+  end-pattern-def
+  gs ctm=[1 0 0 -1 0 200] fill=pattern(#3 /Nest) stroke=gray(0) lw=1 cap=0 join=0 miter=10 dash=[] phase=0 flat=1 ri=RelativeColorimetric fa=1 sa=1 bm=Normal sm=0 ais=0 op=000
+  fill nonzero M 0 100 L 100 100 L 100 200 L 0 200 Z
+  pattern-def #5 /Sh shading matrix=[1 0 0 -1 100 100]
+    shading type=2 cs=gray fn=1 bbox=none bg=(0.5) aa=0 coords=(0 0 100 0) domain=(0 1) extend=00 at-start=(0) at-mid=(0.5) at-end=(1)
+  end-pattern-def
+  gs ctm=[1 0 0 -1 0 200] fill=pattern(#5 /Sh) stroke=gray(0) lw=1 cap=0 join=0 miter=10 dash=[] phase=0 flat=1 ri=RelativeColorimetric fa=1 sa=1 bm=Normal sm=0 ais=0 op=000
+  fill nonzero M 100 100 L 200 100 L 200 200 L 100 200 Z
+  gs ctm=[1 0 0 -1 0 200] fill=pattern(#5 /Sh) stroke=pattern(#5 /Sh) lw=4 cap=0 join=0 miter=10 dash=[] phase=0 flat=1 ri=RelativeColorimetric fa=1 sa=1 bm=Normal sm=0 ais=0 op=000
+  stroke M 110 110 L 190 110 L 190 190 L 110 190 Z
+end-page

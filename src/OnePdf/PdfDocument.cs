@@ -125,24 +125,24 @@ public sealed partial class PdfDocument : IDisposable
     }
 
     /// <summary>Like <see cref="Open(string, PdfOpenOptions?)"/> but returns false instead of throwing for unreadable documents. I/O errors still throw.</summary>
-    public static bool TryOpen(string path, [NotNullWhen(true)] out PdfDocument? document, out PdfException? error, PdfOpenOptions? options = null)
+    public static bool TryOpen(string path, [NotNullWhen(true)] out PdfDocument? document, [NotNullWhen(false)] out PdfException? error, PdfOpenOptions? options = null)
     {
         ArgumentNullException.ThrowIfNull(path);
         return TryCreate(() => Open(path, options), out document, out error);
     }
 
     /// <summary>Like <see cref="Open(Stream, PdfOpenOptions?)"/> but returns false instead of throwing for unreadable documents.</summary>
-    public static bool TryOpen(Stream stream, [NotNullWhen(true)] out PdfDocument? document, out PdfException? error, PdfOpenOptions? options = null)
+    public static bool TryOpen(Stream stream, [NotNullWhen(true)] out PdfDocument? document, [NotNullWhen(false)] out PdfException? error, PdfOpenOptions? options = null)
     {
         ArgumentNullException.ThrowIfNull(stream);
         return TryCreate(() => Open(stream, options), out document, out error);
     }
 
     /// <summary>Like <see cref="Open(ReadOnlyMemory{byte}, PdfOpenOptions?)"/> but returns false instead of throwing for unreadable documents.</summary>
-    public static bool TryOpen(ReadOnlyMemory<byte> data, [NotNullWhen(true)] out PdfDocument? document, out PdfException? error, PdfOpenOptions? options = null) =>
+    public static bool TryOpen(ReadOnlyMemory<byte> data, [NotNullWhen(true)] out PdfDocument? document, [NotNullWhen(false)] out PdfException? error, PdfOpenOptions? options = null) =>
         TryCreate(() => Open(data, options), out document, out error);
 
-    private static bool TryCreate(Func<PdfDocument> open, out PdfDocument? document, out PdfException? error)
+    private static bool TryCreate(Func<PdfDocument> open, [NotNullWhen(true)] out PdfDocument? document, [NotNullWhen(false)] out PdfException? error)
     {
         try
         {

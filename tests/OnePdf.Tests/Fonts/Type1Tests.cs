@@ -4,7 +4,7 @@ namespace OnePdf.Tests.Fonts;
 
 public class Type1Tests
 {
-    public static TheoryData<string> Variants() => new() { "binary", "hex", "pfb", "leniv0", "leniv-1" };
+    public static TheoryData<string> Variants() => new() { "binary", "hex", "pfb", "leniv0", "leniv-1", "compact-charstrings-tag" };
 
     private static byte[] Build(string variant) => variant switch
     {
@@ -12,6 +12,7 @@ public class Type1Tests
         "pfb" => Type1Builder.Font(pfb: true),
         "leniv0" => Type1Builder.Font(lenIV: 0),
         "leniv-1" => Type1Builder.Font(lenIV: -1),
+        "compact-charstrings-tag" => Type1Builder.Font(compactCharStringsTag: true),
         _ => Type1Builder.Font(),
     };
 

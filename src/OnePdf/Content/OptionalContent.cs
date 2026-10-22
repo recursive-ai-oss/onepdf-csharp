@@ -2,12 +2,16 @@ namespace OnePdf.Content;
 
 /// <summary>
 /// Optional content visibility from the document's default configuration (<c>/OCProperties /D</c>), with a per-group
-/// override from the caller. Usage-application dictionaries (<c>/AS</c>) are not consulted: the default configuration's
-/// <c>/BaseState</c>, <c>/ON</c> and <c>/OFF</c> lists decide (ISO 32000-2 8.11.4.3).
+/// override from the caller. The configuration's <c>/BaseState</c>, <c>/ON</c> and <c>/OFF</c> lists give each group's state
+/// (ISO 32000-2 8.11.4.3); then the usage-application dictionaries (<c>/AS</c>) for the <c>View</c> event adjust it, as a
+/// viewer does when it opens the document (8.11.4.4, 8.11.4.6). Only the <c>View</c> category has an answer without a viewer
+/// context (<c>/View /ViewState</c>); <c>Zoom</c>, <c>User</c>, <c>Language</c>, <c>Print</c> and <c>Export</c> make no
+/// recommendation here, so a group they alone name keeps its configured state.
 /// </summary>
 internal sealed class OptionalContentState
 {
     private const int MaxExpressionDepth = 16;
+    private const int MaxUsageApplications = 4096;
     private readonly Func<PdfDictionary, bool?>? _override;
     private readonly Dictionary<int, bool> _defaults = [];
 
@@ -20,6 +24,51 @@ internal sealed class OptionalContentState
             {
                 _defaults[r.Number] = g.IsVisibleByDefault;
             }
+        }
+
+        if (_defaults.Count > 0 && doc.Catalog.GetDictionary("OCProperties")?.GetDictionary("D")?.GetArray("AS") is { } auto)
+        {
+            ApplyViewEvent(auto);
+        }
+    }
+
+    // ISO 32000-2 8.11.4.6: for each group of a View usage application dictionary, the recommendations of its categories
+    // are combined; the group is ON only if all of them are ON, and a group in several dictionaries must satisfy all.
+    private void ApplyViewEvent(PdfArray auto)
+    {
+        var recommended = new Dictionary<int, bool>();
+        for (int i = 0; i < auto.Count && i < MaxUsageApplications; i++)
+        {
+            if (auto[i] is not PdfDictionary app || app.GetName("Event") != "View" || app.GetArray("OCGs") is not { } groups || app.GetArray("Category") is not { } categories)
+            {
+                continue;
+            }
+
+            bool usesView = false;
+            for (int c = 0; c < categories.Count && c < 16; c++)
+            {
+                usesView |= categories.GetName(c) == "View";
+            }
+
+            if (!usesView)
+            {
+                continue;
+            }
+
+            for (int g = 0; g < groups.Count && g < MaxUsageApplications; g++)
+            {
+                if (groups[g] is PdfDictionary group && group.Reference is { } r && _defaults.ContainsKey(r.Number)
+                    && group.GetDictionary("Usage")?.GetDictionary("View")?.GetName("ViewState") is { } state and ("ON" or "OFF"))
+                {
+                    bool on = state == "ON";
+                    recommended[r.Number] = recommended.TryGetValue(r.Number, out bool before) ? before && on : on;
+                }
+            }
+        }
+
+        foreach (KeyValuePair<int, bool> kv in recommended)
+        {
+            _defaults[kv.Key] = kv.Value;
         }
     }
 

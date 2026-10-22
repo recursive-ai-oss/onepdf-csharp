@@ -63,10 +63,10 @@ internal static class PlainText
     internal static string ContentOrder(PdfPageText page)
     {
         StringBuilder sb = new();
-        IReadOnlyList<PdfTextGlyph> g = page.Glyphs;
+        PdfTextGlyph[] g = page.GlyphArray;
         Item prev = default;
         bool havePrev = false;
-        for (int i = 0; i < g.Count; i++)
+        for (int i = 0; i < g.Length; i++)
         {
             string t = g[i].Text;
             if (t.Length == 0)
@@ -165,32 +165,21 @@ internal static class PlainText
 
     internal static string Layout(PdfPageText page)
     {
-        PdfTextGlyph[] g = [.. page.Glyphs];
+        PdfTextGlyph[] g = page.GlyphArray;
         if (g.Length == 0)
         {
             return "";
         }
 
-        List<int>[] byK = [[], [], [], []];
-        for (int i = 0; i < g.Length; i++)
-        {
-            byK[TextLayout.Quantize(g[i])].Add(i);
-        }
-
-        int dominant = 0;
-        for (int k = 1; k < 4; k++)
-        {
-            if (byK[k].Count > byK[dominant].Count)
-            {
-                dominant = k;
-            }
-        }
-
+        using LayoutWork w = new();
+        Span<int> start = stackalloc int[5];
+        int dominant = TextLayout.Classify(w, g, default, true, g.Length, out int[] grouped, start);
         StringBuilder sb = new();
         for (int pass = -1; pass < 4; pass++)
         {
             int k = pass < 0 ? dominant : pass;
-            if ((pass >= 0 && k == dominant) || byK[k].Count == 0)
+            int cnt = start[k + 1] - start[k];
+            if ((pass >= 0 && k == dominant) || cnt == 0)
             {
                 continue;
             }
@@ -200,27 +189,29 @@ internal static class PlainText
                 sb.Append("\n\n");
             }
 
-            LayoutClass(g, byK[k], sb);
+            LayoutClass(g, grouped, start[k], cnt, k, sb);
         }
 
         return sb.ToString();
     }
 
-    private static void LayoutClass(PdfTextGlyph[] g, List<int> idx, StringBuilder sb)
-    {
-        Item[] items = TextLayout.MakeItems(g, idx);
-        int lineCount = TextLayout.ClusterLines(items);
-        List<int>[] lines = new List<int>[lineCount];
-        for (int i = 0; i < lineCount; i++)
-        {
-            lines[i] = [];
-        }
+    private static readonly Comparison<KeyIdx> ByKey = static (a, b) => a.Key.CompareTo(b.Key);
 
+    private static void LayoutClass(PdfTextGlyph[] g, int[] idx, int offset, int n, int k, StringBuilder sb)
+    {
+        using LayoutWork w = new();
+        Item[] items = TextLayout.MakeItems(w, g, idx, offset, n, k);
+        int lineCount = TextLayout.ClusterLines(w, items, n);
+        int[] ids = TextLayout.BucketLines(w, items, n, lineCount, out int[] lineStart);
+
+        // The mean baseline of a line sums its items in stream order.
+        double[] baseOf = w.Doubles.Rent(lineCount);
+        Array.Clear(baseOf, 0, lineCount);
         double left = double.MaxValue;
-        double[] sizes = new double[items.Length];
-        for (int i = 0; i < items.Length; i++)
+        double[] sizes = w.Doubles.Rent(n);
+        for (int i = 0; i < n; i++)
         {
-            lines[items[i].Line].Add(i);
+            baseOf[items[i].Line] += items[i].Base;
             sizes[i] = items[i].Size;
             if (!items[i].Space)
             {
@@ -228,62 +219,53 @@ internal static class PlainText
             }
         }
 
-        double cell = Math.Max(LayoutParameters.LayoutCellEm * TextLayout.Median(sizes), 1e-3);
-        double[] baseOf = new double[lineCount];
         for (int l = 0; l < lineCount; l++)
         {
-            double s = 0;
-            foreach (int i in lines[l])
-            {
-                s += items[i].Base;
-            }
-
-            baseOf[l] = s / lines[l].Count;
-            lines[l].Sort((a, b) => items[a].X0.CompareTo(items[b].X0));
+            baseOf[l] /= lineStart[l + 1] - lineStart[l];
         }
 
-        int[] order = new int[lineCount];
+        double cell = Math.Max(LayoutParameters.LayoutCellEm * TextLayout.Median(sizes.AsSpan(0, n)), 1e-3);
+
+        KeyIdx[] order = w.Keys.Rent(lineCount);
         for (int i = 0; i < lineCount; i++)
         {
-            order[i] = i;
+            order[i] = new KeyIdx { Key = baseOf[i], Idx = i };
         }
 
-        Array.Sort(order, (a, b) => baseOf[a].CompareTo(baseOf[b]));
-        List<double> diffs = [];
+        order.AsSpan(0, lineCount).Sort(ByKey);
+        int nd = 0;
         for (int i = 1; i < lineCount; i++)
         {
-            double d = baseOf[order[i]] - baseOf[order[i - 1]];
+            double d = baseOf[order[i].Idx] - baseOf[order[i - 1].Idx];
             if (d > 1e-6)
             {
-                diffs.Add(d);
+                sizes[nd++] = d;
             }
         }
 
-        double pitch = diffs.Count > 0 ? TextLayout.Median(diffs.ToArray()) : 0;
+        double pitch = nd > 0 ? TextLayout.Median(sizes.AsSpan(0, nd)) : 0;
         StringBuilder row = new();
+        StringBuilder ws = new();
         bool first = true;
         for (int oi = 0; oi < lineCount; oi++)
         {
-            int l = order[oi];
+            int l = order[oi].Idx;
             row.Clear();
-            foreach (List<int> w in TextLayout.SplitWords(items, lines[l]))
+            int p = lineStart[l], end = lineStart[l + 1];
+            while (TextLayout.NextWord(items, ids, ref p, end, out int wStart, out int wLen))
             {
-                StringBuilder ws = new();
-                foreach (int i in w)
+                ws.Clear();
+                double x0 = double.MaxValue;
+                for (int q = wStart; q < wStart + wLen; q++)
                 {
-                    ws.Append(g[items[i].G].Text);
+                    ws.Append(g[items[ids[q]].G].Text);
+                    x0 = Math.Min(x0, items[ids[q]].X0);
                 }
 
                 string text = LogicalWord(ws.ToString());
                 if (text.Length == 0)
                 {
                     continue;
-                }
-
-                double x0 = double.MaxValue;
-                foreach (int i in w)
-                {
-                    x0 = Math.Min(x0, items[i].X0);
                 }
 
                 int col = (int)Math.Min(Math.Round((x0 - left) / cell), 400);
@@ -306,7 +288,7 @@ internal static class PlainText
                 sb.Append('\n');
                 if (pitch > 0)
                 {
-                    double gap = baseOf[l] - baseOf[order[oi - 1]];
+                    double gap = baseOf[l] - baseOf[order[oi - 1].Idx];
                     if (gap > 1.6 * pitch)
                     {
                         int blanks = Math.Min(3, (int)Math.Round(gap / pitch) - 1);

@@ -1,3 +1,4 @@
+using System.Buffers;
 using System.Text;
 
 namespace OnePdf.Text;
@@ -9,7 +10,8 @@ internal static class GlyphPrep
     {
         IReadOnlyList<PdfTextGlyph> src = page.Glyphs;
         int n = src.Count;
-        List<PdfTextGlyph> work = new(n);
+        PdfTextGlyph[] work = new PdfTextGlyph[n];
+        int kept = 0;
         int curSpan = 0;
         bool replacing = false;
         bool first = false;
@@ -22,8 +24,7 @@ internal static class GlyphPrep
             }
 
             PdfTextGlyph g = src[i];
-            Matrix(g, out bool finite);
-            if (!finite || !double.IsFinite(g.Advance) || !double.IsFinite(g.Ascent) || !double.IsFinite(g.Descent))
+            if (!IsFinite(g.Matrix) || !double.IsFinite(g.Advance) || !double.IsFinite(g.Ascent) || !double.IsFinite(g.Descent))
             {
                 continue;
             }
@@ -72,24 +73,25 @@ internal static class GlyphPrep
             }
 
             text = Sanitize(text);
-            work.Add(g.WithText(text));
+            work[kept++] = ReferenceEquals(text, g.Text) ? g : g.WithText(text);
         }
 
-        PdfTextGlyph[] result = work.ToArray();
-        if (o.CollapseDuplicates && result.Length > 1)
+        if (o.CollapseDuplicates && kept > 1)
         {
-            result = CollapseDuplicates(result);
+            kept = CollapseDuplicates(work, kept);
         }
 
-        return result;
+        // The result is exactly sized; the common case (nothing dropped) hands the working array over without a copy.
+        if (kept != n)
+        {
+            Array.Resize(ref work, kept);
+        }
+
+        return work;
     }
 
-    private static PdfTextMatrix Matrix(in PdfTextGlyph g, out bool finite)
-    {
-        PdfTextMatrix m = g.Matrix;
-        finite = double.IsFinite(m.A) && double.IsFinite(m.B) && double.IsFinite(m.C) && double.IsFinite(m.D) && double.IsFinite(m.E) && double.IsFinite(m.F);
-        return m;
-    }
+    private static bool IsFinite(in PdfTextMatrix m) =>
+        double.IsFinite(m.A) && double.IsFinite(m.B) && double.IsFinite(m.C) && double.IsFinite(m.D) && double.IsFinite(m.E) && double.IsFinite(m.F);
 
     /// <summary>The Latin ligature code points of the Alphabetic Presentation Forms block.</summary>
     internal static string Decompose(string s)
@@ -172,72 +174,115 @@ internal static class GlyphPrep
         }
     }
 
-    /// <summary>Drops a glyph drawn again at almost the same place by a later operator (fake bold, drop shadow).</summary>
-    private static PdfTextGlyph[] CollapseDuplicates(PdfTextGlyph[] g)
+    /// <summary>A glyph origin with the stream position it came from; the working set of the duplicate search.</summary>
+    private struct Origin
     {
-        int n = g.Length;
-        int[] order = new int[n];
-        for (int i = 0; i < n; i++)
-        {
-            order[i] = i;
-        }
+        internal double E, F, Size;
+        internal int Idx;
+    }
 
-        Array.Sort(order, (a, b) =>
+    /// <summary>
+    /// Drops a glyph drawn again at almost the same place by a later operator (fake bold, drop shadow), compacting <paramref name="g"/> in place.
+    /// Returns the new count. Candidates are visited by origin x, ties by position in the stream; that is a total order, so any correct sort gives
+    /// the same visiting order.
+    /// </summary>
+    private static int CollapseDuplicates(PdfTextGlyph[] g, int n)
+    {
+        double[] keys = ArrayPool<double>.Shared.Rent(n);
+        int[] order = ArrayPool<int>.Shared.Rent(n);
+        Origin[] o = ArrayPool<Origin>.Shared.Rent(n);
+        bool[] drop = ArrayPool<bool>.Shared.Rent(n);
+        try
         {
-            int c = g[a].Matrix.E.CompareTo(g[b].Matrix.E);
-            return c != 0 ? c : a.CompareTo(b);
-        });
-
-        bool[] drop = new bool[n];
-        bool any = false;
-        for (int p = 0; p < n; p++)
-        {
-            int i = order[p];
-            double size = g[i].Size;
-            double tol = LayoutParameters.DuplicateOffsetEm * size;
-            for (int q = p + 1, steps = 0; q < n && steps < 32; q++, steps++)
+            for (int i = 0; i < n; i++)
             {
-                int j = order[q];
-                if (g[j].Matrix.E - g[i].Matrix.E > tol)
-                {
-                    break;
-                }
-
-                if (g[i].Text.Length == 0 || g[i].Text != g[j].Text || g[i].IsVertical != g[j].IsVertical)
-                {
-                    continue;
-                }
-
-                if (Math.Abs(g[j].Matrix.F - g[i].Matrix.F) > tol)
-                {
-                    continue;
-                }
-
-                double sj = g[j].Size;
-                if (Math.Abs(sj - size) > 0.05 * size)
-                {
-                    continue;
-                }
-
-                drop[Math.Max(i, j)] = true;
-                any = true;
+                keys[i] = g[i].Matrix.E;
+                order[i] = i;
+                drop[i] = false;
             }
-        }
 
-        if (!any)
-        {
-            return g;
-        }
-
-        List<PdfTextGlyph> keep = new(n);
-        for (int i = 0; i < n; i++)
-        {
-            if (!drop[i])
+            // Sort by x with the primitive sort (no delegate per comparison), then put equal x in stream order.
+            Array.Sort(keys, order, 0, n);
+            for (int s = 0; s < n;)
             {
-                keep.Add(g[i]);
-            }
-        }
+                int e = s + 1;
+                while (e < n && keys[e] == keys[s])
+                {
+                    e++;
+                }
 
-        return keep.ToArray();
+                if (e - s > 1)
+                {
+                    Array.Sort(order, s, e - s);
+                }
+
+                s = e;
+            }
+
+            for (int p = 0; p < n; p++)
+            {
+                ref readonly PdfTextGlyph src = ref g[order[p]];
+                o[p] = new Origin { E = keys[p], F = src.Matrix.F, Size = src.Size, Idx = order[p] };
+            }
+
+            bool any = false;
+            for (int p = 0; p < n; p++)
+            {
+                int i = o[p].Idx;
+                double size = o[p].Size;
+                double tol = LayoutParameters.DuplicateOffsetEm * size;
+                for (int q = p + 1, steps = 0; q < n && steps < 32; q++, steps++)
+                {
+                    if (o[q].E - o[p].E > tol)
+                    {
+                        break;
+                    }
+
+                    // Cheapest test first; all of them must hold.
+                    if (Math.Abs(o[q].F - o[p].F) > tol)
+                    {
+                        continue;
+                    }
+
+                    int j = o[q].Idx;
+                    if (g[i].Text.Length == 0 || g[i].Text != g[j].Text || g[i].IsVertical != g[j].IsVertical)
+                    {
+                        continue;
+                    }
+
+                    if (Math.Abs(o[q].Size - size) > 0.05 * size)
+                    {
+                        continue;
+                    }
+
+                    drop[Math.Max(i, j)] = true;
+                    any = true;
+                }
+            }
+
+            if (!any)
+            {
+                return n;
+            }
+
+            int kept = 0;
+            for (int i = 0; i < n; i++)
+            {
+                if (!drop[i])
+                {
+                    g[kept++] = g[i];
+                }
+            }
+
+            Array.Clear(g, kept, n - kept);
+            return kept;
+        }
+        finally
+        {
+            ArrayPool<double>.Shared.Return(keys);
+            ArrayPool<int>.Shared.Return(order);
+            ArrayPool<Origin>.Shared.Return(o);
+            ArrayPool<bool>.Shared.Return(drop);
+        }
     }
 }

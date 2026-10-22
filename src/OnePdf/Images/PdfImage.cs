@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
+using System.Diagnostics.CodeAnalysis;
 using System.Threading;
 
 namespace OnePdf;
@@ -156,7 +157,7 @@ public sealed class PdfImageDecoderRegistry
     }
 
     /// <summary>Looks up the decoder for a filter.</summary>
-    public bool TryGet(string filter, out IPdfImageDecoder? decoder)
+    public bool TryGet(string filter, [NotNullWhen(true)] out IPdfImageDecoder? decoder)
     {
         ArgumentNullException.ThrowIfNull(filter);
         return _decoders.TryGetValue(filter, out decoder);

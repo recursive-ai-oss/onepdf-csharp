@@ -16,6 +16,10 @@ internal static class InterpretSweep
     private const int MaxPages = 25;
 
     private static readonly Dictionary<string, int> ImageKinds = [];
+    private static readonly Dictionary<string, int> ShadingKinds = [];
+    private static readonly Dictionary<string, int> PatternKinds = [];
+
+    private static void Count(Dictionary<string, int> map, string key) => map[key] = map.GetValueOrDefault(key) + 1;
 
     private sealed class Balance : PdfDevice
     {
@@ -23,6 +27,86 @@ internal static class InterpretSweep
         public int Others;
         public int Items;
         public bool CountImages = true;
+        private readonly HashSet<PdfPattern> _seen = new(ReferenceEqualityComparer.Instance);
+
+        /// <summary>Counts each distinct pattern once, checks a tiling cell for balance and exercises shading evaluators.</summary>
+        private void Pattern(in PdfColor c)
+        {
+            if (c.Pattern is not { } p || !_seen.Add(p))
+            {
+                return;
+            }
+
+            if (p is PdfShadingPattern sp)
+            {
+                if (CountImages)
+                {
+                    Count(PatternKinds, "shading-pattern");
+                    Count(ShadingKinds, "pattern-type" + sp.Shading.ShadingType);
+                }
+
+                Exercise(sp.Shading);
+            }
+            else if (p is PdfTilingPattern t)
+            {
+                if (CountImages)
+                {
+                    Count(PatternKinds, t.IsColored ? "tiling-coloured" : "tiling-uncoloured");
+                    Count(PatternKinds, t.Cell is null ? "tiling-no-cell" : "tiling-cell");
+                }
+
+                if (t.Cell is { } cell)
+                {
+                    var inner = new Balance { CountImages = CountImages };
+                    cell.Replay(inner);
+                    Items += inner.Items;
+                    Clips += inner.Clips;
+                    Others += inner.Others;
+                }
+            }
+        }
+
+        /// <summary>Runs the shading's evaluator at a few places, as a device would; it must never throw.</summary>
+        private static void Exercise(PdfShading sh)
+        {
+            var color = new double[Math.Max(sh.ColorComponentCount, 4)];
+            double sum = 0;
+            if (sh.Mesh is { } m)
+            {
+                ReadOnlySpan<double> v = m.Vertices.Span;
+                for (int i = 0; i < Math.Min(m.VertexCount, 200); i++)
+                {
+                    sh.Evaluate(v.Slice((i * m.VertexStride) + 2, sh.ParameterCount), color);
+                    sum += color[0];
+                }
+            }
+            else
+            {
+                for (int i = 0; i < 25; i++)
+                {
+                    if (sh.EvaluateAt((i % 5) * 50.0, (i / 5) * 50.0, color))
+                    {
+                        sum += color[0];
+                    }
+                }
+            }
+
+            if (double.IsNaN(sum))
+            {
+                throw new InvalidOperationException("a shading evaluator returned NaN");
+            }
+        }
+
+        public override void PaintShading(PdfShading shading, in PdfGraphicsState state)
+        {
+            Items++;
+            if (CountImages)
+            {
+                Count(ShadingKinds, "sh-type" + shading.ShadingType);
+            }
+
+            Exercise(shading);
+        }
 
         public override void PushClip(in PdfPath path, bool evenOdd, in PdfGraphicsState state) => Clips++;
 
@@ -46,9 +130,16 @@ internal static class InterpretSweep
 
         public override void EndAnnotation() => Others--;
 
+        public override void StrokePath(in PdfPath path, in PdfGraphicsState state)
+        {
+            Items++;
+            Pattern(state.StrokeColor);
+        }
+
         public override void FillPath(in PdfPath path, bool evenOdd, in PdfGraphicsState state)
         {
             Items++;
+            Pattern(state.FillColor);
             if (!state.Ctm.IsFinite)
             {
                 Others += 1000;
@@ -76,6 +167,7 @@ internal static class InterpretSweep
         public override void ShowGlyphRun(in PdfGlyphRun run, in PdfGraphicsState state)
         {
             Items++;
+            Pattern(state.FillColor);
             if (!run.TextMatrix.IsFinite)
             {
                 Others += 1000;
@@ -151,7 +243,7 @@ internal static class InterpretSweep
         }
 
         using Process p = Process.GetCurrentProcess();
-        Console.WriteLine($"files={files} opened={opened} pages={pages} items={items} typed-errors={typed} ({string.Join(", ", typedKinds.Select(kv => kv.Key + "=" + kv.Value))}) crashes={crashes} unbalanced={unbalanced} slow={slow} worst-page={worstPage:F2}s peak-rss={p.PeakWorkingSet64 >> 20}MiB images=[{string.Join(", ", ImageKinds.OrderBy(kv => kv.Key).Select(kv => kv.Key + "=" + kv.Value))}]");
+        Console.WriteLine($"files={files} opened={opened} pages={pages} items={items} typed-errors={typed} ({string.Join(", ", typedKinds.Select(kv => kv.Key + "=" + kv.Value))}) crashes={crashes} unbalanced={unbalanced} slow={slow} worst-page={worstPage:F2}s peak-rss={p.PeakWorkingSet64 >> 20}MiB images=[{string.Join(", ", ImageKinds.OrderBy(kv => kv.Key).Select(kv => kv.Key + "=" + kv.Value))}] shadings=[{string.Join(", ", ShadingKinds.OrderBy(kv => kv.Key).Select(kv => kv.Key + "=" + kv.Value))}] patterns=[{string.Join(", ", PatternKinds.OrderBy(kv => kv.Key).Select(kv => kv.Key + "=" + kv.Value))}]");
         return crashes == 0 && unbalanced == 0 ? 0 : 1;
     }
 }

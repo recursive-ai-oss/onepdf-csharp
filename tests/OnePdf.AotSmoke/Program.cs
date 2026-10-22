@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Text;
 using OnePdf;
 using OnePdf.Fonts;
@@ -58,6 +59,28 @@ if (page.Rotate != 90 || page.MediaBox.Width != 200 || page.Label != "i"
     return 1;
 }
 
+// Fonts: resolve a Standard 14 font and a predefined-CMap CID font, decode strings (metrics, Unicode, CMaps under trimming).
+string fontPdf =
+    "%PDF-1.4\n1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n" +
+    "2 0 obj\n<< /Type /Pages /Kids [3 0 R] /Count 1 /MediaBox [0 0 10 10] >>\nendobj\n" +
+    "3 0 obj\n<< /Type /Page /Parent 2 0 R >>\nendobj\n" +
+    "4 0 obj\n<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>\nendobj\n" +
+    "5 0 obj\n<< /Type /Font /Subtype /Type0 /BaseFont /X /Encoding /90ms-RKSJ-H /DescendantFonts [6 0 R] >>\nendobj\n" +
+    "6 0 obj\n<< /Type /Font /Subtype /CIDFontType0 /BaseFont /X /CIDSystemInfo << /Registry (Adobe) /Ordering (Japan1) /Supplement 2 >> >>\nendobj\n" +
+    "trailer\n<< /Root 1 0 R >>\n";
+using PdfDocument fdoc = PdfDocument.Open(Encoding.ASCII.GetBytes(fontPdf));
+fdoc.FontProvider = new NoSubstitutes();
+var helv = new List<OnePdf.PdfFonts.FontGlyph>();
+fdoc.GetFont((PdfDictionary?)fdoc.GetObject(4)).Decode("AB "u8, helv);
+var sjis = new List<OnePdf.PdfFonts.FontGlyph>();
+fdoc.GetFont((PdfDictionary?)fdoc.GetObject(5)).Decode([0x82, 0xA0, 0x41], sjis);
+if (helv.Count != 3 || Math.Abs(helv[0].Advance - 0.667) > 1e-9 || helv[2].Unicode != " "
+    || sjis.Count != 2 || sjis[0].Unicode != "\u3042" || sjis[0].CodeLength != 2 || sjis[1].Unicode != "A")
+{
+    Console.Error.WriteLine("fonts did not decode as expected");
+    return 1;
+}
+
 // Interpretation: a page with content, a form and text goes into a display list and out as text.
 string pdf2 =
     "%PDF-1.4\n1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n" +
@@ -87,11 +110,45 @@ if (img is not { IsDecoded: true } || img.Samples.Length != 8 || img.Samples.Spa
     return 1;
 }
 
-if (!text.StartsWith("onepdf-display-list 2", StringComparison.Ordinal) || !text.Contains("fill nonzero M 10 10", StringComparison.Ordinal)
+if (!text.StartsWith("onepdf-display-list 3", StringComparison.Ordinal) || !text.Contains("fill nonzero M 10 10", StringComparison.Ordinal)
     || !text.Contains("codes=4869", StringComparison.Ordinal) || !text.Contains("clip nonzero", StringComparison.Ordinal))
 {
     Console.Error.WriteLine("interpretation did not produce the expected display list");
     return 1;
+}
+
+// Shadings and patterns: an axial shading, a Coons patch mesh and a tiling pattern, evaluated and recorded.
+{
+    var patch = new System.Text.StringBuilder();
+    patch.Append('\0');
+    int[][] order = { new[] { 0, 0 }, new[] { 0, 1 }, new[] { 0, 2 }, new[] { 0, 3 }, new[] { 1, 3 }, new[] { 2, 3 }, new[] { 3, 3 }, new[] { 3, 2 }, new[] { 3, 1 }, new[] { 3, 0 }, new[] { 2, 0 }, new[] { 1, 0 } };
+    foreach (int[] ij in order)
+    {
+        patch.Append((char)(85 * ij[0])).Append((char)(85 * ij[1]));
+    }
+
+    patch.Append('\0').Append((char)85).Append((char)255).Append((char)170);
+    string fn = "/Function << /FunctionType 2 /Domain [0 1] /C0 [1 0 0] /C1 [0 0 1] /N 1 >>";
+    string pdf4 =
+        "%PDF-1.4\n1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n" +
+        "2 0 obj\n<< /Type /Pages /Kids [3 0 R] /Count 1 >>\nendobj\n" +
+        "3 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 100 100] /Contents 4 0 R /Resources << /Shading << /A 5 0 R /M 6 0 R >> /Pattern << /P 7 0 R >> >> >>\nendobj\n" +
+        "4 0 obj\n<< /Length 45 >>\nstream\n/A sh /M sh /Pattern cs /P scn 0 0 50 50 re f\nendstream\nendobj\n" +
+        "5 0 obj\n<< /ShadingType 2 /ColorSpace /DeviceRGB /Coords [0 0 100 0] /Extend [true true] " + fn + " >>\nendobj\n" +
+        "6 0 obj\n<< /ShadingType 6 /ColorSpace /DeviceGray /BitsPerCoordinate 8 /BitsPerComponent 8 /BitsPerFlag 8 /Decode [0 100 0 100 0 1] /Length " + patch.Length + " >>\nstream\n" + patch + "\nendstream\nendobj\n" +
+        "7 0 obj\n<< /PatternType 1 /PaintType 1 /TilingType 1 /BBox [0 0 10 10] /XStep 10 /YStep 10 /Resources << >> /Length 21 >>\nstream\n1 0 0 rg 0 0 5 5 re f\nendstream\nendobj\n" +
+        "trailer\n<< /Root 1 0 R >>\n";
+    using PdfDocument doc4 = PdfDocument.Open(Encoding.Latin1.GetBytes(pdf4));
+    var list4 = new PdfDisplayList();
+    doc4.Pages[0].Interpret(list4);
+    string t4 = list4.ToText();
+    if (!t4.Contains("shading type=2 cs=rgb fn=1", StringComparison.Ordinal) || !t4.Contains("at-mid=(0.5 0 0.5)", StringComparison.Ordinal)
+        || !t4.Contains("shading type=6 cs=gray fn=0 bbox=none bg=none aa=0 vertices=81 triangles=128 patches=1 div=8", StringComparison.Ordinal)
+        || !t4.Contains("pattern-def #1 /P tiling", StringComparison.Ordinal) || !t4.Contains("fill=rgb(1 0 0)", StringComparison.Ordinal))
+    {
+        Console.Error.WriteLine("shadings and patterns did not produce the expected display list: " + t4);
+        return 1;
+    }
 }
 
 // Text extraction: two columns of glyphs (content order interleaved), an RTL word, layout, bidi and the JSON writer.
@@ -121,3 +178,8 @@ if (!text.StartsWith("onepdf-display-list 2", StringComparison.Ordinal) || !text
 
 Console.WriteLine("ok");
 return 0;
+
+internal sealed class NoSubstitutes : IPdfFontProvider
+{
+    public PdfSubstituteFont? FindFont(PdfFontRequest request) => null;
+}

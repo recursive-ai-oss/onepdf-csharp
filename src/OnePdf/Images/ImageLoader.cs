@@ -42,7 +42,7 @@ internal static class ImageLoader
             ObjNum = stream.Reference?.Number ?? -1,
             Options = options,
             AllowMasks = allowMasks,
-            Data = stream.GetDecodedBytes(ct),
+            Data = stream.GetDecodedBytesSized(ExpectedSampleBytes(d, resources), ct),
             Codec = stream.UndecodedFilter,
         };
         if (s.Codec is not null)
@@ -68,6 +68,80 @@ internal static class ImageLoader
         return Build(s, ct);
     }
 
+    /// <summary>
+    /// The size of an image's sample data when the stream is plain samples (rows padded to whole bytes, ISO 32000-2 8.9.3),
+    /// read from the dictionary without resolving the colour space, or 0 when it cannot be told cheaply. It is only a hint
+    /// for sizing the decode buffer; the real data decides.
+    /// </summary>
+    private static long ExpectedSampleBytes(PdfDictionary d, PdfDictionary? resources)
+    {
+        long w = AsInt(d.Get("Width"));
+        long h = AsInt(d.Get("Height"));
+        if (w < 1 || h < 1 || w > int.MaxValue || h > int.MaxValue)
+        {
+            return 0;
+        }
+
+        long bpc;
+        long comps;
+        if (d.Get("ImageMask") is PdfBoolean { Value: true })
+        {
+            bpc = 1;
+            comps = 1;
+        }
+        else
+        {
+            bpc = AsInt(d.Get("BitsPerComponent"));
+            comps = ComponentsOf(d.Get("ColorSpace"), resources, 0);
+        }
+
+        if (bpc is not (1 or 2 or 4 or 8 or 16) || comps < 1 || comps > 32)
+        {
+            return 0;
+        }
+
+        // w, comps and bpc are small enough that the product cannot overflow a long.
+        long stride = (w * comps * bpc + 7) / 8;
+        return stride * h;
+    }
+
+    private static long ComponentsOf(PdfObject? cs, PdfDictionary? resources, int depth)
+    {
+        switch (cs)
+        {
+            case PdfName n:
+                switch (n.Value)
+                {
+                    case "DeviceGray" or "G" or "CalGray":
+                        return 1;
+                    case "DeviceRGB" or "RGB" or "CalRGB":
+                        return 3;
+                    case "DeviceCMYK" or "CMYK":
+                        return 4;
+                }
+
+                // A resource name: one level, no recursion beyond a few steps.
+                return depth < 4 && resources?.GetDictionary("ColorSpace")?.Get(n.Value) is { } found ? ComponentsOf(found, resources, depth + 1) : 0;
+            case PdfArray a when a.Count > 0 && a[0] is PdfName fam:
+                switch (fam.Value)
+                {
+                    case "Indexed" or "I" or "Separation" or "CalGray":
+                        return 1;
+                    case "CalRGB" or "Lab":
+                        return 3;
+                    case "ICCBased" when a.Count > 1 && a[1] is PdfStream icc:
+                        return Math.Clamp(icc.Dictionary.GetInt("N", 0), 0, 32);
+                    case "DeviceN" when a.Count > 1 && a[1] is PdfArray names:
+                        return names.Count;
+                    default:
+                        return 0;
+                }
+
+            default:
+                return 0;
+        }
+    }
+
     public static PdfImageData? LoadInline(PdfDocument doc, PdfDictionary dict, ReadOnlyMemory<byte> data, PdfDictionary? resources, PdfImageOptions options, CancellationToken ct)
     {
         var s = new Src { Doc = doc, Dict = dict, Resources = resources, Inline = true, Options = options, Data = data };
@@ -91,34 +165,7 @@ internal static class ImageLoader
         }
 
         PdfObject? parms = Pick(dict, s, "DecodeParms", "DP");
-        var fp = new FilterParameters?[names.Count];
-        for (int i = 0; i < fp.Length; i++)
-        {
-            PdfDictionary? p = parms switch
-            {
-                PdfDictionary pd => i == 0 ? pd : null,
-                PdfArray pa when i < pa.Count => pa[i] as PdfDictionary,
-                _ => null,
-            };
-            if (p is not null)
-            {
-                bool ccitt = names[i] == "CCITTFaxDecode";
-                fp[i] = new FilterParameters(
-                    Predictor: Clamp(p.GetInt("Predictor", 1)),
-                    Colors: Clamp(p.GetInt("Colors", 1)),
-                    BitsPerComponent: Clamp(p.GetInt("BitsPerComponent", 8)),
-                    Columns: Clamp(p.GetInt("Columns", 1)),
-                    EarlyChange: Clamp(p.GetInt("EarlyChange", 1)),
-                    K: ccitt ? Clamp(p.GetInt("K", 0)) : 0,
-                    EndOfLine: ccitt && p.GetBool("EndOfLine"),
-                    EncodedByteAlign: ccitt && p.GetBool("EncodedByteAlign"),
-                    CcittColumns: ccitt ? Clamp(p.GetInt("Columns", 1728)) : 1728,
-                    Rows: ccitt ? Clamp(p.GetInt("Rows", 0)) : 0,
-                    EndOfBlock: !ccitt || p.GetBool("EndOfBlock", true),
-                    BlackIs1: ccitt && p.GetBool("BlackIs1"),
-                    DamagedRowsBeforeError: ccitt ? Clamp(p.GetInt("DamagedRowsBeforeError", 0)) : 0);
-            }
-        }
+        FilterParameters?[] fp = FilterParametersReader.ForChain(parms, names);
 
         PdfLimits lim = doc.Limits;
         var limits = new DecodeLimits(Math.Min(lim.MaxDecodedStreamBytes, Array.MaxLength), lim.MaxExpansionRatio, lim.ExpansionCheckThreshold);
@@ -137,18 +184,11 @@ internal static class ImageLoader
         if (r.StoppedAtFilter >= 0)
         {
             s.Codec = names[r.StoppedAtFilter];
-            s.CodecParms = parms switch
-            {
-                PdfDictionary pd => r.StoppedAtFilter == 0 ? pd : null,
-                PdfArray pa when r.StoppedAtFilter < pa.Count => pa[r.StoppedAtFilter] as PdfDictionary,
-                _ => null,
-            };
+            s.CodecParms = FilterParametersReader.DictionaryAt(parms, r.StoppedAtFilter);
         }
 
         return Build(s, ct);
     }
-
-    private static int Clamp(long v) => (int)Math.Clamp(v, int.MinValue, int.MaxValue);
 
     private static string Canonical(string name) => name switch
     {
@@ -169,13 +209,7 @@ internal static class ImageLoader
             return null;
         }
 
-        PdfObject? p = d.Get("DecodeParms") ?? d.Get("DP");
-        return p switch
-        {
-            PdfDictionary pd => index == 0 ? pd : null,
-            PdfArray pa when index < pa.Count => pa[index] as PdfDictionary,
-            _ => null,
-        };
+        return FilterParametersReader.DictionaryAt(d.Get("DecodeParms") ?? d.Get("DP"), index);
     }
 
     /// <summary>Looks up a key by its full name, or by the inline-image abbreviation in inline dictionaries.</summary>

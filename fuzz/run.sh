@@ -4,7 +4,7 @@
 #   fuzz/run.sh <target> <seconds> [corpus dir] [extra libFuzzer flags...]
 #   fuzz/run.sh replay <target> <file>...      # run saved inputs once, without libFuzzer (reproduce a finding)
 #
-# Targets: parser document model filters security fontprogram cmap type4 ccitt content   (see fuzz/README.md)
+# Targets: parser document model pdffont filters security fontprogram cmap type4 ccitt content extraction shading   (see fuzz/README.md)
 #
 # Environment (nothing is baked into the script):
 #   ONEPDF_FUZZ_WORK    required: where builds, corpora and findings go. Keep it outside the checkout.
@@ -37,9 +37,10 @@ shift
 
 # What each target reads: pdf = seeded with the PDFs under testdata/, none = hand-built seeds from `seeds`. Maximum input length.
 case "$target" in
-  parser|document|model|content) maxlen=131072 ;;
-  filters|security|cmap|type4|ccitt) maxlen=65536 ;;
+  parser|document|model|content|pdffont) maxlen=131072 ;;
+  filters|security|cmap|type4|ccitt|shading) maxlen=65536 ;;
   fontprogram) maxlen=262144 ;;
+  extraction) maxlen=4096 ;;
   *) echo "unknown target '$target'" >&2; exit 2 ;;
 esac
 

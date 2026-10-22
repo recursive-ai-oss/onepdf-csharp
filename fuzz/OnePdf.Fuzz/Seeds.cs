@@ -108,6 +108,14 @@ internal static class Seeds
                 PutData("g4-rows", new byte[] { 0xFF, 0xAA, 0x55, 0x0F, 0xF0 }, [0, 16, 1, 0, 15, 4]);
                 break;
 
+            case "shading":
+                foreach (byte[] seed in ShadingTarget.Seeds())
+                {
+                    PutData("shading", seed);
+                }
+
+                break;
+
             case "type4":
                 foreach (string p in new[]
                 {
@@ -171,6 +179,33 @@ internal static class Seeds
                             PutData("sysfont", File.ReadAllBytes(f), [0]);
                         }
                     }
+                }
+
+                break;
+
+            case "extraction":
+                // A flag byte, then 10-byte glyph records: text pick, x (2 bytes, 1/80 pt), y (2 bytes), size, direction, advance, flags, extra.
+                foreach ((string name, byte flags, int[] picks, byte dir) in new (string, byte, int[], byte)[]
+                {
+                    ("columns", 0b1001, [0, 1, 2, 3, 4, 0, 1, 2], 0),
+                    ("rtl-mixed", 0b1011, [11, 12, 13, 14, 4, 0, 1, 15], 0),
+                    ("vertical", 0b1001, [17, 18, 17, 18, 17, 18, 17, 18], 4),
+                })
+                {
+                    var rec = new List<byte> { flags };
+                    for (int col = 0; col < 2; col++)
+                    {
+                        for (int line = 0; line < 3; line++)
+                        {
+                            for (int i = 0; i < picks.Length; i++)
+                            {
+                                int x = (60 + col * 250 + i * 5) * 80, y = (700 - line * 14) * 80;
+                                rec.AddRange([(byte)picks[i], (byte)(x >> 8), (byte)x, (byte)(y >> 8), (byte)y, 10, dir, 8, 1, 0]);
+                            }
+                        }
+                    }
+
+                    PutData(name, rec.ToArray());
                 }
 
                 break;

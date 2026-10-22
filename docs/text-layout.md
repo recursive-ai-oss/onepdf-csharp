@@ -92,6 +92,14 @@ lower-cased, white space collapsed) appears in that band on at least half of the
 - **Layout:** lines are formed over the whole page by baseline (no block segmentation), words are put on a grid whose cell is 0.5 × the median glyph size wide
   (column = round((x − left margin) / cell), at least one blank after the previous word, at most 400 columns); a gap between baselines over 1.6 line pitches adds up to 3 blank lines.
 
+## Implementation notes
+
+The analysis keeps its working data in arrays rented from the shared pool (items, fragments, sort keys, word runs) and builds strings, word and line objects only for the
+result; regions of the XY-cut are runs of one index array that a split rewrites in place. None of this is visible in the output, and none of the thresholds depend on it.
+Where a sort could leave equal keys in either order (the per-line sort by x, the baseline sort, the line order inside a block), the same introsort over the same key sequence
+is used as before, so ties resolve identically; the duplicate search uses a total order (x, then stream position), so any correct sort gives the same visit order.
+A page's analysis uses no shared mutable state: pages of a document may be analyzed on any number of threads and the results do not depend on the degree.
+
 ## Not done yet
 
 Table cell spans, justified-text hyphen detection by font, non-axis text angles, mirrored-bracket repair and an `/Artifact`-aware header detector (the tagged-page rule above

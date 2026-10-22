@@ -1,0 +1,66 @@
+%PDF-1.7
+%‚„œ”
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Kids [10 0 R] /Count 1 >>
+endobj
+3 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>
+endobj
+4 0 obj
+<< /Type /Pattern /PatternType 1 /PaintType 1 /TilingType 1 /BBox [0 0 20 20] /XStep 20 /YStep 20 /Resources << >> /Length 49 >>
+stream
+1 0 0 rg 0 0 10 10 re f 0 0 1 rg 10 10 10 10 re f
+endstream
+endobj
+5 0 obj
+<< /Type /Pattern /PatternType 1 /PaintType 2 /TilingType 2 /BBox [0 0 16 16] /XStep 18 /YStep 18 /Matrix [0.8 0.2 -0.2 0.8 5 5] /Resources << >> /Length 35 >>
+stream
+2 w 0 0 m 16 16 l S 0 16 m 16 0 l S
+endstream
+endobj
+6 0 obj
+<< /FunctionType 2 /Domain [0 1] /C0 [1 0.8 0] /C1 [0 0.4 0.8] /N 1 >>
+endobj
+7 0 obj
+<< /ShadingType 2 /ColorSpace /DeviceRGB /Coords [0 0 200 0] /Function 6 0 R /Extend [true true] >>
+endobj
+8 0 obj
+<< /Type /Pattern /PatternType 2 /Shading 7 0 R /Matrix [1 0 0 1 72 0] >>
+endobj
+9 0 obj
+<<  /Length 323 >>
+stream
+BT /F1 16 Tf 72 740 Td (Tiling and shading patterns) Tj ET
+/Pattern cs /Pc scn 72 560 200 120 re f
+/CsU cs 0 0.6 0 /Pu scn 330 560 200 120 re f
+0.8 0 0.8 /Pu scn 330 400 200 120 re f
+/Pattern cs /Ps scn 72 400 200 120 re f
+/Pattern CS /Pc SCN 12 w 72 340 m 272 340 l S
+/CsU CS 0.2 0.2 0.2 /Pu SCN 8 w 330 340 m 530 340 l S
+
+endstream
+endobj
+10 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 3 0 R >> /Pattern << /Pc 4 0 R /Pu 5 0 R /Ps 8 0 R >> /ColorSpace << /CsU [/Pattern /DeviceRGB] >> >> /Contents 9 0 R >>
+endobj
+xref
+0 11
+0000000000 65535 f 
+0000000015 00000 n 
+0000000064 00000 n 
+0000000122 00000 n 
+0000000219 00000 n 
+0000000430 00000 n 
+0000000658 00000 n 
+0000000744 00000 n 
+0000000859 00000 n 
+0000000948 00000 n 
+0000001323 00000 n 
+trailer
+<< /Size 11 /Root 1 0 R /ID [<4f6e65506466546573744f6e6550646620> <4f6e65506466546573744f6e6550646620>]  >>
+startxref
+1540
+%%EOF

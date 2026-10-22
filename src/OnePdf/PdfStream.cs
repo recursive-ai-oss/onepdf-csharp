@@ -124,25 +124,31 @@ public sealed class PdfStream : PdfObject
     /// Damaged filter data yields the part that decoded, with a diagnostic. The result is shared and cached: do not modify.
     /// </summary>
     /// <exception cref="PdfLimitException">The decoded size or expansion ratio exceeds <see cref="PdfLimits"/>.</exception>
-    public ReadOnlyMemory<byte> GetDecodedBytes(CancellationToken cancellationToken = default)
+    public ReadOnlyMemory<byte> GetDecodedBytes(CancellationToken cancellationToken = default) => GetDecodedBytesSized(0, cancellationToken);
+
+    /// <summary>
+    /// As <see cref="GetDecodedBytes"/>, with the expected size of the fully decoded data (0 when unknown) so a large Flate or LZW
+    /// result is allocated once. A wrong expectation changes nothing about the result.
+    /// </summary>
+    internal ReadOnlyMemory<byte> GetDecodedBytesSized(long expectedSize, CancellationToken cancellationToken)
     {
         PdfDocument doc = _resolver.Doc;
         if (Reference is { } r && !IsExternal)
         {
             long key = ObjectKeys.Decoded(_resolver.View, r.Number);
-            var state = (this, cancellationToken);
+            var state = (this, cancellationToken, expectedSize);
             return (ReadOnlyMemory<byte>)doc.Cache.GetOrLoad(key, state, static s =>
             {
-                ReadOnlyMemory<byte> d = s.Item1.DecodeCore(s.Item2);
+                ReadOnlyMemory<byte> d = s.Item1.DecodeCore(s.Item2, s.Item3);
                 return (d, d.Length + 64);
             });
         }
 
-        return DecodeCore(cancellationToken);
+        return DecodeCore(cancellationToken, expectedSize);
     }
 
     /// <summary>Decodes without consulting the cache (used where the caller keeps its own copy).</summary>
-    internal ReadOnlyMemory<byte> DecodeCore(CancellationToken ct)
+    internal ReadOnlyMemory<byte> DecodeCore(CancellationToken ct, long expectedSize = 0)
     {
         PdfDocument doc = _resolver.Doc;
         ReadOnlyMemory<byte> raw = GetRawBytes();
@@ -157,35 +163,7 @@ public sealed class PdfStream : PdfObject
             return raw;
         }
 
-        PdfObject? parms = Dictionary.Get("DecodeParms");
-        var parameters = new FilterParameters?[filters.Count];
-        for (int i = 0; i < parameters.Length; i++)
-        {
-            PdfDictionary? p = parms switch
-            {
-                PdfDictionary d => i == 0 ? d : null,
-                PdfArray a when i < a.Count => a[i] as PdfDictionary,
-                _ => null,
-            };
-            if (p is not null)
-            {
-                bool ccitt = filters[i] == "CCITTFaxDecode";
-                parameters[i] = new FilterParameters(
-                    Predictor: ClampInt(p.GetInt("Predictor", 1)),
-                    Colors: ClampInt(p.GetInt("Colors", 1)),
-                    BitsPerComponent: ClampInt(p.GetInt("BitsPerComponent", 8)),
-                    Columns: ClampInt(p.GetInt("Columns", 1)),
-                    EarlyChange: ClampInt(p.GetInt("EarlyChange", 1)),
-                    K: ccitt ? ClampInt(p.GetInt("K", 0)) : 0,
-                    EndOfLine: ccitt && p.GetBool("EndOfLine"),
-                    EncodedByteAlign: ccitt && p.GetBool("EncodedByteAlign"),
-                    CcittColumns: ccitt ? ClampInt(p.GetInt("Columns", 1728)) : 1728,
-                    Rows: ccitt ? ClampInt(p.GetInt("Rows", 0)) : 0,
-                    EndOfBlock: !ccitt || p.GetBool("EndOfBlock", true),
-                    BlackIs1: ccitt && p.GetBool("BlackIs1"),
-                    DamagedRowsBeforeError: ccitt ? ClampInt(p.GetInt("DamagedRowsBeforeError", 0)) : 0);
-            }
-        }
+        FilterParameters?[] parameters = FilterParametersReader.ForChain(Dictionary.Get("DecodeParms"), filters);
 
         PdfLimits lim = doc.Limits;
         var limits = new DecodeLimits(Math.Min(lim.MaxDecodedStreamBytes, Array.MaxLength), lim.MaxExpansionRatio, lim.ExpansionCheckThreshold, DiscardOnLimit: true);
@@ -212,7 +190,7 @@ public sealed class PdfStream : PdfObject
             parameters = [.. keptParams];
         }
 
-        FilterResult r = StreamFilters.DecodeChain(filters, parameters, raw, limits, ct);
+        FilterResult r = StreamFilters.DecodeChain(filters, parameters, raw, limits, expectedSize, ct);
         int objNum = Reference?.Number ?? -1;
         if ((r.Issues & FilterIssues.LimitExceeded) != 0)
         {
@@ -228,5 +206,4 @@ public sealed class PdfStream : PdfObject
         return r.Data;
     }
 
-    private static int ClampInt(long v) => (int)Math.Clamp(v, int.MinValue, int.MaxValue);
 }
