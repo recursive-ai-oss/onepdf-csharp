@@ -21,12 +21,15 @@
 
   <ItemGroup>
     <PackageReference Include="xunit.v3" />
+    <!-- Test-only: backs the JPEG decoder adapter that exercises the image decoder registry. -->
+    <PackageReference Include="RecursiveAI.OneImage" />
   </ItemGroup>
 
   <ItemGroup>
     <!-- The fuzz target body doubles as a deterministic mutation smoke test. -->
     <Compile Include="../../fuzz/OnePdf.Fuzz/FilterTarget.cs" Link="Filters/FilterTarget.cs" />
     <Compile Include="../../fuzz/OnePdf.Fuzz/SecurityTarget.cs" Link="Security/SecurityTarget.cs" />
+    <Compile Include="../../fuzz/OnePdf.Fuzz/ImageTarget.cs" Link="Images/ImageTarget.cs" />
   </ItemGroup>
 
   <ItemGroup>

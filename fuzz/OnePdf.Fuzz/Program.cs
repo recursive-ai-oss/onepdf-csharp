@@ -28,6 +28,7 @@ internal static class Program
         ["model"] = ReaderTargets.DocumentModel,
         ["filters"] = FilterTarget.Run,
         ["security"] = SecurityTarget.Run,
+        ["image"] = ImageTarget.Run,
     };
 
     private static int Main(string[] args)

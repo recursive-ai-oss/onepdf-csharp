@@ -7,5 +7,6 @@
     <PackageVersion Include="xunit.v3" Version="4.0.2" />
     <PackageVersion Include="BenchmarkDotNet" Version="0.15.8" />
     <PackageVersion Include="SharpFuzz" Version="2.2.0" />
+    <PackageVersion Include="RecursiveAI.OneImage" Version="1.1.0" />
   </ItemGroup>
 </Project>
