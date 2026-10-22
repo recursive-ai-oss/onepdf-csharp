@@ -26,6 +26,8 @@ internal static class Program
         ["parser"] = ReaderTargets.Parser,
         ["document"] = ReaderTargets.Document,
         ["filters"] = FilterTarget.Run,
+        ["type4"] = Type4Target.Run,
+        ["ccitt"] = CcittTarget.Run,
     };
 
     private static int Main(string[] args)
