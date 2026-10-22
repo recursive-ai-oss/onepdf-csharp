@@ -2,7 +2,7 @@
 """Write testdata/MANIFEST.csv for the redistributed (third-party) files and verify the testdata tree.
 
 Usage: build_manifest.py [--check]
-Covers testdata/pdf20examples, testdata/verapdf and testdata/govdocs. testdata/generated holds our own
+Covers testdata/pdf20examples, testdata/verapdf and testdata/govdocs. testdata/generated and testdata/repros hold our own
 files and is described by its own README and truth sidecars. With --check nothing is written; the exit code
 is non-zero when a file under testdata/ is neither in the manifest, nor generated, nor a documentation file,
 or when a hash or license value is wrong.
@@ -72,7 +72,7 @@ def main():
         listed = {x[0] for x in r}
         tracked = [os.path.relpath(os.path.join(dp, f), ROOT).replace(os.sep, "/") for dp, _, fs in os.walk(TD) for f in fs]
         for t in tracked:
-            if t in listed or t.startswith("testdata/generated/") or t.endswith(("MANIFEST.csv", "README.md", "LICENSE.md", "NOTICE.md")):
+            if t in listed or t.startswith(("testdata/generated/", "testdata/repros/")) or t.endswith(("MANIFEST.csv", "README.md", "LICENSE.md", "NOTICE.md")):
                 continue
             print("not in manifest:", t); bad = 1
         print(f"{len(r)} manifest rows; problems: {bad}")

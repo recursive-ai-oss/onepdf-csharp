@@ -29,7 +29,8 @@ public sealed partial class PdfDocument : IDisposable
         _diag = new DiagnosticBag(options.Strict);
         Cache = new ObjectCache(Math.Max(0, options.ObjectCacheBytes));
         _scan = new Lazy<ScanResult>(ScanFile, LazyThreadSafetyMode.ExecutionAndPublication);
-        _pageCount = new Lazy<int>(() => CountPages(Catalog, "document"), LazyThreadSafetyMode.ExecutionAndPublication);
+        _pageCount = new Lazy<int>(() => Pages.Count, LazyThreadSafetyMode.ExecutionAndPublication);
+        InitModel();
         Initialize();
     }
 
@@ -48,7 +49,7 @@ public sealed partial class PdfDocument : IDisposable
     /// <summary>The document catalog (<c>/Root</c> of the trailer).</summary>
     public PdfDictionary Catalog => Trailer.GetDictionary("Root") ?? throw new PdfFormatException("The document has no catalog.");
 
-    /// <summary>True when the trailer has an <c>/Encrypt</c> entry. Decryption is not implemented yet: strings and streams of such a file read as stored.</summary>
+    /// <summary>True when the trailer has an <c>/Encrypt</c> entry. Strings and streams of such a file are decrypted transparently; see <see cref="PdfOpenOptions.Password"/>.</summary>
     public bool IsEncrypted => Trailer.ContainsKey("Encrypt");
 
     /// <summary>Repairs and irregularities found so far. Grows as objects are read lazily; each call returns a snapshot.</summary>
@@ -308,6 +309,7 @@ public sealed partial class PdfDocument : IDisposable
         if (Interlocked.Exchange(ref _disposed, 1) == 0)
         {
             _source.Dispose();
+            _decryptor?.Dispose();
         }
     }
 
@@ -315,61 +317,6 @@ public sealed partial class PdfDocument : IDisposable
 
     internal void ReportWarning(string message, int objectNumber, long offset) => _diag.Warn(message, objectNumber, offset);
 
-    /// <summary>
-    /// Counts the leaves of a page tree. Iterative with a visited set, so cycles and absurd depth cost nothing.
-    /// </summary>
-    internal int CountPages(PdfDictionary? catalog, string scope)
-    {
-        PdfDictionary? root = catalog?.GetDictionary("Pages");
-        if (root is null)
-        {
-            _diag.Warn($"The catalog of the {scope} has no page tree.");
-            return 0;
-        }
-
-        var visited = new HashSet<int>();
-        var stack = new Stack<PdfDictionary>();
-        stack.Push(root);
-        int count = 0;
-        long nodes = 0;
-        while (stack.Count > 0)
-        {
-            PdfDictionary node = stack.Pop();
-            if (node.Reference is { } r && !visited.Add(r.Number))
-            {
-                _diag.Warn("The page tree visits an object twice (a cycle or a shared page); the repeat was skipped.", r.Number);
-                continue;
-            }
-
-            if (++nodes > Limits.MaxObjects)
-            {
-                throw new PdfLimitException("The page tree has more nodes than the object limit allows.");
-            }
-
-            PdfArray? kids = node.GetArray("Kids");
-            if (kids is null)
-            {
-                if (node.GetName("Type") != "Pages")
-                {
-                    count++;
-                }
-
-                continue;
-            }
-
-            for (int i = kids.Count - 1; i >= 0; i--)
-            {
-                if (kids[i] is PdfDictionary child)
-                {
-                    stack.Push(child);
-                }
-                else
-                {
-                    _diag.Warn("A page tree entry is not a dictionary; skipped.", node.Reference?.Number ?? -1);
-                }
-            }
-        }
-
-        return count;
-    }
+    /// <summary>Counts the pages of a page tree (the same walk as <see cref="Pages"/>).</summary>
+    internal int CountPages(PdfDictionary? catalog, string scope) => WalkPages(catalog, scope).Count;
 }
