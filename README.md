@@ -201,6 +201,13 @@ local system fonts. The code is safe C# with no `unsafe`, `Unsafe.*` or `MemoryM
 | `RecursiveAI.OnePdf` | The library (assembly and namespace `OnePdf`). `MIT OR Apache-2.0`. |
 | `RecursiveAI.OnePdf.Fonts` | Substitute outlines for the standard 14 fonts when a document does not embed them: Liberation Sans, Serif and Mono; Noto Sans Math and Noto Sans Symbols for Symbol and ZapfDingbats. |
 
+Register the substitutes once at startup; documents that do not embed Helvetica, Times, Courier, Symbol or ZapfDingbats (or their
+Arial, Times New Roman and Courier New aliases) then get outlines from the package, behind any matching installed font:
+
+```csharp
+OnePdf.Fonts.FontsPackage.Register();   // before opening documents; calling it again is harmless
+```
+
 The Fonts package ships the upstream font files unmodified under the SIL Open Font License 1.1, so its license expression is
 `(MIT OR Apache-2.0) AND OFL-1.1`: the code is `MIT OR Apache-2.0`, the fonts are OFL. Each font's license text and copyright
 lines are in the package under `licenses/`. The fonts are never offered on their own. Core stays `MIT OR Apache-2.0`; the data

@@ -48,6 +48,9 @@ internal sealed class FontGlyph
     /// <summary>The glyph name from the encoding or program, when there is one.</summary>
     public string? Name { get; init; }
 
+    /// <summary>0 when <see cref="Gid"/> indexes the font's own program; n when it indexes the substitute's n-th fallback font.</summary>
+    internal int Face { get; init; }
+
     /// <summary>Horizontal advance in text space units for a font size of 1 (the PDF width divided by 1000; Type 3 widths are mapped through the font matrix).</summary>
     public double Advance { get; init; }
 
@@ -152,6 +155,9 @@ internal abstract class PdfFont
     /// <summary>The font program in use, if any (embedded or substitute).</summary>
     internal FontProgram? Program { get; set; }
 
+    /// <summary>Fallback programs of a substitute, consulted for characters <see cref="Program"/> lacks; glyphs from them have a non-zero <see cref="FontGlyph.Face"/>.</summary>
+    internal FontProgram[] Fallbacks { get; set; } = [];
+
     /// <summary>
     /// Reads the glyph starting at <paramref name="position"/> in <paramref name="text"/> and returns the position after it.
     /// An empty remainder returns <paramref name="position"/> and a null glyph.
@@ -184,13 +190,21 @@ internal abstract class PdfFont
     internal GlyphOutline GetOutline(FontGlyph glyph)
     {
         FontProgram? p = Program;
+        int face = glyph.Face;
+        if (face > 0)
+        {
+            p = face <= Fallbacks.Length ? Fallbacks[face - 1] : null;
+        }
+
         int gid = glyph.Gid;
         if (p is null || gid < 0 || gid >= p.GlyphCount)
         {
             return GlyphOutline.Empty;
         }
 
-        if (_outlines.TryGetValue(gid, out GlyphOutline? hit))
+        // Glyph indexes are below 2^20 (16-bit in every supported format); the face rides in the high bits.
+        int key = (face << 20) | gid;
+        if (_outlines.TryGetValue(key, out GlyphOutline? hit))
         {
             return hit;
         }
@@ -212,7 +226,7 @@ internal abstract class PdfFont
 
         if (_outlines.Count < MaxOutlineCache)
         {
-            _outlines.TryAdd(gid, o);
+            _outlines.TryAdd(key, o);
         }
 
         return o;
