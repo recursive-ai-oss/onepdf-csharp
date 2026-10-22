@@ -9,11 +9,11 @@ internal static class ImageKit
     /// <summary>An extra indirect object: a plain body, or a stream when <see cref="Data"/> is set.</summary>
     public sealed record Obj(int Number, string Body, byte[]? Data = null);
 
-    public sealed class Result(PdfDocument doc, PdfImage? image) : IDisposable
+    public sealed class Result(PdfDocument doc, PdfImageData? image) : IDisposable
     {
         public PdfDocument Doc { get; } = doc;
-        public PdfImage? Image { get; } = image;
-        public PdfImage Img => Image ?? throw new InvalidOperationException("no image");
+        public PdfImageData? Image { get; } = image;
+        public PdfImageData Img => Image ?? throw new InvalidOperationException("no image");
         public string[] Warnings => [.. Doc.Diagnostics.Select(d => d.Message)];
         public void Dispose() => Doc.Dispose();
     }
@@ -41,14 +41,14 @@ internal static class ImageKit
         PdfDocument doc = PdfDocument.Open(b.ToArray(), limits is null ? null : new PdfOpenOptions { Limits = limits });
         var s = (PdfStream)doc.GetObject(10)!;
         PdfDictionary? res = doc.GetObject(20) as PdfDictionary;
-        return new Result(doc, PdfImage.FromXObject(doc, s, res, options));
+        return new Result(doc, PdfImageData.FromXObject(doc, s, res, options));
     }
 
     public static byte[] Latin1(string s) => Encoding.Latin1.GetBytes(s);
 
-    public static byte[] Samples(PdfImage img) => img.Samples.ToArray();
+    public static byte[] Samples(PdfImageData img) => img.Samples.ToArray();
 
-    public static byte[] Alpha(PdfImage img) => img.Alpha!.Values.ToArray();
+    public static byte[] Alpha(PdfImageData img) => img.Alpha!.Values.ToArray();
 
     /// <summary>An <see cref="IPdfImageDecoder"/> that returns what a delegate says and records its requests.</summary>
     public sealed class FakeDecoder(Func<PdfImageDecodeRequest, PdfDecodedImage?> decode) : IPdfImageDecoder

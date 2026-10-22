@@ -117,7 +117,7 @@ public class ImageDecoderTests
     [Fact]
     public void JpxUsesCodestreamColourWhenTheDictionaryHasNone()
     {
-        var lab = PdfColorSpace.DeviceRgb;
+        var lab = PdfColorSpace.Rgb;
         var dec = new FakeDecoder(q => new PdfDecodedImage(2, 1, 3, 8, new byte[] {10, 20, 30, 40, 50, 60}) { ColorSpace = lab });
         using Result r = Make("/Width 2 /Height 1 /Filter /JPXDecode", [1], With("JPXDecode", dec));
         Assert.Equal(PdfColorSpaceKind.DeviceRgb, r.Img.ColorSpace!.Kind);
@@ -127,7 +127,7 @@ public class ImageDecoderTests
     [Fact]
     public void JpxIgnoresDecodeAndDictionaryColourSpaceOverridesTheCodestream()
     {
-        var dec = new FakeDecoder(q => new PdfDecodedImage(1, 1, 1, 8, new byte[] {100}) { ColorSpace = PdfColorSpace.DeviceRgb });
+        var dec = new FakeDecoder(q => new PdfDecodedImage(1, 1, 1, 8, new byte[] {100}) { ColorSpace = PdfColorSpace.Rgb });
         using Result r = Make("/Width 1 /Height 1 /ColorSpace /DeviceGray /Decode [1 0] /Filter /JPXDecode", [1], With("JPXDecode", dec));
         Assert.Equal(PdfColorSpaceKind.DeviceGray, r.Img.ColorSpace!.Kind);
         Assert.Equal(new byte[] { 100 }, Samples(r.Img));

@@ -120,7 +120,7 @@ internal static class ImageTarget
             reg.Register("DCTDecode", new FakeDecoder(shape));
             reg.Register("JPXDecode", new FakeDecoder(shape));
             reg.Register("JBIG2Decode", new FakeDecoder(shape));
-            PdfImage? img = PdfImage.FromXObject(doc, s, null, new PdfImageOptions { Decoders = reg, PreferEncoded = (data[2] & 0x20) != 0 });
+            PdfImageData? img = PdfImageData.FromXObject(doc, s, null, new PdfImageOptions { Decoders = reg, PreferEncoded = (data[2] & 0x20) != 0 });
             if (img is { IsDecoded: true, IsStencil: false })
             {
                 if (img.Samples.Length != (long)img.Width * img.Height * img.ColorSpace!.ComponentCount)

@@ -55,7 +55,7 @@ internal sealed class ImageSweep
                 int diagBefore = doc.Diagnostics.Count;
                 try
                 {
-                    PdfImage? img = PdfImage.FromXObject(doc, s, resources, Options);
+                    PdfImageData? img = PdfImageData.FromXObject(doc, s, resources, Options);
                     string codec = s.UndecodedFilter ?? "none";
                     Codecs[codec] = Codecs.GetValueOrDefault(codec) + 1;
                     bool diag = doc.Diagnostics.Count > diagBefore;

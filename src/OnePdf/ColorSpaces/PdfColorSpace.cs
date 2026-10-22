@@ -63,13 +63,35 @@ public sealed class PdfColorSpace
     }
 
     /// <summary>DeviceGray.</summary>
-    public static PdfColorSpace DeviceGray { get; } = new(PdfColorSpaceKind.DeviceGray, 1);
+    public static PdfColorSpace Gray { get; } = new(PdfColorSpaceKind.DeviceGray, 1);
 
     /// <summary>DeviceRGB.</summary>
-    public static PdfColorSpace DeviceRgb { get; } = new(PdfColorSpaceKind.DeviceRgb, 3);
+    public static PdfColorSpace Rgb { get; } = new(PdfColorSpaceKind.DeviceRgb, 3);
 
     /// <summary>DeviceCMYK.</summary>
-    public static PdfColorSpace DeviceCmyk { get; } = new(PdfColorSpaceKind.DeviceCmyk, 4);
+    public static PdfColorSpace Cmyk { get; } = new(PdfColorSpaceKind.DeviceCmyk, 4);
+
+    /// <summary>
+    /// For <see cref="PdfColorSpaceKind.Pattern"/>: the final space of the tint of an uncoloured pattern, or null. Colours
+    /// painted with an uncoloured pattern carry their tint converted to this space.
+    /// </summary>
+    public PdfColorSpace? PatternBase => Kind == PdfColorSpaceKind.Pattern ? BaseSpace?.FinalSpace : null;
+
+    /// <summary>The short name used in text snapshots: <c>gray</c>, <c>rgb</c>, <c>cmyk</c>, <c>lab</c>, <c>icc3</c>, <c>calrgb</c>, <c>pattern</c> and so on.</summary>
+    public string Name => Kind switch
+    {
+        PdfColorSpaceKind.DeviceGray => "gray",
+        PdfColorSpaceKind.DeviceRgb => "rgb",
+        PdfColorSpaceKind.DeviceCmyk => "cmyk",
+        PdfColorSpaceKind.CalGray => "calgray",
+        PdfColorSpaceKind.CalRgb => "calrgb",
+        PdfColorSpaceKind.Lab => "lab",
+        PdfColorSpaceKind.IccBased => "icc" + ComponentCount.ToString(System.Globalization.CultureInfo.InvariantCulture),
+        PdfColorSpaceKind.Indexed => "indexed",
+        PdfColorSpaceKind.Separation => "separation",
+        PdfColorSpaceKind.DeviceN => "devicen",
+        _ => "pattern",
+    };
 
     /// <summary>The family.</summary>
     public PdfColorSpaceKind Kind { get; }
@@ -161,6 +183,10 @@ public sealed class PdfColorSpace
                 break;
             case PdfColorSpaceKind.Separation or PdfColorSpaceKind.DeviceN:
                 initial.Fill(1);
+                break;
+            case PdfColorSpaceKind.IccBased when ComponentCount == 4 && Range is null:
+                // Zeros would be "no ink" (white); a four-component profile starts as black like DeviceCMYK.
+                initial[3] = 1;
                 break;
             case PdfColorSpaceKind.Lab or PdfColorSpaceKind.IccBased:
                 for (int i = 0; i < initial.Length; i++)

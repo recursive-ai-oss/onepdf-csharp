@@ -1,6 +1,6 @@
 # Display-list text format
 
-**Format version: 1**
+**Format version: 2**
 
 The text form of a `PdfDisplayList` (or of any interpretation, written straight from the interpreter). It is used for
 snapshot tests and is meant to be comparable across implementations: it is plain UTF-8 text, one record per line, with
@@ -8,7 +8,7 @@ snapshot tests and is meant to be comparable across implementations: it is plain
 
 ## Header
 
-The first line is `onepdf-display-list 1`: the magic word and the format version.
+The first line is `onepdf-display-list 2`: the magic word and the format version.
 
 ## Numbers
 
@@ -35,7 +35,7 @@ indentation is informative. The record keyword is the first word.
 | `text-clip` | Intersect the clip with the glyphs shown in clipping render modes since the last `BT`; opens a clip bracket. |
 | `pop-clip` | Close the most recent clip bracket. |
 | `text font=<name> size=<n> mode=<0-7> tc=<n> tw=<n> th=<n> rise=<n> tm=<matrix> vert=<0\|1> adv=<x> <y> codes=<hex> glyphs=[<glyph> ...]` | One shown string. `th` is the horizontal scale as a factor. `tm` is the text matrix at the start of the string. `adv` is the total displacement of the text matrix. `codes` are the string bytes in lower-case hex. Each glyph is `<code>@<offsetX>,<offsetY>,<width>` optionally followed by `:g<glyph id>` and `:u<UTF-8 hex>` when known. |
-| `image <inline\|/Name> bytes=<n> fnv=<hex> dict=<object>` | An image drawn into the unit square of the CTM: the length and FNV-1a 64-bit hash of its encoded data (`bytes=-1` when unreadable) and its dictionary. |
+| `image <inline\|/Name> bytes=<n> fnv=<hex> data=<finished> dict=<object>` | An image drawn into the unit square of the CTM: the length and FNV-1a 64-bit hash of its encoded data (`bytes=-1` when unreadable), the finished image and its dictionary. `<finished>` is `decoded:<w>x<h>:<colour space name>:<fnv of the 8-bit samples>`, `stencil:<w>x<h>:<fnv of the coverage plane>`, `encoded:<w>x<h>` (no decoder for its codec), `none` (unusable dictionary) or `limit` (over an image limit); a mask or colour key adds `:alpha=<w>x<h>:<fnv>`. Decoding uses the default decoder registry, which ships empty. |
 | `shading /Name obj=<object>` | The `sh` operator with the unevaluated shading. |
 | `begin-group bbox=<box> isolated=<0\|1> knockout=<0\|1> cs=<object>` / `end-group` | A transparency group. |
 | `begin-softmask id=<n> type=<luminosity\|alpha> bbox=<box> bc=<object> tr=<object>` / `end-softmask` | A soft mask definition; its content sits between the two records. |
@@ -48,7 +48,7 @@ A path is a space-separated list of `M x y`, `L x y`, `C x1 y1 x2 y2 x3 y3` and 
 
 ## Colors
 
-`gray(g)`, `rgb(r g b)`, `cmyk(c m y k)`, `lab(L a b)`, `icc<N>:<profile length>:<FNV-1a 64 of the profile>(c ...)`, and for
+`gray(g)`, `rgb(r g b)`, `cmyk(c m y k)`, `calgray(g)`, `calrgb(r g b)`, `lab(L a b)`, `icc<N>:<profile length>:<FNV-1a 64 of the profile>(c ...)`, and for
 pattern colors `pattern(/Name)` (followed by the base space name and tint components for uncolored patterns).
 
 ## Objects
@@ -61,3 +61,5 @@ non-regular characters as `#xx`, strings as `<hex>`, references as `n g R`, stre
 
 The version is an integer that changes whenever the output for any input could change (new records, new fields, different
 rounding). Readers must reject a version they do not know.
+
+History: 2 added the `data=` field to image lines and the `calgray`/`calrgb` colour spaces (before, CalGray and CalRGB printed as `gray` and `rgb`); an ICC profile that is damaged or does not match its component count now prints as the device space with that many components.

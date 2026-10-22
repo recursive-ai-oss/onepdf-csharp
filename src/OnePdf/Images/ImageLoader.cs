@@ -6,7 +6,7 @@ using OnePdf.Filters;
 namespace OnePdf;
 
 /// <summary>
-/// Turns image XObjects and inline images into <see cref="PdfImage"/> (ISO 32000-2 8.9 and 11.6.5): sample unpacking,
+/// Turns image XObjects and inline images into <see cref="PdfImageData"/> (ISO 32000-2 8.9 and 11.6.5): sample unpacking,
 /// <c>/Decode</c>, colour spaces, stencil masks, colour-key, explicit and soft masks, codec decoders.
 /// </summary>
 internal static class ImageLoader
@@ -31,7 +31,7 @@ internal static class ImageLoader
         public long Stride => ((long)Width * (Components + (HasAlpha ? 1 : 0)) * Bpc + 7) / 8;
     }
 
-    public static PdfImage? LoadXObject(PdfDocument doc, PdfStream stream, PdfDictionary? resources, PdfImageOptions options, bool allowMasks, CancellationToken ct)
+    public static PdfImageData? LoadXObject(PdfDocument doc, PdfStream stream, PdfDictionary? resources, PdfImageOptions options, bool allowMasks, CancellationToken ct)
     {
         PdfDictionary d = stream.Dictionary;
         var s = new Src
@@ -68,7 +68,7 @@ internal static class ImageLoader
         return Build(s, ct);
     }
 
-    public static PdfImage? LoadInline(PdfDocument doc, PdfDictionary dict, ReadOnlyMemory<byte> data, PdfDictionary? resources, PdfImageOptions options, CancellationToken ct)
+    public static PdfImageData? LoadInline(PdfDocument doc, PdfDictionary dict, ReadOnlyMemory<byte> data, PdfDictionary? resources, PdfImageOptions options, CancellationToken ct)
     {
         var s = new Src { Doc = doc, Dict = dict, Resources = resources, Inline = true, Options = options, Data = data };
         var names = new List<string>();
@@ -181,7 +181,7 @@ internal static class ImageLoader
     /// <summary>Looks up a key by its full name, or by the inline-image abbreviation in inline dictionaries.</summary>
     private static PdfObject? Pick(PdfDictionary d, Src s, string full, string abbr) => d.Get(full) ?? (s.Inline ? d.Get(abbr) : null);
 
-    private static PdfImage? Build(Src s, CancellationToken ct)
+    private static PdfImageData? Build(Src s, CancellationToken ct)
     {
         PdfDocument doc = s.Doc;
         PdfDictionary d = s.Dict;
@@ -201,7 +201,7 @@ internal static class ImageLoader
             throw new PdfLimitException($"An image of {w}x{h} pixels exceeds the limit of {lim.MaxImagePixels} pixels.") { ObjectNumber = s.ObjNum };
         }
 
-        var img = new PdfImage
+        var img = new PdfImageData
         {
             Width = (int)w,
             Height = (int)h,
@@ -341,9 +341,9 @@ internal static class ImageLoader
 
                 cs ??= res.Components switch
                 {
-                    1 => PdfColorSpace.DeviceGray,
-                    3 => PdfColorSpace.DeviceRgb,
-                    4 => PdfColorSpace.DeviceCmyk,
+                    1 => PdfColorSpace.Gray,
+                    3 => PdfColorSpace.Rgb,
+                    4 => PdfColorSpace.Cmyk,
                     _ => null,
                 };
                 if (cs is null)
@@ -376,7 +376,7 @@ internal static class ImageLoader
             if (!mask && declared is null)
             {
                 // Required entry missing: guess from the amount of data.
-                declared = s.Data.Length >= w * h * 3 * bpc / 8 && w * h * 3 * bpc / 8 > 0 ? PdfColorSpace.DeviceRgb : PdfColorSpace.DeviceGray;
+                declared = s.Data.Length >= w * h * 3 * bpc / 8 && w * h * 3 * bpc / 8 > 0 ? PdfColorSpace.Rgb : PdfColorSpace.Gray;
                 doc.ReportWarning("An image has no usable /ColorSpace; " + declared + " is assumed.", s.ObjNum, -1);
             }
 
@@ -406,6 +406,7 @@ internal static class ImageLoader
         ct.ThrowIfCancellationRequested();
         byte[] samples = ConvertColor(raw, space, decode, key, sem.SMaskInData, out byte[]? chanAlpha, ct);
         img.Samples = samples;
+        img.SamplesBuffer = samples;
         img.ColorSpace = space.FinalSpace;
         img.IsDecoded = true;
         if (maskAlpha is not null)
@@ -426,6 +427,22 @@ internal static class ImageLoader
         }
 
         return img;
+    }
+
+    /// <summary>
+    /// Allocates a buffer whose size the limits already approved. A host short of memory is a limit like any other, so it
+    /// surfaces as <see cref="PdfLimitException"/> rather than an out-of-memory crash.
+    /// </summary>
+    private static byte[] Alloc(long size)
+    {
+        try
+        {
+            return new byte[size];
+        }
+        catch (OutOfMemoryException ex)
+        {
+            throw new PdfLimitException("There is not enough memory for an image buffer of " + size + " bytes.", ex);
+        }
     }
 
     private static long AsInt(PdfObject? o) => o switch
@@ -465,7 +482,7 @@ internal static class ImageLoader
         PdfDocument doc = s.Doc;
         if (d.Get("SMask") is PdfStream sm)
         {
-            PdfImage? m = LoadXObject(doc, sm, s.Resources, s.Options with { PreferEncoded = false }, allowMasks: false, ct: ct);
+            PdfImageData? m = LoadXObject(doc, sm, s.Resources, s.Options with { PreferEncoded = false }, allowMasks: false, ct: ct);
             if (m is null || !m.IsDecoded || m.Samples.IsEmpty)
             {
                 doc.ReportWarning("A soft mask could not be decoded; it is ignored.", s.ObjNum, -1);
@@ -473,11 +490,11 @@ internal static class ImageLoader
             }
 
             int comps = m.ColorSpace!.ComponentCount;
-            byte[] src = m.Samples.ToArray();
+            byte[] src = m.SamplesBuffer!;
             byte[] values = src;
             if (comps != 1)
             {
-                values = new byte[m.Width * m.Height];
+                values = Alloc((long)m.Width * m.Height);
                 for (int i = 0; i < values.Length; i++)
                 {
                     values[i] = src[i * comps];
@@ -491,7 +508,7 @@ internal static class ImageLoader
 
         if (maskObj is PdfStream ms)
         {
-            PdfImage? m = LoadXObject(doc, ms, s.Resources, s.Options with { PreferEncoded = false }, allowMasks: false, ct: ct);
+            PdfImageData? m = LoadXObject(doc, ms, s.Resources, s.Options with { PreferEncoded = false }, allowMasks: false, ct: ct);
             if (m is null || !m.IsStencil || m.Alpha is null)
             {
                 doc.ReportWarning("An explicit /Mask is not a decodable stencil mask; it is ignored.", s.ObjNum, -1);
@@ -511,7 +528,7 @@ internal static class ImageLoader
     {
         bool paintOne = decode is { Length: >= 2 } && decode[0] > decode[1];
         int maxv = (1 << Math.Min(r.Bpc, 16)) - 1;
-        var alpha = new byte[checked(r.Width * r.Height)];
+        byte[] alpha = Alloc((long)r.Width * r.Height);
         ReadOnlySpan<byte> data = r.Data.Span;
         long stride = r.Stride;
         int perPixel = r.Components + (r.HasAlpha ? 1 : 0);
@@ -624,18 +641,18 @@ internal static class ImageLoader
         bool useChannelAlpha = r.HasAlpha && smaskInData != 0;
         if (key is not null && key.Length >= n * 2)
         {
-            alphaOut = new byte[r.Width * r.Height];
+            alphaOut = Alloc((long)r.Width * r.Height);
         }
         else
         {
             key = null;
             if (useChannelAlpha)
             {
-                alphaOut = new byte[r.Width * r.Height];
+                alphaOut = Alloc((long)r.Width * r.Height);
             }
         }
 
-        var output = new byte[r.Width * r.Height * fn];
+        byte[] output = Alloc((long)r.Width * r.Height * fn);
         ReadOnlySpan<byte> data = r.Data.Span;
         long stride = r.Stride;
         int perPixel = n + (r.HasAlpha ? 1 : 0);

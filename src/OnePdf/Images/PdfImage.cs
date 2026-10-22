@@ -166,7 +166,7 @@ public sealed class PdfImageDecoderRegistry
     public PdfImageDecoderRegistry Clone() => new() { _decoders = _decoders };
 }
 
-/// <summary>Options for turning an image stream into a <see cref="PdfImage"/>.</summary>
+/// <summary>Options for turning an image stream into a <see cref="PdfImageData"/>.</summary>
 public sealed record PdfImageOptions
 {
     /// <summary>Options with the defaults.</summary>
@@ -177,7 +177,7 @@ public sealed record PdfImageOptions
 
     /// <summary>
     /// When true, DCTDecode and JPXDecode images are not decoded: the result carries the original bytes in
-    /// <see cref="PdfImage.EncodedData"/> and the PDF semantics as data in <see cref="PdfImage.Semantics"/>. Masks that are not
+    /// <see cref="PdfImageData.EncodedData"/> and the PDF semantics as data in <see cref="PdfImageData.Semantics"/>. Masks that are not
     /// themselves DCT/JPX are still produced. Default false.
     /// </summary>
     public bool PreferEncoded { get; init; }
@@ -238,9 +238,9 @@ public sealed class PdfImageSemantics
 /// decoder is registered or <see cref="PdfImageOptions.PreferEncoded"/> asked for it, the encoded bytes with the
 /// semantics as data. Create with <see cref="FromXObject"/> or <see cref="FromInline"/>.
 /// </summary>
-public sealed class PdfImage
+public sealed class PdfImageData
 {
-    internal PdfImage() { }
+    internal PdfImageData() { }
 
     /// <summary>Pixels per row of the image data.</summary>
     public int Width { get; internal set; }
@@ -267,6 +267,9 @@ public sealed class PdfImage
     /// this is always a final space. 16-bit sources keep their high byte. Empty when not decoded or for stencils.
     /// </summary>
     public ReadOnlyMemory<byte> Samples { get; internal set; }
+
+    /// <summary>The array behind <see cref="Samples"/> (for mask conversion without a copy).</summary>
+    internal byte[]? SamplesBuffer { get; set; }
 
     /// <summary>
     /// Opacity: the soft mask, the explicit or colour-key mask, the JPX opacity channel, or for stencils the coverage. Null when
@@ -305,7 +308,7 @@ public sealed class PdfImage
     /// <param name="cancellationToken">Cancellation.</param>
     /// <returns>The image, or null when the dictionary is unusable (missing or non-positive size, for instance), with a diagnostic.</returns>
     /// <exception cref="PdfLimitException">The image exceeds <see cref="PdfLimits.MaxImagePixels"/> or the decoded-size limit; nothing was allocated for it.</exception>
-    public static PdfImage? FromXObject(PdfDocument document, PdfStream stream, PdfDictionary? resources = null, PdfImageOptions? options = null, CancellationToken cancellationToken = default)
+    public static PdfImageData? FromXObject(PdfDocument document, PdfStream stream, PdfDictionary? resources = null, PdfImageOptions? options = null, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(document);
         ArgumentNullException.ThrowIfNull(stream);
@@ -317,7 +320,7 @@ public sealed class PdfImage
     /// between <c>ID</c> and <c>EI</c> as stored (still filtered).
     /// </summary>
     /// <inheritdoc cref="FromXObject"/>
-    public static PdfImage? FromInline(PdfDocument document, PdfDictionary dictionary, ReadOnlyMemory<byte> data, PdfDictionary? resources = null, PdfImageOptions? options = null, CancellationToken cancellationToken = default)
+    public static PdfImageData? FromInline(PdfDocument document, PdfDictionary dictionary, ReadOnlyMemory<byte> data, PdfDictionary? resources = null, PdfImageOptions? options = null, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(document);
         ArgumentNullException.ThrowIfNull(dictionary);

@@ -70,7 +70,24 @@ using PdfDocument doc2 = PdfDocument.Open(Encoding.ASCII.GetBytes(pdf2));
 var list = new PdfDisplayList();
 doc2.Pages[0].Interpret(list);
 string text = list.ToText();
-if (!text.StartsWith("onepdf-display-list 1", StringComparison.Ordinal) || !text.Contains("fill nonzero M 10 10", StringComparison.Ordinal)
+
+// Images: colour-space resolution, Indexed expansion and a tint function through the finished-image path.
+string pdf3 =
+    "%PDF-1.4\n1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n" +
+    "2 0 obj\n<< /Type /Pages /Kids [3 0 R] /Count 1 >>\nendobj\n" +
+    "3 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 10 10] >>\nendobj\n" +
+    "4 0 obj\n<< /Type /XObject /Subtype /Image /Width 2 /Height 1 /BitsPerComponent 8 /ColorSpace [/Separation /S /DeviceCMYK 5 0 R] /Length 2 >>\nstream\n\u0000\u00ff\nendstream\nendobj\n" +
+    "5 0 obj\n<< /FunctionType 2 /Domain [0 1] /C0 [0 0 0 0] /C1 [0 1 1 0] /N 1 >>\nendobj\n" +
+    "trailer\n<< /Root 1 0 R >>\n";
+using PdfDocument doc3 = PdfDocument.Open(Encoding.Latin1.GetBytes(pdf3));
+PdfImageData? img = PdfImageData.FromXObject(doc3, (PdfStream)doc3.GetObject(4)!);
+if (img is not { IsDecoded: true } || img.Samples.Length != 8 || img.Samples.Span[5] != 255 || img.ColorSpace!.Kind != PdfColorSpaceKind.DeviceCmyk)
+{
+    Console.Error.WriteLine("image conversion failed");
+    return 1;
+}
+
+if (!text.StartsWith("onepdf-display-list 2", StringComparison.Ordinal) || !text.Contains("fill nonzero M 10 10", StringComparison.Ordinal)
     || !text.Contains("codes=4869", StringComparison.Ordinal) || !text.Contains("clip nonzero", StringComparison.Ordinal))
 {
     Console.Error.WriteLine("interpretation did not produce the expected display list");

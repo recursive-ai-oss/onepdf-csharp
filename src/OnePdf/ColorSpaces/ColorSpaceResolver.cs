@@ -39,11 +39,11 @@ internal static class ColorSpaceResolver
         switch (name)
         {
             case "DeviceGray" or "G" or "CalGray":
-                return PdfColorSpace.DeviceGray;
+                return PdfColorSpace.Gray;
             case "DeviceRGB" or "RGB" or "CalRGB":
-                return PdfColorSpace.DeviceRgb;
+                return PdfColorSpace.Rgb;
             case "DeviceCMYK" or "CMYK":
-                return PdfColorSpace.DeviceCmyk;
+                return PdfColorSpace.Cmyk;
             case "Pattern":
                 return allowPattern ? new PdfColorSpace(PdfColorSpaceKind.Pattern, 0) : null;
         }
@@ -122,7 +122,7 @@ internal static class ColorSpaceResolver
         if (d is null)
         {
             doc.ReportWarning("A " + kind + " colour space has no parameter dictionary; using the device space.", objNum, -1);
-            return n == 1 ? PdfColorSpace.DeviceGray : PdfColorSpace.DeviceRgb;
+            return n == 1 ? PdfColorSpace.Gray : PdfColorSpace.Rgb;
         }
 
         double[]? white = Numbers(d.Get("WhitePoint"), 3);
@@ -236,9 +236,9 @@ internal static class ColorSpaceResolver
 
     private static PdfColorSpace DeviceFor(int n) => n switch
     {
-        1 => PdfColorSpace.DeviceGray,
-        4 => PdfColorSpace.DeviceCmyk,
-        _ => PdfColorSpace.DeviceRgb,
+        1 => PdfColorSpace.Gray,
+        4 => PdfColorSpace.Cmyk,
+        _ => PdfColorSpace.Rgb,
     };
 
     /// <summary>Components for the ICC data colour space signature, or 0 when it is one this reader cannot map.</summary>

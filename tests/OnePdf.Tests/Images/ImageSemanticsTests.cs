@@ -261,7 +261,7 @@ public class ImageSemanticsTests
         dp.Set("K", new PdfInteger(-1));
         dp.Set("Columns", new PdfInteger(16));
         dict.Set("DP", dp);
-        PdfImage? img = PdfImage.FromInline(host.Doc, dict, G4);
+        PdfImageData? img = PdfImageData.FromInline(host.Doc, dict, G4);
         Assert.True(img!.IsDecoded);
         Assert.Equal(0, img.Samples.Span[0]);
         Assert.Equal(255, img.Samples.Span[16]);
@@ -310,7 +310,7 @@ public class ImageSemanticsTests
         d.Set("CS", new PdfName("RGB"));
         d.Set("F", new PdfName("AHx"));
         d.Set("D", Arr(new PdfInteger(1), new PdfInteger(0), new PdfInteger(0), new PdfInteger(1), new PdfInteger(0), new PdfInteger(1)));
-        PdfImage? img = PdfImage.FromInline(host.Doc, d, Latin1("00 FF 10 20 30 40>"));
+        PdfImageData? img = PdfImageData.FromInline(host.Doc, d, Latin1("00 FF 10 20 30 40>"));
         Assert.NotNull(img);
         Assert.Equal(new byte[] { 255, 255, 16, 223, 48, 64 }, img.Samples.ToArray());
     }
@@ -323,7 +323,7 @@ public class ImageSemanticsTests
         d.Set("W", new PdfInteger(8));
         d.Set("H", new PdfInteger(1));
         d.Set("IM", new PdfBoolean(true));
-        PdfImage? img = PdfImage.FromInline(host.Doc, d, new byte[] { 0xF0 });
+        PdfImageData? img = PdfImageData.FromInline(host.Doc, d, new byte[] { 0xF0 });
         Assert.True(img!.IsStencil);
         Assert.Equal(new byte[] { 0, 0, 0, 0, 255, 255, 255, 255 }, img.Alpha!.Values.ToArray());
     }

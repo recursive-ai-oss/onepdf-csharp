@@ -263,7 +263,7 @@ internal sealed partial class ContentInterpreter
             case "Image":
                 {
                     PdfGraphicsState s = Snapshot();
-                    var img = new PdfImage(xo.Dictionary, xo, default, name);
+                    var img = new PdfImage(xo.Dictionary, xo, default, name, _doc, _res);
                     _device.DrawImage(in img, in s);
                     break;
                 }
@@ -470,7 +470,7 @@ internal sealed partial class ContentInterpreter
         if (_hidden == 0)
         {
             PdfGraphicsState s = Snapshot();
-            var img = new PdfImage(d, null, data, string.Empty);
+            var img = new PdfImage(d, null, data, string.Empty, _doc, _res);
             _device.DrawImage(in img, in s);
         }
     }
@@ -504,18 +504,13 @@ internal sealed partial class ContentInterpreter
                 return -1;
             }
 
-            ColorSpaceDef? cs = d.Get("ColorSpace") switch
-            {
-                PdfName nm => _spaces.ParseNamed(nm.Value, _res),
-                PdfArray arr => _spaces.Parse(arr, _res, 0),
-                _ => null,
-            };
-            if (cs is null)
+            PdfColorSpace? cs = d.Get("ColorSpace") is PdfName or PdfArray ? _spaces.Resolve(d.Get("ColorSpace"), _res) : null;
+            if (cs is null || cs.ComponentCount < 1)
             {
                 return -1;
             }
 
-            n = cs.N;
+            n = cs.ComponentCount;
         }
 
         long row = ((w * n * bpc) + 7) / 8;
