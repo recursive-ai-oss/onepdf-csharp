@@ -42,15 +42,24 @@ internal sealed class Lexer : IDisposable
 
     private readonly IPdfSource _source;
     private readonly long _length;
+    private const int FirstFill = 4096;
     private byte[]? _buf;
     private long _bufStart;
     private int _bufLen;
+    private bool _filled;
+
+    // A source that is already in memory is searched in place (IndexOf); single bytes still go through the window, because
+    // indexing an array is much cheaper than taking a span from a ReadOnlyMemory for every byte.
+    private readonly ReadOnlyMemory<byte> _mem;
+    private readonly bool _inMemory;
 
     public Lexer(IPdfSource source, long position = 0)
     {
         _source = source;
         _length = source.Length;
+        _inMemory = source.TryGetMemory(out _mem);
         _buf = ArrayPool<byte>.Shared.Rent((int)Math.Min(WindowSize, Math.Max(16, _length)));
+
         Position = position;
     }
 
@@ -90,7 +99,10 @@ internal sealed class Lexer : IDisposable
     {
         byte[] buf = _buf ?? throw new ObjectDisposedException(nameof(Lexer));
         long start = Math.Max(0, pos - 256);
-        _bufLen = _source.Read(start, buf.AsSpan(0, (int)Math.Min(buf.Length, _length - start)));
+        // The first read of a lexer is short: most objects are a few hundred bytes, and a long read is mostly wasted.
+        int want = _filled ? buf.Length : Math.Min(buf.Length, FirstFill);
+        _filled = true;
+        _bufLen = _source.Read(start, buf.AsSpan(0, (int)Math.Min(want, _length - start)));
         _bufStart = start;
         if (pos - start >= _bufLen)
         {
@@ -158,6 +170,17 @@ internal sealed class Lexer : IDisposable
         if (from < 0)
         {
             from = 0;
+        }
+
+        if (_inMemory)
+        {
+            if (from >= limit)
+            {
+                return -1;
+            }
+
+            int found = _mem.Span.Slice((int)from, (int)(limit - from)).IndexOf(pattern);
+            return found < 0 ? -1 : from + found;
         }
 
         byte[] chunk = ArrayPool<byte>.Shared.Rent(64 * 1024);
@@ -442,13 +465,104 @@ internal sealed class Lexer : IDisposable
         }
 
         Position = p;
-        string s = ascii || Utf8.IsValid(tmp[..n]) ? Encoding.UTF8.GetString(tmp[..n]) : Encoding.Latin1.GetString(tmp[..n]);
+        string? known = ascii ? CommonName(tmp[..n]) : null;
+        string s = known ?? (ascii || Utf8.IsValid(tmp[..n]) ? Encoding.UTF8.GetString(tmp[..n]) : Encoding.Latin1.GetString(tmp[..n]));
         if (rented is not null)
         {
             ArrayPool<byte>.Shared.Return(rented);
         }
 
         return s;
+    }
+
+    // Names that nearly every file repeats thousands of times: one shared string each instead of a new one per token.
+    private static readonly string[] CommonNameTable = BuildCommonNames(new[]
+    {
+        "Type", "Subtype", "Parent", "Kids", "Count", "Contents", "Resources", "MediaBox", "CropBox", "Rotate", "Page", "Pages",
+        "Catalog", "Font", "XObject", "ExtGState", "ColorSpace", "Pattern", "Shading", "ProcSet", "Properties", "Annots", "Length",
+        "Filter", "FlateDecode", "DecodeParms", "Predictor", "Columns", "Colors", "BitsPerComponent", "Width", "Height", "Image",
+        "Form", "BBox", "Matrix", "DeviceRGB", "DeviceGray", "DeviceCMYK", "FontDescriptor", "FontName", "BaseFont", "Encoding",
+        "FirstChar", "LastChar", "Widths", "Flags", "FontBBox", "ItalicAngle", "Ascent", "Descent", "CapHeight", "StemV", "FontFile",
+        "FontFile2", "FontFile3", "ToUnicode", "Type0", "Type1", "Type3", "TrueType", "CIDFontType0", "CIDFontType2", "DescendantFonts",
+        "CIDSystemInfo", "W", "DW", "CIDToGIDMap", "Identity-H", "Identity-V", "WinAnsiEncoding", "MacRomanEncoding", "Differences",
+        "Root", "Info", "ID", "Size", "Prev", "Encrypt", "XRef", "ObjStm", "N", "First", "Index", "Title", "Author", "Subject",
+        "Keywords", "Creator", "Producer", "CreationDate", "ModDate", "Metadata", "XML", "Names", "Dests", "Outlines", "Outlines",
+        "Next", "Dest", "A", "S", "D", "URI", "GoTo", "Link", "Rect", "Border", "F", "AP", "Widget", "Fields", "AcroForm", "FT", "T",
+        "V", "Tx", "Btn", "Ch", "Sig", "Lang", "MarkInfo", "Marked", "StructTreeRoot", "PageLabels", "Nums", "OCProperties", "OCGs",
+        "SMask", "Mask", "Decode", "Intent", "ImageMask", "Interpolate", "CA", "ca", "BM", "Normal", "Group", "Transparency", "CS",
+        "UserUnit", "Alternate", "ICCBased", "Indexed", "Separation", "DeviceN", "Lab", "CalRGB", "CalGray", "Range", "Domain",
+        "FunctionType", "Functions", "Bounds", "Encode", "C0", "C1", "Coords", "Extend", "ShadingType", "PatternType", "PaintType",
+        "TilingType", "XStep", "YStep", "CharProcs", "FontMatrix", "Registry", "Ordering", "Supplement", "Adobe", "Filter", "V", "R", "O",
+        "U", "P", "Length1", "Length2", "Length3", "CF", "StmF", "StrF", "StdCF", "CFM", "AESV2", "AESV3", "Identity", "EncryptMetadata",
+        "OE", "UE", "Perms", "Standard", "ASCII85Decode", "LZWDecode", "DCTDecode", "CCITTFaxDecode", "RunLengthDecode", "JBIG2Decode",
+        "JPXDecode", "EarlyChange", "K", "Rows", "EndOfLine", "BlackIs1", "Tabs", "StructParents", "Dur", "Trans", "PZ", "Thumb",
+    });
+
+    private const int CommonNameMask = 1023;
+
+    private static string[] BuildCommonNames(string[] names)
+    {
+        var table = new string[CommonNameMask + 1];
+        foreach (string name in names)
+        {
+            int h = HashAscii(name);
+            while (table[h & CommonNameMask] is { } existing)
+            {
+                if (existing == name)
+                {
+                    break;
+                }
+
+                h++;
+            }
+
+            table[h & CommonNameMask] = name;
+        }
+
+        return table;
+    }
+
+    private static int HashAscii(ReadOnlySpan<char> s)
+    {
+        uint h = 2166136261;
+        foreach (char c in s)
+        {
+            h = (h ^ c) * 16777619;
+        }
+
+        return (int)(h >> 4);
+    }
+
+    private static string? CommonName(ReadOnlySpan<byte> ascii)
+    {
+        uint h = 2166136261;
+        foreach (byte c in ascii)
+        {
+            h = (h ^ c) * 16777619;
+        }
+
+        int i = (int)(h >> 4);
+        string[] table = CommonNameTable;
+        while (table[i & CommonNameMask] is { } candidate)
+        {
+            if (candidate.Length == ascii.Length)
+            {
+                int k = 0;
+                while (k < ascii.Length && candidate[k] == ascii[k])
+                {
+                    k++;
+                }
+
+                if (k == ascii.Length)
+                {
+                    return candidate;
+                }
+            }
+
+            i++;
+        }
+
+        return null;
     }
 
     private static int HexVal(int b) => b switch

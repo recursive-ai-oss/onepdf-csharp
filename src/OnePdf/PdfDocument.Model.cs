@@ -1,3 +1,5 @@
+using OnePdf.Internal;
+
 namespace OnePdf;
 
 public sealed partial class PdfDocument
@@ -42,13 +44,37 @@ public sealed partial class PdfDocument
     /// a dictionary; a node without <c>/Kids</c> is a page unless its <c>/Type</c> is <c>/Pages</c>. Depth is limited by
     /// <see cref="PdfLimits.MaxNestingDepth"/>, node count by <see cref="PdfLimits.MaxObjects"/>.
     /// </summary>
-    internal List<PdfPageNode> WalkPages(PdfDictionary? catalog, string scope)
+    internal List<PdfPageNode> WalkPages(PdfDictionary? catalog, string scope) =>
+        WalkPagesCore(catalog, scope, countOnly: false, quiet: scope == "document" && _treeWalkReported, out _);
+
+    // Set once the document's pages have been counted by the lean walk, which already recorded the tree's diagnostics.
+    private volatile bool _treeWalkReported;
+
+    /// <summary>
+    /// The page count without building page nodes: the same walk and the same skipping rules as <see cref="WalkPages"/>, but
+    /// the inheritable attributes (which would load every page's resources) are not resolved.
+    /// </summary>
+    private int CountPagesLean()
     {
+        if (_pages.IsValueCreated)
+        {
+            return _pages.Value.Count;
+        }
+
+        WalkPagesCore(Catalog, "document", countOnly: true, quiet: false, out int count);
+        _treeWalkReported = true;
+        return count;
+    }
+
+    private List<PdfPageNode> WalkPagesCore(PdfDictionary? catalog, string scope, bool countOnly, bool quiet, out int count)
+    {
+        count = 0;
+        DiagnosticBag? diag = quiet ? null : _diag;
         var pages = new List<PdfPageNode>();
         PdfDictionary? root = catalog?.GetDictionary("Pages");
         if (root is null)
         {
-            _diag.Warn($"The catalog of the {scope} has no page tree.");
+            diag?.Warn($"The catalog of the {scope} has no page tree.");
             return pages;
         }
 
@@ -61,7 +87,7 @@ public sealed partial class PdfDocument
             (PdfDictionary node, Inherited inh, int depth) = stack.Pop();
             if (node.Reference is { } r && !visited.Add(r.Number))
             {
-                _diag.Warn("The page tree visits an object twice (a cycle or a shared page); the repeat was skipped.", r.Number);
+                diag?.Warn("The page tree visits an object twice (a cycle or a shared page); the repeat was skipped.", r.Number);
                 continue;
             }
 
@@ -72,11 +98,11 @@ public sealed partial class PdfDocument
 
             if (depth > Limits.MaxNestingDepth)
             {
-                _diag.Warn("The page tree is nested too deeply; the deeper pages were ignored.", node.Reference?.Number ?? -1);
+                diag?.Warn("The page tree is nested too deeply; the deeper pages were ignored.", node.Reference?.Number ?? -1);
                 continue;
             }
 
-            var here = new Inherited(
+            Inherited here = countOnly ? default : new Inherited(
                 node.Get("Resources") ?? inh.Resources,
                 node.Get("MediaBox") ?? inh.MediaBox,
                 node.Get("CropBox") ?? inh.CropBox,
@@ -87,7 +113,11 @@ public sealed partial class PdfDocument
             {
                 if (node.GetName("Type") != "Pages")
                 {
-                    pages.Add(new PdfPageNode(node, here.Resources, here.MediaBox, here.CropBox, here.Rotate));
+                    count++;
+                    if (!countOnly)
+                    {
+                        pages.Add(new PdfPageNode(node, here.Resources, here.MediaBox, here.CropBox, here.Rotate));
+                    }
                 }
 
                 continue;
@@ -101,9 +131,14 @@ public sealed partial class PdfDocument
                 }
                 else
                 {
-                    _diag.Warn("A page tree entry is not a dictionary; skipped.", node.Reference?.Number ?? -1);
+                    diag?.Warn("A page tree entry is not a dictionary; skipped.", node.Reference?.Number ?? -1);
                 }
             }
+        }
+
+        if (!countOnly)
+        {
+            count = pages.Count;
         }
 
         return pages;

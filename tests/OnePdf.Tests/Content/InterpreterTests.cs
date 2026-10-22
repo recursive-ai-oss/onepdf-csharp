@@ -24,7 +24,7 @@ public class InterpreterTests
         Assert.Contains("page box=0 0 200 200 name=CropBox rotate=0 unit=1 scale=1 size=200 200 base=[1 0 0 -1 0 200]", t);
         Assert.Contains("gs ctm=[1 0 0 -1 0 200] fill=rgb(1 0 0) stroke=gray(0)", t);
         Assert.Contains("fill nonzero M 10 10 L 60 10 L 60 60 L 10 60 Z", t);
-        Assert.StartsWith("onepdf-display-list 1\n", t);
+        Assert.StartsWith("onepdf-display-list 2\n", t);
     }
 
     [Fact]
@@ -144,8 +144,8 @@ public class InterpreterTests
     {
         string res = "/Resources << /ColorSpace << /Cal [/CalRGB << /WhitePoint [1 1 1] >>] /L [/Lab << /WhitePoint [0.95 1 1.09] /Range [-50 50 -50 50] >>] /I [/Indexed /DeviceRGB 1 <FF0000 0000FF>] /S [/Separation /Spot /DeviceCMYK 6 0 R] /ICC [/ICCBased 5 0 R] >> >>";
         string t = T("0.25 g 1 0 0 RG 0 1 0 0 k /Cal cs 0.5 0.5 0.5 sc /L cs 50 80 -90 sc /I cs 1 sc /ICC cs 0.1 0.2 0.3 sc 0 0 m 1 1 l B", res,
-            b => b.Stream(5, "/N 3", [1, 2, 3, 4]).Obj(6, "<< /FunctionType 2 /Domain [0 1] /N 1 >>"), objects: 7);
-        Assert.Contains("fill=icc3:4:", t);
+            b => b.Stream(5, "/N 3", IccHeader("RGB ")).Obj(6, "<< /FunctionType 2 /Domain [0 1] /N 1 >>"), objects: 7);
+        Assert.Contains("fill=icc3:128:", t);
         Assert.Contains("(0.1 0.2 0.3)", t);
         // Lab: a clamped to its range.
         string t2 = T("/L cs 50 80 -90 sc 0 0 m 1 1 l f", res);
@@ -155,16 +155,42 @@ public class InterpreterTests
         string t4 = T("0 1 0 0 k 0 0 m 1 1 l f");
         Assert.Contains("fill=cmyk(0 1 0 0)", t4);
         string t5 = T("/Cal cs 0 0 m 1 1 l f", res);
-        Assert.Contains("fill=rgb(0 0 0)", t5);
+        Assert.Contains("fill=calrgb(0 0 0)", t5);
+        // A profile that is not an ICC profile falls back to the device space of the same size.
+        string t6 = T("/ICC cs 0.1 0.2 0.3 sc 0 0 m 1 1 l f", res, b => b.Stream(5, "/N 3", [1, 2, 3, 4]).Obj(6, "<< /FunctionType 2 /Domain [0 1] /N 1 >>"), objects: 7);
+        Assert.Contains("fill=rgb(0.1 0.2 0.3)", t6);
+    }
+
+    private static byte[] IccHeader(string space)
+    {
+        var h = new byte[128];
+        System.Text.Encoding.ASCII.GetBytes(space).CopyTo(h, 16);
+        System.Text.Encoding.ASCII.GetBytes("acsp").CopyTo(h, 36);
+        return h;
     }
 
     [Fact]
-    public void SeparationPassesThroughAlternateWithDiagnosticUntilFunctionsAreWired()
+    public void SeparationRunsItsTintFunction()
     {
         byte[] data = TestPdf.Build("/S cs 0.5 sc 0 0 m 1 1 l f", "/Resources << /ColorSpace << /S [/Separation /Spot /DeviceGray 5 0 R] >> >>",
             b => b.Obj(5, "<< /FunctionType 2 /Domain [0 1] /N 1 >>"), objects: 6);
-        string t = TestPdf.Text(data);
-        Assert.Contains("fill=gray(0.5)", t);
+        Assert.Contains("fill=gray(0.5)", TestPdf.Text(data));
+        Assert.DoesNotContain(DiagsOf(data), d => d.Message.Contains("tint transform"));
+
+        byte[] cmyk = TestPdf.Build("/S cs 0.5 sc 0 0 m 1 1 l f /S cs 0 0 m 1 1 l f", "/Resources << /ColorSpace << /S [/Separation /Spot /DeviceCMYK 5 0 R] >> >>",
+            b => b.Obj(5, "<< /FunctionType 2 /Domain [0 1] /C0 [0 0 0 0] /C1 [0 1 1 0] /N 1 >>"), objects: 6);
+        string t = TestPdf.Text(cmyk);
+        Assert.Contains("fill=cmyk(0 0.5 0.5 0)", t);
+        // The initial colour of a Separation space is tint 1.0.
+        Assert.Contains("fill=cmyk(0 1 1 0)", t);
+    }
+
+    [Fact]
+    public void UnusableTintFunctionFallsBackWithDiagnostic()
+    {
+        byte[] data = TestPdf.Build("/S cs 0.5 sc 0 0 m 1 1 l f", "/Resources << /ColorSpace << /S [/Separation /Spot /DeviceGray 5 0 R] >> >>",
+            b => b.Obj(5, "<< /FunctionType 9 >>"), objects: 6);
+        Assert.Contains("fill=gray(0.5)", TestPdf.Text(data));
         Assert.Contains(DiagsOf(data), d => d.Message.Contains("tint transform"));
     }
 

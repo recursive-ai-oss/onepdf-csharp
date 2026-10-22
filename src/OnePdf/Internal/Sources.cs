@@ -84,6 +84,8 @@ internal sealed class FileSource : IPdfSource
     private readonly string _path;
     private readonly long _length;
     private readonly DateTime _lastWriteUtc;
+    private const long MtimeCheckMilliseconds = 100;
+    private long _lastMtimeCheck;
 
     public FileSource(string path)
     {
@@ -91,6 +93,7 @@ internal sealed class FileSource : IPdfSource
         _handle = File.OpenHandle(_path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete, FileOptions.RandomAccess);
         _length = RandomAccess.GetLength(_handle);
         _lastWriteUtc = File.GetLastWriteTimeUtc(_path);
+        _lastMtimeCheck = Environment.TickCount64;
     }
 
     public long Length => _length;
@@ -137,7 +140,17 @@ internal sealed class FileSource : IPdfSource
 
     public void EnsureUnchanged()
     {
-        if (RandomAccess.GetLength(_handle) != _length || File.GetLastWriteTimeUtc(_path) != _lastWriteUtc)
+        // A length change is caught on every call (one cheap query on the open handle). The modification time needs a
+        // path lookup, so it is re-read at most every MtimeCheckMilliseconds: a same-size rewrite is noticed within that time.
+        bool changed = RandomAccess.GetLength(_handle) != _length;
+        long now = Environment.TickCount64;
+        if (!changed && now - Volatile.Read(ref _lastMtimeCheck) >= MtimeCheckMilliseconds)
+        {
+            changed = File.GetLastWriteTimeUtc(_path) != _lastWriteUtc;
+            Volatile.Write(ref _lastMtimeCheck, now);
+        }
+
+        if (changed)
         {
             throw new PdfSourceChangedException("The file changed after the document was opened.");
         }

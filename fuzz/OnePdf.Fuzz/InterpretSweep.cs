@@ -15,11 +15,14 @@ internal static class InterpretSweep
 {
     private const int MaxPages = 25;
 
+    private static readonly Dictionary<string, int> ImageKinds = [];
+
     private sealed class Balance : PdfDevice
     {
         public int Clips;
         public int Others;
         public int Items;
+        public bool CountImages = true;
 
         public override void PushClip(in PdfPath path, bool evenOdd, in PdfGraphicsState state) => Clips++;
 
@@ -49,6 +52,24 @@ internal static class InterpretSweep
             if (!state.Ctm.IsFinite)
             {
                 Others += 1000;
+            }
+        }
+
+        public override void DrawImage(in PdfImage image, in PdfGraphicsState state)
+        {
+            // Builds the finished image (cached on the image), so decoding runs under the sweep like a real device's would.
+            try
+            {
+                PdfImageData? d = image.GetData();
+                if (CountImages)
+                {
+                    string kind = d is null ? "none" : !d.IsDecoded ? "encoded" : d.IsStencil ? "stencil" : "decoded";
+                    ImageKinds[kind] = ImageKinds.GetValueOrDefault(kind) + 1;
+                }
+            }
+            catch (PdfLimitException)
+            {
+                ImageKinds["limit"] = ImageKinds.GetValueOrDefault("limit") + 1;
             }
         }
 
@@ -85,6 +106,7 @@ internal static class InterpretSweep
                         doc.Pages[i].Interpret(list);
                         var b = new Balance();
                         list.Replay(b);
+                        b.CountImages = false;
                         list.Replay(b, new PdfBounds(0, 0, 200, 200));
                         items += b.Items;
                         if (b.Clips != 0 || b.Others != 0)
@@ -129,7 +151,7 @@ internal static class InterpretSweep
         }
 
         using Process p = Process.GetCurrentProcess();
-        Console.WriteLine($"files={files} opened={opened} pages={pages} items={items} typed-errors={typed} ({string.Join(", ", typedKinds.Select(kv => kv.Key + "=" + kv.Value))}) crashes={crashes} unbalanced={unbalanced} slow={slow} worst-page={worstPage:F2}s peak-rss={p.PeakWorkingSet64 >> 20}MiB");
+        Console.WriteLine($"files={files} opened={opened} pages={pages} items={items} typed-errors={typed} ({string.Join(", ", typedKinds.Select(kv => kv.Key + "=" + kv.Value))}) crashes={crashes} unbalanced={unbalanced} slow={slow} worst-page={worstPage:F2}s peak-rss={p.PeakWorkingSet64 >> 20}MiB images=[{string.Join(", ", ImageKinds.OrderBy(kv => kv.Key).Select(kv => kv.Key + "=" + kv.Value))}]");
         return crashes == 0 && unbalanced == 0 ? 0 : 1;
     }
 }

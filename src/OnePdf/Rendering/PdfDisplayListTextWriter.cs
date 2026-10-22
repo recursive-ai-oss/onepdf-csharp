@@ -10,7 +10,7 @@ namespace OnePdf;
 internal sealed class PdfDisplayListTextWriter(TextWriter output) : IPdfDevice
 {
     /// <summary>The version of the text format. Bump it with any change to the output.</summary>
-    public const int FormatVersion = 1;
+    public const int FormatVersion = 2;
 
     /// <summary>First token of the header line.</summary>
     public const string Magic = "onepdf-display-list";
@@ -557,9 +557,57 @@ internal sealed class PdfDisplayListTextWriter(TextWriter output) : IPdfDevice
 
         sb.Append(" bytes=").Append(length.ToString(CultureInfo.InvariantCulture));
         sb.Append(" fnv=").Append(hash.ToString("x16", CultureInfo.InvariantCulture));
+        sb.Append(" data=");
+        FinishedImage(sb, image);
         sb.Append(" dict=");
         Dict(sb, image.Dictionary, 0);
         Line(sb.ToString());
+    }
+
+    /// <summary>Describes the finished image: <c>none</c>, <c>encoded</c>, <c>stencil</c> or <c>decoded</c>, with sizes and sample hashes.</summary>
+    private static void FinishedImage(StringBuilder sb, in PdfImage image)
+    {
+        PdfImageData? d;
+        try
+        {
+            d = image.GetData();
+        }
+        catch (PdfException)
+        {
+            sb.Append("limit");
+            return;
+        }
+
+        if (d is null)
+        {
+            sb.Append("none");
+            return;
+        }
+
+        CultureInfo ci = CultureInfo.InvariantCulture;
+        if (!d.IsDecoded)
+        {
+            sb.Append("encoded:").Append(d.Width.ToString(ci)).Append('x').Append(d.Height.ToString(ci));
+            if (d.Alpha is { } ea)
+            {
+                sb.Append(":alpha=").Append(ea.Width.ToString(ci)).Append('x').Append(ea.Height.ToString(ci)).Append(':').Append(Fnv1a(ea.Values.Span).ToString("x16", ci));
+            }
+
+            return;
+        }
+
+        if (d.IsStencil)
+        {
+            sb.Append("stencil:").Append(d.Width.ToString(ci)).Append('x').Append(d.Height.ToString(ci)).Append(':').Append(Fnv1a(d.Alpha!.Values.Span).ToString("x16", ci));
+            return;
+        }
+
+        sb.Append("decoded:").Append(d.Width.ToString(ci)).Append('x').Append(d.Height.ToString(ci)).Append(':').Append(d.ColorSpace!.Name);
+        sb.Append(':').Append(Fnv1a(d.Samples.Span).ToString("x16", ci));
+        if (d.Alpha is { } a)
+        {
+            sb.Append(":alpha=").Append(a.Width.ToString(ci)).Append('x').Append(a.Height.ToString(ci)).Append(':').Append(Fnv1a(a.Values.Span).ToString("x16", ci));
+        }
     }
 
     public void PaintShading(PdfObject shading, string name, in PdfGraphicsState state)

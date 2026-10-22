@@ -35,8 +35,7 @@ internal sealed partial class ContentInterpreter
     private readonly List<byte> _mc = [];
     private readonly HashSet<string> _reported = new(StringComparer.Ordinal);
     private readonly HashSet<int> _activeForms = [];
-    private readonly ColorContext _colorContext;
-    private readonly ColorSpaceParser _spaces;
+    private readonly ColorSpaceCache _spaces;
     private readonly OptionalContentState _oc;
     private readonly Dictionary<int, FontInfo> _fontsByRef = [];
     private readonly Dictionary<PdfDictionary, FontInfo> _fontsByDict = new(ReferenceEqualityComparer.Instance);
@@ -70,8 +69,7 @@ internal sealed partial class ContentInterpreter
         _options = options;
         _ct = ct;
         _limits = doc.Limits;
-        _colorContext = new ColorContext { Note = m => Report(PdfSeverity.Info, m) };
-        _spaces = new ColorSpaceParser(doc, m => Report(PdfSeverity.Warning, m));
+        _spaces = new ColorSpaceCache(doc);
         _oc = new OptionalContentState(doc, options.OptionalContentOverride);
     }
 
@@ -570,15 +568,15 @@ internal sealed partial class ContentInterpreter
             // ---- colour ----
             case ContentOp.FillGray:
             case ContentOp.StrokeGray:
-                SetDeviceColor(op, DeviceColorSpaceDef.Gray, 1, op == ContentOp.FillGray);
+                SetDeviceColor(op, PdfColorSpace.Gray, 1, op == ContentOp.FillGray);
                 break;
             case ContentOp.FillRgb:
             case ContentOp.StrokeRgb:
-                SetDeviceColor(op, DeviceColorSpaceDef.Rgb, 3, op == ContentOp.FillRgb);
+                SetDeviceColor(op, PdfColorSpace.Rgb, 3, op == ContentOp.FillRgb);
                 break;
             case ContentOp.FillCmyk:
             case ContentOp.StrokeCmyk:
-                SetDeviceColor(op, DeviceColorSpaceDef.Cmyk, 4, op == ContentOp.FillCmyk);
+                SetDeviceColor(op, PdfColorSpace.Cmyk, 4, op == ContentOp.FillCmyk);
                 break;
             case ContentOp.FillSpaceName:
             case ContentOp.StrokeSpaceName:
@@ -782,7 +780,7 @@ internal sealed partial class ContentInterpreter
 
     // ---- colour operators ----
 
-    private void SetDeviceColor(ContentOp op, ColorSpaceDef space, int n, bool fill)
+    private void SetDeviceColor(ContentOp op, PdfColorSpace space, int n, bool fill)
     {
         if (!Nums(n))
         {
@@ -790,7 +788,7 @@ internal sealed partial class ContentInterpreter
             return;
         }
 
-        PdfColor c = space.Convert(_a.AsSpan(0, n), _colorContext);
+        PdfColor c = ColorOps.ToColor(space, _a.AsSpan(0, n));
         if (fill)
         {
             _g.FillCs = space;
@@ -812,14 +810,14 @@ internal sealed partial class ContentInterpreter
         }
 
         string name = _ops[_nOps - 1].Name!;
-        ColorSpaceDef? def = _spaces.ParseNamed(name, _res);
+        PdfColorSpace? def = _spaces.Named(name, _res);
         if (def is null)
         {
             Report(PdfSeverity.Warning, "Colour space /" + name + " is not defined or not supported; the operator was skipped.");
             return;
         }
 
-        PdfColor initial = def.Initial(_colorContext);
+        PdfColor initial = ColorOps.Initial(def);
         if (fill)
         {
             _g.FillCs = def;
@@ -834,7 +832,7 @@ internal sealed partial class ContentInterpreter
 
     private void SetColor(ContentOp op, bool fill)
     {
-        ColorSpaceDef cs = fill ? _g.FillCs : _g.StrokeCs;
+        PdfColorSpace cs = fill ? _g.FillCs : _g.StrokeCs;
         int count = _nOps;
         string? patternName = null;
         if (count > 0 && _ops[count - 1].Kind == OperandKind.Name && op is ContentOp.FillColorN or ContentOp.StrokeColorN)
@@ -844,7 +842,7 @@ internal sealed partial class ContentInterpreter
         }
 
         PdfColor color;
-        if (cs is PatternColorSpaceDef pcs)
+        if (cs.Kind == PdfColorSpaceKind.Pattern)
         {
             if (patternName is null)
             {
@@ -859,7 +857,7 @@ internal sealed partial class ContentInterpreter
                 return;
             }
 
-            int n = pcs.N;
+            int n = cs.ComponentCount;
             if (count < n)
             {
                 BadOperands(op);
@@ -878,13 +876,13 @@ internal sealed partial class ContentInterpreter
                 _a[i] = o.Num;
             }
 
-            PdfColor tint = pcs.Convert(_a.AsSpan(0, n), _colorContext);
+            PdfColor tint = ColorOps.ToColor(cs, _a.AsSpan(0, n));
             color = tint with { Pattern = pattern, PatternName = patternName };
             Report(PdfSeverity.Info, "Pattern colours are passed to the device unevaluated.");
         }
         else
         {
-            int n = cs.N;
+            int n = cs.ComponentCount;
             if (patternName is not null || count < n || n > 32)
             {
                 BadOperands(op);
@@ -903,7 +901,7 @@ internal sealed partial class ContentInterpreter
                 _a[i] = o.Num;
             }
 
-            color = cs.Convert(_a.AsSpan(0, n), _colorContext);
+            color = ColorOps.ToColor(cs, _a.AsSpan(0, n));
         }
 
         if (fill)

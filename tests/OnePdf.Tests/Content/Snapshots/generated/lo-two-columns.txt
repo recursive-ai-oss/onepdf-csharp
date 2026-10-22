@@ -1,5 +1,5 @@
 # page 1
-onepdf-display-list 1
+onepdf-display-list 2
 page box=0 0 595.3039 841.8898 name=CropBox rotate=0 unit=1 scale=1 size=595.3039 841.8898 base=[1 0 0 -1 0 841.8898]
   begin-mc /Artifact props=null
     gs ctm=[1 0 0 -1 0 841.8898] fill=gray(0) stroke=gray(0) lw=0.1 cap=0 join=0 miter=10 dash=[] phase=0 flat=1 ri=RelativeColorimetric fa=1 sa=1 bm=Normal sm=0 ais=0 op=000

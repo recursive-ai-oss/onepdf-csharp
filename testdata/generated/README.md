@@ -35,3 +35,7 @@ Regenerate: `python3 tools/corpus/generate.py` (needs `google-chrome`, `soffice`
 | `*-objstm`, `*-linearized`, `*-rotated-*` | repacked variants (object streams with an xref stream, linearized, `/Rotate`) |
 
 Not covered: Type 3 from a text producer other than the hand-assembled file and Chrome's emoji (no other installed tool emits it).
+
+## Images
+
+`images/*.jpg` are 16×16 gradients (gray, RGB, CMYK with an Adobe APP14 marker and inverted ink) written by `tools/make_test_jpegs.py` with Pillow. The image tests decode them through a test-only JPEG decoder and compare against the gradient with a tolerance.

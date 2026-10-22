@@ -7,6 +7,16 @@ public sealed partial class PdfDocument
     private const int MaxSections = 65_536;
     private int _declaredEntries;
 
+    // Why the cross-reference data was refused. Damage found while reading it is reported by return value, not by
+    // exception, so that opening a damaged file that is then repaired stays free of first-chance exceptions.
+    private string? _xrefFailure;
+
+    private XrefSection? FailSection(string why)
+    {
+        _xrefFailure = why;
+        return null;
+    }
+
     private void Initialize()
     {
         long length = _source.Length;
@@ -20,11 +30,17 @@ public sealed partial class PdfDocument
         string? reason = null;
         try
         {
-            ReadXrefChain();
-            SetupEncryption();
-            if (Trailer.GetDictionary("Root") is null)
+            if (!ReadXrefChain())
             {
-                reason = "the trailer's /Root does not lead to a dictionary";
+                reason = _xrefFailure ?? "the cross-reference data is damaged";
+            }
+            else
+            {
+                SetupEncryption();
+                if (Trailer.GetDictionary("Root") is null)
+                {
+                    reason = "the trailer's /Root does not lead to a dictionary";
+                }
             }
         }
         catch (PdfFormatException e)
@@ -72,12 +88,13 @@ public sealed partial class PdfDocument
     private long FindStartXref()
     {
         int tail = (int)Math.Min(_source.Length, 8192);
-        byte[] buf = new byte[tail];
-        int n = _source.Read(_source.Length - tail, buf);
-        int idx = buf.AsSpan(0, n).LastIndexOf("startxref"u8);
+        Span<byte> buf = stackalloc byte[8192];
+        int n = _source.Read(_source.Length - tail, buf.Slice(0, tail));
+        int idx = buf.Slice(0, n).LastIndexOf("startxref"u8);
         if (idx < 0)
         {
-            throw new PdfFormatException("There is no startxref near the end of the file.");
+            _xrefFailure = "There is no startxref near the end of the file.";
+            return -1;
         }
 
         int p = idx + 9;
@@ -97,7 +114,8 @@ public sealed partial class PdfDocument
 
         if (digits == 0)
         {
-            throw new PdfFormatException("startxref is not followed by an offset.");
+            _xrefFailure = "startxref is not followed by an offset.";
+            return -1;
         }
 
         return v;
@@ -105,11 +123,16 @@ public sealed partial class PdfDocument
 
     /// <summary>
     /// Reads the cross-reference sections from the newest (named by startxref) back through /Prev, folding a hybrid file's
-    /// /XRefStm into its section. Any inconsistency throws <see cref="PdfFormatException"/> and the caller rebuilds.
+    /// /XRefStm into its section. Any inconsistency returns false with <c>_xrefFailure</c> set and the caller rebuilds.
     /// </summary>
-    private void ReadXrefChain()
+    private bool ReadXrefChain()
     {
         long next = FindStartXref();
+        if (next < 0)
+        {
+            return false;
+        }
+
         var sections = new List<XrefSection>();
         var resolvers = new List<PdfResolver>();
         var visited = new HashSet<long>();
@@ -119,18 +142,29 @@ public sealed partial class PdfDocument
         {
             if (!visited.Add(next))
             {
-                throw new PdfFormatException($"The cross-reference /Prev chain loops back to offset {next}.");
+                _xrefFailure = $"The cross-reference /Prev chain loops back to offset {next}.";
+                return false;
             }
 
             if (sections.Count >= MaxSections)
             {
-                throw new PdfFormatException("The cross-reference chain has too many sections.");
+                _xrefFailure = "The cross-reference chain has too many sections.";
+                return false;
             }
 
             long pos = LocateSection(next);
+            if (pos < 0)
+            {
+                return false;
+            }
+
             var resolver = new PdfResolver(this, sections.Count);
             resolvers.Add(resolver);
-            XrefSection s = ReadSection(pos, resolver);
+            if (ReadSection(pos, resolver) is not { } s)
+            {
+                return false;
+            }
+
             sections.Add(s);
             next = s.Prev;
         }
@@ -148,6 +182,7 @@ public sealed partial class PdfDocument
 
         _merged = merged;
         Trailer = MergeTrailers();
+        return true;
     }
 
     private PdfDictionary MergeTrailers()
@@ -208,7 +243,8 @@ public sealed partial class PdfDocument
             }
         }
 
-        throw new PdfFormatException($"There is no cross-reference section at offset {offset}.") { Offset = offset };
+        _xrefFailure = $"There is no cross-reference section at offset {offset}.";
+        return -1;
     }
 
     private bool LooksLikeSection(long pos)
@@ -229,7 +265,7 @@ public sealed partial class PdfDocument
         return g.Kind == TokenKind.Integer && lx.NextToken().IsKeyword("obj");
     }
 
-    private XrefSection ReadSection(long pos, PdfResolver resolver)
+    private XrefSection? ReadSection(long pos, PdfResolver resolver)
     {
         using var lx = new Lexer(_source, pos);
         Token t = lx.NextToken();
@@ -242,7 +278,7 @@ public sealed partial class PdfDocument
     }
 
     // ISO 32000-2 7.5.4: subsections of 'first count' followed by count entries 'offset generation n|f', then the trailer.
-    private XrefSection ReadTableSection(Lexer lx, long pos, PdfResolver resolver)
+    private XrefSection? ReadTableSection(Lexer lx, long pos, PdfResolver resolver)
     {
         var section = new XrefSection { Offset = pos };
         while (true)
@@ -256,7 +292,7 @@ public sealed partial class PdfDocument
             Token c = lx.NextToken();
             if (t.Kind != TokenKind.Integer || c.Kind != TokenKind.Integer || t.Int < 0 || c.Int < 0)
             {
-                throw new PdfFormatException("A cross-reference subsection header is damaged or the trailer is missing.") { Offset = t.Start };
+                return FailSection("A cross-reference subsection header is damaged or the trailer is missing.");
             }
 
             long first = t.Int;
@@ -269,7 +305,7 @@ public sealed partial class PdfDocument
             // An entry takes at least six bytes ("0 0 n\n"); a count the file cannot hold is a lie.
             if (count * 6 > lx.Length - lx.Position)
             {
-                throw new PdfFormatException($"A cross-reference subsection claims {count} entries, more than the file can hold.") { Offset = t.Start };
+                return FailSection($"A cross-reference subsection claims {count} entries, more than the file can hold.");
             }
 
             _declaredEntries += (int)count;
@@ -280,7 +316,7 @@ public sealed partial class PdfDocument
                 Token k = lx.NextToken();
                 if (o.Kind != TokenKind.Integer || g.Kind != TokenKind.Integer || !(k.IsKeyword("n") || k.IsKeyword("f")))
                 {
-                    throw new PdfFormatException("A cross-reference entry is damaged.") { Offset = o.Start };
+                    return FailSection("A cross-reference entry is damaged.");
                 }
 
                 bool free = k.IsKeyword("f");
@@ -294,7 +330,7 @@ public sealed partial class PdfDocument
                 long num = first + i;
                 if (num > int.MaxValue)
                 {
-                    throw new PdfFormatException("A cross-reference entry has an object number out of range.") { Offset = o.Start };
+                    return FailSection("A cross-reference entry has an object number out of range.");
                 }
 
                 int gen = (int)Math.Clamp(g.Int, 0, 65535);
@@ -305,7 +341,7 @@ public sealed partial class PdfDocument
         var parser = new ObjectParser(lx, resolver, Limits, _diag);
         if (parser.ReadObject(out _) is not PdfDictionary trailer)
         {
-            throw new PdfFormatException("The trailer is missing or is not a dictionary.") { Offset = lx.Position };
+            return FailSection("The trailer is missing or is not a dictionary.");
         }
 
         section.Trailer = trailer;
@@ -315,7 +351,11 @@ public sealed partial class PdfDocument
             // ISO 32000-2 7.5.8.4: a hybrid file looks in the table first, then the /XRefStm; the stream
             // supplies the compressed objects the table lists as free.
             long stmPos = LocateSection(stmOffset);
-            XrefSection stm = ReadStreamSection(stmPos, resolver);
+            if (stmPos < 0 || ReadStreamSection(stmPos, resolver) is not { } stm)
+            {
+                return null;
+            }
+
             foreach (KeyValuePair<int, XrefEntry> kv in stm.Entries)
             {
                 if (!section.Entries.TryGetValue(kv.Key, out XrefEntry existing) || existing.Type == 0)
@@ -336,19 +376,19 @@ public sealed partial class PdfDocument
     };
 
     // ISO 32000-2 7.5.8: entries are fixed-width big-endian fields described by /W, covering the ranges in /Index.
-    private XrefSection ReadStreamSection(long pos, PdfResolver resolver)
+    private XrefSection? ReadStreamSection(long pos, PdfResolver resolver)
     {
         ParsedObject? p = ParseIndirectAt(pos, -1, resolver, _diag);
         if (p?.Object is not PdfStream s || s.Dictionary.GetName("Type") != "XRef")
         {
-            throw new PdfFormatException("The cross-reference stream is missing or is not a stream.") { Offset = pos };
+            return FailSection("The cross-reference stream is missing or is not a stream.");
         }
 
         PdfDictionary d = s.Dictionary;
         PdfArray? w = d.GetArray("W");
         if (w is null || w.Count < 3)
         {
-            throw new PdfFormatException("The cross-reference stream has no valid /W.") { Offset = pos };
+            return FailSection("The cross-reference stream has no valid /W.");
         }
 
         Span<int> widths = stackalloc int[3];
@@ -357,7 +397,7 @@ public sealed partial class PdfDocument
             long v = w.GetInt(i, -1);
             if (v is < 0 or > 8)
             {
-                throw new PdfFormatException("The cross-reference stream has an invalid /W.") { Offset = pos };
+                return FailSection("The cross-reference stream has an invalid /W.");
             }
 
             widths[i] = (int)v;
@@ -366,7 +406,7 @@ public sealed partial class PdfDocument
         int rowLen = widths[0] + widths[1] + widths[2];
         if (rowLen == 0)
         {
-            throw new PdfFormatException("The cross-reference stream has empty rows.") { Offset = pos };
+            return FailSection("The cross-reference stream has empty rows.");
         }
 
         long size = d.GetInt("Size", -1);
@@ -376,7 +416,7 @@ public sealed partial class PdfDocument
         {
             if (size < 0)
             {
-                throw new PdfFormatException("The cross-reference stream has neither /Index nor /Size.") { Offset = pos };
+                return FailSection("The cross-reference stream has neither /Index nor /Size.");
             }
 
             ranges.Add((0, size));
@@ -394,7 +434,7 @@ public sealed partial class PdfDocument
         {
             if (first < 0 || count < 0)
             {
-                throw new PdfFormatException("The cross-reference stream has a negative /Index value.") { Offset = pos };
+                return FailSection("The cross-reference stream has a negative /Index value.");
             }
 
             total += count;
@@ -412,7 +452,7 @@ public sealed partial class PdfDocument
         ReadOnlySpan<byte> data = s.DecodeCore(CancellationToken.None).Span;
         if (total * rowLen > data.Length)
         {
-            throw new PdfFormatException("The cross-reference stream holds fewer entries than it declares.") { Offset = pos };
+            return FailSection("The cross-reference stream holds fewer entries than it declares.");
         }
 
         _declaredEntries += (int)total;
@@ -428,7 +468,7 @@ public sealed partial class PdfDocument
                 long num = first + i;
                 if (num > int.MaxValue)
                 {
-                    throw new PdfFormatException("A cross-reference entry has an object number out of range.") { Offset = pos };
+                    return FailSection("A cross-reference entry has an object number out of range.");
                 }
 
                 section.Entries[(int)num] = type switch

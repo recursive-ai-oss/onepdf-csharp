@@ -20,7 +20,7 @@ internal sealed class ObjectParser
     private readonly int _objNum;
     private readonly PdfDocument? _decrypting;
     private readonly int _generation;
-    private Frame[] _stack = new Frame[8];
+    private Frame[] _stack = [];
 
     public ObjectParser(Lexer lexer, PdfResolver? resolver, PdfLimits limits, DiagnosticBag? diag, int objectNumber = -1, PdfDocument? decrypting = null, int generation = 0)
     {
@@ -100,6 +100,14 @@ internal sealed class ObjectParser
                     value = Count(new PdfString(_decrypting is null ? t.Bytes! : _decrypting.DecryptStringBytes(t.Bytes!, _objNum, _generation)), 32 + t.Bytes!.Length);
                     break;
                 case TokenKind.Name:
+                    if (depth > 0 && _stack[depth - 1].Dict is not null && _stack[depth - 1].Key is null)
+                    {
+                        // A dictionary key: no object is needed for it.
+                        _stack[depth - 1].Key = t.Text;
+                        EstimatedBytes += 16;
+                        continue;
+                    }
+
                     value = Count(new PdfName(t.Text!), 32 + (2 * t.Text!.Length));
                     break;
                 case TokenKind.Keyword:
@@ -169,7 +177,7 @@ internal sealed class ObjectParser
 
         if (depth == _stack.Length)
         {
-            Array.Resize(ref _stack, _stack.Length * 2);
+            Array.Resize(ref _stack, Math.Max(4, _stack.Length * 2));
         }
 
         EstimatedBytes += 64;

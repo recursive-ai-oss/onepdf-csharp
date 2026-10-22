@@ -39,7 +39,7 @@ public interface IPdfDevice
     /// <summary>Shows a string of text.</summary>
     void ShowGlyphRun(in PdfGlyphRun run, in PdfGraphicsState state);
 
-    /// <summary>Draws an image into the unit square of <see cref="PdfGraphicsState.Ctm"/>. The image is passed undecoded.</summary>
+    /// <summary>Draws an image into the unit square of <see cref="PdfGraphicsState.Ctm"/>. The image is passed with its dictionary and encoded data; <see cref="PdfImage.GetData"/> builds the finished image.</summary>
     void DrawImage(in PdfImage image, in PdfGraphicsState state);
 
     /// <summary>

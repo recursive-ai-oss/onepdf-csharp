@@ -36,6 +36,7 @@ internal static class Program
         ["fontprogram"] = FontProgramTarget.Run,
         ["cmap"] = CMapTarget.Run,
         ["security"] = SecurityTarget.Run,
+        ["image"] = ImageTarget.Run,
         ["content"] = ContentTarget.Run,
         ["extraction"] = ExtractionTarget.Run,
     };

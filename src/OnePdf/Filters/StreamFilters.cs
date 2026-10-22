@@ -117,42 +117,57 @@ internal static class StreamFilters
             _ => input.Length,
         };
         var output = new OutputBuffer(cap, estimate);
-        switch (kind)
+        try
         {
-            case Kind.Flate:
-                CompressedFilters.Flate(input, limits, output, ref issues, ref message, ct);
-                break;
-            case Kind.Lzw:
-                CompressedFilters.Lzw(input, p, limits, output, ref issues, ref message, ct);
-                break;
-            case Kind.AsciiHex:
-                AsciiFilters.Hex(input, output, ref issues, ref message, ct);
-                break;
-            case Kind.Ascii85:
-                AsciiFilters.Ascii85(input, output, ref issues, ref message, ct);
-                break;
-            case Kind.CcittFax:
-                CcittFax.Decode(input, p, output, ref issues, ref message, ct);
-                break;
-            default:
-                AsciiFilters.RunLength(input, output, ref issues, ref message, ct);
-                break;
-        }
-
-        if (kind is Kind.Flate or Kind.Lzw && p.Predictor > 1)
-        {
-            int n = Predictors.Undo(output.Buffer, output.Length, p, ref issues, ref message);
-            if (n >= 0)
+            switch (kind)
             {
-                output.SetLength(n);
+                case Kind.Flate:
+                    CompressedFilters.Flate(input, limits, output, ref issues, ref message, ct);
+                    break;
+                case Kind.Lzw:
+                    CompressedFilters.Lzw(input, p, limits, output, ref issues, ref message, ct);
+                    break;
+                case Kind.AsciiHex:
+                    AsciiFilters.Hex(input, output, ref issues, ref message, ct);
+                    break;
+                case Kind.Ascii85:
+                    AsciiFilters.Ascii85(input, output, ref issues, ref message, ct);
+                    break;
+                case Kind.CcittFax:
+                    CcittFax.Decode(input, p, output, ref issues, ref message, ct);
+                    break;
+                default:
+                    AsciiFilters.RunLength(input, output, ref issues, ref message, ct);
+                    break;
             }
-        }
 
-        if (output.Exceeded)
+            if (output.Exceeded)
+            {
+                issues |= FilterIssues.LimitExceeded;
+            }
+
+            if ((issues & FilterIssues.LimitExceeded) != 0 && limits.DiscardOnLimit)
+            {
+                return new FilterResult(ReadOnlyMemory<byte>.Empty, issues, message, 0);
+            }
+
+            // The predictor works in place on the exact-size result; PNG rows lose their tag byte, so the result may be a slice.
+            byte[] decoded = output.DetachArray();
+            ReadOnlyMemory<byte> data = decoded;
+            if (kind is Kind.Flate or Kind.Lzw && p.Predictor > 1)
+            {
+                int n = Predictors.Undo(decoded, decoded.Length, p, ref issues, ref message);
+                if (n >= 0)
+                {
+                    data = decoded.AsMemory(0, n);
+                }
+            }
+
+            return new FilterResult(data, issues, message, (issues & FilterIssues.LimitExceeded) != 0 ? 0 : -1);
+        }
+        finally
         {
-            issues |= FilterIssues.LimitExceeded;
+            output.Dispose();
         }
-
-        return new FilterResult(output.Detach(), issues, message, (issues & FilterIssues.LimitExceeded) != 0 ? 0 : -1);
     }
 }

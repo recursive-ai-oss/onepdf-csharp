@@ -21,6 +21,8 @@
 
   <ItemGroup>
     <PackageReference Include="xunit.v3" />
+    <!-- Test-only: backs the JPEG decoder adapter that exercises the image decoder registry. -->
+    <PackageReference Include="RecursiveAI.OneImage" />
   </ItemGroup>
 
   <ItemGroup>
@@ -30,6 +32,7 @@
     <Compile Include="../../fuzz/OnePdf.Fuzz/CcittTarget.cs" Link="Filters/CcittTarget.cs" />
     <Compile Include="../../fuzz/OnePdf.Fuzz/FontTargets.cs" Link="Fonts/FontTargets.cs" />
     <Compile Include="../../fuzz/OnePdf.Fuzz/SecurityTarget.cs" Link="Security/SecurityTarget.cs" />
+    <Compile Include="../../fuzz/OnePdf.Fuzz/ImageTarget.cs" Link="Images/ImageTarget.cs" />
     <Compile Include="../../fuzz/OnePdf.Fuzz/ContentTarget.cs" Link="Content/ContentTarget.cs" />
     <Compile Include="../../fuzz/OnePdf.Fuzz/ExtractionTarget.cs" Link="Extraction/ExtractionTarget.cs" />
   </ItemGroup>
