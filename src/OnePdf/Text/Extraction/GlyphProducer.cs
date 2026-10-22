@@ -1,3 +1,5 @@
+using System.Buffers;
+
 namespace OnePdf.Text;
 
 /// <summary>
@@ -15,8 +17,16 @@ internal sealed class PdfGlyphSource(PdfDocument document) : IGlyphSource
     {
         PdfPage page = document.Pages[pageIndex];
         var device = new TextGlyphDevice(pageIndex);
-        page.Interpret(device, InterpretOptions, cancellationToken);
-        return device.Result();
+        try
+        {
+            page.Interpret(device, InterpretOptions, cancellationToken);
+            return device.Result();
+        }
+        catch
+        {
+            device.Abandon();
+            throw;
+        }
     }
 }
 
@@ -26,10 +36,15 @@ internal sealed class TextGlyphDevice(int pageIndex) : PdfDevice
     /// <summary>Glyphs smaller than this (page units) are not text anybody can see or read.</summary>
     private const double MinSize = 1e-6;
 
-    private readonly List<PdfTextGlyph> _glyphs = [];
+    // Glyphs go into a pooled buffer that the page analysis releases once it has copied the survivors.
+    private PdfTextGlyph[] _buf = ArrayPool<PdfTextGlyph>.Shared.Rent(1024);
+    private int _count;
     private readonly List<PdfBounds> _clips = [];
     private readonly List<(int Mcid, bool Span)> _marked = [];
-    private readonly Dictionary<PdfDictionary, int> _fontIds = new(ReferenceEqualityComparer.Instance);
+    private readonly Dictionary<PdfDictionary, (int Id, string? Name)> _fonts = new(ReferenceEqualityComparer.Instance);
+    private PdfDictionary? _lastFont;
+    private int _lastFontId;
+    private string? _lastFontName;
     private double _width, _height;
     private PdfBounds _clip = PdfBounds.Unbounded;
     private int _skip;
@@ -39,7 +54,22 @@ internal sealed class TextGlyphDevice(int pageIndex) : PdfDevice
     private bool _spanFirst;
     private int _mcid = -1;
 
-    public PdfPageGlyphs Result() => new(pageIndex, _width, _height, _glyphs);
+    public PdfPageGlyphs Result()
+    {
+        PdfTextGlyph[] buf = _buf;
+        _buf = [];
+        return PdfPageGlyphs.FromPooled(pageIndex, _width, _height, buf, _count);
+    }
+
+    /// <summary>Returns the buffer when the page was abandoned (an exception) before <see cref="Result"/>.</summary>
+    public void Abandon()
+    {
+        if (_buf.Length > 0)
+        {
+            ArrayPool<PdfTextGlyph>.Shared.Return(_buf, clearArray: true);
+            _buf = [];
+        }
+    }
 
     public override void BeginPage(in PdfPageInfo page)
     {
@@ -162,17 +192,34 @@ internal sealed class TextGlyphDevice(int pageIndex) : PdfDevice
         bool visible = mode != 3 && mode != 7 && ColorVisible(mode, state);
         int fill = RgbOf(state.FillColor);
         int fontId = -1;
-        if (run.Font is not null && !_fontIds.TryGetValue(run.Font, out fontId))
+        string? fontName = null;
+        if (run.Font is not null)
         {
-            fontId = _fontIds.Count;
-            _fontIds[run.Font] = fontId;
+            if (ReferenceEquals(run.Font, _lastFont))
+            {
+                fontId = _lastFontId;
+                fontName = _lastFontName;
+            }
+            else
+            {
+                if (!_fonts.TryGetValue(run.Font, out (int Id, string? Name) entry))
+                {
+                    entry = (_fonts.Count, FontName(run.Font));
+                    _fonts[run.Font] = entry;
+                }
+
+                (fontId, fontName) = entry;
+                (_lastFont, _lastFontId, _lastFontName) = (run.Font, fontId, fontName);
+            }
         }
 
-        string? fontName = FontName(run.Font);
         double fs = run.FontSize, th = run.HorizontalScale;
         var scale = new PdfMatrix(fs * th, 0, 0, fs, 0, run.Rise);
         var toPage = new PdfMatrix(1, 0, 0, -1, 0, _height);
         ReadOnlySpan<PdfGlyph> glyphs = run.Glyphs.Span;
+        // With no finite clip every comparison below is false, so the glyph box need not be computed.
+        bool clipUnbounded = _clip.Left == double.NegativeInfinity && _clip.Bottom == double.NegativeInfinity
+            && _clip.Right == double.PositiveInfinity && _clip.Top == double.PositiveInfinity;
         for (int i = 0; i < glyphs.Length; i++)
         {
             ref readonly PdfGlyph g = ref glyphs[i];
@@ -201,7 +248,16 @@ internal sealed class TextGlyphDevice(int pageIndex) : PdfDevice
                 continue;
             }
 
-            var glyph = new PdfTextGlyph
+            if (_count == _buf.Length)
+            {
+                PdfTextGlyph[] bigger = ArrayPool<PdfTextGlyph>.Shared.Rent(_buf.Length * 2);
+                Array.Copy(_buf, bigger, _count);
+                ArrayPool<PdfTextGlyph>.Shared.Return(_buf, clearArray: true);
+                _buf = bigger;
+            }
+
+            ref PdfTextGlyph glyph = ref _buf[_count++];
+            glyph = new PdfTextGlyph
             {
                 Text = g.Unicode ?? "\uFFFD",
                 FontId = fontId,
@@ -213,17 +269,19 @@ internal sealed class TextGlyphDevice(int pageIndex) : PdfDevice
                 RenderMode = mode,
                 IsVisible = visible,
                 MarkedContentId = _mcid,
+                ActualTextSpan = _span,
+                ActualText = _span != 0 && _spanFirst ? _spanText : null,
             };
-            PdfRectangle b = glyph.Bounds;
-            bool clipped = b.Right < _clip.Left || b.Left > _clip.Right || b.Top < _clip.Bottom || b.Bottom > _clip.Top;
-            glyph = glyph with { IsClipped = clipped };
             if (_span != 0)
             {
-                glyph = glyph with { ActualTextSpan = _span, ActualText = _spanFirst ? _spanText : null };
                 _spanFirst = false;
             }
 
-            _glyphs.Add(glyph);
+            if (!clipUnbounded)
+            {
+                PdfRectangle b = glyph.Bounds;
+                glyph = glyph with { IsClipped = b.Right < _clip.Left || b.Left > _clip.Right || b.Top < _clip.Bottom || b.Bottom > _clip.Top };
+            }
         }
     }
 

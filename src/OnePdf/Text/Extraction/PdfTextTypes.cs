@@ -69,6 +69,15 @@ public sealed class PdfTextOptions
     /// <summary>Flag headers and footers by their repetition across pages in whole-document extraction. Default true.</summary>
     public bool DetectHeadersAndFooters { get; set; } = true;
 
+    /// <summary>
+    /// Keep the glyphs in the result: <see cref="PdfPageText.Glyphs"/>, <see cref="PdfTextWord.GlyphIndices"/> and the glyph part of the JSON form. Default true.
+    /// Glyphs are by far the largest part of a result (about 136 bytes each, a million for a 300-page book). With false the
+    /// page keeps its blocks, lines, words and boxes, the glyph list is empty, the word glyph indices are empty, and only the plain
+    /// text of <see cref="Mode"/> is available (it is built once the page is complete; <see cref="PdfPageText.GetText"/> with another mode throws <see cref="InvalidOperationException"/>).
+    /// Use it when only text, words, lines and positions are wanted.
+    /// </summary>
+    public bool RetainGlyphs { get; set; } = true;
+
     /// <summary>Pages processed at once by whole-document extraction. 0 (the default) means min(4, processor count); 1 is sequential.</summary>
     public int MaxDegreeOfParallelism { get; set; }
 }
@@ -91,7 +100,7 @@ public sealed class PdfTextWord
     public PdfRectangle Bounds { get; }
 
     /// <summary>Indices into <see cref="PdfPageText.Glyphs"/> of the glyphs that make up the word, in visual order along the reading direction.</summary>
-    public IReadOnlyList<int> GlyphIndices { get; }
+    public IReadOnlyList<int> GlyphIndices { get; internal set; }
 
     /// <summary>False when every glyph of the word is invisible (for example an OCR text layer).</summary>
     public bool IsVisible { get; }
@@ -182,10 +191,10 @@ public sealed class PdfPageText
     public double Height { get; }
 
     /// <summary>The glyphs that took part in extraction (after exclusions, ligature decomposition and <c>/ActualText</c>), in content order.</summary>
-    public IReadOnlyList<PdfTextGlyph> Glyphs { get; }
+    public IReadOnlyList<PdfTextGlyph> Glyphs { get; private set; }
 
     /// <summary>The same glyphs as an array, for the code that reads them by index without going through the interface.</summary>
-    internal PdfTextGlyph[] GlyphArray { get; }
+    internal PdfTextGlyph[] GlyphArray { get; private set; }
 
     /// <summary>Blocks in reading order.</summary>
     public IReadOnlyList<PdfTextBlock> Blocks { get; }
@@ -218,6 +227,7 @@ public sealed class PdfPageText
     public string Text => GetText(_options.Mode);
 
     /// <summary>The page's plain text in the given mode. Computed on first use and cached.</summary>
+    /// <exception cref="InvalidOperationException">The glyphs were not retained (<see cref="PdfTextOptions.RetainGlyphs"/> is false) and <paramref name="mode"/> is not the mode of the options.</exception>
     public string GetText(PdfTextMode mode)
     {
         string?[] cache = _textCache ??= new string?[3];
@@ -227,6 +237,42 @@ public sealed class PdfPageText
             throw new ArgumentOutOfRangeException(nameof(mode));
         }
 
-        return cache[i] ??= PlainText.Build(this, mode, _options);
+        if (cache[i] is { } hit)
+        {
+            return hit;
+        }
+
+        if (_glyphsDropped)
+        {
+            throw new InvalidOperationException("The glyphs of this page were not retained; only the text of the mode in the options is available.");
+        }
+
+        return cache[i] = PlainText.Build(this, mode, _options);
+    }
+
+    private bool _glyphsDropped;
+
+    /// <summary>Builds the text of the options' mode, then lets go of the glyphs (<see cref="PdfTextOptions.RetainGlyphs"/> false). Call after headers and footers are flagged.</summary>
+    internal void DropGlyphs()
+    {
+        if (_glyphsDropped)
+        {
+            return;
+        }
+
+        _ = GetText(_options.Mode);
+        _glyphsDropped = true;
+        GlyphArray = [];
+        Glyphs = GlyphArray;
+        foreach (PdfTextBlock b in Blocks)
+        {
+            foreach (PdfTextLine l in b.Lines)
+            {
+                foreach (PdfTextWord w in l.Words)
+                {
+                    w.GlyphIndices = [];
+                }
+            }
+        }
     }
 }

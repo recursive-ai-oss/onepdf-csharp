@@ -18,7 +18,7 @@ internal static class OnePdfTextSeam
     public static long ExtractText(PdfDocument document, int degree)
     {
         long total = 0;
-        foreach (OnePdf.Text.PdfPageText page in document.ExtractText(new OnePdf.Text.PdfTextOptions { MaxDegreeOfParallelism = degree }))
+        foreach (OnePdf.Text.PdfPageText page in document.ExtractText(new OnePdf.Text.PdfTextOptions { MaxDegreeOfParallelism = degree, RetainGlyphs = false }))
         {
             total += page.Text.Length;
         }
@@ -29,7 +29,7 @@ internal static class OnePdfTextSeam
     public static long Words(PdfDocument document, int degree)
     {
         long total = 0;
-        foreach (OnePdf.Text.PdfPageText page in document.ExtractText(new OnePdf.Text.PdfTextOptions { MaxDegreeOfParallelism = degree }))
+        foreach (OnePdf.Text.PdfPageText page in document.ExtractText(new OnePdf.Text.PdfTextOptions { MaxDegreeOfParallelism = degree, RetainGlyphs = false }))
         {
             foreach (OnePdf.Text.PdfTextWord word in page.Words)
             {

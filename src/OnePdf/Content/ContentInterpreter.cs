@@ -43,6 +43,7 @@ internal sealed partial class ContentInterpreter
     private readonly ColorSpaceCache _spaces;
     private readonly OptionalContentState _oc;
     private readonly Dictionary<int, FontInfo> _fontsByRef = [];
+    private readonly Dictionary<PdfDictionary, Dictionary<string, FontInfo>> _fontsByResources = new(ReferenceEqualityComparer.Instance);
     private readonly Dictionary<PdfDictionary, FontInfo> _fontsByDict = new(ReferenceEqualityComparer.Instance);
 
     private PdfPageInfo _page;

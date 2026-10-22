@@ -102,27 +102,7 @@ public readonly struct PdfTextGlyph
     {
         get
         {
-            double x0, x1, y0, y1;
-            if (IsVertical)
-            {
-                x0 = -0.5;
-                x1 = 0.5;
-                y0 = -Advance;
-                y1 = 0;
-            }
-            else
-            {
-                x0 = 0;
-                x1 = Advance;
-                y0 = Descent;
-                y1 = Ascent;
-            }
-
-            PdfTextMatrix m = Matrix;
-            (double ax, double ay) = m.Apply(x0, y0);
-            (double bx, double by) = m.Apply(x1, y0);
-            (double cx, double cy) = m.Apply(x1, y1);
-            (double dx, double dy) = m.Apply(x0, y1);
+            Corners(out double ax, out double ay, out double bx, out double by, out double cx, out double cy, out double dx, out double dy);
             return new PdfQuad(ax, ay, bx, by, cx, cy, dx, dy);
         }
     }
@@ -132,13 +112,43 @@ public readonly struct PdfTextGlyph
     {
         get
         {
-            PdfQuad q = Quad;
+            Corners(out double ax, out double ay, out double bx, out double by, out double cx, out double cy, out double dx, out double dy);
             return new PdfRectangle(
-                Math.Min(Math.Min(q.X0, q.X1), Math.Min(q.X2, q.X3)),
-                Math.Min(Math.Min(q.Y0, q.Y1), Math.Min(q.Y2, q.Y3)),
-                Math.Max(Math.Max(q.X0, q.X1), Math.Max(q.X2, q.X3)),
-                Math.Max(Math.Max(q.Y0, q.Y1), Math.Max(q.Y2, q.Y3)));
+                Math.Min(Math.Min(ax, bx), Math.Min(cx, dx)),
+                Math.Min(Math.Min(ay, by), Math.Min(cy, dy)),
+                Math.Max(Math.Max(ax, bx), Math.Max(cx, dx)),
+                Math.Max(Math.Max(ay, by), Math.Max(cy, dy)));
         }
+    }
+
+    /// <summary>The four corners of the glyph box in page space: the matrix applied to each corner as x' = a·x + c·y + e, y' = b·x + d·y + f.</summary>
+    internal void Corners(out double ax, out double ay, out double bx, out double by, out double cx, out double cy, out double dx, out double dy)
+    {
+        double x0, x1, y0, y1;
+        if (IsVertical)
+        {
+            x0 = -0.5;
+            x1 = 0.5;
+            y0 = -Advance;
+            y1 = 0;
+        }
+        else
+        {
+            x0 = 0;
+            x1 = Advance;
+            y0 = Descent;
+            y1 = Ascent;
+        }
+
+        PdfTextMatrix m = Matrix;
+        ax = (m.A * x0) + (m.C * y0) + m.E;
+        ay = (m.B * x0) + (m.D * y0) + m.F;
+        bx = (m.A * x1) + (m.C * y0) + m.E;
+        by = (m.B * x1) + (m.D * y0) + m.F;
+        cx = (m.A * x1) + (m.C * y1) + m.E;
+        cy = (m.B * x1) + (m.D * y1) + m.F;
+        dx = (m.A * x0) + (m.C * y1) + m.E;
+        dy = (m.B * x0) + (m.D * y1) + m.F;
     }
 
     /// <summary>A copy with different text.</summary>
@@ -151,6 +161,10 @@ public readonly struct PdfTextGlyph
 /// <summary>The glyphs of one page, in content order, with the page size in upright page space.</summary>
 public sealed class PdfPageGlyphs
 {
+    private PdfTextGlyph[]? _pooled;
+    private readonly int _count;
+    private readonly IReadOnlyList<PdfTextGlyph>? _list;
+
     /// <summary>Creates the input for one page.</summary>
     /// <param name="pageIndex">Zero-based page index.</param>
     /// <param name="width">Width of the upright page in points.</param>
@@ -162,8 +176,22 @@ public sealed class PdfPageGlyphs
         PageIndex = pageIndex;
         Width = width;
         Height = height;
-        Glyphs = glyphs;
+        _list = glyphs;
+        _count = glyphs.Count;
     }
+
+    private PdfPageGlyphs(int pageIndex, double width, double height, PdfTextGlyph[] pooled, int count)
+    {
+        PageIndex = pageIndex;
+        Width = width;
+        Height = height;
+        _pooled = pooled;
+        _count = count;
+    }
+
+    /// <summary>A page whose glyphs sit in a buffer rented from the shared array pool; <see cref="Release"/> gives it back.</summary>
+    internal static PdfPageGlyphs FromPooled(int pageIndex, double width, double height, PdfTextGlyph[] buffer, int count) =>
+        new(pageIndex, width, height, buffer, count);
 
     /// <summary>Zero-based page index.</summary>
     public int PageIndex { get; }
@@ -175,5 +203,18 @@ public sealed class PdfPageGlyphs
     public double Height { get; }
 
     /// <summary>The glyphs in content order.</summary>
-    public IReadOnlyList<PdfTextGlyph> Glyphs { get; }
+    public IReadOnlyList<PdfTextGlyph> Glyphs => _list ?? new ArraySegment<PdfTextGlyph>(_pooled ?? [], 0, _pooled is null ? 0 : _count);
+
+    /// <summary>The glyphs as a span over the storage; empty after <see cref="Release"/>.</summary>
+    internal ReadOnlySpan<PdfTextGlyph> Span => _pooled is not null ? _pooled.AsSpan(0, _count) : [];
+
+    /// <summary>Gives a pooled buffer back (the glyphs are gone afterwards). No effect on pages built from a list.</summary>
+    internal void Release()
+    {
+        PdfTextGlyph[]? b = Interlocked.Exchange(ref _pooled, null);
+        if (b is not null)
+        {
+            System.Buffers.ArrayPool<PdfTextGlyph>.Shared.Return(b, clearArray: true);
+        }
+    }
 }

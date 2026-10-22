@@ -64,6 +64,17 @@ public sealed class PdfTextExtractor
             throw new ArgumentOutOfRangeException(nameof(pageIndex));
         }
 
+        PdfPageText result = ExtractPageCore(pageIndex, cancellationToken);
+        if (!_options.RetainGlyphs)
+        {
+            result.DropGlyphs();
+        }
+
+        return result;
+    }
+
+    private PdfPageText ExtractPageCore(int pageIndex, CancellationToken cancellationToken)
+    {
         StructureOrder? structure = Structure(cancellationToken);
         return AnalyzeCore(_source.GetPage(pageIndex, cancellationToken), _options, structure?.ForPage(pageIndex), structure is not null, cancellationToken);
     }
@@ -80,14 +91,14 @@ public sealed class PdfTextExtractor
         {
             for (int i = 0; i < n; i++)
             {
-                pages[i] = ExtractPage(i, cancellationToken);
+                pages[i] = ExtractPageCore(i, cancellationToken);
             }
         }
         else
         {
             try
             {
-                Parallel.For(0, n, new ParallelOptions { MaxDegreeOfParallelism = dop, CancellationToken = cancellationToken }, i => pages[i] = ExtractPage(i, cancellationToken));
+                Parallel.For(0, n, new ParallelOptions { MaxDegreeOfParallelism = dop, CancellationToken = cancellationToken }, i => pages[i] = ExtractPageCore(i, cancellationToken));
             }
             catch (AggregateException ae) when (ae.InnerExceptions.Count > 0)
             {
@@ -98,6 +109,14 @@ public sealed class PdfTextExtractor
         if (_options.DetectHeadersAndFooters)
         {
             Furniture.Flag(pages);
+        }
+
+        if (!_options.RetainGlyphs)
+        {
+            foreach (PdfPageText p in pages)
+            {
+                p.DropGlyphs();
+            }
         }
 
         return pages;
@@ -123,7 +142,16 @@ public sealed class PdfTextExtractor
 
     internal static PdfPageText AnalyzeCore(PdfPageGlyphs page, PdfTextOptions o, PageStructure? structure, bool tagged, CancellationToken ct)
     {
-        PdfTextGlyph[] g = GlyphPrep.Prepare(page, o, ct);
+        PdfTextGlyph[] g;
+        try
+        {
+            g = GlyphPrep.Prepare(page, o, ct);
+        }
+        finally
+        {
+            page.Release();
+        }
+
         List<PdfDiagnostic> diag = [];
         List<PdfTextBlock>? blocks = null;
         bool used = false;
