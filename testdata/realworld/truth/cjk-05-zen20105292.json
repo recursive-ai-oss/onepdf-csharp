@@ -1,0 +1,32 @@
+{
+ "category": "cjk",
+ "generator": "real-world file; reference text built as described in reference.method",
+ "name": "cjk-05-zen20105292",
+ "pageCount": 3,
+ "pages": [
+  {
+   "text": "本システムは現時点でプロトタイプ段階にあり、以下のコンテンツ強化と本格運用に必要なインフラ整備を段階的に進 めることで、本格運用に展開可能と考えている。 コンテンツ・教育機能の強化 1. 問題データベースの拡充と継続メンテナンス: 公式問題集を起点とした体系的な問題収録、解説の査読フローの確 立。 2. 学習履歴に基づく弱点分析と適応的出題: 解答ログの統計処理による個人の弱点抽出と、出題最適化アルゴリズムの 実装。 3. アクセシビリティ対応: スクリーンリーダ対応、文字サイズ可変、色覚多様性配慮、キーボード操作完全対応。 大規模運用に向けたインフラ整備 4. サーバサイド永続化レイヤの導入: 現状の IndexedDB（クライアント側）+ JSON ファイル（サーバ側）から、 PostgreSQL 等の RDBMS への移行。データ整合性・バックアップ・横断分析を担保。 5. 認証・受験者管理基盤: 個人特定・受験者ロール・教員ロール・機関管理者ロールの分離。SSO / OAuth との連携 も視野に。 6. ホスティングと運用基盤: クラウド環境へのデプロイ（コンテナ化、CI/CD、監視・ログ集約、バックアップ自動 化）。可用性と応答性能を本番水準まで引き上げる。 7. 負荷対応とセキュリティ強化: 同時数百受験を想定した負荷試験、レート制限、CSRF / XSS 等の対策強化、外部監 査の実施。 普及・コミュニティ形成 8. OSS コミュニティ形成と他資格への展開: GitHub 公開によるコントリビュータ受入れ、ドキュメント整備、姉妹資 格（診療放射線技師等）への横展開。\n\n7. 引用方法 @software{odashima_cbt_2026, author\n\n= {Odashima, Hirokazu},\n\ntitle\n\n= {臨床検査技師 国家試験対策 CBT システム:\n\nyear\n\n= {2026},\n\nversion\n\n= {1.0.0},\n\nオフライン対応・画像問題対応の自学自習プラットフォーム},\n\npublisher = {Zenodo}, doi\n\n= {[Zenodo DOI]},\n\nurl\n\n= {[Zenodo URL]}\n\n}\n\n8. ライセンス・利用条件 本ソフトウェアは MIT License の下で公開する。商用利用・改変・再配布を許可し、利用に際して著作権表示とライ センス文の保持のみを求める。本概要書本体は CC BY 4.0 に準拠して引用可能とする。 本概要書は Zenodo への登録および本ソフトウェアの引用情報整備を目的に作成された。"
+  }
+ ],
+ "reference": {
+  "checkedPages": [
+   2
+  ],
+  "confidence": "medium",
+  "extractorAgreement": {
+   "3": 0.969
+  },
+  "method": "Draft from the text layer as recovered by two black-box extractors (poppler pdftotext reading-order mode; MuPDF via its Python binding), compared with each other and, for Latin text, with tesseract OCR of the rendered page; block order and completeness checked against the page image; characters are the text layer, not re-read from pixels.",
+  "notes": "Characters from the text layer; vertical sidebars, if any, follow the main text."
+ },
+ "schema": 1,
+ "scoredPages": [
+  2
+ ],
+ "source": {
+  "attribution": "小田嶋, 広和: 臨床検査技師国家試験CBTシステム プロトタイプ概要:実装アーキテクチャと機能要件の定義 (Zenodo, doi:10.5281/zenodo.20105292), CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/); unmodified",
+  "license": "CC-BY-4.0",
+  "source_url": "https://zenodo.org/records/20105292",
+  "upstream_ref": "doi:10.5281/zenodo.20105292; file overview-spread-v3.pdf"
+ }
+}

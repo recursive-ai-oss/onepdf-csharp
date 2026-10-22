@@ -1,0 +1,32 @@
+{
+ "category": "multi-column",
+ "generator": "real-world file; reference text built as described in reference.method",
+ "name": "multi-column-01-zen21814854",
+ "pageCount": 7,
+ "pages": [
+  {
+   "text": "6\n\nclass is, so far, the one measured mechanism family that passes the scaling requirement with a structural origin. Two disciplines from the track’s contract govern how far such statements may be pushed, and they are the reason this paper’s claims stop where they do. The first is the reverse-engineering caveat. For any potential one can define an entropy whose gradient reproduces the corresponding force, so an entropic account earns content only when the entropy is computed from an independently specified ensemble and coarse-graining, with the target law nowhere inserted. The second is the anti-circularity contract that binds every run reported here. The ensembles, projections, measures, counts, and fit alternatives were declared before the runs, the forbidden-input list excludes any inserted area proportionality or target law, and a construction that obtained its scaling by insertion would void the run rather than pass the gate. The boundary-limited arm exists precisely to demonstrate the nearest temptation, an area law that is an artifact of access rather than a property of the ensemble, and the audit arm of the mechanism run exists to catch the corresponding temptation for determinism. Nothing here supports or undermines any entropic account of real gravity. What is established is which mechanism classes could never have supplied the states such accounts assume, and which class provably could, in models where every bit is countable.\n\nVIII. WHAT THIS PAPER ESTABLISHES\n\nTable II registers the claims with their labels. Read together they answer the gate question for the measured classes. Interior constraint and gauge redundancy cannot supply boundary-scaling state counts, access restriction only pretends to, positive entropy density of any origin is\n\n[1] T. Jacobson, Thermodynamics of spacetime: the Einstein equation of state, Phys. Rev. Lett. 75, 1260 (1995), arXiv:gr-qc/9504004. [2] G. Bianconi, Gravity from entropy, Phys. Rev. D 111, 066001 (2025), arXiv:2408.14391. [3] P. Dorau and A. Much, From quantum relative entropy to the semiclassical Einstein equations, Phys. Rev. Lett. 136, 091602 (2026), arXiv:2510.24491. [4] A. Alonso-Serrano, L. J. Garay, M. Liska, and C. Lopez Pineros, Gravity from equilibrium thermodynamics of stretched light cones, Phys. Rev. D 112, 124026\n\ndisqualifying, and deterministic local dynamics read over spacetime regions is a mechanism class whose perimeter scaling is a theorem rather than a tuning. The gate remains open for the unconstructed classes named in the track design, and the campaign continues only if some declared mechanism passes the primary count without insertion.\n\nIX. METHODS AND REPRODUCIBILITY\n\nAll instruments derive from the campaign’s sealed tolerance and instrument freezes, which fix numerical bars in advance and void themselves if edited, and the projection-entropy stack extends the published fold instruments [5] and the completed entropy track [6]. The operational-count decision and its dynamical corollary were recorded in the track document before the corresponding runs, and the forbidden-input list of the track’s anti-circularity contract applies to every construction reported here. Every result-bearing run writes an appendonly JSON evidence record containing the complete declared parameter set, outcome arrays, and a canonical SHA-256 hash of the record body. The records for this paper are eg0-instrument.json and eg1-area-gate.json in the campaign repository, both carrying the exploratory label of the campaign’s evidence-grading scheme, and the mechanism run binds to eg1b-mechanism.json. The instrument layer is unsealed pending the campaign’s crosssubstrate replication clause, and its Python implementation is the reference. Every number and every figure coordinate in this paper is read from those committed records or is an exact closed form derived in the text, with the figure table generated deterministically by a committed script with no free parameters. A reducer may summarize records but may not rewrite them.\n\n(2025), arXiv:2509.08566. [5] A. H. Bond, Entropy across singular projections: fiber multiplicity, caustics, and observer-relative information, Zenodo (2026), doi:10.5281/zenodo.21789011. [6] A. H. Bond, Three sources of observed entropy in reversible hidden dynamics: mixing, projection multiplicity, and inaccessible degrees of freedom, companion paper of this campaign (2026). [7] T. M. Cover and J. A. Thomas, Elements of Information Theory, 2nd ed. (Wiley-Interscience, Hoboken, 2006)."
+  }
+ ],
+ "reference": {
+  "checkedPages": [
+   5
+  ],
+  "confidence": "medium",
+  "extractorAgreement": {
+   "6": 0.956
+  },
+  "method": "Draft from the text layer as recovered by two black-box extractors (poppler pdftotext reading-order mode; MuPDF via its Python binding), compared with each other and, for Latin text, with tesseract OCR of the rendered page; block order and completeness checked against the page image; characters are the text layer, not re-read from pixels.",
+  "notes": "Reading order is column by column, left column first; running heads and page numbers at their top or bottom position."
+ },
+ "schema": 1,
+ "scoredPages": [
+  5
+ ],
+ "source": {
+  "attribution": "Bond, Andrew H.: An Exact Area Gate for Entropic Accounts of Geometry: Volume Laws, Count Splitti (Zenodo, doi:10.5281/zenodo.21814854), CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/); unmodified",
+  "license": "CC-BY-4.0",
+  "source_url": "https://zenodo.org/records/21814854",
+  "upstream_ref": "doi:10.5281/zenodo.21814854; file entropic-area-gate.pdf"
+ }
+}

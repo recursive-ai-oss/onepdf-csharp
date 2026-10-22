@@ -1,0 +1,32 @@
+{
+ "category": "table",
+ "generator": "real-world file; reference text built as described in reference.method",
+ "name": "table-07-gov966337",
+ "pageCount": 18,
+ "pages": [
+  {
+   "text": "WORLD CORN TRADE\nOCTOBER/SEPTEMBER YEAR\nTHOUSAND METRIC TONS\n\n1997/98 1998/99 1999/00 2000/01 2001/02 2001/02\nDec 11 Jan 11\nEXPORTS\nArgentina 12,756 7,848 8,859 12,400 8,500 8,000\nChina 6,173 3,340 9,935 7,276 3,000 3,000\nHungary 1,236 1,829 1,786 725 1,800 1,800\nRomania 874 400 400 100 800 800\nSouth Africa 1,041 798 836 1,100 1,500 1,500\nUkraine 593 365 55 100 100 100\nEU 382 99 210 250 200 200\nOthers 2,176 2,032 1,750 5,475 5,550 7,000\nSubtotal 25,231 16,711 23,831 27,426 21,450 22,400\n\nUnited States 37,697 51,886 49,371 48,214 52,000 50,000\nWORLD TOTAL 62,928 68,597 73,202 75,640 73,450 72,400\n\nIMPORTS\nAlgeria 943 1,171 1,300 1,500 1,600 1,600\nBrazil 1,456 945 1,789 650 500 500\nCanada 1,418 903 1,084 2,793 2,300 2,300\nChile 851 1,268 1,260 1,200 1,200 1,200\nChina 287 262 71 40 1,000 1,000\nColombia 1,785 1,570 2,005 1,800 1,800 1,800\nCosta Rica 382 430 550 500 600 600\nDominican Republic 671 814 1,000 1,000 1,200 1,200\nEcuador 279 285 225 200 200 200\nEgypt 3,245 3,687 4,600 5,500 5,500 5,300\nGuatemala 305 385 500 550 550 550\nIndonesia 516 455 1,229 1,275 1,500 1,500\nIran 900 1,072 1,100 1,000 1,000 1,000\nIsrael 530 579 800 975 800 800\nJapan 16,422 16,336 16,117 16,340 15,500 15,300\nJordan 485 448 450 425 425 425\nKorea, North 347 200 150 750 400 400\nKorea, South 7,528 7,517 8,694 8,743 6,700 6,700\nMalaysia 2,202 2,384 2,296 2,450 2,400 2,400\nMexico 4,376 5,615 4,911 5,929 6,000 6,000\nMorocco 553 729 750 900 900 900\nPeru 1,228 1,050 862 900 900 900\nPhilippines 455 129 582 300 600 600\nPoland 384 224 250 200 100 100\nRussia 85 524 870 150 300 300\nSaudi Arabia 1,234 1,265 1,500 1,500 1,600 1,600\nSouth Africa 135 307 350 50 50 50\nTaiwan 4,474 4,575 5,023 5,000 4,700 4,700\nThailand 253 150 450 50 300 100\nTunisia 368 561 600 800 800 800\nTurkey 704 887 1,250 700 1,000 700\nVenezuela 1,161 1,463 1,300 1,210 1,300 1,100\nZimbabwe 402 350 50 100 200 200\nEU 2,055 2,716 2,296 2,500 2,500 2,500\nO.W. Europe 199 254 276 310 310 310\nUnited States 126 388 229 114 375 375\n\nSubtotal 58,744 61,898 66,769 68,404 67,110 66,010\nOther Countries 4,036 4,050 5,381 6,401 5,235 5,285\nUnaccounted 148 2,649 1,052 835 1,105 1,105\n\nWORLD TOTAL 62,928 68,597 73,202 75,640 73,450 72,400"
+  }
+ ],
+ "reference": {
+  "checkedPages": [
+   3
+  ],
+  "confidence": "medium",
+  "extractorAgreement": {
+   "4": 1.0
+  },
+  "method": "Draft from poppler pdftotext -layout (rows kept as lines, cells separated by one space); row order and completeness checked against the page image; characters are the text layer.",
+  "notes": "Reading order is row by row, left to right; wrapped cell lines are separate lines."
+ },
+ "schema": 1,
+ "scoredPages": [
+  3
+ ],
+ "source": {
+  "attribution": "Work of the United States government (17 U.S.C. 105); original URL in source_url; unmodified",
+  "license": "US-Government-Work",
+  "source_url": "http://www.fas.usda.gov/grain/circular/2002/01-02/cgra_tbl.pdf",
+  "upstream_ref": "GovDocs1 (digitalcorpora.org), crawled 2009"
+ }
+}

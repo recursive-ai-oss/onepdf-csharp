@@ -1,0 +1,32 @@
+{
+ "category": "form",
+ "generator": "real-world file; reference text built as described in reference.method",
+ "name": "form-02-gov924174",
+ "pageCount": 2,
+ "pages": [
+  {
+   "text": "U. S. Department of State\n\nADDITIONAL APPLICANT ORGANIZATION INFORMATION\n\n*OMB APPROVED NO. 1405-0115 EXPIRATION DATE: 03/31/2005 ESTIMATED BURDEN: 1 Hour\n\nPlease supply the following information: 1. Does the applicant organization currently have J-1 Visa Designation? Yes\n\nNo\n\n2. Congressional District Number Member of the House of Representatives: Senators:\n\n3. Travel Policy Option Statement: Indicate your choice of options for processing domestic U.S. air travel Organization's own travel agent TMC - American Express\n\n(NOTE: Travel budget must be a minimum of $20,000 to use this option.)\n\n4. Check the applicable category a. Non-profit organization (501 (c) status) b. For profit organization c. Private individual d. Other (explain) If you checked (a) or (b) above, what is your organization's fiscal year or tax reporting year? 5. If you checked (a) or (b) in number 4, attach a copy of Internal Revenue Service notification of current tax-exempt status. If your organization has received an assistance award (grant or cooperative agreement) from the U. S. Department of State (including those formerly approved by USIA) within the past three (3) years no submission is required. Attached Previously submitted 6. Accounting system Describe in the space below the organization's accounting system. Is it manual, automated, or a combination of both? Does the organization employ a double entry system? Does the accounting system allow grant funds and expenditures to be readily identified?\n\nDS-2013 07-2000"
+  }
+ ],
+ "reference": {
+  "checkedPages": [
+   0
+  ],
+  "confidence": "medium",
+  "extractorAgreement": {
+   "1": 1.0
+  },
+  "method": "Draft from the text layer as recovered by two black-box extractors (poppler pdftotext reading-order mode; MuPDF via its Python binding), compared with each other and, for Latin text, with tesseract OCR of the rendered page; block order and completeness checked against the page image; characters are the text layer, not re-read from pixels.",
+  "notes": "Static form text only; field values and widgets are not page text."
+ },
+ "schema": 1,
+ "scoredPages": [
+  0
+ ],
+ "source": {
+  "attribution": "Work of the United States government (17 U.S.C. 105); original URL in source_url; unmodified",
+  "license": "US-Government-Work",
+  "source_url": "http://www.travel.state.gov/Publications/DS-2013.pdf",
+  "upstream_ref": "GovDocs1 (digitalcorpora.org), crawled 2009"
+ }
+}

@@ -2,7 +2,7 @@
 """Write testdata/MANIFEST.csv for the redistributed (third-party) files and verify the testdata tree.
 
 Usage: build_manifest.py [--check]
-Covers testdata/pdf20examples, testdata/verapdf and testdata/govdocs. testdata/generated and testdata/repros hold our own
+Covers testdata/pdf20examples, testdata/verapdf, testdata/govdocs and testdata/realworld (rows come from tools/corpus/realworld-selection.json; its files are the committed ones only). testdata/generated and testdata/repros hold our own
 files and is described by its own README and truth sidecars. With --check nothing is written; the exit code
 is non-zero when a file under testdata/ is neither in the manifest, nor generated, nor a documentation file,
 or when a hash or license value is wrong.
@@ -17,7 +17,7 @@ TD = os.path.join(ROOT, "testdata")
 VERA_COMMIT = json.load(open(os.path.join(HERE, "local-corpus.lock.json")))["verapdf"]["commit"]
 PDF20_COMMIT = "c20f2c17bfcc4baab7cfe62e70fae64caf14d5fa"
 PDF20_DATE = "2025-01-13"
-ALLOWED = {"CC-BY-SA-4.0": "pdf20examples", "CC-BY-4.0": "verapdf", "US-Government-Work": "govdocs"}
+ALLOWED = {"CC-BY-SA-4.0": ("pdf20examples",), "CC-BY-4.0": ("verapdf", "realworld"), "US-Government-Work": ("govdocs", "realworld")}
 HEADER = ["path", "source_url", "upstream_ref", "license", "sha256", "sha1", "attribution"]
 
 
@@ -50,6 +50,10 @@ def rows():
         p = os.path.join(ROOT, r["path"])
         out.append([r["path"], r["url"], "GovDocs1 (digitalcorpora.org), crawled 2009", "US-Government-Work", digest(p, "sha256"), digest(p, "sha1"),
                     "Work of the United States government (17 U.S.C. 105); original URL in source_url; unmodified"])
+    for r in json.load(open(os.path.join(HERE, "realworld-selection.json"))):
+        if r["path"] is None:
+            continue  # local-only: not committed, listed in realworld-local.lock.json
+        out.append([r["path"], r["url"], r["upstream_ref"], r["license"], digest(os.path.join(ROOT, r["path"]), "sha256"), r["sha1"], r["attribution"]])
     out.sort()
     return out
 
@@ -64,15 +68,15 @@ def main():
         if have[0] != HEADER or have[1:] != r:
             print("MANIFEST.csv is stale; run build_manifest.py"); bad = 1
         for row in r:
-            if row[3] not in ALLOWED or ALLOWED[row[3]] not in row[0]:
+            if row[3] not in ALLOWED or not any(a in row[0] for a in ALLOWED[row[3]]):
                 print("license/path mismatch:", row[0], row[3]); bad = 1
-            if row[3] == "US-Government-Work":
+            if row[3] == "US-Government-Work" and "govdocs" in row[0]:
                 if not row[1].startswith("http") or len(row[5]) != 40:
                     print("govdocs row without url/sha1:", row[0]); bad = 1
         listed = {x[0] for x in r}
         tracked = [os.path.relpath(os.path.join(dp, f), ROOT).replace(os.sep, "/") for dp, _, fs in os.walk(TD) for f in fs]
         for t in tracked:
-            if t in listed or t.startswith(("testdata/generated/", "testdata/repros/")) or t.endswith(("MANIFEST.csv", "README.md", "LICENSE.md", "NOTICE.md")):
+            if t in listed or t.startswith(("testdata/generated/", "testdata/repros/")) or (t.startswith("testdata/realworld/truth/") and t.endswith(".json")) or t.endswith(("MANIFEST.csv", "README.md", "LICENSE.md", "NOTICE.md")):
                 continue
             print("not in manifest:", t); bad = 1
         print(f"{len(r)} manifest rows; problems: {bad}")

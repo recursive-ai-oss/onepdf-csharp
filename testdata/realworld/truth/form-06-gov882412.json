@@ -1,0 +1,32 @@
+{
+ "category": "form",
+ "generator": "real-world file; reference text built as described in reference.method",
+ "name": "form-06-gov882412",
+ "pageCount": 2,
+ "pages": [
+  {
+   "text": "Section IV - Information on Provider's Financial Institution's Account for Payment to Provider (Used only by Agencies that Self-Administer the Program) 1. Name of financial institution\n\n2. Financial institution's routing number\n\n3. Address of financial institution (Include street number, city, state, and ZIP code)\n\n4. Type of account (For payment deposit) (Check one)\n\nChecking Savings 5. Provider's account number\n\nSection V - Signature of Provider I understand that it is a Federal crime under United States Code 18, Section 1001, to make a false statement on this form. If I make a false statement, I agree to be subject to criminal prosecution and punishment including a fine, imprisonment, or both. 1. Name of provider\n\n2. Title of provider representative\n\n3. Signature of provider (I certify that the above information is true and correct to the best of my knowledge.)\n\n4. Date of signature (MM/DD/YYYY)\n\nPrivacy Act Statement Public Law 106-554, § 633 (September 29, 2000) confers regulatory authority on OPM for agency use of appropriated funds for child care costs for lower income Federal employees. Public Law 104-134 (April 26, 1996) requires that any person doing business with the Federal Government furnish a Social Security Number or tax identification number. This is an amendment to title 31, Section 7701. The primary use of these Social Security Numbers and tax identification numbers will be for identification purposes in determining eligibility for child care subsidy. The primary use of information regarding family income (copies of pay slips and tax returns), name of current child care provider, copies of the provider's license, statement of compliance, and information about other child care subsidies is also used to determine eligibility for child care subsidy. Disclosure of the above information is voluntary, but failure to provide all of the requested information may result in denial of your application. Public Burden Statement We think this form takes an average of 10 minutes to complete including the time for getting the needed data and reviewing both the instructions and completed form. Send comments regarding our estimate or any other aspect of this form, including suggestions for reducing completion time, to the Office of Personnel Management (OPM), Reports and Forms Manager, Paperwork Reduction (3206-0240), Washington, DC 20415-7900. The OMB Number, 3206-0240, is currently valid. OPM may not collect this information, and you are not required to respond, unless this number is displayed.\n\nOPM 1644 (Back) Revised March 2005\n\nPrint\n\nSave\n\nClear"
+  }
+ ],
+ "reference": {
+  "checkedPages": [
+   1
+  ],
+  "confidence": "medium",
+  "extractorAgreement": {
+   "2": 1.0
+  },
+  "method": "Draft from the text layer as recovered by two black-box extractors (poppler pdftotext reading-order mode; MuPDF via its Python binding), compared with each other and, for Latin text, with tesseract OCR of the rendered page; block order and completeness checked against the page image; characters are the text layer, not re-read from pixels.",
+  "notes": "Static form text only; field values and widgets are not page text."
+ },
+ "schema": 1,
+ "scoredPages": [
+  1
+ ],
+ "source": {
+  "attribution": "Work of the United States government (17 U.S.C. 105); original URL in source_url; unmodified",
+  "license": "US-Government-Work",
+  "source_url": "http://www.opm.gov/Forms/pdf_fill/opm1644.pdf",
+  "upstream_ref": "GovDocs1 (digitalcorpora.org), crawled 2009"
+ }
+}

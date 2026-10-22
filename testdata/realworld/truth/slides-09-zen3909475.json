@@ -1,0 +1,35 @@
+{
+ "category": "slides",
+ "generator": "real-world file; reference text built as described in reference.method",
+ "name": "slides-09-zen3909475",
+ "pageCount": 14,
+ "pages": [
+  {
+   "text": "Mudança do paradigma\n\nCidadão tem o controlo total sobre os seus dados pessoais (consentimento)\n\nAdaptação do mercado e da sociedade à economia digital\n\nA heteroregulação dá lugar à autoresponsabilização das organizações\n\nCNPD como autoridade nacional de controlo\n\nInfoLab - Information Systems Research Group - Faculdade de Engenharia da Universidade do Porto InfoLab - Information Systems Research Group - FEUP/ INESC TEC Dados de Investigação e Ciência Aberta, Porto, Set 2016 outubro 2015"
+  },
+  {
+   "text": "RGPD na ótica do PI Competências diversificadas (desde a dimensão jurídica à gestão da informação);\n\nProfissional de Informação\n\nConhecimentos alargados sobre os requisitos e processos; Compreensão profunda da informação e documentação produzida.\n\nInfoLab - Information Systems Research Group - Faculdade de Engenharia da Universidade do Porto InfoLab - Information Systems Research Group - FEUP/ INESC TEC Dados de Investigação e Ciência Aberta, Porto, Set 2016 outubro 2015"
+  }
+ ],
+ "reference": {
+  "checkedPages": [],
+  "confidence": "low",
+  "extractorAgreement": {
+   "3": 0.972,
+   "4": 1.0
+  },
+  "method": "Draft from the text layer as recovered by two black-box extractors (poppler pdftotext reading-order mode; MuPDF via its Python binding), compared with each other and, for Latin text, with tesseract OCR of the rendered page; block order and completeness checked against the page image; characters are the text layer, not re-read from pixels.",
+  "notes": "Text of the scored slides in visual order, title first. Not yet reviewed against the page image (only compared across extractors): treat as a draft."
+ },
+ "schema": 1,
+ "scoredPages": [
+  2,
+  3
+ ],
+ "source": {
+  "attribution": "Rodrigues, Joana, Sales, Célia, Matos, Paula Mena: A Ciência Aberta é possível com dados clínicos? Ferramentas para planeamento e a (Zenodo, doi:10.5281/zenodo.3909475), CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/); unmodified",
+  "license": "CC-BY-4.0",
+  "source_url": "https://zenodo.org/records/3909475",
+  "upstream_ref": "doi:10.5281/zenodo.3909475; file Rodrigues_et_al, 2018.pdf"
+ }
+}

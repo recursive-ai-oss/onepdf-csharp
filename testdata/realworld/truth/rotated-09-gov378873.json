@@ -1,0 +1,32 @@
+{
+ "category": "rotated",
+ "generator": "real-world file; reference text built as described in reference.method",
+ "name": "rotated-09-gov378873",
+ "pageCount": 13,
+ "pages": [
+  {
+   "text": "DISTRICT OF COLUMBIA Age 65-69 15,816 12,642 2,968 206\nDISTRICT OF COLUMBIA Age 70-74 13,833 11,631 1,941 261\nDISTRICT OF COLUMBIA Age 75-79 12,506 10,933 1,208 365\nDISTRICT OF COLUMBIA Age 80-84 9,925 8,784 648 493\nDISTRICT OF COLUMBIA Age 85+ 10,489 8,125 1,813 551\nDISTRICT OF COLUMBIA TOTAL 73,305 61,553 9,873 1,879\n\nFLORIDA Age 0-64 396,102 357,009 38,994 99\nFLORIDA Age 65-69 682,479 631,542 48,505 2,432\nFLORIDA Age 70-74 613,234 595,756 15,869 1,609\nFLORIDA Age 75-79 550,712 542,517 6,582 1,613\nFLORIDA Age 80-84 408,074 403,021 3,448 1,605\nFLORIDA Age 85+ 331,494 324,272 5,822 1,400\nFLORIDA TOTAL 2,982,095 2,854,117 119,220 8,758\n\nGEORGIA Age 0-64 201,603 184,329 17,249 25\nGEORGIA Age 65-69 245,359 225,942 17,684 1,733\nGEORGIA Age 70-74 195,471 187,327 5,858 2,286\nGEORGIA Age 75-79 154,717 150,394 2,257 2,066\nGEORGIA Age 80-84 109,751 107,515 1,231 1,005\nGEORGIA Age 85+ 91,527 88,109 2,696 722\nGEORGIA TOTAL 998,428 943,616 46,975 7,837\n\nHAWAII Age 0-64 19,274 16,829 2,442\nHAWAII Age 65-69 39,741 34,522 5,011 208\nHAWAII Age 70-74 37,225 34,472 2,596 157\nHAWAII Age 75-79 35,202 33,538 1,434 230\nHAWAII Age 80-84 25,680 24,666 834 180\nHAWAII Age 85+ 20,762 19,972 648 142\nHAWAII TOTAL 177,884 163,999 12,965 920\n\nIDAHO Age 0-64 27,522 24,628 2,893\nIDAHO Age 65-69 45,653 42,571 3,044 38\nIDAHO Age 70-74 36,643 35,472 1,141 30\nIDAHO Age 75-79 30,826 30,221 543 62\nIDAHO Age 80-84 23,196 22,798 345 53\nIDAHO Age 85+ 20,010 19,710 261 39"
+  }
+ ],
+ "reference": {
+  "checkedPages": [
+   2
+  ],
+  "confidence": "medium",
+  "extractorAgreement": {
+   "3": 1.0
+  },
+  "method": "Draft from the text layer as recovered by two black-box extractors (poppler pdftotext reading-order mode; MuPDF via its Python binding), compared with each other and, for Latin text, with tesseract OCR of the rendered page; block order and completeness checked against the page image; characters are the text layer, not re-read from pixels.",
+  "notes": "Page chosen because it is rotated (page /Rotate or text running sideways); reading order is as displayed."
+ },
+ "schema": 1,
+ "scoredPages": [
+  2
+ ],
+ "source": {
+  "attribution": "Work of the United States government (17 U.S.C. 105); original URL in source_url; unmodified",
+  "license": "US-Government-Work",
+  "source_url": "http://www.cms.hhs.gov/MedicareEnRpts/Downloads/Sageall04.pdf",
+  "upstream_ref": "GovDocs1 (digitalcorpora.org), crawled 2009"
+ }
+}

@@ -1,0 +1,30 @@
+{
+ "category": "form",
+ "generator": "real-world file; reference text built as described in reference.method",
+ "name": "form-09-gov672040",
+ "pageCount": 2,
+ "pages": [
+  {
+   "text": "Reset Form\n\nCLAIM FOR DAMAGE, INJURY, OR DEATH\n\nINSTRUCTIONS: Please read carefully the instructions on the reverse side and supply information requested on both sides of this form. Use additional sheet(s) if necessary. See reverse side for additional instructions.\n\n1. Submit To Appropriate Federal Agency:\n\n3. TYPE OF EMPLOYMENT 9 MILITARY 9 CIVILIAN\n\n4. DATE OF BIRTH\n\nFORM APPROVED OMB NO. 1105-0008\n\n2. Name, Address of claimant and claimant’s personal representative, if any. (See instructions on reverse.) (Number, Street, City, State and Zip Code)\n\n5. MARITAL STATUS\n\n6. DATE AND DAY OF ACCIDENT\n\n7. TIME (A.M. OR P.M.)\n\n8. Basis of Claim (State in detail the known facts and circumstances attending the damage, injury, or death, identifying persons and property involved, the place of occurrence and the cause thereof. Use additional pages if necessary.)\n\n9.\n\nPROPERTY DAMAGE\n\nNAME AND ADDRESS OF OWNER, IF OTHER THAN CLAIMANT (Number, Street, City, State, and Zip Code).\n\nBRIEFLY DESCRIBE THE PROPERTY, NATURE AND EXTENT OF DAMAGE AND THE LOCATION WHERE PROPERTY MAY BE INSPECTED. (See Instructions on reverse side.)\n\n10.\n\nPERSONAL INJURY/WRONGFUL DEATH\n\nSTATE NATURE AND EXTENT OF EACH INJURY OR CAUSE OF DEATH, WHICH FORMS THE BASIS OF THE CLAIM. IF OTHER THAN CLAIMANT, STATE NAME OF INJURED PERSON OR DECEDENT.\n\n11.\n\nWITNESSES NAME\n\nADDRESS (Number, Street, City, State, and Zip Code)\n\n12. (See instructions on reverse.) 12a. PROPERTY DAMAGE\n\nAMOUNT OF CLAIM (in dollars) 12b. PERSONAL INJURY\n\n12c. WRONGFUL DEATH\n\n12d. TOTAL (Failure to specify may cause forfeiture of your rights.)\n\nI CERTIFY THAT THE AMOUNT OF CLAIM COVERS ONLY DAMAGES AND INJURIES CAUSED BY THE INCIDENT ABOVE AND AGREE TO ACCEPT SAID AMOUNT IN FULL SATISFACTION AND FINAL SETTLEMENT OF THIS CLAIM 13a. SIGNATURE OF CLAIMANT (See instructions on reverse side.)\n\n13b. Phone number of person signing form\n\nCIVIL PENALTY FOR PRESENTING FRAUDULENT CLAIM\n\nCRIMINAL PENALTY FOR PRESENTING FRAUDULENT CLAIM OR MAKING FALSE STATEMENTS\n\nThe claimant is liable to the United States Government for the civil penalty of not less than $5,000 and not more than $10,000, plus 3 times the amount of damages sustained by the Government. (See 31 U.S.C. 3729.) 95-109\n\nFine, imprisonment, or both. (See 18 U.S.C. 287, 1001.)\n\nNSN 7540-00-634-4046\n\nReset Page\n\n14. DATE OF SIGNATURE\n\nSTANDARD FORM 95 PRESCRIBED BY DEPT. OF JUSTICE 28 CFR 14.2"
+  }
+ ],
+ "reference": {
+  "checkedPages": [],
+  "confidence": "low",
+  "extractorAgreement": {
+   "1": 0.939
+  },
+  "method": "Draft from the text layer as recovered by two black-box extractors (poppler pdftotext reading-order mode; MuPDF via its Python binding), compared with each other and, for Latin text, with tesseract OCR of the rendered page; block order and completeness checked against the page image; characters are the text layer, not re-read from pixels.",
+  "notes": "Static form text only; field values and widgets are not page text. Not yet reviewed against the page image (only compared across extractors): treat as a draft."
+ },
+ "schema": 1,
+ "scoredPages": [
+  0
+ ],
+ "source": {
+  "attribution": "Work of the United States government (17 U.S.C. 105); original URL in source_url; unmodified",
+  "license": "US-Government-Work",
+  "source_url": "http://www.usdoj.gov/civil/forms/SF95.pdf",
+  "upstream_ref": "GovDocs1 (digitalcorpora.org), crawled 2009"
+ }
+}

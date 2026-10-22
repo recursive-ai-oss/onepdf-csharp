@@ -1,0 +1,30 @@
+{
+ "category": "rtl",
+ "generator": "real-world file; reference text built as described in reference.method",
+ "name": "rtl-01-zen20004323",
+ "pageCount": 23,
+ "pages": [
+  {
+   "text": ".3المؤثرون • • •\n\nالباحثون الجامعات الجهات التنظيمية\n\nاًلستنتاج: السوق متعدد الطبقات، وقرار الشراء مؤسسي جماعي\n\n🔷 ثالثاا :تحليل الطلب ()Clinical Demand الطلب هنا ليس “شراء” بل: اعتماد عالجي ()Therapeutic Adoption\n\nما الذي يحدد الطلب؟ .1 .2 .3 .4\n\nفعالية الدواء ()Efficacy األمان ()Safety مقارنة بالعالجات الحالية النتائج السريرية ()Clinical Outcomes\n\nنوع الطلب: • •\n\nبطيء في البداية ثم يتسارع بعد اإلثبات\n\nيسمى: Evidence-Based Demand"
+  }
+ ],
+ "reference": {
+  "checkedPages": [],
+  "confidence": "low",
+  "extractorAgreement": {
+   "2": 0.625
+  },
+  "method": "Draft from the text layer as recovered by two black-box extractors (poppler pdftotext reading-order mode; MuPDF via its Python binding), compared with each other and, for Latin text, with tesseract OCR of the rendered page; block order and completeness checked against the page image; characters are the text layer, not re-read from pixels.",
+  "notes": "Text layer in logical order; the Arabic comma spacing is normalised; ToUnicode defects of the producer (for example lam-alef) are kept because they are what an extractor can recover. Not yet reviewed against the page image (only compared across extractors): treat as a draft."
+ },
+ "schema": 1,
+ "scoredPages": [
+  1
+ ],
+ "source": {
+  "attribution": "Alelaimat, Abdul Kareem: ملف دراسة السوق لمصنع الورد للأدوية والأجهزة الكيميائية (Zenodo, doi:10.5281/zenodo.20004323), CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/); unmodified",
+  "license": "CC-BY-4.0",
+  "source_url": "https://zenodo.org/records/20004323",
+  "upstream_ref": "doi:10.5281/zenodo.20004323; file دراسة السوق (1).pdf"
+ }
+}

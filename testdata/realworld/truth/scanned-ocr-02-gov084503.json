@@ -1,0 +1,32 @@
+{
+ "category": "scanned-ocr",
+ "generator": "real-world file; reference text built as described in reference.method",
+ "name": "scanned-ocr-02-gov084503",
+ "pageCount": 3,
+ "pages": [
+  {
+   "text": "Declassified A/ISS/IPS, Department of State E.O. 12958, as amended June 19, 2008\n\nCONTINGENCY STUDY FOR ROMANIA\n\nSummary There are broadly speaking two sets of contingencies which can arise with respect to Romania. Typically they will be. interrelated. Both would result from the state of Romanian-Soviet relations. One is military, ranging from threats of military action to outright invasion. The other is political, where tensions in the Warsaw Pact and a change - possibly violent - of the Romanian leadership would result in enhanced Soviet influence in Romania. None of these contingencies is likely to affect\n\nU.S. and NATO security interests directly. They would, however, importantly affect U.S. and NATO political interests, since they would point - and in some cases amount - to a resurgence of the Brezhnev Doctrine. Increased Soviet dominance in Romania would also tend to affect Yugoslavia adversely. Any invasion of Romania by the Soviet Union would upset current efforts to improve East-West relations, foreclose increased bilateral relations and pose the problem of protecting U.S. interests in Romania. The objective of all action options during phases\n\nof strong Soviet/Warsaw Pact pressures or threatened\n\ninvasion would be to bring home to the Soviets, through preventive diplomacy, the risks of such policies. At the same time any contingency limited to Romania is not likely to lead to a Western decision to intervene militarily. The range of likely options extends from diplomatic warnings to the interruption of on-going efforts to improve the East-West climate, as well as possible economic measures. It would be important to coordinate these steps in NATO and take any action only in a NATO context."
+  }
+ ],
+ "reference": {
+  "checkedPages": [
+   0
+  ],
+  "confidence": "high",
+  "extractorAgreement": {
+   "1": 1.0
+  },
+  "method": "Draft from the text layer as recovered by two black-box extractors (poppler pdftotext reading-order mode; MuPDF via its Python binding), compared with each other and, for Latin text, with tesseract OCR of the rendered page; block order and completeness checked against the page image; characters are the text layer, not re-read from pixels. For scanned pages the reference is the embedded OCR layer, with its recognition errors; it measures extraction, not OCR.",
+  "notes": "Reference is the embedded OCR layer including its recognition errors."
+ },
+ "schema": 1,
+ "scoredPages": [
+  0
+ ],
+ "source": {
+  "attribution": "Work of the United States government (17 U.S.C. 105); original URL in source_url; unmodified",
+  "license": "US-Government-Work",
+  "source_url": "http://www.state.gov/documents/organization/107997.pdf",
+  "upstream_ref": "GovDocs1 (digitalcorpora.org), crawled 2009"
+ }
+}

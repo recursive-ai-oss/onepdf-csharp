@@ -1,0 +1,32 @@
+{
+ "category": "old",
+ "generator": "real-world file; reference text built as described in reference.method",
+ "name": "old-02-gov714612",
+ "pageCount": 7,
+ "pages": [
+  {
+   "text": "Page 3 of 7\nTABLE 9 (AMENDED)\n\nFEDERAL TRANSIT ADMINISTRATION\n\nREVISED FY 2000 SECTION 5309 BUS ALLOCATIONS\n\nREVISED\nSTATE PROJECT ALLOCATION\n\nIA Iowa City intermodal facility 1,471,643\nIA Iowa statewide buses and bus facilities 2,452,738\nIA Iowa/Illinois Transit Consortium bus safety and security 981,096\nIA Mason City, bus facility 156,976\nIL East Moline transit center 637,712\nIL Illinois statewide buses and bus-related equipment 8,044,980\n\nIN Gary, Transit Consortium buses 1,226,369\nIN Indianapolis buses 4,905,476\nIN South Bend Urban Intermodal Transportation Facility 1,226,369\nIN West Lafayette bus transfer station/terminal (Wabash Landing) 1,716,916\n\nKS Girard, buses and vans 686,767\nKS Girard Southeast Kansas Community Action Agency maintenance facility 470,926\nKS Johnson County, farebox equipment 245,274\nKS Kansas City buses 735,821\nKS Kansas buses and bus facilities 1,471,643\nKS Topeka Transit downtown transfer facility 588,657\nKS Wichita, buses and bus facilities 2,452,738\n\nKY Kentucky (southern and eastern) transit vehicles 981,096\nKY Lexington (LexTran), maintenance facility 981,096\nKY River City, buses 1,471,643\nKY Transit Authority of Northern Kentucky (TANK) buses 2,452,738\n\nLA Baton Rouge, buses and bus-related facilities 294,329\nLA Jefferson Parish, buses and bus-related facilities 44,149\nLA Lafayette, buses and bus-related facilities 147,164\nLA Louisiana DOTD, buses and and bus-related, including the purchase of vans 515,075\nLA Monroe, buses and bus-related facilities 284,518\nLA New Orleans, buses and bus-related facilities 3,237,614\nLA Shreveport, buses and bus-related facilities 323,761\nLA St Tammany Parish, buses and bus-related facilities 58,866\n\nMA Attleboro intermodal transit facility 490,547\nMA Brockton intermodal transportation center 1,079,204\nMA Greenfield Montague, buses 490,547\nMA Merrimack Valley Regional Transit Authority bus facilities 458,662\nMA Montachusett, bus and park-and-ride facilities 1,226,369\nMA Pioneer Valley, alternative fuel and paratransit vehicles 637,712\nMA Pittsfield intermodal center 3,531,943\nMA Springfield, Union Station 1,226,369\nMA Swampscott, buses 63,772\nMA Westfield, intermodal transportation facility 490,547\nMA Worcester, Union Station Intermodal Transportation Center 2,452,738\n\nMD Maryland statewide bus facilities and buses 11,282,593\n\nMI Detroit, transfer terminal facilities 3,888,080\nMI Detroit, EZ Ride program 281,574\nMI Menominee-Delta-Schoolcraft buses 245,274\nMI Michigan statewide buses 22,074,625\nMI Port Huron, CNG fueling station 490,547\n\nMN Duluth, Transit Authority community circulation vehicles 981,096\nMN Duluth, Transit Authority intelligent transportation systems 490,547"
+  }
+ ],
+ "reference": {
+  "checkedPages": [
+   2
+  ],
+  "confidence": "high",
+  "extractorAgreement": {
+   "3": 1.0
+  },
+  "method": "Draft from the text layer as recovered by two black-box extractors (poppler pdftotext reading-order mode; MuPDF via its Python binding), compared with each other and, for Latin text, with tesseract OCR of the rendered page; block order and completeness checked against the page image; characters are the text layer, not re-read from pixels.",
+  "notes": ""
+ },
+ "schema": 1,
+ "scoredPages": [
+  2
+ ],
+ "source": {
+  "attribution": "Work of the United States government (17 U.S.C. 105); original URL in source_url; unmodified",
+  "license": "US-Government-Work",
+  "source_url": "http://www.fta.dot.gov/documents/t9amd.pdf",
+  "upstream_ref": "GovDocs1 (digitalcorpora.org), crawled 2009"
+ }
+}

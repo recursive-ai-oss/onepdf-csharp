@@ -1,0 +1,32 @@
+{
+ "category": "multi-column",
+ "generator": "real-world file; reference text built as described in reference.method",
+ "name": "multi-column-03-gov084145",
+ "pageCount": 10,
+ "pages": [
+  {
+   "text": "addition, a crewed vehicle is able to test several different sample collection techniques, and to target specific areas of interest via extra-vehicular activities (EVAs) much more capably than a robotic spacecraft. Such capabilities greatly enhance any scientific return from these types of missions to NEOs.\n\nIn terms of remote sensing capability, the CEV should have a high-resolution camera for detailed surface characterization and optical navigation. A light detection and ranging (LIDAR) system would be essential for hazard avoidance (during close proximity operations) and detailed topography measurements. In addition, the CEV should be outfitted with a radar transmitter to perform tomography, enabling a detailed look at the interior structure of the NEO. Given that several NEOs appear to have a high degree of porosity (e.g., Itokawa is estimated to be 40% void space by volume), it is important to measure this characteristic of the target NEO. Such information on its internal structure not only has implications for the formation and impact history of the NEO, but also may have implications for future hazard mitigation techniques.\n\nAnother advantage of the CEV is the capability to precisely place and re-deploy relatively small scientific packages on the surface of the NEO. Such packages as remotely operated (or autonomous) rovers with one or two instruments could greatly enhance the amount of data obtained from the surface, and fine-tune the site selection for subsequent sample collection. Other packages that may be deployed could be in situ experiments designed to test such technologies as surface anchors/tethers, drills/excavation equipment, or material extraction equipment. The CEV could also deploy a transponder to the surface of the object for a long-term study of the NEO’s\n\norbital motion. This could be particularly useful for monitoring objects that have the potential for a possible future Earth impact.\n\nThe crew has the added advantage of EVA for sample collection during close proximity operations. The ability for the crew to traverse and collect one or more macroscopic samples from specific terrains on the surface of an NEO is the most important scientific aspect of this type of mission. Having a human being interacting in real-time with the NEO surface material and sampling various locales in context would bring a wealth of scientific information on such things as particle size, potential space weathering effects, impact history, material properties, and near-surface densities of the NEO.\n\nROBOTIC PRECURSOR MISSIONS Currently there are no robotic precursor missions planned to visit NEOs that might one day be explored by human crews.  Yet, a precursor mission would be required in order to maximize crew safety and efficiency of mission operations at any candidate NEO. Such an in-depth reconnaissance by small robotic spacecraft would help to identify the general characteristics of the potential NEO selected for study, and provide an important synergy between the robotic scientific programs and the human exploration programs of NASA.  Knowledge of such things as the gravitational field, object shape, surface topography, and general composition would aid in planning for later CEV proximity operations at the NEO.  Precursor missions would also be useful to identify potential hazards to the CEV (and any of its deployable assets) such as the presence of satellites, or non-benign surface morphologies, which may not be detectable from previous ground-based observations. The precursor spacecraft should ideally have a visible camera for surface feature characterization, and a spectrometer capable\n\n7"
+  }
+ ],
+ "reference": {
+  "checkedPages": [
+   6
+  ],
+  "confidence": "medium",
+  "extractorAgreement": {
+   "7": 1.0
+  },
+  "method": "Draft from the text layer as recovered by two black-box extractors (poppler pdftotext reading-order mode; MuPDF via its Python binding), compared with each other and, for Latin text, with tesseract OCR of the rendered page; block order and completeness checked against the page image; characters are the text layer, not re-read from pixels.",
+  "notes": "Reading order is column by column, left column first; running heads and page numbers at their top or bottom position."
+ },
+ "schema": 1,
+ "scoredPages": [
+  6
+ ],
+ "source": {
+  "attribution": "Work of the United States government (17 U.S.C. 105); original URL in source_url; unmodified",
+  "license": "US-Government-Work",
+  "source_url": "http://ti.arc.nasa.gov/projects/neo_study/pdf/neo_crewed_mission.pdf",
+  "upstream_ref": "GovDocs1 (digitalcorpora.org), crawled 2009"
+ }
+}

@@ -1,0 +1,32 @@
+{
+ "category": "scanned-ocr",
+ "generator": "real-world file; reference text built as described in reference.method",
+ "name": "scanned-ocr-01-gov000236",
+ "pageCount": 1,
+ "pages": [
+  {
+   "text": "Peer Review Contacts for Proposed Rule to List the Polar Bear as Threatened under the Endangered Species Act\n\nDr. Stanislav E. Belikov All-Russian Research Institute for Nature Protection Znamenskoye-Sadki Moscow 117628 Russian Federation Dr. Andrei N. Boltunov All-Russian Research Institute for Nature Protection Znamenskoye-Sadki Moscow 117628 Russian Federation Dr. Erik W. Born Greenland Institute of Natural Resources Danish Polar Center Strandgade 100H DK-1401 Copenhagen Denmark Dr. Andrew E. Derocher University of Alberta Department of Biological Sciences Edmonton, Alberta T6G 2E9 Canada Ms. Taqulik Hepa, Director North Slope Borough Department of Wildlife Management Barrow, Alaska 99723 Dr. Marika Holland National Center for Atmospheric Research 1850 Table Mesa Drive Boulder, Colorado, 80305 Mr. Charles Johnson, Executive Director Alaska Nanuuq Commission Old Federal Building, Suite 201 Nome, Alaska 99762\n\nBrendan P. Kelly, Program Director Office of Polar Programs National Science Foundation 4201 Wilson Blvd., Suite 755 Arlington, VA 22230 Dr. James E. Overland NOAA/Pacific Marine Environmental Laboratory 7600 Sand Point Way NE Seattle, Washington 98115 Dr. Tim Ragen, Executive Director Marine Mammal Commission 4340 East-West Highway, Room 905 Bethesda, Maryland 20814 Dr. Ian Stirling Canadian Wildlife Service 5320-122 Street Edmonton, Alberta T6H 3S5 Canada Dr. Julienne Stroeve National Snow and Ice Data Center University of Colorado Boulder, Colorado 80309-0449 Duane Smith Inuit Circumpolar Conference P.O. Box Inuvik, Northwest Territories Canada Dr. Øystein Wiig Natural History Museum University of Oslo, Oslo Norway"
+  }
+ ],
+ "reference": {
+  "checkedPages": [
+   0
+  ],
+  "confidence": "high",
+  "extractorAgreement": {
+   "1": 1.0
+  },
+  "method": "Draft from the text layer as recovered by two black-box extractors (poppler pdftotext reading-order mode; MuPDF via its Python binding), compared with each other and, for Latin text, with tesseract OCR of the rendered page; block order and completeness checked against the page image; characters are the text layer, not re-read from pixels. For scanned pages the reference is the embedded OCR layer, with its recognition errors; it measures extraction, not OCR.",
+  "notes": "Reference is the embedded OCR layer including its recognition errors."
+ },
+ "schema": 1,
+ "scoredPages": [
+  0
+ ],
+ "source": {
+  "attribution": "Work of the United States government (17 U.S.C. 105); original URL in source_url; unmodified",
+  "license": "US-Government-Work",
+  "source_url": "http://alaska.fws.gov/fisheries/mmm/polarbear/pdf/contact_list.pdf",
+  "upstream_ref": "GovDocs1 (digitalcorpora.org), crawled 2009"
+ }
+}

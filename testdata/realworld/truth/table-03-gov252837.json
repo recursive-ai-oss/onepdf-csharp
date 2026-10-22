@@ -1,0 +1,32 @@
+{
+ "category": "table",
+ "generator": "real-world file; reference text built as described in reference.method",
+ "name": "table-03-gov252837",
+ "pageCount": 31,
+ "pages": [
+  {
+   "text": "Name Country Model No Name Country Model No\n\nJack Sprat Gp. USCA 8a Kalamazoo-San Manuel USAZ 17\nJackson USOR 8a Kalengwa ZMBA 30b\nJacksonville Area USFL 39c Kaliapani INDA 38a\nJacobina BRZL 29a Kalimantan Ni INDS 38a\nJacupuenga BRZL 38a Kalkan TRKY 18d\nJajce YUGO 38c Kalkanli TRKY 28a\nJakobsbakken NRWY 28a Kalmakyr URUZ 17\nJameland CNON 28a Kalushi (Kalulushi) ZMBA 30b\nJames Bay CNON 10 Kalvbacken SWDN 18c\nJamestown USCA 36a Kam Kotia CNON 28a\nJamirapat-Khuria INDA 38b Kamaishi JAPN 18b\nJamnagar (Saurashtra) INDA 38b Kambaikhin central URRS 18d\nJarrahdale AUWA 38b Kambaikhin east URRS 18d\nJason CNON 36b Kambaikhin north URRS 18d\nJay Bird USOR 27d Kambalda AUWA 6a\nJedway CNBC 18d Kamegamori JAPN 24b\nJefferson City USTN 32b Kamenka URRS 39b\nJefferson Lake USCA 8d Kamenka R. URRS 39b\nJeffrey Lake CNQU 8d Kamenskoe URRS 34b\nJembaicumbene Creek AUNS 39a Kami BLVA 15a\nJerez de los Caballeros SPAN 18d Kamitkita (Kominosawa) JAPN 28a\nJerome CNON 36b Kamoto ZIRE 30b\nJerome USAZ 28a Kansanshi ZMBA 30b\nJerritt Canyon USNV 26a,27d Kanayama JAPN 24b\nJersey Emerald CNBC 31a Kandira TRKY 8a\nJerusalimsky-Priisk URRS 39b Kangaroo Court Mine USCA 8a\nJib CNBC 18d Kanjamalai INDA 34a,28b\nJicarilla USNM 18d Kankberg SWDN 28a\nJim Bus USOR 8a Kanmantoo AUSA 30b\nJo7 NCAL 24c Kansa INDA 38a\nJoanne CNMN 28a Kanye BOTS 18e\nJoe Walker USCA 36a Kaochiao CINA 34b\nJohns USOR 8a Kapedhes CYPS 24a\nJohnson-Heizer USNV 27d Kapin TRKY 8a\nJoinville BRZL 25i Kapunda AUSA 30b\nJoliet CNQU 28a Kara Tau URRS 34c\nJones Camp USNM 18d Karaculha TRKY 8a\nJordan Creek USID 39a Karageban TRKY 8a\nJose CUBA 8a Karamadazi TRKY 18d\nJosefina AGTN 15a Karamea NZLD 39c\nJosephine USCA 8a Karangnunggal INDS 25g\nJosephine No. 4 USOR 8a Karani TRKY 8a\nJosselin CNQU 28a Karaninar TRKY 8a\nJourawlik R. URRS 39b Karasivri TRKY 8a\nJoutel CNQU 28a Karatas TRKY 25g\nJubilee NZLD 36a Karatas-Kumocak TRKY 8a\nJubilee-New Jubilee AUVT 36a Karen CNBC 21b\nJudinsky-Lojok URRS 39b Kartalkoyu TRKY 8a\nJudy (Hicks) USCA 8a Kasuga JAPN 25e\nJulian USCA 8a Kata PERU 25b\nJulian-Banner USCA 36a Katherine USAZ 25c\nJuncos CNBC 18d Kauai USHI 38b\nJune CNBC 17 Kaunisvaara-Masugnsbyn SWDN 18d\nJussaari FNLD 34a,28b Kavadarci YUGO 38a\nJutinicu CUBA 24c Kavakcali TRKY 8a\nK.C. USCA 36a Kavakdere TRKY 8a\nKachar URRS 18d Kaw Mountains FRGN 38b\nKadzharan URAM 17 Kawasaki JAPN 25d\nKagit Octu TRKY 8a Kazadere-Kandil TRKY 8a\nKahal de Brezina ALGR 19b Kedbeg Copper URRS 18b\nKalaa Khasba TUNS 34c Kedtrask SWDN 28a\nKalahandi-Koraput INDA 38b Keewenaw CNYT 18b\nKalahari SAFR 34b Kefdag-East TRKY 8a\nKalamaton PLPN 17 Kelapa Kampit INDO 15b\n\n362"
+  }
+ ],
+ "reference": {
+  "checkedPages": [
+   13
+  ],
+  "confidence": "medium",
+  "extractorAgreement": {
+   "14": 1.0
+  },
+  "method": "Draft from poppler pdftotext -layout (rows kept as lines, cells separated by one space); row order and completeness checked against the page image; characters are the text layer.",
+  "notes": "Reading order is row by row, left to right; wrapped cell lines are separate lines."
+ },
+ "schema": 1,
+ "scoredPages": [
+  13
+ ],
+ "source": {
+  "attribution": "Work of the United States government (17 U.S.C. 105); original URL in source_url; unmodified",
+  "license": "US-Government-Work",
+  "source_url": "http://pubs.usgs.gov/bul/b1693/Apxe.pdf",
+  "upstream_ref": "GovDocs1 (digitalcorpora.org), crawled 2009"
+ }
+}

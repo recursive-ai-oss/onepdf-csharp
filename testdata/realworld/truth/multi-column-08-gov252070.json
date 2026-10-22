@@ -1,0 +1,32 @@
+{
+ "category": "multi-column",
+ "generator": "real-world file; reference text built as described in reference.method",
+ "name": "multi-column-08-gov252070",
+ "pageCount": 6,
+ "pages": [
+  {
+   "text": "Region 3   •   25\n\nGroundwater and surface runoff are the potential pathways of contaminant transport from the site to NOAA trust resources and associated habitats. Soils in the area are of the Beltsville silt loam series and overlie a low-permeability, varied clay substance.  The distance to the water table from the lowest point of waste disposal in the quarry was estimated to be 3 to 5 m (NUS 1983). The aquifer underlying the site consists of Conestoga Formation limestone; there are several other limestone formations near the site.  These carbonate units can be quite permeable to groundwater due to karst features such as sinkholes and solution channels. Groundwater flows towards Matsunk Creek under natural conditions (NUS  1983). However, continuous groundwater pumping from nearby quarries north of the site has altered groundwater flow in the direction of the pumping. A small, unnamed stream, approximately 60 m northeast of the quarry, flows to the southeast and discharges into Matsunk Creek 1.5 km west of the Schuylkill River  (NUS 1983). The Preliminary Assessment did not specify whether the lagoons in the quarry drain into the unnamed stream.  Matsunk Creek flows toward the Schuylkill River but could not be traced on the U.S. Geological Survey topographical map (USGS 1983) closer than 0.5 km west of the river.  It is likely that the creek enters culverts underneath a railroad area and enters the Schuylkill River at an undesignated location.\n\nNOAA Trust Habitats and Species\n\nThe Schuylkill River is the habitat of concern to NOAA.  Near the site, the river is a low-gradient, warmwater river, averaging approximately 1- to 2-m deep and 100- to 250-m wide. The Schuylkill River is considered the most heavily used water body for wastewater assimilation in Pennsylvania. There are also high levels of agricultural runoff to the river. Because of these factors, the river is generally considered to have low water quality (Soldo personal communication 1990; Kaufmann personal communication 1992). River substrate is predominantly gravel/cobble in riffle reaches and silt in pool reaches. There are heavy aquatic plant beds throughout the river, with the dominant plant species being Eurasian water milfoil (Myriophyllum spicatum) and pickerelweed (Pontederia cordata). There are no appreciable wetlands near the site (Kaufmann personal communication 1992).\n\nDam construction on the Schuylkill River eliminated natural anadromous fish migration into this reach of the river, which is corroborated by sampling data gathered between 1983 and 1984 (Soldo personal communication 1990). There are three dams on the Schuylkill River downstream from the site: Plymouth Dam (1.5 km), Flatrock Dam (10 km), and Fairmount Dam (22 km). Only Fairmount Dam has fish passage facilities. Because of legal and financial complexities associated with government ownership of Flatrock and Plymouth dams, scheduled improvements to these dams have been delayed and will probably\n\nCoastal Hazardous Waste Site Review / Crater Resources •   25"
+  }
+ ],
+ "reference": {
+  "checkedPages": [
+   2
+  ],
+  "confidence": "medium",
+  "extractorAgreement": {
+   "3": 0.887
+  },
+  "method": "Draft from the text layer as recovered by two black-box extractors (poppler pdftotext reading-order mode; MuPDF via its Python binding), compared with each other and, for Latin text, with tesseract OCR of the rendered page; block order and completeness checked against the page image; characters are the text layer, not re-read from pixels.",
+  "notes": "Reading order is column by column, left column first; running heads and page numbers at their top or bottom position."
+ },
+ "schema": 1,
+ "scoredPages": [
+  2
+ ],
+ "source": {
+  "attribution": "Work of the United States government (17 U.S.C. 105); original URL in source_url; unmodified",
+  "license": "US-Government-Work",
+  "source_url": "http://response.restoration.noaa.gov/book_shelf/436_Crater.pdf",
+  "upstream_ref": "GovDocs1 (digitalcorpora.org), crawled 2009"
+ }
+}

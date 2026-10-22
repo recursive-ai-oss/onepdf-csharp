@@ -1,0 +1,30 @@
+{
+ "category": "cjk",
+ "generator": "real-world file; reference text built as described in reference.method",
+ "name": "cjk-07-zen18635107",
+ "pageCount": 10,
+ "pages": [
+  {
+   "text": "Ⅱ. 기존 음악 교육에서 피아노가 중심이 되기 어 려운 구조적 이유 기존 음악 교육은 국가와 문화권을 막론하고 음악을 개인의 언어로 완성시 키기보다 집단적 참여와 경험을 중심으로 설계해 왔다. 미국과 유럽의 일반 음악 교육에서는 유아기부터 말 리듬, 바디 퍼커션, 타악기를 활용한 집단 리듬 활동이 장기간 지속되며, 일본의 음악 교육 및 민간 음악 기관 역시 유 사한 구조를 유지해 왔다. 이러한 접근은 리듬 감각과 사회적 음악성을 형성하는 데 효과적이지만, 특 정 개인이 하나의 악기를 통해 음악의 시간 구조·화성·선율을 지속적으로 통 합해 나가는 목표를 전제로 하지는 않는다. 한국의 경우, 반대로 피아노 교 육이 비교적 이른 시기에 도입되었으나, 이 역시 연주 재현을 중심으로 설계 되어 리듬을 문법으로 다루는 구조로는 발전하지 못했다. 중요한 점은 이러한 차이가 교육의 질이나 성취도의 문제가 아니라, 교육이 무엇을 목표로 설정해 왔는가의 차이라는 점이다. 피아노는 단일 악기 안에 서 리듬, 화성, 선율, 구조를 동시에 요구하기 때문에, 집단 중심·활동 중심 구조와 근본적인 긴장을 형성한다."
+  }
+ ],
+ "reference": {
+  "checkedPages": [],
+  "confidence": "low",
+  "extractorAgreement": {
+   "3": 1.0
+  },
+  "method": "Draft from the text layer as recovered by two black-box extractors (poppler pdftotext reading-order mode; MuPDF via its Python binding), compared with each other and, for Latin text, with tesseract OCR of the rendered page; block order and completeness checked against the page image; characters are the text layer, not re-read from pixels.",
+  "notes": "Characters from the text layer; vertical sidebars, if any, follow the main text. Not yet reviewed against the page image (only compared across extractors): treat as a draft."
+ },
+ "schema": 1,
+ "scoredPages": [
+  2
+ ],
+ "source": {
+  "attribution": "이, 은우: 리듬을 출발점으로 하는 피아노 중심 음악 교육 이론 — 개인 음악 언어 형성을 위한 구조적 접근 (Zenodo, doi:10.5281/zenodo.18635107), CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/); unmodified",
+  "license": "CC-BY-4.0",
+  "source_url": "https://zenodo.org/records/18635107",
+  "upstream_ref": "doi:10.5281/zenodo.18635107; file 1.리듬을 출발점으로 하는 피아노 중심 음악 교육 이론(26.02.14)한글.pdf"
+ }
+}

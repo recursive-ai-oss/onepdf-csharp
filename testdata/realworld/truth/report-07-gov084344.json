@@ -1,0 +1,32 @@
+{
+ "category": "report",
+ "generator": "real-world file; reference text built as described in reference.method",
+ "name": "report-07-gov084344",
+ "pageCount": 6,
+ "pages": [
+  {
+   "text": "Table 2. Spermine Induction Results\n\nc cell -/+ attachment MacI expression c = control p = 3nM PMA\n\np +\n\n2uM s -\n\n+\n\n-\n\n-\n\ns = spermine\n\n3-30 are cell lines derived from HL-525, and are stably transfected with a plasmid coding for PKC-β. There is also a transcription factor called Nrf2 that is expressed after 3 hours of PMA induction in HL-60 (Gavin, 2001). This might also play a role in regulating SSAT, because SSAT is not expressed until 8 hours. The isolation and sequencing of 631A1 and 510C1 will be completed soon. Obtaining the antisense sequence will enable us to learn much more about the function of these currently unknown genes. It will be interesting to discover where in the scheme of macrophage differentiation these new genes fit in. We can only hope that it will make what we now know about differentiation even more clear. In addition, knowing how SSAT is regulated is the beginning of a new understanding of polyamine regulation in the cell. This could lead to identification of new targets for cell growth and differentiation control, giving us yet another tool for finding treatments for cancer.\n\nACKNOWLEDGEMENTS\n\n4uM s 2uM sp 4uM sp 2uM spa 4uM spa +/-/+ -\n\n-\n\n-\n\n-\n\na = SSAT antisense\n\nThe research presented here was done at Argonne National Laboratory, a scientific research facility owned by the U.S. Department of Energy, and managed by the University of Chicago in Argonne, Illinois. The experimental data was collected in the summer of 2001.\n\nREFERENCES Casero, R.A., & Pegg, A.E. (1993). Spermidine/spermine N1acetyltransferase- the turning point in polyamine metabolism. The FASEB Journal, 7(May), 653-661. Gavin, I. (2001). (Personal communication, July, 2001). Huberman, E., Weeks, C., Herrmann, A., Callaham, M., & Slaga, T. (1981). Alterations in polyamine levels induced by phorbol diesters and other agents that promote differentiation in human promyelocytic leukemia cells. Cell Biology, 78(2), 1062-1066. Liang, P., & Pardee, A.B. (1992). Differential display of eukaryotic messenger RNA by means of the polymerase chain reaction. Science, 257(Aug. 14), 967-971.\n\nThank you to the U.S. Department of Energy, Office of Science and Argonne National Laboratory for collaborating to orga- Socolovsky, M., Lodish, H.F., & Daley, G.Q. (1998). Control of hematopoietic differentiation: lack of specificity in nize and fund the Energy Research Undergraduate Laboratory signaling by cytokine receptors. Proceedings of the Fellowship. Thank you also to the National Science Foundation National Academy of Sciences of the United States of for help in the organization of ERULF. Many thanks to my patient America, 95(12), 6573-6575. mentor, Igor Gavin, and to my supervisor Eliezer Huberman. Thank Tonnetti, D.A., Henning-Chubb, C., Yamanishi, D.T., & you to David Glesne for knowing the location of everything in the Huberman, E. (1994). Protein kinase C-b is required for lab and tolerating endless questioning. And to everyone in the macrophage differentiation of human HL-60 leukemia Huberman lab, thank you for sharing your knowledge of scientific cells. The Journal of Biological Chemistry, 269(37), theory and practice with an eager student. 23230-23235.\n\nU.S. DEPARTMENT OF ENERGY JOURNAL OF UNDERGRADUATE RESEARCH http://www.scied.science.doe.gov\n\n39"
+  }
+ ],
+ "reference": {
+  "checkedPages": [
+   5
+  ],
+  "confidence": "high",
+  "extractorAgreement": {
+   "6": 0.971
+  },
+  "method": "Draft from the text layer as recovered by two black-box extractors (poppler pdftotext reading-order mode; MuPDF via its Python binding), compared with each other and, for Latin text, with tesseract OCR of the rendered page; block order and completeness checked against the page image; characters are the text layer, not re-read from pixels.",
+  "notes": ""
+ },
+ "schema": 1,
+ "scoredPages": [
+  5
+ ],
+ "source": {
+  "attribution": "Work of the United States government (17 U.S.C. 105); original URL in source_url; unmodified",
+  "license": "US-Government-Work",
+  "source_url": "https://www.scied.science.doe.gov/SciEd/JUR_v2/pdfs/Kubera.pdf",
+  "upstream_ref": "GovDocs1 (digitalcorpora.org), crawled 2009"
+ }
+}
