@@ -56,7 +56,7 @@ public class ContentLexerTests
         Assert.Equal(["(a\nb\u0001 )", "ShowText"], Tokens("(a\\nb\\001\\\r\n )Tj"));
         Assert.Equal(["(Ab\u0010)", "ShowText"], Tokens("<41 62 1>Tj"));
         Assert.Equal(["CloseFillStrokeEo", "FillStrokeEo", "ClipEo", "NextLine"], Tokens("b* B* W* T*"));
-        Assert.Equal(["?foo", "q"], Tokens("foo q"));
+        Assert.Equal(["?foo", "Save"], Tokens("foo q"));
         Assert.Equal(["i1", "NextLineShow"], Tokens("1 '"));
     }
 
@@ -110,7 +110,7 @@ public class ContentLexerTests
         Assert.True(found);
         Assert.Equal(4, img.Length);
         Assert.Equal(ContentToken.Operator, lx.Next(out _, out ContentOp next));
-        Assert.Equal(ContentOp.Save, next);
+        Assert.Equal(ContentOp.Restore, next);
 
         // Unknown length (filtered): scan for a standalone EI followed by content.
         byte[] filtered = Encoding.Latin1.GetBytes("BI /W 1 /H 1 /F /AHx ID 00>EIx\nEI Q");

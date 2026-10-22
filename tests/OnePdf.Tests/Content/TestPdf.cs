@@ -22,14 +22,13 @@ internal static class TestPdf
 
     public static PdfDocument Open(byte[] data, PdfOpenOptions? options = null) => PdfDocument.Open(data, options);
 
-    public static PdfDictionary Page(PdfDocument doc, int index = 0) =>
-        PageAccess.GetPage(doc, index) ?? throw new InvalidOperationException("no such page");
+    public static PdfPage Page(PdfDocument doc, int index = 0) => doc.Pages[index];
 
     /// <summary>Interprets page 0 of the file into a display list.</summary>
     public static PdfDisplayList Record(PdfDocument doc, int page = 0, PdfInterpretOptions? options = null, CancellationToken ct = default)
     {
         var list = new PdfDisplayList();
-        ContentInterpreter.Run(doc, Page(doc, page), list, options, ct);
+        Page(doc, page).Interpret(list, options, ct);
         return list;
     }
 

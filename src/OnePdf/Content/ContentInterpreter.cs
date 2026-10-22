@@ -79,13 +79,12 @@ internal sealed partial class ContentInterpreter
     /// Interprets the page: BeginPage, the page's content streams, the annotation appearances, EndPage. EndPage and every
     /// bracket close even when a limit stops the page or the token is cancelled.
     /// </summary>
-    public static void Run(PdfDocument doc, PdfDictionary page, IPdfDevice device, PdfInterpretOptions? options, CancellationToken cancellationToken = default)
+    public static void Run(PdfPage page, IPdfDevice device, PdfInterpretOptions? options, CancellationToken cancellationToken = default)
     {
-        ArgumentNullException.ThrowIfNull(doc);
         ArgumentNullException.ThrowIfNull(page);
         ArgumentNullException.ThrowIfNull(device);
         cancellationToken.ThrowIfCancellationRequested();
-        var interp = new ContentInterpreter(doc, device, options ?? new PdfInterpretOptions(), cancellationToken);
+        var interp = new ContentInterpreter(page.Document, device, options ?? new PdfInterpretOptions(), cancellationToken);
         interp.RunPage(page);
     }
 
@@ -104,15 +103,15 @@ internal sealed partial class ContentInterpreter
 
     // ---- page ----
 
-    private void RunPage(PdfDictionary page)
+    private void RunPage(PdfPage page)
     {
         _page = PageGeometry.Compute(page, _options, m => Report(PdfSeverity.Warning, m));
-        _res = PageGeometry.Inherited(page, "Resources") as PdfDictionary;
+        _res = page.Resources;
         ResetState(_page.BaseMatrix);
         _device.BeginPage(in _page);
         try
         {
-            foreach (PdfStream s in ContentStreams(page))
+            foreach (PdfStream s in page.ContentStreams)
             {
                 if (_stopped)
                 {
@@ -148,30 +147,6 @@ internal sealed partial class ContentInterpreter
             finally
             {
                 _device.EndPage();
-            }
-        }
-    }
-
-    private IEnumerable<PdfStream> ContentStreams(PdfDictionary page)
-    {
-        PdfObject? c = page.Get("Contents");
-        if (c is PdfStream one)
-        {
-            yield return one;
-        }
-        else if (c is PdfArray arr)
-        {
-            int limit = Math.Min(arr.Count, _limits.MaxObjects);
-            for (int i = 0; i < limit; i++)
-            {
-                if (arr[i] is PdfStream s)
-                {
-                    yield return s;
-                }
-                else
-                {
-                    Report(PdfSeverity.Warning, "A /Contents entry is not a stream and was skipped.");
-                }
             }
         }
     }
@@ -236,6 +211,12 @@ internal sealed partial class ContentInterpreter
         }
 
         _skippedSaves = 0;
+        if (savedDepth == 0)
+        {
+            // Clips pushed outside any q belong to the base state, which no Q ever restores.
+            PopClips(_g);
+        }
+
         if (unbalanced && where is not null)
         {
             Report(PdfSeverity.Info, "Unbalanced q or marked content at the end of " + where + "; closed.");

@@ -524,43 +524,40 @@ internal sealed partial class ContentInterpreter
 
     // ---- annotations ----
 
-    private void RunAnnotations(PdfDictionary page)
+    private void RunAnnotations(PdfPage page)
     {
-        if (_options.Annotations == PdfAnnotationMode.None || page.GetArray("Annots") is not { } annots)
+        if (_options.Annotations == PdfAnnotationMode.None)
         {
             return;
         }
 
-        int n = Math.Min(annots.Count, _limits.MaxObjects);
-        for (int i = 0; i < n && !_stopped; i++)
+        IReadOnlyList<PdfAnnotation> annots = page.Annotations;
+        for (int i = 0; i < annots.Count && !_stopped; i++)
         {
             _ct.ThrowIfCancellationRequested();
-            if (annots[i] is PdfDictionary a)
-            {
-                RunAnnotation(a);
-            }
+            RunAnnotation(annots[i]);
         }
     }
 
-    private void RunAnnotation(PdfDictionary a)
+    private void RunAnnotation(PdfAnnotation annotation)
     {
-        string subtype = a.GetName("Subtype") ?? string.Empty;
+        string subtype = annotation.Subtype;
         if (subtype == "Popup")
         {
             return;
         }
 
-        int flags = (int)Math.Clamp(a.GetInt("F"), 0, int.MaxValue);
-        bool hiddenFlag = (flags & 2) != 0;
+        PdfAnnotationOptions f = annotation.Flags;
+        bool hiddenFlag = (f & PdfAnnotationOptions.Hidden) != 0;
         bool visible = _options.Annotations == PdfAnnotationMode.Print
-            ? !hiddenFlag && (flags & 4) != 0
-            : !hiddenFlag && (flags & 32) == 0;
-        if (!visible || (a.Get("OC") is { } oc && !_oc.IsVisible(oc)))
+            ? !hiddenFlag && (f & PdfAnnotationOptions.Print) != 0
+            : !hiddenFlag && (f & PdfAnnotationOptions.NoView) == 0;
+        if (!visible || (annotation.Dictionary.Get("OC") is { } oc && !_oc.IsVisible(oc)))
         {
             return;
         }
 
-        PdfStream? ap = SelectAppearance(a);
+        PdfStream? ap = annotation.GetAppearanceStream();
         if (ap is null)
         {
             if (subtype != "Link")
@@ -571,11 +568,16 @@ internal sealed partial class ContentInterpreter
             return;
         }
 
-        if (ReadRect(a.GetArray("Rect")) is not { } rect)
+        PdfRectangle r = annotation.Rect;
+        if (r.IsEmpty && annotation.Dictionary.Get("Rect") is not PdfArray)
         {
             Report(PdfSeverity.Warning, "An annotation has no valid /Rect; it was skipped.");
             return;
         }
+
+        var rect = new PdfBounds(r.Left, r.Bottom, r.Right, r.Top);
+        int flags = (int)f;
+        PdfDictionary a = annotation.Dictionary;
 
         // ISO 32000-2 12.5.5: the transformed appearance box is fitted onto the annotation rectangle.
         PdfMatrix fm = ReadMatrix(ap.Dictionary.GetArray("Matrix"));
@@ -609,22 +611,5 @@ internal sealed partial class ContentInterpreter
                 _device.EndAnnotation();
             }
         }
-    }
-
-    private static PdfStream? SelectAppearance(PdfDictionary a)
-    {
-        PdfDictionary? ap = a.GetDictionary("AP");
-        PdfObject? n = ap?.Get("N");
-        if (n is PdfStream s)
-        {
-            return s;
-        }
-
-        if (n is PdfDictionary states && a.GetName("AS") is { } state)
-        {
-            return states.Get(state) as PdfStream;
-        }
-
-        return null;
     }
 }

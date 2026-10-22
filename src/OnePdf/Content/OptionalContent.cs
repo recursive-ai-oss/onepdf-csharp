@@ -9,48 +9,16 @@ internal sealed class OptionalContentState
 {
     private const int MaxExpressionDepth = 16;
     private readonly Func<PdfDictionary, bool?>? _override;
-    private readonly HashSet<int> _on = [];
-    private readonly HashSet<int> _off = [];
-    private readonly bool _baseOn = true;
-    private readonly bool _any;
+    private readonly Dictionary<int, bool> _defaults = [];
 
     public OptionalContentState(PdfDocument doc, Func<PdfDictionary, bool?>? overrideFunc)
     {
         _override = overrideFunc;
-        PdfDictionary? props = null;
-        try
+        foreach (PdfOptionalContentGroup g in doc.OptionalContentGroups)
         {
-            props = doc.Catalog.GetDictionary("OCProperties");
-        }
-        catch (PdfFormatException)
-        {
-            // A document without a catalog has no optional content.
-        }
-
-        PdfDictionary? d = props?.GetDictionary("D");
-        _any = props is not null;
-        if (d is null)
-        {
-            return;
-        }
-
-        _baseOn = d.GetName("BaseState") != "OFF";
-        Collect(d.GetArray("ON"), _on);
-        Collect(d.GetArray("OFF"), _off);
-    }
-
-    private static void Collect(PdfArray? a, HashSet<int> into)
-    {
-        if (a is null)
-        {
-            return;
-        }
-
-        for (int i = 0; i < a.Count; i++)
-        {
-            if (a.GetRaw(i) is PdfReference r)
+            if (g.Dictionary.Reference is { } r)
             {
-                into.Add(r.Number);
+                _defaults[r.Number] = g.IsVisibleByDefault;
             }
         }
     }
@@ -84,22 +52,7 @@ internal sealed class OptionalContentState
             return forced;
         }
 
-        if (!_any || g.Reference is not { } r)
-        {
-            return true;
-        }
-
-        if (_off.Contains(r.Number))
-        {
-            return false;
-        }
-
-        if (_on.Contains(r.Number))
-        {
-            return true;
-        }
-
-        return _baseOn;
+        return g.Reference is not { } r || !_defaults.TryGetValue(r.Number, out bool visible) || visible;
     }
 
     private bool EvaluateMembership(PdfDictionary ocmd, int depth)
@@ -197,114 +150,29 @@ internal sealed class OptionalContentState
 /// <summary>Resolves the page box, rotation and unit into the transform from default user space to the output space.</summary>
 internal static class PageGeometry
 {
-    private const int MaxParentChain = 64;
-
-    /// <summary>Looks up an inheritable page attribute along the <c>/Parent</c> chain (ISO 32000-2 7.7.3.4).</summary>
-    public static PdfObject? Inherited(PdfDictionary page, string key)
+    public static PdfPageInfo Compute(PdfPage page, PdfInterpretOptions o, Action<string> warn)
     {
-        PdfDictionary? node = page;
-        for (int depth = 0; node is not null && depth < MaxParentChain; depth++)
+        PdfRectangle r = o.Box switch
         {
-            if (node.Get(key) is { } v)
-            {
-                return v;
-            }
-
-            node = node.GetDictionary("Parent");
-        }
-
-        return null;
-    }
-
-    private static PdfBounds? ReadBox(PdfObject? o)
-    {
-        if (o is not PdfArray a || a.Count < 4)
-        {
-            return null;
-        }
-
-        for (int i = 0; i < 4; i++)
-        {
-            if (a[i] is not (PdfInteger or PdfReal))
-            {
-                return null;
-            }
-        }
-
-        var b = PdfBounds.FromCorners(a.GetDouble(0), a.GetDouble(1), a.GetDouble(2), a.GetDouble(3));
-        return b.IsFinite && b.Width > 0 && b.Height > 0 ? b : null;
-    }
-
-    public static PdfPageInfo Compute(PdfDictionary page, PdfInterpretOptions o, Action<string> warn)
-    {
-        PdfBounds media;
-        if (ReadBox(Inherited(page, "MediaBox")) is { } m)
-        {
-            media = m;
-        }
-        else
-        {
-            warn("The page has no usable /MediaBox; US Letter is assumed.");
-            media = new PdfBounds(0, 0, 612, 792);
-        }
-
-        PdfBounds? crop = ReadBox(Inherited(page, "CropBox"));
-        PdfPageBox name = o.Box;
-        PdfBounds? chosen = o.Box switch
-        {
-            PdfPageBox.MediaBox => media,
-            PdfPageBox.BleedBox => ReadBox(page.Get("BleedBox")) ?? crop,
-            PdfPageBox.TrimBox => ReadBox(page.Get("TrimBox")) ?? crop,
-            PdfPageBox.ArtBox => ReadBox(page.Get("ArtBox")) ?? crop,
-            _ => crop,
+            PdfPageBox.MediaBox => page.MediaBox,
+            PdfPageBox.BleedBox => page.BleedBox,
+            PdfPageBox.TrimBox => page.TrimBox,
+            PdfPageBox.ArtBox => page.ArtBox,
+            _ => page.CropBox,
         };
-        if (chosen is null)
-        {
-            chosen = media;
-            name = PdfPageBox.MediaBox;
-        }
+        PdfRectangle media = page.MediaBox;
 
         // Every box is limited to the media box (ISO 32000-2 14.11.2).
-        PdfBounds box = chosen.Value;
-        var clipped = new PdfBounds(Math.Max(box.Left, media.Left), Math.Max(box.Bottom, media.Bottom), Math.Min(box.Right, media.Right), Math.Min(box.Top, media.Top));
-        if (clipped.Width > 0 && clipped.Height > 0)
+        PdfRectangle box = r.Intersect(media) ?? media;
+        PdfPageBox name = o.Box;
+        if (box.IsEmpty)
         {
-            box = clipped;
-        }
-        else
-        {
-            warn("A page box lies outside the media box; the media box is used.");
-            box = media;
-            name = PdfPageBox.MediaBox;
+            warn("The page box has no area; US Letter is assumed.");
+            box = new PdfRectangle(0, 0, 612, 792);
         }
 
-        int rotation = 0;
-        if (o.ApplyRotation)
-        {
-            long r = Inherited(page, "Rotate") switch
-            {
-                PdfInteger i => i.Value,
-                PdfReal re when double.IsFinite(re.Value) && Math.Abs(re.Value) < 1e9 => (long)re.Value,
-                _ => 0,
-            };
-            rotation = (int)(((r % 360) + 360) % 360);
-            if (rotation % 90 != 0)
-            {
-                warn("The page /Rotate is not a multiple of 90; it is ignored.");
-                rotation = 0;
-            }
-        }
-
-        double unit = 1;
-        if (o.ApplyUserUnit)
-        {
-            double u = page.GetDouble("UserUnit", 1);
-            if (u > 0 && double.IsFinite(u))
-            {
-                unit = u;
-            }
-        }
-
+        int rotation = o.ApplyRotation ? page.Rotate : 0;
+        double unit = o.ApplyUserUnit ? page.UserUnit : 1;
         double requested = o.Dpi > 0 && double.IsFinite(o.Dpi) ? o.Dpi / 72.0 : o.Scale;
         if (!(requested > 0) || !double.IsFinite(requested))
         {
@@ -339,6 +207,6 @@ internal static class PageGeometry
                 break;
         }
 
-        return new PdfPageInfo(box, name, rotation, unit, s, outW, outH, baseMatrix, page);
+        return new PdfPageInfo(new PdfBounds(box.Left, box.Bottom, box.Right, box.Top), name, rotation, unit, s, outW, outH, baseMatrix, page.Dictionary);
     }
 }

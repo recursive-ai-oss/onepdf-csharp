@@ -21,7 +21,7 @@ public class InterpreterTests
     public void FilledRectangleIsReportedInUserSpaceWithTheFullMatrix()
     {
         string t = T("1 0 0 rg 10 10 50 50 re f");
-        Assert.Contains("page box=0 0 200 200 name=MediaBox rotate=0 unit=1 scale=1 size=200 200 base=[1 0 0 -1 0 200]", t);
+        Assert.Contains("page box=0 0 200 200 name=CropBox rotate=0 unit=1 scale=1 size=200 200 base=[1 0 0 -1 0 200]", t);
         Assert.Contains("gs ctm=[1 0 0 -1 0 200] fill=rgb(1 0 0) stroke=gray(0)", t);
         Assert.Contains("fill nonzero M 10 10 L 60 10 L 60 60 L 10 60 Z", t);
         Assert.StartsWith("onepdf-display-list 1\n", t);
@@ -82,7 +82,7 @@ public class InterpreterTests
         Assert.True(Indent(fills[1]) > Indent(fills[2]));
         var dev = new CheckingDevice();
         using PdfDocument doc = TestPdf.Open(TestPdf.Build("q 0 0 100 100 re W n q 10 10 50 50 re W* n 0 0 1 1 re f Q 5 5 5 5 re f Q"));
-        ContentInterpreter.Run(doc, TestPdf.Page(doc), dev, null);
+        TestPdf.Page(doc).Interpret(dev);
         Assert.Empty(dev.Problems);
         Assert.Equal(2, dev.Clips);
     }
@@ -93,7 +93,7 @@ public class InterpreterTests
         byte[] data = TestPdf.Build("Q Q 1 0 0 rg q q q 0 0 10 10 re W n 0 0 1 1 re f");
         var dev = new CheckingDevice();
         using PdfDocument doc = TestPdf.Open(data);
-        ContentInterpreter.Run(doc, TestPdf.Page(doc), dev, null);
+        TestPdf.Page(doc).Interpret(dev);
         Assert.Empty(dev.Problems);
         Assert.True(dev.Ended);
         Assert.Contains(doc.Diagnostics, d => d.Message.Contains("Q without"));
@@ -119,7 +119,7 @@ public class InterpreterTests
 
         var dev = new CheckingDevice();
         using PdfDocument doc = TestPdf.Open(TestPdf.Build(sb.ToString()));
-        ContentInterpreter.Run(doc, TestPdf.Page(doc), dev, null);
+        TestPdf.Page(doc).Interpret(dev);
         Assert.Empty(dev.Problems);
     }
 
@@ -207,7 +207,7 @@ public class InterpreterTests
         var opts = new PdfOpenOptions { Limits = PdfLimits.Default with { MaxOperatorsPerPage = 1000 } };
         using PdfDocument doc = TestPdf.Open(data, opts);
         var dev = new CheckingDevice();
-        ContentInterpreter.Run(doc, TestPdf.Page(doc), dev, null);
+        TestPdf.Page(doc).Interpret(dev);
         Assert.Empty(dev.Problems);
         Assert.True(dev.Ended);
         Assert.Contains(doc.Diagnostics, d => d.Message.Contains("more content operators than the limit"));
@@ -246,7 +246,7 @@ public class InterpreterTests
         string media = T("0 0 1 1 re f", pageEntries, options: new PdfInterpretOptions { Box = PdfPageBox.MediaBox, ApplyRotation = false, ApplyUserUnit = false });
         Assert.Contains("box=0 0 200 200 name=MediaBox", media);
         // An art box that is missing falls back to the crop box.
-        Assert.Contains("name=CropBox", T("0 0 1 1 re f", pageEntries, options: new PdfInterpretOptions { Box = PdfPageBox.ArtBox }));
+        Assert.Contains("name=ArtBox", T("0 0 1 1 re f", pageEntries, options: new PdfInterpretOptions { Box = PdfPageBox.ArtBox }));
     }
 
     [Fact]
@@ -263,5 +263,44 @@ public class InterpreterTests
         Assert.Contains("rotate=90", t);
         Assert.Contains("size=100 300", t);
         Assert.Contains("lw=9", t);
+    }
+}
+
+public class ContentRepros
+{
+    [Fact]
+    public void ClipsPushedOutsideAnyQAreClosedAtTheEndOfThePage()
+    {
+        var dev = new CheckingDevice();
+        using PdfDocument doc = TestPdf.Open(TestPdf.Build("0 0 5 5 re W n 1 0 0 1 0 0 cm 0 0 1 1 re W f"));
+        TestPdf.Page(doc).Interpret(dev);
+        Assert.Empty(dev.Problems);
+        Assert.Equal(2, dev.Clips);
+    }
+
+    [Fact]
+    public void FuzzReproClipOutsideQLeftOpen()
+    {
+        string? file = FindRepro("content-clip-outside-q-left-open.txt");
+        Assert.SkipWhen(file is null, "testdata/repros is not present");
+        OnePdf.Fuzz.ContentTarget.Run(File.ReadAllBytes(file!));
+        using PdfDocument doc = TestPdf.Open(OnePdf.Fuzz.ContentTarget.Wrap(File.ReadAllBytes(file!)));
+        var dev = new CheckingDevice();
+        TestPdf.Page(doc).Interpret(dev);
+        Assert.Empty(dev.Problems);
+    }
+
+    private static string? FindRepro(string name, [System.Runtime.CompilerServices.CallerFilePath] string source = "")
+    {
+        for (string? d = Path.GetDirectoryName(source); d is not null; d = Path.GetDirectoryName(d))
+        {
+            string c = Path.Combine(d, "testdata", "repros", name);
+            if (File.Exists(c))
+            {
+                return c;
+            }
+        }
+
+        return null;
     }
 }
