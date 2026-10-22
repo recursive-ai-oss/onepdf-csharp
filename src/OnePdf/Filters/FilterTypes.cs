@@ -44,7 +44,9 @@ internal sealed record FilterParameters(
 /// <param name="MaxExpansionRatio">The most output bytes per input byte for Flate and LZW once the output is past
 /// <paramref name="RatioAppliesAfterBytes"/>; 0 disables the ratio.</param>
 /// <param name="RatioAppliesAfterBytes">Output up to this size is never rejected by the ratio, so small streams of repetitive data pass.</param>
-internal readonly record struct DecodeLimits(long MaxDecodedBytes, double MaxExpansionRatio, long RatioAppliesAfterBytes)
+/// <param name="DiscardOnLimit">When a stage breaches the limit, return no data instead of the part produced within the bound.
+/// For callers that raise an error and never look at it: it saves copying up to the whole cap just to throw it away.</param>
+internal readonly record struct DecodeLimits(long MaxDecodedBytes, double MaxExpansionRatio, long RatioAppliesAfterBytes, bool DiscardOnLimit = false)
 {
     /// <summary>256 MiB per stage, ratio 1100 once past 16 MiB of output.</summary>
     public static DecodeLimits Default { get; } = new(256L << 20, 1100, 16L << 20);

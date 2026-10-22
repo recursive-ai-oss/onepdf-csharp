@@ -29,7 +29,7 @@ public sealed partial class PdfDocument : IDisposable
         _diag = new DiagnosticBag(options.Strict);
         Cache = new ObjectCache(Math.Max(0, options.ObjectCacheBytes));
         _scan = new Lazy<ScanResult>(ScanFile, LazyThreadSafetyMode.ExecutionAndPublication);
-        _pageCount = new Lazy<int>(() => Pages.Count, LazyThreadSafetyMode.ExecutionAndPublication);
+        _pageCount = new Lazy<int>(CountPagesLean, LazyThreadSafetyMode.ExecutionAndPublication);
         InitModel();
         Initialize();
     }
