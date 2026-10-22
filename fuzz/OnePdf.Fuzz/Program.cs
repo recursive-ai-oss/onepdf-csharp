@@ -15,6 +15,7 @@ using SharpFuzz;
 //
 // Without a libFuzzer host there are two local modes:
 //   mutate <target> <seconds> <seed file or directory>...   random byte-level mutation of the seeds, in process
+//   interpret-dir <directory>                               opens every .pdf and interprets its first pages into display lists
 //   open-dir <directory> [seconds-per-file]                 opens, walks and times every .pdf in a directory tree
 internal static class Program
 {
@@ -32,6 +33,7 @@ internal static class Program
         ["fontprogram"] = FontProgramTarget.Run,
         ["cmap"] = CMapTarget.Run,
         ["security"] = SecurityTarget.Run,
+        ["content"] = ContentTarget.Run,
     };
 
     private static int Main(string[] args)
@@ -39,6 +41,11 @@ internal static class Program
         if (args.Length > 0 && args[0] == "mutate")
         {
             return Mutate(args);
+        }
+
+        if (args.Length > 1 && args[0] == "interpret-dir")
+        {
+            return InterpretSweep.Run(args);
         }
 
         if (args.Length > 0 && args[0] == "open-dir")

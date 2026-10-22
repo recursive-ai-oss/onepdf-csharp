@@ -1,0 +1,226 @@
+namespace OnePdf;
+
+/// <summary>
+/// What an interpretation drives. OnePDF resolves everything specific to PDF (operators, resources, inheritance, optional
+/// content, form nesting); the device sees paths, glyph runs, images and brackets. Calls come from one thread in content
+/// order. Memory in the arguments (paths, glyph arrays, code bytes) is only valid during the call.
+/// </summary>
+/// <remarks>
+/// Brackets (<c>PushClip</c>/<c>PopClip</c>, groups, soft masks, marked content, annotations) are always balanced, also
+/// when the content is damaged or interpretation is cancelled. Content hidden by optional content is never delivered.
+/// Derive from <see cref="PdfDevice"/> to override only the calls you need.
+/// </remarks>
+public interface IPdfDevice
+{
+    /// <summary>The page starts. Everything until <see cref="EndPage"/> lies inside it.</summary>
+    void BeginPage(in PdfPageInfo page);
+
+    /// <summary>The page is complete (also called after a limit stopped the page or the token was cancelled).</summary>
+    void EndPage();
+
+    /// <summary>Fills a path (open subpaths are closed implicitly) with <see cref="PdfGraphicsState.FillColor"/>.</summary>
+    void FillPath(in PdfPath path, bool evenOdd, in PdfGraphicsState state);
+
+    /// <summary>Strokes a path with the line parameters and <see cref="PdfGraphicsState.StrokeColor"/>.</summary>
+    void StrokePath(in PdfPath path, in PdfGraphicsState state);
+
+    /// <summary>Intersects the clip with a path. Undone by the matching <see cref="PopClip"/>.</summary>
+    void PushClip(in PdfPath path, bool evenOdd, in PdfGraphicsState state);
+
+    /// <summary>
+    /// Intersects the clip with the union of the glyphs shown with a clipping render mode (4 to 7) since the last
+    /// <c>BT</c>. Undone by the matching <see cref="PopClip"/>.
+    /// </summary>
+    void PushTextClip(in PdfGraphicsState state);
+
+    /// <summary>Removes the most recent clip.</summary>
+    void PopClip();
+
+    /// <summary>Shows a string of text.</summary>
+    void ShowGlyphRun(in PdfGlyphRun run, in PdfGraphicsState state);
+
+    /// <summary>Draws an image into the unit square of <see cref="PdfGraphicsState.Ctm"/>. The image is passed undecoded.</summary>
+    void DrawImage(in PdfImage image, in PdfGraphicsState state);
+
+    /// <summary>
+    /// The <c>sh</c> operator: paints a shading over the current clip. The shading dictionary (or stream) is passed
+    /// unevaluated.
+    /// </summary>
+    void PaintShading(PdfObject shading, string name, in PdfGraphicsState state);
+
+    /// <summary>Starts a transparency group; its content is composited as a unit with the state's opacity, blend mode and soft mask.</summary>
+    void BeginGroup(in PdfGroupInfo group, in PdfGraphicsState state);
+
+    /// <summary>Ends the group.</summary>
+    void EndGroup();
+
+    /// <summary>Starts the content of a soft mask definition; later states name it by id.</summary>
+    void BeginSoftMask(in PdfSoftMaskInfo mask, in PdfGraphicsState state);
+
+    /// <summary>Ends the soft mask definition.</summary>
+    void EndSoftMask();
+
+    /// <summary>A marked-content sequence starts (<c>BMC</c>, <c>BDC</c>). Properties are null for <c>BMC</c> and unresolved names.</summary>
+    void BeginMarkedContent(string tag, PdfDictionary? properties);
+
+    /// <summary>The marked-content sequence ends.</summary>
+    void EndMarkedContent();
+
+    /// <summary>The appearance of an annotation follows.</summary>
+    void BeginAnnotation(in PdfAnnotationInfo annotation);
+
+    /// <summary>The annotation's appearance is complete.</summary>
+    void EndAnnotation();
+}
+
+/// <summary>A device whose calls all do nothing; override what you need.</summary>
+public abstract class PdfDevice : IPdfDevice
+{
+    /// <inheritdoc/>
+    public virtual void BeginPage(in PdfPageInfo page)
+    {
+    }
+
+    /// <inheritdoc/>
+    public virtual void EndPage()
+    {
+    }
+
+    /// <inheritdoc/>
+    public virtual void FillPath(in PdfPath path, bool evenOdd, in PdfGraphicsState state)
+    {
+    }
+
+    /// <inheritdoc/>
+    public virtual void StrokePath(in PdfPath path, in PdfGraphicsState state)
+    {
+    }
+
+    /// <inheritdoc/>
+    public virtual void PushClip(in PdfPath path, bool evenOdd, in PdfGraphicsState state)
+    {
+    }
+
+    /// <inheritdoc/>
+    public virtual void PushTextClip(in PdfGraphicsState state)
+    {
+    }
+
+    /// <inheritdoc/>
+    public virtual void PopClip()
+    {
+    }
+
+    /// <inheritdoc/>
+    public virtual void ShowGlyphRun(in PdfGlyphRun run, in PdfGraphicsState state)
+    {
+    }
+
+    /// <inheritdoc/>
+    public virtual void DrawImage(in PdfImage image, in PdfGraphicsState state)
+    {
+    }
+
+    /// <inheritdoc/>
+    public virtual void PaintShading(PdfObject shading, string name, in PdfGraphicsState state)
+    {
+    }
+
+    /// <inheritdoc/>
+    public virtual void BeginGroup(in PdfGroupInfo group, in PdfGraphicsState state)
+    {
+    }
+
+    /// <inheritdoc/>
+    public virtual void EndGroup()
+    {
+    }
+
+    /// <inheritdoc/>
+    public virtual void BeginSoftMask(in PdfSoftMaskInfo mask, in PdfGraphicsState state)
+    {
+    }
+
+    /// <inheritdoc/>
+    public virtual void EndSoftMask()
+    {
+    }
+
+    /// <inheritdoc/>
+    public virtual void BeginMarkedContent(string tag, PdfDictionary? properties)
+    {
+    }
+
+    /// <inheritdoc/>
+    public virtual void EndMarkedContent()
+    {
+    }
+
+    /// <inheritdoc/>
+    public virtual void BeginAnnotation(in PdfAnnotationInfo annotation)
+    {
+    }
+
+    /// <inheritdoc/>
+    public virtual void EndAnnotation()
+    {
+    }
+}
+
+/// <summary>
+/// Width and code-splitting information for a font, as the interpreter needs it to advance the text position. A font
+/// layer supplies it through <see cref="IPdfFontResolver"/>; without one the interpreter reads <c>/Widths</c>,
+/// <c>/W</c> and <c>/DW</c> from the font dictionary itself.
+/// </summary>
+public interface IPdfFontMetrics
+{
+    /// <summary>True for vertical writing mode (<c>WMode 1</c>).</summary>
+    bool IsVertical { get; }
+
+    /// <summary>Reads the next character code from the start of <paramref name="bytes"/> (not empty) and returns how many bytes it took (at least 1).</summary>
+    int ReadCode(ReadOnlySpan<byte> bytes, out int code);
+
+    /// <summary>The horizontal advance of <paramref name="code"/> in em units (1 = font size).</summary>
+    double GetWidth(int code);
+
+    /// <summary>The vertical advance of <paramref name="code"/> in em units, normally negative (vertical mode only).</summary>
+    double GetVerticalAdvance(int code);
+}
+
+/// <summary>Supplies <see cref="IPdfFontMetrics"/> for font dictionaries; called once per distinct font per interpretation.</summary>
+public interface IPdfFontResolver
+{
+    /// <summary>Returns metrics for the font, or null to use the interpreter's own reading of the dictionary.</summary>
+    IPdfFontMetrics? Resolve(PdfDictionary fontDictionary);
+}
+
+/// <summary>Options for <c>Interpret</c>. All members have defaults.</summary>
+public sealed record PdfInterpretOptions
+{
+    /// <summary>The page box that defines the output area. Default <see cref="PdfPageBox.CropBox"/>.</summary>
+    public PdfPageBox Box { get; init; } = PdfPageBox.CropBox;
+
+    /// <summary>Output units per default user space unit (1/72 inch); ignored when <see cref="Dpi"/> is set. Default 1.</summary>
+    public double Scale { get; init; } = 1;
+
+    /// <summary>When positive, the output resolution in dots per inch (scale = dpi / 72). Default 0 (use <see cref="Scale"/>).</summary>
+    public double Dpi { get; init; }
+
+    /// <summary>Apply the page's <c>/Rotate</c>. Default true.</summary>
+    public bool ApplyRotation { get; init; } = true;
+
+    /// <summary>Apply the page's <c>/UserUnit</c>. Default true.</summary>
+    public bool ApplyUserUnit { get; init; } = true;
+
+    /// <summary>Which annotations to draw. Default <see cref="PdfAnnotationMode.View"/>.</summary>
+    public PdfAnnotationMode Annotations { get; init; } = PdfAnnotationMode.View;
+
+    /// <summary>
+    /// Overrides the visibility of an optional content group: given the group dictionary, return true or false to force it,
+    /// or null to use the document's default configuration. Default null.
+    /// </summary>
+    public Func<PdfDictionary, bool?>? OptionalContentOverride { get; init; }
+
+    /// <summary>Supplies font metrics; default null (widths are read from the font dictionary).</summary>
+    public IPdfFontResolver? FontResolver { get; init; }
+}
