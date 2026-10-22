@@ -1,3 +1,5 @@
+// The algorithm and its data tables are kept in step with the copy in the sibling OneImage.Text library (same Unicode version, same
+// character data); a fix made here belongs there too, and the other way round.
 namespace OnePdf.Text;
 
 /// <summary>Bidi_Class values (UAX #9 table 4). The numeric values index <see cref="BidiData"/>.</summary>
@@ -7,7 +9,7 @@ internal enum BidiClass : byte
 }
 
 /// <summary>
-/// The Unicode Bidirectional Algorithm (UAX #9, Unicode 16): explicit levels (X1–X10), weak types (W1–W7), paired brackets (N0),
+/// The Unicode Bidirectional Algorithm (UAX #9, Unicode 17): explicit levels (X1–X10), weak types (W1–W7), paired brackets (N0),
 /// neutrals (N1–N2), implicit levels (I1–I2), line-end whitespace (L1) and reordering (L2). The whole input is one paragraph and
 /// one line. Written from the specification; the character data is generated into <see cref="BidiData"/>.
 /// </summary>

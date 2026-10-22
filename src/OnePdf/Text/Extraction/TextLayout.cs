@@ -231,6 +231,7 @@ internal static class TextLayout
             n[k]++;
         }
 
+        MarkStackedCjk(w, g, subset, all, count, ks, n);
         int dominant = 0;
         for (int k = 1; k < 4; k++)
         {
@@ -259,6 +260,62 @@ internal static class TextLayout
         }
 
         return dominant;
+    }
+
+    /// <summary>
+    /// Some producers (browsers printing vertical-rl text) set each upright ideograph with its own horizontal text matrix instead of using the
+    /// vertical writing mode. Such glyphs are recognised by the producer's own order: consecutive ideographs whose origins step straight down
+    /// by about one em. Those glyphs are moved to the downward reading class (columns, right to left) so a column reads as a line.
+    /// </summary>
+    private static void MarkStackedCjk(LayoutWork w, PdfTextGlyph[] g, ReadOnlySpan<int> subset, bool all, int count, int[] ks, Span<int> n)
+    {
+        if (count < 4)
+        {
+            return;
+        }
+
+        int[] flag = w.Ints.Rent(count);
+        Array.Clear(flag, 0, count);
+        int down = 0;
+        for (int i = 1; i < count; i++)
+        {
+            ref readonly PdfTextGlyph a = ref g[all ? i - 1 : subset[i - 1]];
+            ref readonly PdfTextGlyph b = ref g[all ? i : subset[i]];
+            if (ks[i - 1] != 0 || ks[i] != 0 || a.IsVertical || b.IsVertical || string.IsNullOrEmpty(a.Text) || string.IsNullOrEmpty(b.Text) ||
+                !IsCjk(char.ConvertToUtf32(a.Text, 0)) || !IsCjk(char.ConvertToUtf32(b.Text, 0)))
+            {
+                continue;
+            }
+
+            double s = (a.Size + b.Size) / 2;
+            double dx = b.Matrix.E - a.Matrix.E, dy = b.Matrix.F - a.Matrix.F;
+            if (Math.Abs(dx) <= LayoutParameters.StackColumnDriftEm * s && dy <= -LayoutParameters.StackStepMinEm * s && dy >= -LayoutParameters.StackStepMaxEm * s)
+            {
+                flag[i - 1] |= 1;
+                flag[i] |= 1;
+                down++;
+            }
+            else if (Math.Abs(dy) <= LayoutParameters.StackColumnDriftEm * s && dx >= LayoutParameters.StackStepMinEm * s && dx <= LayoutParameters.StackStepMaxEm * s)
+            {
+                flag[i - 1] |= 2;
+                flag[i] |= 2;
+            }
+        }
+
+        if (down < LayoutParameters.StackMinSteps)
+        {
+            return;
+        }
+
+        for (int i = 0; i < count; i++)
+        {
+            if (flag[i] == 1)
+            {
+                ks[i] = 3;
+                n[0]--;
+                n[3]++;
+            }
+        }
     }
 
     /// <summary>Lays out the glyphs of <paramref name="subset"/> (indices into <paramref name="g"/>) and returns blocks in reading order.</summary>
@@ -418,7 +475,7 @@ internal static class TextLayout
                     continue;
                 }
 
-                if (Touches(items, ord, cs[a], cs[a + 1], cs[b], cs[b + 1], LayoutParameters.ScriptTouchEm * medSize[b]))
+                if (Touches(items, ord, cs[a], cs[a + 1], cs[b], cs[b + 1]))
                 {
                     best = b;
                     bestD = d;
@@ -458,16 +515,30 @@ internal static class TextLayout
         return count;
     }
 
-    private static bool Touches(Item[] items, Key2Idx[] ord, int s0, int s1, int b0, int b1, double dist)
+    /// <summary>
+    /// True when some glyph of the small cluster is a script of a glyph of the larger one: smaller, with its baseline near the other's, and
+    /// within a fraction of its own size horizontally. Checking glyph pairs keeps two real lines that merely sit near each other apart.
+    /// </summary>
+    private static bool Touches(Item[] items, Key2Idx[] ord, int s0, int s1, int b0, int b1)
     {
         for (int p = s0; p < s1; p++)
         {
             ref Item a = ref items[ord[p].Idx];
+            if (a.Space)
+            {
+                continue;
+            }
+
             for (int q = b0; q < b1; q++)
             {
                 ref Item b = ref items[ord[q].Idx];
+                if (b.Space)
+                {
+                    continue; // spaces are parked anywhere (often at the start of the next line) and say nothing about scripts
+                }
+
                 double gap = Math.Max(a.X0 - b.X1, b.X0 - a.X1);
-                if (gap <= dist)
+                if (gap <= LayoutParameters.ScriptTouchEm * a.Size && a.Size <= LayoutParameters.ScriptSizeRatio * b.Size && Math.Abs(a.Base - b.Base) <= LayoutParameters.ScriptOffsetEm * b.Size)
                 {
                     return true;
                 }
@@ -555,15 +626,29 @@ internal static class TextLayout
             int curStart = s;
             double lastX1 = double.NaN;
             double lastSize = 0;
+            double coverEnd = double.NaN;
             for (int p = s; p < e; p++)
             {
                 ref Item it = ref items[ids[p]];
-                if (!it.Space)
+                if (it.Space)
+                {
+                    // Space glyphs that follow the last word without a hole extend how far the gap is covered by explicit spaces.
+                    if (!double.IsNaN(lastX1) && it.X0 <= (double.IsNaN(coverEnd) ? lastX1 : coverEnd) + LayoutParameters.SpaceCoverSlackEm * it.Size)
+                    {
+                        coverEnd = double.IsNaN(coverEnd) ? Math.Max(lastX1, it.X1) : Math.Max(coverEnd, it.X1);
+                    }
+                }
+                else
                 {
                     if (!double.IsNaN(lastX1) && p > curStart)
                     {
                         double gap = it.X0 - lastX1;
-                        if (gap > LayoutParameters.FragmentGapEm * (lastSize + it.Size) / 2)
+                        double avg = (lastSize + it.Size) / 2;
+
+                        // A gap that space glyphs span end to end is a word space however wide the font made it (a fallback font's space, a justified
+                        // line); only a gap with a hole in it separates cells.
+                        bool spanned = !double.IsNaN(coverEnd) && it.X0 - coverEnd <= LayoutParameters.SpaceCoverSlackEm * avg;
+                        if (gap > LayoutParameters.FragmentGapEm * avg && !spanned)
                         {
                             frags[nf++] = MakeFrag(items, ids, curStart, p, l, scratch);
                             curStart = p;
@@ -572,6 +657,7 @@ internal static class TextLayout
 
                     lastX1 = double.IsNaN(lastX1) ? it.X1 : Math.Max(lastX1, it.X1);
                     lastSize = it.Size;
+                    coverEnd = double.NaN;
                 }
             }
 
@@ -1065,6 +1151,13 @@ internal static class TextLayout
             ref Item it = ref items[ids[p]];
             if (it.Space)
             {
+                // A space drawn on top of the previous glyph (a producer that parks the trailing space of a line at its start) is no separator.
+                if (it.X0 < prev.X1 - LayoutParameters.SpaceOverlapRatio * (it.X1 - it.X0))
+                {
+                    p++;
+                    continue;
+                }
+
                 break;
             }
 
@@ -1086,6 +1179,7 @@ internal static class TextLayout
 
     private static string WordText(PdfTextGlyph[] g, Item[] items, int[] ids, int start, int len)
     {
+        // A word holds a space item only when the space was drawn over a glyph (see NextWord); it adds nothing to the text.
         if (len == 1)
         {
             return g[items[ids[start]].G].Text;
@@ -1094,7 +1188,11 @@ internal static class TextLayout
         int total = 0;
         for (int k = 0; k < len; k++)
         {
-            total += g[items[ids[start + k]].G].Text.Length;
+            ref Item it = ref items[ids[start + k]];
+            if (!it.Space)
+            {
+                total += g[it.G].Text.Length;
+            }
         }
 
         if (total == 0)
@@ -1107,7 +1205,13 @@ internal static class TextLayout
             int pos = 0;
             for (int k = 0; k < st.len; k++)
             {
-                string t = st.g[st.items[st.ids[st.start + k]].G].Text;
+                ref Item it = ref st.items[st.ids[st.start + k]];
+                if (it.Space)
+                {
+                    continue;
+                }
+
+                string t = st.g[it.G].Text;
                 t.CopyTo(span.Slice(pos));
                 pos += t.Length;
             }
@@ -1183,13 +1287,28 @@ internal static class TextLayout
                 continue;
             }
 
-            int[] gi = new int[rec.Len];
+            int ng = 0;
+            for (int k = 0; k < rec.Len; k++)
+            {
+                if (!items[ids[rec.Start + k]].Space)
+                {
+                    ng++;
+                }
+            }
+
+            int[] gi = new int[ng];
+            ng = 0;
             double wl = double.MaxValue, wbm = double.MaxValue, wr2 = double.MinValue, wt = double.MinValue;
             bool vis = false;
-            for (int k = 0; k < gi.Length; k++)
+            for (int k = 0; k < rec.Len; k++)
             {
+                if (items[ids[rec.Start + k]].Space)
+                {
+                    continue;
+                }
+
                 int gx = items[ids[rec.Start + k]].G;
-                gi[k] = gx;
+                gi[ng++] = gx;
                 PdfRectangle b = g[gx].Bounds;
                 wl = Math.Min(wl, b.Left);
                 wbm = Math.Min(wbm, b.Bottom);

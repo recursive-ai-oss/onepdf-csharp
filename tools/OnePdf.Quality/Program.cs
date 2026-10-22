@@ -86,6 +86,54 @@ internal static class Program
             sets.Add(("real-world set" + (string.IsNullOrEmpty(cache) ? "" : " (committed + local-only)"), rw));
         }
 
+        string? only = Opt(args, "--only");
+        if (only is not null)
+        {
+            sets = [.. sets.Select(x => (x.Label, x.Truths.Where(t => t.Name.Contains(only, StringComparison.Ordinal)).ToList()))];
+        }
+
+        if (command == "dump")
+        {
+            // Prints OnePDF's text and the truth, page by page, for the files chosen with --only.
+            foreach ((_, List<Truth> truths) in sets)
+            {
+                foreach (Truth t in truths)
+                {
+                    string[] got = OnePdfExtract(t.PdfPath, t);
+                    if (args.Contains("--lines"))
+                    {
+                        using OnePdf.PdfDocument ld = OnePdf.PdfDocument.Open(t.PdfPath, new PdfOpenOptions { Password = t.UserPassword ?? t.OwnerPassword });
+                        int bi = 0;
+                        foreach (PdfTextBlock bl in PdfTextExtractor.Create(ld).ExtractPage(t.DocPage(0)).Blocks)
+                        {
+                            foreach (PdfTextLine ln in bl.Lines)
+                            {
+                                Console.WriteLine(FormattableString.Invariant($"B{bi} [{ln.Bounds.Left:0},{ln.Bounds.Bottom:0},{ln.Bounds.Right:0},{ln.Bounds.Top:0}] {ln.Text}"));
+                            }
+
+                            bi++;
+                        }
+                    }
+
+                    if (args.Contains("--glyphs"))
+                    {
+                        using OnePdf.PdfDocument gd = OnePdf.PdfDocument.Open(t.PdfPath, new PdfOpenOptions { Password = t.UserPassword ?? t.OwnerPassword });
+                        foreach (PdfTextGlyph gl in PdfTextExtractor.Create(gd).ExtractPage(t.DocPage(0)).Glyphs)
+                        {
+                            Console.WriteLine(FormattableString.Invariant($"G '{gl.Text}' x={gl.Matrix.E:0.0} y={gl.Matrix.F:0.0} size={gl.Size:0.0} adv={gl.Advance:0.00} font={gl.FontName} v={gl.IsVertical} vis={gl.IsVisible} mc={gl.MarkedContentId}"));
+                        }
+                    }
+
+                    for (int i = 0; i < t.Pages.Length; i++)
+                    {
+                        Console.WriteLine($"##### {t.Name} page {t.DocPage(i)} OnePDF\n{got[i]}\n##### truth\n{t.Pages[i]}\n");
+                    }
+                }
+            }
+
+            return 0;
+        }
+
         StringBuilder report = new();
         foreach ((string label, List<Truth> truths) in sets)
         {

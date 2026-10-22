@@ -15,6 +15,12 @@ internal static class LayoutParameters
     /// <summary>A gap wider than this (em) between two glyphs on a line splits the line into fragments (cells or columns).</summary>
     internal const double FragmentGapEm = 1.25;
 
+    /// <summary>Space glyphs whose boxes span a gap, with holes of at most this many em, make it a word space even when it is wider than <see cref="FragmentGapEm"/>.</summary>
+    internal const double SpaceCoverSlackEm = 0.1;
+
+    /// <summary>A space glyph that overlaps the glyph before it by more than this fraction of its own width does not end the word.</summary>
+    internal const double SpaceOverlapRatio = 0.5;
+
     /// <summary>An empty vertical stripe at least this wide (em), crossing every fragment of a region, separates columns.</summary>
     internal const double ColumnGutterEm = 1.25;
 
@@ -25,7 +31,7 @@ internal static class LayoutParameters
     internal const double BaselineToleranceEm = 0.3;
 
     /// <summary>A smaller-size run (superscript, subscript) joins the line it touches when it is at most this fraction of that line's size.</summary>
-    internal const double ScriptSizeRatio = 0.8;
+    internal const double ScriptSizeRatio = 0.85;
 
     /// <summary>... and its baseline lies within this many em (of the larger size) of the line's baseline.</summary>
     internal const double ScriptOffsetEm = 0.7;
@@ -62,4 +68,16 @@ internal static class LayoutParameters
 
     /// <summary>Content-order mode: a glyph whose baseline differs by more than this (em) from the previous glyph's starts a new line.</summary>
     internal const double ContentLineEm = 0.5;
+
+    /// <summary>Ideographs set one by one with horizontal matrices form a column when each origin is within this many em of the previous one across the column ...</summary>
+    internal const double StackColumnDriftEm = 0.35;
+
+    /// <summary>... and advances along the column by at least this many em ...</summary>
+    internal const double StackStepMinEm = 0.4;
+
+    /// <summary>... and at most this many.</summary>
+    internal const double StackStepMaxEm = 2.0;
+
+    /// <summary>The page needs at least this many such downward steps before its stacked ideographs are read as vertical columns.</summary>
+    internal const int StackMinSteps = 2;
 }

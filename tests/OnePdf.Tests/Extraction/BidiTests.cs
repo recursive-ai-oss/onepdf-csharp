@@ -48,7 +48,7 @@ public class BidiTests
         string path = dir is null ? "" : Path.Combine(dir, "BidiCharacterTest.txt");
         if (!File.Exists(path))
         {
-            Assert.Skip("Set ONEPDF_UNICODE to a directory holding BidiCharacterTest.txt (Unicode 16.0.0) to run the conformance cases.");
+            Assert.Skip("Set ONEPDF_UNICODE to a directory holding BidiCharacterTest.txt (Unicode 17.0.0) to run the conformance cases.");
         }
 
         int run = 0, failed = 0;

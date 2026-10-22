@@ -4,7 +4,8 @@ Scores text extraction against the truth of two sets, per category, for OnePDF a
 (`testdata/generated`, exact truth) and the real-world set (`testdata/realworld`, reference text checked by hand against the pages; see its README).
 
 ```
-dotnet run -c Release --project tools/OnePdf.Quality -- all [--set generated|realworld|all | --dir DIR] [--md report.md] [--json report.json] [--files]
+dotnet run -c Release --project tools/OnePdf.Quality -- all [--set generated|realworld|all | --dir DIR] [--only NAME-PART] [--md report.md] [--json report.json] [--files]
+dotnet run -c Release --project tools/OnePdf.Quality -- dump --set realworld --only form-08 [--lines] [--glyphs]   # OnePDF text next to the truth; --lines lists lines with bounds, --glyphs the glyphs
 dotnet run -c Release --project tools/OnePdf.Quality -- pdfpig     # only the comparison library
 dotnet run -c Release --project tools/OnePdf.Quality -- selftest   # checks the scorer on known answers
 dotnet run -c Release --project tools/OnePdf.Quality -- smoke      # times layout of synthetic pages (not a benchmark)
