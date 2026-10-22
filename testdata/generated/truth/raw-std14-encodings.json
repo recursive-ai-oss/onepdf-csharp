@@ -1,0 +1,13 @@
+{
+ "category": "fonts-std14",
+ "generator": "hand-assembled by tools/corpus/generate.py",
+ "name": "raw-std14-encodings",
+ "notes": "Standard-14 fonts without embedding. Line 2: codes 1, 2 and 3 are the fi, fl and ffi ligature glyphs through /Differences; truth is decomposed. Line 4 is Symbol (alpha beta gamma); line 5 is ZapfDingbats codes 4 and 3 (U+2714, U+2713).",
+ "pageCount": 1,
+ "pages": [
+  {
+   "text": "café naïve – “quoted” € 5\nfinal afloat effigy\nmonospaced courier text\nαβγ\n✔ ✓"
+  }
+ ],
+ "schema": 1
+}

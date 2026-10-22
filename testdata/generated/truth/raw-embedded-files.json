@@ -1,0 +1,23 @@
+{
+ "category": "embedded-files",
+ "embeddedFiles": [
+  {
+   "content": "id,name\n1,alpha\n2,beta\n",
+   "name": "data.csv"
+  },
+  {
+   "content": "Hello from an embedded file.\n",
+   "description": "Plain notes",
+   "name": "notes.txt"
+  }
+ ],
+ "generator": "hand-assembled by tools/corpus/generate.py",
+ "name": "raw-embedded-files",
+ "pageCount": 1,
+ "pages": [
+  {
+   "text": "This file carries two attachments."
+  }
+ ],
+ "schema": 1
+}

@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<office:document xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0" xmlns:style="urn:oasis:names:tc:opendocument:xmlns:style:1.0" xmlns:text="urn:oasis:names:tc:opendocument:xmlns:text:1.0" xmlns:table="urn:oasis:names:tc:opendocument:xmlns:table:1.0" xmlns:fo="urn:oasis:names:tc:opendocument:xmlns:xsl-fo-compatible:1.0" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:svg="urn:oasis:names:tc:opendocument:xmlns:svg-compatible:1.0" office:version="1.3" office:mimetype="application/vnd.oasis.opendocument.text">
+<office:font-face-decls/>
+<office:styles><style:style style:name="Standard" style:family="paragraph"><style:text-properties style:font-name="Noto Sans CJK JP" fo:font-family="'Noto Sans CJK JP'" fo:font-size="12pt"/></style:style><style:style style:name="Heading" style:family="paragraph"><style:text-properties fo:font-family="'Liberation Sans'" fo:font-size="16pt" fo:font-weight="bold"/></style:style></office:styles>
+<office:automatic-styles><style:page-layout style:name="PL1"><style:page-layout-properties fo:page-width="21cm" fo:page-height="29.7cm" fo:margin="2cm" style:writing-mode="tb-rl"/><style:header-style/><style:footer-style/></style:page-layout>
+<style:style style:name="PB" style:family="paragraph" style:parent-style-name="Standard"><style:paragraph-properties fo:break-before="page"/></style:style>
+<style:style style:name="CB" style:family="paragraph" style:parent-style-name="Standard"><style:paragraph-properties fo:break-before="column"/></style:style>
+<style:style style:name="Sect2" style:family="section"><style:section-properties><style:columns fo:column-count="2" fo:column-gap="1cm"/></style:section-properties></style:style>
+<style:style style:name="Tbl" style:family="table"><style:table-properties style:width="12cm" table:align="left"/></style:style>
+<style:style style:name="Cell" style:family="table-cell"><style:table-cell-properties fo:padding="0.1cm" fo:border="0.5pt solid #000000"/></style:style>
+</office:automatic-styles>
+<office:master-styles><style:master-page style:name="Standard" style:page-layout-name="PL1"></style:master-page></office:master-styles>
+<office:body><office:text>
+<text:p text:style-name="Standard">すべての人間は、生れながらにして自由であり、かつ、尊厳と権利とについて平等である。人間は、理性と良心とを授けられており、互いに同胞の精神をもって行動しなければならない。</text:p>
+</office:text></office:body></office:document>

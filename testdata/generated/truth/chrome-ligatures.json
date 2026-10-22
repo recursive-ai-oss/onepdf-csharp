@@ -1,0 +1,13 @@
+{
+ "category": "ligatures",
+ "generator": "Chrome Google Chrome 149.0.7827.155",
+ "name": "chrome-ligatures",
+ "notes": "the font may emit fi/fl/ff/ffi ligature glyphs; truth is the decomposed text",
+ "pageCount": 1,
+ "pages": [
+  {
+   "text": "The office staff offered affluent fluffy waffles to the final shift before the first flight.\n\nA difficult fjord, a flagship, an effigy: efficient workflows suffice."
+  }
+ ],
+ "schema": 1
+}

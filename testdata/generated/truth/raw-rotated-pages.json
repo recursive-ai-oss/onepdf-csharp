@@ -1,0 +1,32 @@
+{
+ "category": "rotation",
+ "generator": "hand-assembled by tools/corpus/generate.py",
+ "name": "raw-rotated-pages",
+ "notes": "last page: rotated text matrix, CropBox [100 100 500 700], UserUnit 2",
+ "pageCount": 5,
+ "pages": [
+  {
+   "text": "This page is rotated by 0 degrees.\nSecond line of the page."
+  },
+  {
+   "text": "This page is rotated by 90 degrees.\nSecond line of the page."
+  },
+  {
+   "text": "This page is rotated by 180 degrees.\nSecond line of the page."
+  },
+  {
+   "text": "This page is rotated by 270 degrees.\nSecond line of the page."
+  },
+  {
+   "text": "Text on a rotated baseline."
+  }
+ ],
+ "rotations": [
+  0,
+  90,
+  180,
+  270,
+  0
+ ],
+ "schema": 1
+}

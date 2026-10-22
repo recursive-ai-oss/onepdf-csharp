@@ -50,6 +50,8 @@ jobs:
           global-json-file: global.json
       - name: Pack
         run: dotnet pack OnePdf.slnx -c Release -o ${{ runner.temp }}/packages
+      - name: Packages contain no test data
+        run: bash tools/corpus/check_nupkg.sh ${{ runner.temp }}/packages
       - uses: actions/upload-artifact@v4
         with:
           name: packages

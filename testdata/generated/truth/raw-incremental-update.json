@@ -1,0 +1,17 @@
+{
+ "category": "structure",
+ "generator": "hand-assembled by tools/corpus/generate.py",
+ "name": "raw-incremental-update",
+ "notes": "two revisions; the second replaces the content stream through an incremental update",
+ "pageCount": 1,
+ "pages": [
+  {
+   "text": "Updated text of the only page."
+  }
+ ],
+ "revisions": [
+  "Original text of the only page.",
+  "Updated text of the only page."
+ ],
+ "schema": 1
+}

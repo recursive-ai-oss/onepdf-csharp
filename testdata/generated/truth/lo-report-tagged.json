@@ -1,0 +1,27 @@
+{
+ "category": "report",
+ "furniture": [
+  "Quarterly Harbor Report",
+  "Prepared for internal circulation"
+ ],
+ "generator": "LibreOffice 26.2.6.3",
+ "links": [
+  {
+   "page": 0,
+   "uri": "https://example.org/report"
+  }
+ ],
+ "name": "lo-report-tagged",
+ "notes": "page header first, footer last on every page; list items and table rows one per line",
+ "pageCount": 2,
+ "pages": [
+  {
+   "text": "Quarterly Harbor Report\n\nSummary\n\nThe harbor town woke slowly. Fishing boats rocked against their moorings while gulls argued over the morning catch.\n\nRead the full report online for more.\n\nBoats serviced\nCargo weighed\nLamps replaced\n\nMonth Boats Tons\nApril 31 120\nMay 44 175\nJune 52 210\n\nPrepared for internal circulation"
+  },
+  {
+   "text": "Quarterly Harbor Report\n\nSecond page\n\nSection two begins on a new page. It repeats nothing from the first page and uses entirely different words so that extraction errors are easy to spot.\n\nQuartz, jasper, and obsidian were sorted into wooden trays by an apprentice who hummed while he worked.\n\nPrepared for internal circulation"
+  }
+ ],
+ "schema": 1,
+ "tagged": true
+}

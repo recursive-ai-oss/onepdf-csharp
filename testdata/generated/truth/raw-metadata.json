@@ -1,0 +1,31 @@
+{
+ "category": "metadata",
+ "generator": "hand-assembled by tools/corpus/generate.py",
+ "info": {
+  "Author": "Ada",
+  "CreationDate": "2026-01-02T03:04:05+02:00",
+  "Creator": "onepdf-generator",
+  "Custom": "custom value",
+  "Keywords": "alpha, beta",
+  "ModDate": "2026-01-02T03:04:05Z",
+  "Subject": "Metadata test",
+  "Title": "Title é"
+ },
+ "name": "raw-metadata",
+ "pageCount": 1,
+ "pages": [
+  {
+   "text": "Metadata carrier."
+  }
+ ],
+ "schema": 1,
+ "xmp": {
+  "creatorTool": "onepdf-generator",
+  "creators": [
+   "Ada",
+   "Grace"
+  ],
+  "keywords": "alpha, beta",
+  "title": "XMP Title é"
+ }
+}
