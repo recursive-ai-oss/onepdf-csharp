@@ -72,8 +72,6 @@ Sources can be a path, a seekable `Stream` (left open with `LeaveOpen`), a non-s
 
 ### Text
 
-<!-- TODO(text-api): document-level extraction (a `doc.ExtractText()`-style call and its options) is not public yet. This sample
-     uses the page-level extractor; `TryCreate` returns null in builds where the font join is not wired. Rewrite when it lands. -->
 <!-- sample: Text -->
 ```csharp
 using OnePdf;
@@ -81,25 +79,23 @@ using OnePdf.Text;
 
 using PdfDocument doc = PdfDocument.Open("in.pdf");
 
-PdfTextExtractor? extractor = PdfTextExtractor.TryCreate(doc, new PdfTextOptions { Mode = PdfTextMode.ReadingOrder });
-if (extractor is not null)
-{
-    PdfPageText text = extractor.ExtractPage(0);
-    Console.WriteLine(text.Text);                              // plain text, in the chosen mode
+// Every page, in parallel (min(4, cores) by default), headers and footers flagged by their repetition.
+IReadOnlyList<PdfPageText> pages = doc.ExtractText(new PdfTextOptions { Mode = PdfTextMode.ReadingOrder });
+Console.WriteLine(pages[0].Text);                              // plain text, in the chosen mode
 
-    foreach (PdfTextWord w in text.Words)                      // words with positions (PDF points, y up)
-        Console.WriteLine($"{w.Text} {w.Bounds}");
+// One page, by itself.
+PdfPageText text = doc.Pages[0].ExtractText();
 
-    foreach (PdfTextBlock block in text.Blocks)                // blocks > lines > words, in reading order
-        foreach (PdfTextLine line in block.Lines)
-            Console.WriteLine(line.Text);
+foreach (PdfTextWord w in text.Words)                          // words with positions (PDF points, y up)
+    Console.WriteLine($"{w.Text} {w.Bounds}");
 
-    IReadOnlyList<PdfPageText> all = extractor.ExtractDocument();   // every page, in parallel
-}
+foreach (PdfTextBlock block in text.Blocks)                    // blocks > lines > words, in reading order
+    foreach (PdfTextLine line in block.Lines)
+        Console.WriteLine(line.Text);
 ```
 
 Plain-text modes are `ReadingOrder` (default), `ContentOrder` and `Layout` (spatial, like `pdftotext -layout`). Ligatures are
-decomposed, `/ActualText` replaces its span, and invisible text (such as an OCR layer) is included and flagged `IsVisible = false`.
+decomposed, presentation forms (Kangxi radicals, Arabic and Hebrew forms) are folded to their base characters, `/ActualText` replaces its span, and invisible text (such as an OCR layer) is included and flagged `IsVisible = false`.
 The Unicode chain is ToUnicode, then glyph names through the Adobe Glyph List, then the font's own cmap, then predefined CMaps,
 then U+FFFD. OnePDF does no OCR.
 
