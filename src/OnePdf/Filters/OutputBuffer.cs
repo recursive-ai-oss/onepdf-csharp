@@ -16,6 +16,9 @@ internal sealed class OutputBuffer
 
     public int Length { get; private set; }
 
+    /// <summary>The most bytes this buffer will hold.</summary>
+    public long Cap => _cap;
+
     /// <summary>True once a write was refused because of the cap.</summary>
     public bool Exceeded { get; private set; }
 

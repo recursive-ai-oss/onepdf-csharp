@@ -28,6 +28,9 @@
   <ItemGroup>
     <!-- The fuzz target body doubles as a deterministic mutation smoke test. -->
     <Compile Include="../../fuzz/OnePdf.Fuzz/FilterTarget.cs" Link="Filters/FilterTarget.cs" />
+    <Compile Include="../../fuzz/OnePdf.Fuzz/Type4Target.cs" Link="Functions/Type4Target.cs" />
+    <Compile Include="../../fuzz/OnePdf.Fuzz/CcittTarget.cs" Link="Filters/CcittTarget.cs" />
+    <Compile Include="../../fuzz/OnePdf.Fuzz/FontTargets.cs" Link="Fonts/FontTargets.cs" />
     <Compile Include="../../fuzz/OnePdf.Fuzz/SecurityTarget.cs" Link="Security/SecurityTarget.cs" />
     <Compile Include="../../fuzz/OnePdf.Fuzz/ImageTarget.cs" Link="Images/ImageTarget.cs" />
   </ItemGroup>
