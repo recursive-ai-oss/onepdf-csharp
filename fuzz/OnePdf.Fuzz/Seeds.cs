@@ -56,7 +56,7 @@ internal static class Seeds
 
         switch (target)
         {
-            case "parser" or "document" or "model" or "content":
+            case "parser" or "document" or "model" or "content" or "pdffont":
                 foreach (string f in pdfs)
                 {
                     if (new FileInfo(f).Length <= MaxPdfBytes)
