@@ -1,3 +1,4 @@
+using OnePdf.Filters;
 using OnePdf.Internal;
 
 namespace OnePdf;
@@ -36,7 +37,7 @@ public sealed class PdfStream : PdfObject
             PdfObject? f = Dictionary.Get("Filter");
             if (f is PdfName n)
             {
-                return [FilterSeam.Canonical(n.Value)];
+                return [Canonical(n.Value)];
             }
 
             if (f is PdfArray a)
@@ -46,7 +47,7 @@ public sealed class PdfStream : PdfObject
                 {
                     if (a.GetName(i) is { } s)
                     {
-                        list.Add(FilterSeam.Canonical(s));
+                        list.Add(Canonical(s));
                     }
                 }
 
@@ -67,7 +68,7 @@ public sealed class PdfStream : PdfObject
         {
             foreach (string f in FilterNames)
             {
-                if (!FilterSeam.CanDecode(f))
+                if (!StreamFilters.IsSupported(f))
                 {
                     return f;
                 }
@@ -78,6 +79,19 @@ public sealed class PdfStream : PdfObject
     }
 
     internal PdfResolver Resolver => _resolver;
+
+    /// <summary>Maps the inline-image abbreviations to full filter names.</summary>
+    private static string Canonical(string name) => name switch
+    {
+        "Fl" => "FlateDecode",
+        "AHx" => "ASCIIHexDecode",
+        "A85" => "ASCII85Decode",
+        "LZW" => "LZWDecode",
+        "RL" => "RunLengthDecode",
+        "CCF" => "CCITTFaxDecode",
+        "DCT" => "DCTDecode",
+        _ => name,
+    };
 
     /// <summary>The stream's bytes exactly as stored (still filtered). Empty for external streams. Do not modify.</summary>
     /// <exception cref="PdfLimitException">The stream is larger than <see cref="PdfLimits.MaxDecodedStreamBytes"/>.</exception>
@@ -116,55 +130,65 @@ public sealed class PdfStream : PdfObject
         {
             long key = ObjectKeys.Decoded(_resolver.View, r.Number);
             var state = (this, cancellationToken);
-            var bytes = (byte[])doc.Cache.GetOrLoad(key, state, static s =>
+            return (ReadOnlyMemory<byte>)doc.Cache.GetOrLoad(key, state, static s =>
             {
-                byte[] d = s.Item1.DecodeCore(s.Item2);
+                ReadOnlyMemory<byte> d = s.Item1.DecodeCore(s.Item2);
                 return (d, d.Length + 64);
             });
-            return bytes;
         }
 
         return DecodeCore(cancellationToken);
     }
 
     /// <summary>Decodes without consulting the cache (used where the caller keeps its own copy).</summary>
-    internal byte[] DecodeCore(CancellationToken ct)
+    internal ReadOnlyMemory<byte> DecodeCore(CancellationToken ct)
     {
         PdfDocument doc = _resolver.Doc;
         ReadOnlyMemory<byte> raw = GetRawBytes();
         IReadOnlyList<string> filters = FilterNames;
         if (filters.Count == 0)
         {
-            return raw.ToArray();
+            return raw;
         }
 
         PdfObject? parms = Dictionary.Get("DecodeParms");
-        ReadOnlyMemory<byte> data = raw;
-        byte[]? current = null;
-        int objNum = Reference?.Number ?? -1;
-        for (int i = 0; i < filters.Count; i++)
+        var parameters = new FilterParameters?[filters.Count];
+        for (int i = 0; i < parameters.Length; i++)
         {
-            ct.ThrowIfCancellationRequested();
-            if (!FilterSeam.CanDecode(filters[i]))
-            {
-                break;
-            }
-
             PdfDictionary? p = parms switch
             {
                 PdfDictionary d => i == 0 ? d : null,
                 PdfArray a when i < a.Count => a[i] as PdfDictionary,
                 _ => null,
             };
-            current = FilterSeam.Decode(filters[i], data, p, doc.Limits, out string? problem);
-            if (problem is not null)
+            if (p is not null)
             {
-                doc.ReportWarning($"Filter /{filters[i]}: {problem}", objNum, _dataOffset);
+                parameters[i] = new FilterParameters(
+                    Predictor: ClampInt(p.GetInt("Predictor", 1)),
+                    Colors: ClampInt(p.GetInt("Colors", 1)),
+                    BitsPerComponent: ClampInt(p.GetInt("BitsPerComponent", 8)),
+                    Columns: ClampInt(p.GetInt("Columns", 1)),
+                    EarlyChange: ClampInt(p.GetInt("EarlyChange", 1)));
             }
-
-            data = current;
         }
 
-        return current ?? raw.ToArray();
+        PdfLimits lim = doc.Limits;
+        var limits = new DecodeLimits(Math.Min(lim.MaxDecodedStreamBytes, Array.MaxLength), lim.MaxExpansionRatio, lim.ExpansionCheckThreshold);
+        FilterResult r = StreamFilters.DecodeChain(filters, parameters, raw, limits, ct);
+        int objNum = Reference?.Number ?? -1;
+        if ((r.Issues & FilterIssues.LimitExceeded) != 0)
+        {
+            throw new PdfLimitException(r.Message ?? "A stream decodes to more than the configured limits allow.") { ObjectNumber = objNum };
+        }
+
+        // Stopping at an image codec is not damage; everything else is a repair worth recording.
+        if ((r.Issues & ~FilterIssues.UnsupportedFilter) != 0)
+        {
+            doc.ReportWarning(r.Message ?? "The stream data is damaged.", objNum, -1);
+        }
+
+        return r.Data;
     }
+
+    private static int ClampInt(long v) => (int)Math.Clamp(v, int.MinValue, int.MaxValue);
 }

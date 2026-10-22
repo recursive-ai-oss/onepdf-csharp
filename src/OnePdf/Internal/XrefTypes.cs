@@ -59,7 +59,7 @@ internal sealed class PdfResolver
 /// <summary>A decoded object stream: its bytes and the (number, offset) header.</summary>
 internal sealed class ObjStmData
 {
-    public byte[] Data = [];
+    public ReadOnlyMemory<byte> Data;
     public int[] Numbers = [];
     public int[] Offsets = [];
     public int First;

@@ -25,6 +25,7 @@ internal static class Program
         ["noop"] = static data => _ = Library.Name.Length + data.Length,
         ["parser"] = ReaderTargets.Parser,
         ["document"] = ReaderTargets.Document,
+        ["filters"] = FilterTarget.Run,
     };
 
     private static int Main(string[] args)
@@ -77,24 +78,32 @@ internal static class Program
         double worst = 0;
         while (clock.Elapsed.TotalSeconds < limit)
         {
-            byte[] input = [.. seeds[rnd.Next(seeds.Count)]];
+            var buf = new List<byte>(seeds[rnd.Next(seeds.Count)]);
             int edits = 1 + rnd.Next(8);
-            for (int e = 0; e < edits && input.Length > 0; e++)
+            for (int e = 0; e < edits && buf.Count > 0; e++)
             {
-                int at = rnd.Next(input.Length);
+                int at = rnd.Next(buf.Count);
                 switch (rnd.Next(5))
                 {
-                    case 0: input[at] = (byte)rnd.Next(256); break;
-                    case 1: input[at] ^= (byte)(1 << rnd.Next(8)); break;
-                    case 2: input = [.. input.Take(at).Concat(input.Skip(at + 1 + rnd.Next(16)))]; break;
-                    case 3: input = [.. input.Take(at), .. input.Skip(rnd.Next(input.Length))]; break;
+                    case 0: buf[at] = (byte)rnd.Next(256); break;
+                    case 1: buf[at] ^= (byte)(1 << rnd.Next(8)); break;
+                    case 2: buf.RemoveRange(at, Math.Min(1 + rnd.Next(16), buf.Count - at)); break;
+                    case 3:
+                        int from = rnd.Next(buf.Count);
+                        buf.InsertRange(at, buf.GetRange(from, Math.Min(64, buf.Count - from)));
+                        break;
                     default:
                         int len = rnd.Next(1, 12);
-                        byte[] digits = [.. Enumerable.Range(0, len).Select(_ => (byte)('0' + rnd.Next(10)))];
-                        input = [.. input.Take(at), .. digits, .. input.Skip(at)];
+                        for (int k = 0; k < len; k++)
+                        {
+                            buf.Insert(at, (byte)('0' + rnd.Next(10)));
+                        }
+
                         break;
                 }
             }
+
+            byte[] input = [.. buf];
 
             double t0 = clock.Elapsed.TotalSeconds;
             try

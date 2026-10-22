@@ -24,6 +24,11 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- The fuzz target body doubles as a deterministic mutation smoke test. -->
+    <Compile Include="../../fuzz/OnePdf.Fuzz/FilterTarget.cs" Link="Filters/FilterTarget.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="../../src/OnePdf/OnePdf.csproj" />
     <ProjectReference Include="../../src/OnePdf.Fonts/OnePdf.Fonts.csproj" />
   </ItemGroup>

@@ -234,7 +234,7 @@ public sealed partial class PdfDocument
 
         long n = s.Dictionary.GetInt("N", -1);
         long first = s.Dictionary.GetInt("First", -1);
-        byte[] data = s.DecodeCore(CancellationToken.None);
+        ReadOnlyMemory<byte> data = s.DecodeCore(CancellationToken.None);
         if (n < 0 || n > Limits.MaxObjects || n > data.Length / 2 || first < 0 || first > data.Length)
         {
             throw new PdfFormatException($"Object stream {streamNumber} has an invalid /N or /First.") { ObjectNumber = streamNumber };

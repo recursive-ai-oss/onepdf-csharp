@@ -411,7 +411,7 @@ public sealed partial class PdfDocument
             throw new PdfLimitException("The cross-reference stream is larger than the stream size limit.") { Offset = pos };
         }
 
-        byte[] data = s.DecodeCore(CancellationToken.None);
+        ReadOnlySpan<byte> data = s.DecodeCore(CancellationToken.None).Span;
         if (total * rowLen > data.Length)
         {
             throw new PdfFormatException("The cross-reference stream holds fewer entries than it declares.") { Offset = pos };
@@ -447,7 +447,7 @@ public sealed partial class PdfDocument
         return section;
     }
 
-    private static long ReadField(byte[] data, ref int at, int width)
+    private static long ReadField(ReadOnlySpan<byte> data, ref int at, int width)
     {
         ulong v = 0;
         for (int i = 0; i < width; i++)
