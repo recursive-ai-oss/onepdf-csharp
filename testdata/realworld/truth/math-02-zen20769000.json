@@ -1,0 +1,30 @@
+{
+ "category": "math",
+ "generator": "real-world file; reference text built as described in reference.method",
+ "name": "math-02-zen20769000",
+ "pageCount": 6,
+ "pages": [
+  {
+   "text": "5\n\nWhat is proved and what awaits independent verification\n\nProof architecture. The program spans five notes, including this one. Figure 1 shows their dependence, and the status divides into three tiers plus the open question. Identity (Thm 1) Layer reduction (Prop 1) this paper\n\nP gsf (k) ≥ j EUnif N (k, j) unconditional\n\ngsf (k) ≥ (φ + o(1))k\n\nWithin-layer lemma [4] E[N (k, j)] ≫\n\nk−j \u0001 j\n\nγ ∈ [φ, 1.88988 . . .]\n\nTransfer [5]\n\nUpper bound ≤ (1.88988 . . .)k [6]\n\nalmost all n: τ⊥ ≥ φ k−o(k) [7]\n\nFigure 1: Dependence of the program. Shaded boxes are sources; the middle column is the unconditional reduction; the three bold boxes are the endpoints — the conditional golden-ratio floor (Theorem 2), the growth-rate interval, and the typicality statement of [7]. Unconditional. Theorem 1 (the identity) and Proposition 1 (the layer reduction) give τ⊥lex = P j N (k, j) P+ O(k); the transfer note [5] discharges the passage to prime weights, yielding gsf (k) ≥ j≤k/2 EUnif [N (k, j)] on fixed-proportion PNT alone; and [6] gives gsf (k) ≤ (1.88988 . . .)k . Conditional on the within-layer lemma\u0001 [4] (proof complete, not refereed). \u0001 P independently k−j = F The lemma supplies E[N (k, j)] ≫ k−j ; with the transfer and k+1 this gives j j j √ k gsf (k) ≥ (φ + o(1)) (Theorem 2), raising the proven floor from 2 to φ. Conditional on [4] plus a standard multivariate local limit. The companion note [7] shows the candidate and blocked within-layer counts concentrate, so almost all n in the primeblock ensemble of [5] satisfy τ⊥ (n) ≥ φ k−o(k) : the golden-ratio floor is the typical value, not merely the maximum. Open. The growth rate γ = limk gsf (k)1/k lies in [φ, 1.88988 . . .]; whether γ = φ is undetermined and routes through lowering the upper bound to meet the floor. The remainder of this section elaborates the two conditional tiers. Theorem 1 and \u0001 Proposition 1 are proved unconditionally, and the within-layer estimate E[N (k, j)] ≫ k−j (uniform for j ≍ 0.276 k) is proved in the companion note [4]. That proof j reduces, via a truncated first moment, to two elementary one-dimensional density bounds for √ sums of uniforms – (i) P[|∆| ≤ θ] = 2θf∆ (0)(1 + o(1)) with f∆ (0) = ∥fIHj ∥22 ≥ c0 / j (from continuity of the Irwin–Hall self-convolution and Chebyshev), and (ii) a conditional density √ bound supw fX(R)|X(S),X(T ) (w) ≤ A/(s m), m = |R \\ (S ∪ T )| (by convolution smoothing) – together with (iii) the hypergeometric concentration \u0012 \u0013 X \u0012 2j \u0013\u0012k − 2j \u0013 k \u000ep −1/2 m ≤ C j, j−m m j m≥1\n\n4"
+  }
+ ],
+ "reference": {
+  "checkedPages": [],
+  "confidence": "low",
+  "extractorAgreement": {
+   "4": 0.769
+  },
+  "method": "Draft from the text layer as recovered by two black-box extractors (poppler pdftotext reading-order mode; MuPDF via its Python binding), compared with each other and, for Latin text, with tesseract OCR of the rendered page; block order and completeness checked against the page image; characters are the text layer, not re-read from pixels.",
+  "notes": "Equation content is in extractor order; only the prose and the sequence of displayed formulas were checked. Not yet reviewed against the page image (only compared across extractors): treat as a draft."
+ },
+ "schema": 1,
+ "scoredPages": [
+  3
+ ],
+ "source": {
+  "attribution": "Ross, Michael: A Reduction of the Squarefree Coprime Adjacent Divisor Problem and a Conditional (Zenodo, doi:10.5281/zenodo.20769000), CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/); unmodified",
+  "license": "CC-BY-4.0",
+  "source_url": "https://zenodo.org/records/20769000",
+  "upstream_ref": "doi:10.5281/zenodo.20769000; file A_Reduction_of_the_Squarefree_Coprime_Adjacent_Divisor_Problem.pdf"
+ }
+}

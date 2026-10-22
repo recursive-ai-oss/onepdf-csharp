@@ -1,0 +1,30 @@
+{
+ "category": "scanned-ocr",
+ "generator": "real-world file; reference text built as described in reference.method",
+ "name": "scanned-ocr-08-gov126226",
+ "pageCount": 5,
+ "pages": [
+  {
+   "text": "More than a century ago Alexis De Tocqueville, political philo sophe r, visited the United States hand look at our new democracy.\n\nthe French to get a first\n\nHe was impressed by our clear skies, our inviting streams, the endless expanses of our forests and plains and the vigor of our 13 million citizens. He wrote: “A democratic power is never likely to perish for lack of strength, or of its resources, but it may very well fall because of the misdirection of its strength and the abuse of its resources. I’ Those\n\nwords\n\nhave a haunting\n\nquality\n\nabout\n\nthem.\n\nIn this room are assembled the sons of Walton, Gordon, Halford, Skues, Bergman, Hewitt, Atherton, Flick, Jennings, Grove, I might make the La Branche and Schwiebert a noble gathering. pun- -What a Cast! Are we to unite to preserve some of the grevious errors\n\nwhat has been left of the past?\n\nto us and correct\n\nI came to Washington because the new Secretary of the Interior Rogers C. B. Morton is a giant among men, 6’8”--240 pounds, and unlike most giants--he is not gentle. Let me assure you he knows and believes his administrzon will be marked by making the tough hardnosed decisions which will lead this Nation out of the darkness into a new era of environmental concern. Not just concern, the Department of the Interior is becoming the corner of Washington where the action is. Its fun, challenging ferociously hard work but the possibility of real accomplishment gives our staffs new hope and spirit. I am proud to be part of this movement. Basically\n\nI am an activist\n\nand I try\n\nto live\n\nup to my word.\n\nThe President and the Secretary asked me to come to Washington to help make the Bureau of Sport Fisheries and Wildlife the premier biological service on earth. We are going to do just that. We need dollars to hire the staffs to produce cripple on my hands when the country needs\n\n3\n\nthe results. a giant.\n\nI have\n\na"
+  }
+ ],
+ "reference": {
+  "checkedPages": [],
+  "confidence": "low",
+  "extractorAgreement": {
+   "3": 1.0
+  },
+  "method": "Draft from the text layer as recovered by two black-box extractors (poppler pdftotext reading-order mode; MuPDF via its Python binding), compared with each other and, for Latin text, with tesseract OCR of the rendered page; block order and completeness checked against the page image; characters are the text layer, not re-read from pixels. For scanned pages the reference is the embedded OCR layer, with its recognition errors; it measures extraction, not OCR.",
+  "notes": "Reference is the embedded OCR layer including its recognition errors. Not yet reviewed against the page image (only compared across extractors): treat as a draft."
+ },
+ "schema": 1,
+ "scoredPages": [
+  2
+ ],
+ "source": {
+  "attribution": "Work of the United States government (17 U.S.C. 105); original URL in source_url; unmodified",
+  "license": "US-Government-Work",
+  "source_url": "http://www.fws.gov/news/historic/1971/19710515.pdf",
+  "upstream_ref": "GovDocs1 (digitalcorpora.org), crawled 2009"
+ }
+}

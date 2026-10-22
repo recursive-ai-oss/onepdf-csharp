@@ -1,0 +1,32 @@
+{
+ "category": "old",
+ "generator": "real-world file; reference text built as described in reference.method",
+ "name": "old-03-gov336819",
+ "pageCount": 26,
+ "pages": [
+  {
+   "text": "1 2\n\nTelemarketing Sales Rule (“TSR”), 16 C.F.R. Part 310; 5.\n\nDefendants have waived all rights that may arise\n\n3\n\nunder the Equal Access to Justice Act, 28 U.S.C. § 2412,\n\n4\n\namended by Pub. L. 104-121, 110 Stat. 847, 863-64 (1996);\n\n5\n\n6.\n\nDefendants have waived all rights to seek appellate\n\n6\n\nreview or otherwise challenge or contest the validity of this\n\n7\n\nOrder, and have further waived and released any claim they may\n\n8\n\nhave against the Commission, its employees, and agents;\n\n9\n\n7.\n\nDefendants enter into this Order freely, without\n\n10\n\nadmitting liability for any allegation or charge made in the\n\n11\n\nCommission’s Complaint, without coercion, and acknowledge that\n\n12\n\nthey understand the provisions of this Order and are prepared\n\n13\n\nto abide by them.\n\n14\n\n8.\n\nEntry of this Order is in the public interest.\n\n15\n\nORDER\n\n16\n\nDefinitions\n\n17\n\ni.\n\n“Defendants” means Universal Bancom, LLC,\n\n18\n\n(“Universal”) and John Sarabia, individually and doing\n\n19\n\nbusiness as Nissan Bancorp (“Sarabia”).\n\n20\n\nii.\n\n“Merchant Card” means a card that can be used only\n\n21\n\nto buy goods or services at specific merchants that are owned,\n\n22\n\ncontrolled, or affiliated with the issuing entity, unlike\n\n23\n\ngeneral purpose credit cards such as Visa or MasterCard credit\n\n24\n\ncards or their functional equivalent.\n\n25\n\niii. \"Telemarketing” means any business activity (which\n\n26\n\nincludes, but is not limited to, initiating or receiving\n\n27\n\ntelephone calls, managing others who initiate or receive\n\n28\n\ntelephone calls, operating an enterprise that initiates or 3"
+  }
+ ],
+ "reference": {
+  "checkedPages": [
+   2
+  ],
+  "confidence": "high",
+  "extractorAgreement": {
+   "3": 1.0
+  },
+  "method": "Draft from the text layer as recovered by two black-box extractors (poppler pdftotext reading-order mode; MuPDF via its Python binding), compared with each other and, for Latin text, with tesseract OCR of the rendered page; block order and completeness checked against the page image; characters are the text layer, not re-read from pixels.",
+  "notes": ""
+ },
+ "schema": 1,
+ "scoredPages": [
+  2
+ ],
+ "source": {
+  "attribution": "Work of the United States government (17 U.S.C. 105); original URL in source_url; unmodified",
+  "license": "US-Government-Work",
+  "source_url": "http://www.ftc.gov/os/2002/04/universalstip.pdf",
+  "upstream_ref": "GovDocs1 (digitalcorpora.org), crawled 2009"
+ }
+}

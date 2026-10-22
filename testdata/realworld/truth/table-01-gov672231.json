@@ -1,0 +1,32 @@
+{
+ "category": "table",
+ "generator": "real-world file; reference text built as described in reference.method",
+ "name": "table-01-gov672231",
+ "pageCount": 4,
+ "pages": [
+  {
+   "text": "1996 ORDERS\n\nORD1175.FE 06/24/96 96-35-NG Anadarko Trading Company\nORD1174.FE 06/24/96 96-34-NG CU Energy Marketing, Inc.\nORD964-A.FE 06/20/96 94-49-NG Hermiston Generating Co\nPacificorp\nORD1173.FE 06/07/96 96-33-NG Michigan Consolidated Gas Co\nORD1172.FE 06/07/96 96-32-NG National Fuel Resources, Inc\nORD1171.FE 06/14/96 96-34-NG CU Energy Mktg. Inc.\nORD1170.FE 05/29/96 96-28-NG Brooklyn Union Gas Co.\nORD1036-A.FE 05/28/96 95-21-NG Cabot Oil & Gas Mktg. Corp.\nORD895-A.FE 05/23/96 93-129-NG USGEN Fuel Services, Inc.\nORD1169.FE 05/23/96 96-27-NG Brooklyn Union Gas Co.\nORD1168.FE 05/23/96 96-25-NG Brooklyn Union Gas Co.\nORD1167.FE 05/20/96 96-21-NG Universal Resources Corp.\nORD1166.FE 05/16/96 96-24-NG West Texas Gas, Inc.\nORD1166.EN 06/25/96 96-24-NG West Texas Gas, Inc.\nORD1165.FE 05/16/96 96-22-NG NUI Corporation\n87-53-NG Tennessee Gas Pipeline Co.\nORD1164.FE 05/14/96 96-23-NG IGI Resources, Inc.\nORD1014-A.FE 05/06/96 94-103-NG PanEnergy Marketing\nORD1163.FE 05/03/96 96-19-NG Tenaska Gas Co.\nORD1162.FE 04/30/96 96-20-NG North America Energy, Inc.\nORD1131-A.FE 04/30/96 95-116-NG St. Clair Pipelines (1996)LTD\nORD1093-A.FE 04/29/96 95-80-NG Altra Streamline, L.L.C.\nORD1161.FE 04/29/96 96-18-NG Texaco Natural Gas Inc.\nORD1160.FE 04/29/96 96-17-NG Chevron U.S.A. Inc.\nORD1159.FE 04/19/96 96-16-NG Tenneco Gas Marketing Co.\nORD1158.FE 04/04/96 96-15-NG New York State Elec. & Gas\nORD1157.FE 04/03/96 96-14-NG WestCoast Gas Services\nORD1156.FE 03/29/95 96-10-NG Progas U.S.A., Inc.\nORD1155.FE 03/29/95 81-04-NG Boundary Gas, Inc.\n88-04-NG\nORD1154.FE 03/27/96 96-12-NG Murphy Gas Gathering Company\nORD1153.FE 03/27/96 96-13-NG Norstar Energy Ltd. Partner.\nORD1152.FE 03/27/96 96-03-NG Eastern Energy Mktg. Inc.\nORD1151.FE 03/27/96 96-02-NG Eastern Energy Mktg. Inc\nORD1150.FE 03/15/96 96-11-NG Direct Energy Mktg. Inc.\nORD494-C 03/12/96 90-92-NG Sumas Cogeneration Co\nORD1149.FE 03/12/96 96-07-NG BC Gas Utility Ltd.\nORD1148.FE 03/11/86 96-05-NG POCO Marketing Ltd\nORD1147.FE 03/11/96 96-09-NG Amoco Energy Trading Corp.\nORD1146.FE 03/11/96 96-08-NG Williams Energy Services Co"
+  }
+ ],
+ "reference": {
+  "checkedPages": [
+   2
+  ],
+  "confidence": "medium",
+  "extractorAgreement": {
+   "3": 1.0
+  },
+  "method": "Draft from poppler pdftotext -layout (rows kept as lines, cells separated by one space); row order and completeness checked against the page image; characters are the text layer.",
+  "notes": "Reading order is row by row, left to right; wrapped cell lines are separate lines."
+ },
+ "schema": 1,
+ "scoredPages": [
+  2
+ ],
+ "source": {
+  "attribution": "Work of the United States government (17 U.S.C. 105); original URL in source_url; unmodified",
+  "license": "US-Government-Work",
+  "source_url": "https://www.fe.doe.gov/programs/gasregulation/authorizations/orders1996.pdf",
+  "upstream_ref": "GovDocs1 (digitalcorpora.org), crawled 2009"
+ }
+}

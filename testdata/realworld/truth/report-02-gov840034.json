@@ -1,0 +1,32 @@
+{
+ "category": "report",
+ "generator": "real-world file; reference text built as described in reference.method",
+ "name": "report-02-gov840034",
+ "pageCount": 8,
+ "pages": [
+  {
+   "text": "Summary\n\nProposed Action and Alternatives Scope of Project At the time of the preparation of this draft environmental impact statement (DEIS), 21 specific lakes and their designated stream segments are targeted for treatment. Additional information about the sites including location, size, and specifics about the methods of and procedures proposed for treatment can be found in Appendix C. Although there is no specific information indicating other hybrid lakes and streams are present in the South Fork, if any other lakes and streams in the South Fork Flathead are discovered at some time in the future to contain hybrid trout, these would also need to be treated. A list of lakes currently under consideration follows: •\n\nBlack\n\n•\n\nMargaret\n\n•\n\nBlackfoot\n\n•\n\n•\n\nClayton\n\nNecklace Chain of Lakes (“Smokey Creek Lakes”) – total of four\n\n•\n\nGeorge\n\n•\n\nPilgrim\n\n•\n\nHandkerchief\n\n•\n\nPyramid\n\n•\n\nKoessler\n\n•\n\nSunburst\n\n•\n\nLena\n\n•\n\nUpper Three Eagles\n\n•\n\nLick\n\n•\n\nWildcat\n\n•\n\nLower Big Hawk\n\n•\n\nWoodward\n\n•\n\nLower Three Eagles (genetic analysis pending)\n\nThe determination to treat lakes and streams other than those 21 listed above would be made only if hybridization was determined through genetic analysis.\n\nAlternatives Under Consideration BPA is considering the following alternatives: •\n\nAlternative A: (No Action) Status Quo Management\n\n•\n\nAlternative B: (Proposed Action) Fish Toxins-Combined Delivery and Application Methods\n\n•\n\nAlternative C: Fish Toxins-Motorized/Mechanized Delivery and Application Methods\n\n•\n\nAlternative D: Suppression Techniques and Genetic Swamping\n\nThe No Action alternative would maintain current management practices, including current fish stocking practices, angling regulations, and future fish stocking. BPA would make no effort to affect the westslope cutthroat population in the South Fork which would provide no means to prevent hybrid trout from moving downstream to pioneer new areas. These hybrid trout would continue to compromise the genetic integrity of the genetically pure westslope cutthroat trout by interbreeding and likely creating new hybrid\n\nWestlope Cutthroat Trout Conservation Program\n\nS-3"
+  }
+ ],
+ "reference": {
+  "checkedPages": [
+   2
+  ],
+  "confidence": "high",
+  "extractorAgreement": {
+   "3": 1.0
+  },
+  "method": "Draft from the text layer as recovered by two black-box extractors (poppler pdftotext reading-order mode; MuPDF via its Python binding), compared with each other and, for Latin text, with tesseract OCR of the rendered page; block order and completeness checked against the page image; characters are the text layer, not re-read from pixels.",
+  "notes": ""
+ },
+ "schema": 1,
+ "scoredPages": [
+  2
+ ],
+ "source": {
+  "attribution": "Work of the United States government (17 U.S.C. 105); original URL in source_url; unmodified",
+  "license": "US-Government-Work",
+  "source_url": "http://gc.energy.gov/NEPA/nepa_documents/docs/deis/eis0353/summary.pdf",
+  "upstream_ref": "GovDocs1 (digitalcorpora.org), crawled 2009"
+ }
+}

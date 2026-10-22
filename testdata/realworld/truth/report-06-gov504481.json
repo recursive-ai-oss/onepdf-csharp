@@ -1,0 +1,32 @@
+{
+ "category": "report",
+ "generator": "real-world file; reference text built as described in reference.method",
+ "name": "report-06-gov504481",
+ "pageCount": 13,
+ "pages": [
+  {
+   "text": "Publications Yildirim, T., Harris, A. B., “Rotational and Vibrational Dynamics of Interstitial Molecular Hydrogen,” Phys. Rev. B 66 (21), 214301 (2002). Yildirm, T., Harris, A. B., “Quantum Dynamics of a Hydrogen Molecule Confined in a Cylindrical Potential,” Phys. Rev. B 67, 245413 (2003). Yim, H., Kent, M. S., Huber, D. L., Satija, S., Majewski, J., Smith, G. S., “Conformation of End-Tethered PNIPAM Chains in Water and in Acetone by Neutron Reflectivity,” Macromol. 36, 5244 (2003). Yim, H., Kent, M. S., Matheson, A., Stevens, M. J., Ivkov, R., Satija, S. K., Majewski, J., Smith, G. S., “Adsorption of Sodium Poly(styrenesulfonate) to the Air Surface of Water by Neutron and X-ray Reflectivity and Surface Tension Measurements: Polymer Concentration Dependence,” Macromol. 35, 9737 (2002). Young, S. K., Trevino, S. F., Beck Tan, N. C., “Small-Angle Neutron Scattering Investigation of Structural Changes in Nafion Membranes Induced by Swelling with Various Solvents,” J. Poly. Sci. B: Poly. Phys. 40 (4), 387 (2002). Young, S. K., Trevino, S. F., Beck Tan, N. C., Paul, R. L., “Utilization of Prompt-Neutron Activation Analysis in the Evaluation of Nafion Membranes,” J. Poly. Sci. B: Poly. Phys. 41 (3), 1485 (2003). Zaliznyak, I. A., “Continuum Spin Excitations in S=1 OneDimensional Antiferromagnet,” J. Appl. Phys. 91, 81221 (2002). Zeder, M. A., Blackman, M. J., “Economy and Administration at Banesh Malyan Exploring the Potential of Faunal and Chemical Data for Understanding State Process,” in Yeki Bud, Yeki Nabud: Essays on the Archaeology in Honor of William M. Summer, edited by N. F. Miller, and K. Adbi (Cotsen Institute of Archaeology, University of California at Los Angeles) 48 (2003), p. 121.\n\nZeisler, R., “New NIST Sediment SRMs for Inorganic Analysis,” J. of Radioanal. Nucl. Chem., in press. Zeisler, R., Demiralp, R., “The Use of INAA in the Development of Urban Air Particulate Matter SRMs,” J. Radioanal. Nucl. Chem., in press. Zeisler, R., Lindstrom, R. M., Greenberg, R. R. “Instrumental Neutron Activation Analysis, a Valuable Link in Chemical Metrology,” J. of Radioanal. Nucl. Chem., in press. Zhang, Y., Ge, S., Tang, B., Rafailovich, M. H., Sokolov, J., Peiffer, D., Li, Z., Lin, M., Dias, J. A., McElrath, K. O., Nguyen, D., Satija, S., Schwarz, S. A., “Interfacial Properties of Brominated Isobutylene-co-p-Methylstyrene and Butadiene Polymers” in Proceedings of the American Chemical Society 154th Rubber Conference, in press. Zhao, L., Robinson, L., Paul R. L., Greenberg, R. R., Miao, S., “Determination of Carbon, Nitrogen, and Phosphorus in Cattail (Typha latifolia) by Cold Neutron Prompt Gamma Activation Analysis,” J. of Radioanal. Nucl. Chem., in press. Zheludev, A., Honda, Z., Broholm, C. L., Katsumata, K., Shapiro, S. M., Kolezhuk, A., Park, S., Qiu, Y., “Massive Triplet Excitations in a Magnetized Anisotropic Haldane Spin Chain,” Phys. Rev. Lett., in press. Zheludev, A., Maslov, S., Zaliznyak, I., Regnault, L. P., Masuda, T., Uchinokura, K., Erwin, R., Shirane, G., “Experimental Evidence for Shekhtman-Entin-Wohlman-Aharony (SEA) Interactions in Ba2CuGe2O7,” Phys. Rev. B, in press. Zhou, J., Deyhim, A., Krueger, S., Gregurick, S. K., “Small Angle Neutron Scattering Studies of PNA and DNA Systems,”Abstr. Pap. Am. Chem. Soc. 224, 262 (2002). Zhou, C., Hobbie, E. K., Bauer, B. J., Han, C. C., “Equilibrium Structure of Hydrogen-Bonded Polymer Blends,” J. Polym. Sci. Part B: Poly. Phys., in press. Zimmerman, M. V., “X-Ray Scattering Studies of Orbital and Charge Ordering in Pr1-xCaxMnO3,” Phys. Rev. B, in press.\n\n63"
+  }
+ ],
+ "reference": {
+  "checkedPages": [
+   12
+  ],
+  "confidence": "high",
+  "extractorAgreement": {
+   "13": 0.996
+  },
+  "method": "Draft from the text layer as recovered by two black-box extractors (poppler pdftotext reading-order mode; MuPDF via its Python binding), compared with each other and, for Latin text, with tesseract OCR of the rendered page; block order and completeness checked against the page image; characters are the text layer, not re-read from pixels.",
+  "notes": ""
+ },
+ "schema": 1,
+ "scoredPages": [
+  12
+ ],
+ "source": {
+  "attribution": "Work of the United States government (17 U.S.C. 105); original URL in source_url; unmodified",
+  "license": "US-Government-Work",
+  "source_url": "http://www.ncnr.nist.gov/AnnualReport/FY2003/Publications.pdf",
+  "upstream_ref": "GovDocs1 (digitalcorpora.org), crawled 2009"
+ }
+}

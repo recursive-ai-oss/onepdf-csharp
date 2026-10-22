@@ -1,0 +1,32 @@
+{
+ "category": "rotated",
+ "generator": "real-world file; reference text built as described in reference.method",
+ "name": "rotated-02-gov084340",
+ "pageCount": 25,
+ "pages": [
+  {
+   "text": "[23] Table 3a. Attractants and traps for male fruit fly surveys\nFruit fly species Attractant and trap (see below for abbreviations)\nTML/CE ME CUE\nCC CH ET JT LT ST SE TP YP CH ET JT LT ST TP YP CH ET JT LT ST TP YP\nAnastrepha fraterculus\nAnastrepha ludens\nAnastrepha obliqua\nAnastrepha striata\nAnastrepha suspensa\nBactrocera carambolae x x x x x x x\nBactrocera caryeae x x x x x x x\nBactrocera citri\nBactrocera correcta x x x x x x x\nBactrocera cucumis x x x x x x x\nBactrocera cucurbitae x x x x x x x\nBactrocera dorsalis x x x x x x x\nBactrocera invadens x x x x x x x\nBactrocera kandiensis x x x x x x x\nBactrocera latifrons\nBactrocera minax\nBactrocera occipitalis x x x x x x x\nBactrocera oleae\nBactrocera philippinensis x x x x x x x\nBactrocera tau x x x x x x x\nBactrocera tryoni x x x x x x x\nBactrocera tsuneonis\nBactrocera umbrosa x x x x x x x\nBactrocera zonata x x x x x x x\nCeratitis capitata x x x x x x x x x\nCeratitis cosyra\nCeratitis rosa x x x x x x x x x\nDacus ciliatus\nMyopardalis pardalina\nRhagoletis cerasi\nRhagoletis pomonella\nToxotrypana curvicauda\n\nAttractant abbreviations Trap abbreviations Trap abbreviations\nTML Trimedlure CC Cook and Cunningham (C&C) trap LT Lynfield trap\nCE Capilure CH ChamP trap ST Steiner trap\nME Methyl eugenol ET Easy trap SE Sensus trap\nCUE Cuelure JT Jackson trap TP Tephri trap\nYP Yellow panel trap\nDraft Annex 1 to ISPM No. 26 – Fruit fly trapping / 5\nFor member consultation - June 2008"
+  }
+ ],
+ "reference": {
+  "checkedPages": [
+   4
+  ],
+  "confidence": "low",
+  "extractorAgreement": {
+   "5": 0.966
+  },
+  "method": "Draft from the text layer as recovered by two black-box extractors (poppler pdftotext reading-order mode; MuPDF via its Python binding), compared with each other and, for Latin text, with tesseract OCR of the rendered page; block order and completeness checked against the page image; characters are the text layer, not re-read from pixels.",
+  "notes": "Page chosen because it is rotated (page /Rotate or text running sideways); reading order is as displayed."
+ },
+ "schema": 1,
+ "scoredPages": [
+  4
+ ],
+ "source": {
+  "attribution": "Work of the United States government (17 U.S.C. 105); original URL in source_url; unmodified",
+  "license": "US-Government-Work",
+  "source_url": "http://www.aphis.usda.gov/import_export/plants/plant_exports/downloads/DraftAnnex1FFtrapping.pdf",
+  "upstream_ref": "GovDocs1 (digitalcorpora.org), crawled 2009"
+ }
+}

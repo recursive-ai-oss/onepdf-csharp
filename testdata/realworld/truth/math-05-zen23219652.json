@@ -1,0 +1,30 @@
+{
+ "category": "math",
+ "generator": "real-world file; reference text built as described in reference.method",
+ "name": "math-05-zen23219652",
+ "pageCount": 9,
+ "pages": [
+  {
+   "text": "ERDŐS SIMILARITY FOR DISTANCE SETS: FINITE PATTERNS, A PINNED OBSTRUCTION, AND AN OPEN WINDOW HARALD SCHILLY Abstract. For a compact set E ⊂ Rd let ∆(E) = {|x − y| : x, y ∈ E} be its distance set. We ask whether, for d ≥ 2 and dimH E > d/2, the distance set must contain a nontrivial affine copy x+s{2−n : n ≥ 1} of the dyadic sequence, a distance-set version of the Erdős similarity problem. We combine two recent results announced by OpenAI: the Falconer distance theorem in all dimensions and the dyadic case of the Erdős similarity conjecture. Assuming these, we show: (A) ∆(E) contains affine copies of every finite set, for a positive-measure family of translations at every small scale. (B) For every d ≥ 1 there is a compact set K ∋ 0 of nearly full volume in the unit ball of Rd whose distance set from the origin contains no affine copy of the dyadic sequence, while ∆(K) does contain one and, for d ≥ 2, so does the distance set from every other point. (C) A counterexample must have ∆(E) of positive measure but empty interior, so by the Mattila–Sjölin theorem the question is open exactly for d/2 < dimH E ≤ (d + 1)/2. A positive answer would follow if ∆(E) had nonempty interior in this range, itself an open problem; a negative answer would, to our knowledge, give the first sets of dimension > d/2 whose distance sets have empty interior. Every lemma, proposition and theorem of this note has a Lean 4 proof with Mathlib. The OpenAI results and the Mattila–Sjölin theorem enter as explicit hypotheses, and we checked with the Lean kernel that OpenAI’s Lean proofs and a separate formalization of the Mattila–Sjölin theorem prove exactly these hypotheses. So Theorems A and B, Proposition C and the window are machine-checked down to the standard axioms. The spherical maximal theorem, which is not formalized, is used only in one clearly marked remark.\n\n1. Introduction 1.1. Two problems about large sets. A set P ⊂ R is measure universal if every measurable S ⊂ R of positive Lebesgue measure contains a nontrivial affine copy x + sP (x ∈ R, s ̸= 0). Steinhaus’ theorem [21] implies that every finite set is measure universal. Erdős conjectured [5] that no infinite set is. The conjecture is known for slowly decaying sequences [7] and for many structured sets [3, 11]. The geometric sequences {q n } remained open, above all the dyadic sequence D = {2−n : n ≥ 1}; deciding whether D is measure universal has been called “the major bottleneck of the problem” [10]. OpenAI has released a collection of manuscripts, dated September and October 2026, produced by an internal AI model. It includes a proof that D is not measure universal [14] and an extension to every ratio q ∈ (0, 1) [16]. Date: October 2026. 2020 Mathematics Subject Classification. 28A80 (primary); 28A75, 42B10, 03B35. Key words and phrases. Erdős similarity problem, distance sets, Falconer conjecture, Hausdorff dimension, formal verification, Lean. 1"
+  }
+ ],
+ "reference": {
+  "checkedPages": [],
+  "confidence": "low",
+  "extractorAgreement": {
+   "1": 0.938
+  },
+  "method": "Draft from the text layer as recovered by two black-box extractors (poppler pdftotext reading-order mode; MuPDF via its Python binding), compared with each other and, for Latin text, with tesseract OCR of the rendered page; block order and completeness checked against the page image; characters are the text layer, not re-read from pixels.",
+  "notes": "Equation content is in extractor order; only the prose and the sequence of displayed formulas were checked. Not yet reviewed against the page image (only compared across extractors): treat as a draft."
+ },
+ "schema": 1,
+ "scoredPages": [
+  0
+ ],
+ "source": {
+  "attribution": "Schilly, Harald: Erdős similarity for distance sets: finite patterns, a pinned obstruction, and a (Zenodo, doi:10.5281/zenodo.23219652), CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/); unmodified",
+  "license": "CC-BY-4.0",
+  "source_url": "https://zenodo.org/records/23219652",
+  "upstream_ref": "doi:10.5281/zenodo.23219652; file distance-set-similarity-schilly-2026.pdf"
+ }
+}

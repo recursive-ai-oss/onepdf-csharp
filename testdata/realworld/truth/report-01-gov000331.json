@@ -1,0 +1,32 @@
+{
+ "category": "report",
+ "generator": "real-world file; reference text built as described in reference.method",
+ "name": "report-01-gov000331",
+ "pageCount": 14,
+ "pages": [
+  {
+   "text": "Tropical Cyclone Report Hurricane Felix (AL062007) 31 August – 5 September 2007 Jack Beven National Hurricane Center 16 January 2008\n\nHurricane Felix was a small, but powerful, category 5 hurricane (on the Saffir-Simpson Hurricane Scale) that caused major damage in northeastern Nicaragua.\n\na.\n\nSynoptic History\n\nFelix formed from a tropical wave that departed the coast of Africa on 24 August. The wave moved westward across the tropical Atlantic for several days while producing a persistent area of disorganized cloudiness and showers. The shower activity increased in organization beginning on 29 August accompanied by a gradual increase in low-level vorticity. It is estimated that a tropical depression formed around 1200 UTC 31 August about 195 n mi east-southeast of Barbados. The “best track” chart of the tropical cyclone’s path is given in Fig. 1, with the wind and pressure histories shown in Figs. 2 and 3, respectively. The best track positions and intensities are listed in Table 1. The depression initially moved westward, then made a west-northwestward jump that was possibly due to reformation of the center. As a westward motion resumed, the cyclone became a tropical storm around 0000 UTC 1 September about 60 n mi south of Barbados. The center of Felix passed over Grenada about 0845 UTC 1 September, then moved across the southern portion of the Caribbean Sea embedded in deep-layer easterly flow. Felix quickly strengthened, becoming a hurricane near 0000 UTC 2 September while centered about 155 n mi east of Bonaire in the Netherlands Antilles. Felix moved just north of due west on 2 September, with its center passing 35-45 n mi north of the Netherlands Antilles. Very rapid strengthening occurred during the day, with the maximum sustained winds increasing to 145 kt by 0000 UTC 3 September – Category 5 on the Saffir-Simpson Hurricane Scale. The central pressure reached a minimum of 929 mb at 0700 UTC 3 September - a 64-mb fall in 32 h. An eyewall replacement cycle began later that day, with Felix weakening to a Category 3 hurricane and the central pressure rising to 953 mb. This was followed by re-intensification at the end of the cycle, and it is estimated that Felix regained Category 5 status just before landfall near Punta Gorda, Nicaragua at 1200 UTC 4 September. After landfall, Felix weakened rapidly to a tropical storm over northern Nicaragua less than 12 h after landfall. The cyclone decelerated and turned west-northwestward, and it weakened to a remnant low over northern Honduras early on 5 September. The low briefly emerged over the Gulf of Honduras later that day. However, no re-development occurred before\n\n1"
+  }
+ ],
+ "reference": {
+  "checkedPages": [
+   0
+  ],
+  "confidence": "high",
+  "extractorAgreement": {
+   "1": 1.0
+  },
+  "method": "Draft from the text layer as recovered by two black-box extractors (poppler pdftotext reading-order mode; MuPDF via its Python binding), compared with each other and, for Latin text, with tesseract OCR of the rendered page; block order and completeness checked against the page image; characters are the text layer, not re-read from pixels.",
+  "notes": ""
+ },
+ "schema": 1,
+ "scoredPages": [
+  0
+ ],
+ "source": {
+  "attribution": "Work of the United States government (17 U.S.C. 105); original URL in source_url; unmodified",
+  "license": "US-Government-Work",
+  "source_url": "http://www.nhc.noaa.gov/pdf/TCR-AL062007_Felix.pdf",
+  "upstream_ref": "GovDocs1 (digitalcorpora.org), crawled 2009"
+ }
+}

@@ -1,0 +1,30 @@
+{
+ "category": "slides",
+ "generator": "real-world file; reference text built as described in reference.method",
+ "name": "slides-05-zen8051317",
+ "pageCount": 5,
+ "pages": [
+  {
+   "text": "Danksagung / Acknowledgement • Das Forschungsprojekt „UpcycSlag-Binder – Upcycling von Hüttenreststoffen zu neuen, nachhaltigen Bindemitteln in der Baustoff-Kreislaufwirtschaft“ wird aus Mitteln des Zukunftsfonds Steiermark und dem Klimaschutzfonds der Stadt Graz gefördert und im Rahmen des Programms „Green Tech 100 – 1 Earth, 0 Carbon, 0 Waste“ durchgeführt. • The research project “UpcycSlag-Binder” was funded by the Styrian Future Fund and the Climate Protection Fund of the City of Graz and carried out as part of the programme “Green Tech 100 - 1 Earth, 0 Carbon, 0 Waste”. [https://www.zukunftsfonds.steiermark.at/cms/beitrag/12798920/145290866/]\n\nMONTANUNIVERSITÄT LEOBEN\n\nTECHNISCHE UNIVERSITÄT GRAZ\n\n5\n\nTHERMOPROZESSTECHNIK\n\nMATERIALPRÜFUNG U. BAUSTOFFTECHNOLOGIE"
+  }
+ ],
+ "reference": {
+  "checkedPages": [],
+  "confidence": "low",
+  "extractorAgreement": {
+   "5": 1.0
+  },
+  "method": "Draft from the text layer as recovered by two black-box extractors (poppler pdftotext reading-order mode; MuPDF via its Python binding), compared with each other and, for Latin text, with tesseract OCR of the rendered page; block order and completeness checked against the page image; characters are the text layer, not re-read from pixels.",
+  "notes": "Text of the scored slides in visual order, title first. Not yet reviewed against the page image (only compared across extractors): treat as a draft."
+ },
+ "schema": 1,
+ "scoredPages": [
+  4
+ ],
+ "source": {
+  "attribution": "Klaus Doschek-Held: UpcycSlag-Binder - Publikationen / References (Zenodo, doi:10.5281/zenodo.8051317), CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/); unmodified",
+  "license": "CC-BY-4.0",
+  "source_url": "https://zenodo.org/records/8051317",
+  "upstream_ref": "doi:10.5281/zenodo.8051317; file UpcycSlag-Binder_References_20230617.pdf"
+ }
+}

@@ -1,0 +1,32 @@
+{
+ "category": "cjk",
+ "generator": "real-world file; reference text built as described in reference.method",
+ "name": "cjk-01-zen14166681",
+ "pageCount": 4,
+ "pages": [
+  {
+   "text": "International scientific and practical conference Uzbekistan-China: development of historicalcultural, scientific and economic relations\n\n(E)ISSN: 2181-1784 4(23), Nov., 2024 www.oriens.uz\n\n中国式现代化蕴含的独特世界观是唯物史观视域中的“世界历史”理论同中 国具体实际相结合、同中华优秀传统文化相结合的产物，具体涉及到矛盾普遍 性与矛盾特殊性的辩证关系，民族性与世界性的辩证关系，传统文明、现代文 明与后现代文明之间的辩证关系，因而，其不同于西方的现代化理论。这是因 为，“中国式现代化，深深植根于中华优秀传统文化，体现科学社会主义的先 进本质，借鉴吸收一切人类优秀文明成果，代表人类文明进步的发展方向，展 现了不同于西方现代化模式的新图景，是一种全新的人类文明形态”。 中国式现代化“深深植根于中华优秀传统文化”。这表明，中华优秀传统文 化是中国式现代化的中国特色得以成型的文化根基。一方面，中华优秀传统文 化中蕴含的丰厚哲学思想、人文精神、教化思想、道德理念等思想资源，成为 推动中国式现代化发展的文化力量。现代化和传统文化并不是对立的，那种截 然二分的观点是完全错误的。随着时代的发展，中华优秀传统文化已经扬弃了 传统文化中糟粕的成分、落后的成分，萃取了其中精华的成分、有益的成分。 另一方面，通过中国式现代化可以使古老的中华文明从传统的农业文明进入崭 新的现代文明，在这一过程中又不失其根和魂，从而焕发出新时代的生命力与 旺盛的活力；在建构中华民族现代文明的过程中，实现中华优秀传统文化创造 性转化、创新性发展，从而使之同革命文化、社会主义先进文化一起，融入中 国式现代化的理论和实践之中，彰显中国特色、中国智慧和中国力量。由此可 见，中国式现代化是“坚守中华文化立场”的现代化，既不走改旗易帜的邪路， 也不走封闭僵化的老路，打破了“现代化=西方化”迷思，创造了中华文明新形 态。 中国式现代化“体现科学社会主义的先进本质”。中国式现代化是以马克思 主义为根本指导思想，“坚持中国共产党领导，坚持中国特色社会主义”，是沿 着中国特色社会主义道路，以中国化时代化马克思主义为指导的理论与实践有 机结合创造的现代化，从而避免落入“现代化陷阱”或“资本逻辑陷阱”。所谓“现 代化陷阱”，主要是指一个国家在其现代化建设当中所遇到的解决难度相对较 大的难题或困境。这些陷阱主要有：依附性陷阱、资本至上陷阱、经济转型陷 阱、增长陷阱、去工业化陷阱、“塔西佗陷阱”、贫富差距过大陷阱等。这些陷 阱对于一个国家的现代化建设具有多个方面的负面效应。就此而言，中国式现 代化必须贯穿系统思维、辩证思维、战略思维、底线思维、历史思维、创新思 维、法治思维，防止形而上学思维，不能就经济发展经济，就社会发展社会， 而是“统筹发展和安全”，“实现高质量发展，发展全过程民主，丰富人民精神世 界，实现全体人民共同富裕，促进人与自然和谐共生”的现代化。中国式现代 613"
+  }
+ ],
+ "reference": {
+  "checkedPages": [
+   1
+  ],
+  "confidence": "medium",
+  "extractorAgreement": {
+   "2": 0.963
+  },
+  "method": "Draft from the text layer as recovered by two black-box extractors (poppler pdftotext reading-order mode; MuPDF via its Python binding), compared with each other and, for Latin text, with tesseract OCR of the rendered page; block order and completeness checked against the page image; characters are the text layer, not re-read from pixels.",
+  "notes": "Characters from the text layer; vertical sidebars, if any, follow the main text."
+ },
+ "schema": 1,
+ "scoredPages": [
+  1
+ ],
+ "source": {
+  "attribution": "洪, 晓楠: 中国式现代化蕴含的独特世界观 (Zenodo, doi:10.5281/zenodo.14166681), CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/); unmodified",
+  "license": "CC-BY-4.0",
+  "source_url": "https://zenodo.org/records/14166681",
+  "upstream_ref": "doi:10.5281/zenodo.14166681; file 74 洪晓楠 612-615.pdf"
+ }
+}

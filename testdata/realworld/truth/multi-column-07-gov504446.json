@@ -1,0 +1,32 @@
+{
+ "category": "multi-column",
+ "generator": "real-world file; reference text built as described in reference.method",
+ "name": "multi-column-07-gov504446",
+ "pageCount": 13,
+ "pages": [
+  {
+   "text": "Schauster et al.\n\n315\n\nTable 5. Survival rates for resident swift foxes of known fate on the PCMS, 1997–1998.\n\nAdults Year and season Rate Variance Resident males 1997 Breeding/gestation 0.84 0.0103 Pup rearing 1.0 — Dispersal 1.0 — 1998 Breeding/gestation 0.85 0.00639 Pup rearing 0.77 0.00834 Dispersal 0.77 0.00988 Resident females 1997 Breeding/gestation 1.0 — Pup rearing 0.94 0.00348 Dispersal 0.83 0.00772 1998 Breeding/gestation 0.75 0.00768 Pup rearing 0.96 0.00178 Dispersal 0.96 0.00159\n\nJuveniles Rate Variance na na\n\n16 16 15 1.0 — 7 27 22 19 0.44 0.0652 8\n\n18 18 18 1.0 — 7 31 26 28 0.13 0.0720 3\n\naNumber of radio-collared foxes monitored during that season.\n\nTable 6. Survival rates for adult and juvenile dispersing swift foxes of known fate on the\n\nPCMS, 1997–1998.\n\n95% confidence interval\n\nVariance\n\nDispersing adults 1997 Breeding/gestation 1.00 — Pup rearing 1.00 — Dispersal 1998\n\n— — 3 — — 1\n\n0.01270\n\nPup rearing 1.00 — Dispersal 1.00 — Dispersing juveniles 1997 Breeding/gestation Pup rearing\n\n— — 1 — — 1\n\n0.00016\n\n1998 Breeding/gestation Pup rearing\n\n0.13500\n\naNumber of foxes dispersing during that season.\n\ndaytime locations or a 50% kernel estimator) were almost exclusive of one another, suggesting some degree of territoriality. White and Ralls (1993) and White et al. (1994) demonstrated that San Joaquin kit foxes are territorial, when previously they were assumed to be nonterritorial (Morrel 1972; McGrew 1977). Our results concur with the finding of territoriality of den areas by Rongstad et al. (1989). Mean litter size, based on counts of pups at the time of emergence, was slightly lower than previously reported for\n\nswift foxes in the PCMS; Rongstad et al. (1989) and Covell (1992) reported a litter size of 3.4 and 3.8 pups, respectively. In northern Colorado, Fitzgerald et al.3 reported a mean litter size of 3.6 pups. In contrast to Zumbaugh (1984), who reported that only 10% of juveniles breed in their first year, we found a much higher proportion (>90%) to have bred, and documented that at least 50% of these yearlings raised litters. If this indicates that swift foxes share the canid ability to rebound quickly from low numbers through increased\n\n© 2002 NRC Canada"
+  }
+ ],
+ "reference": {
+  "checkedPages": [
+   8
+  ],
+  "confidence": "medium",
+  "extractorAgreement": {
+   "9": 0.948
+  },
+  "method": "Draft from the text layer as recovered by two black-box extractors (poppler pdftotext reading-order mode; MuPDF via its Python binding), compared with each other and, for Latin text, with tesseract OCR of the rendered page; block order and completeness checked against the page image; characters are the text layer, not re-read from pixels.",
+  "notes": "Reading order is column by column, left column first; running heads and page numbers at their top or bottom position."
+ },
+ "schema": 1,
+ "scoredPages": [
+  8
+ ],
+ "source": {
+  "attribution": "Work of the United States government (17 U.S.C. 105); original URL in source_url; unmodified",
+  "license": "US-Government-Work",
+  "source_url": "http://www.aphis.usda.gov/wildlife_damage/nwrc/publications/02pubs/gese_popecolswift.pdf",
+  "upstream_ref": "GovDocs1 (digitalcorpora.org), crawled 2009"
+ }
+}

@@ -1,0 +1,32 @@
+{
+ "category": "rotated",
+ "generator": "real-world file; reference text built as described in reference.method",
+ "name": "rotated-08-gov042029",
+ "pageCount": 8,
+ "pages": [
+  {
+   "text": "FETAL DEATH DOCUMENTATION TABLE 12\nFETAL DEATHS WITH SELECTED CONGENITAL ANOMALIES BY PERIOD OF GESTATION AND RACE OF MOTHER: TOTAL OF 47 REPORTING\nSTATES(EXCLUDING NEW YORK CITY) AND THE DISTRICT OF COLUMBIA; 2001\n(FETAL DEATHS INCLUDE ONLY THOSE WITH STATED OR PRESUMED PERIOD OF GESTATION OF 20 WEEKS OR MORE; SEE TECHNICAL APPENDIX.\nFOR A LISTING OF REPORTING AREAS SEE TECHNICAL APPENDIX.)\n\nCONGENITAL ANOMALY REPORTED\n\nALL CONGENITAL\nCONGENITAL ANOMALY FETAL Period of gestation ANOMALY NOT\nAND RACE OF MOTHER DEATHS1 NOT STATED\nREPORTED\nTOTAL2 20-27 28-31 32-36 37-39 40 WEEKS\nWEEKS WEEKS WEEKS WEEKS OR MORE\n\nALL RACES\n\nANENCEPHALUS...................................................... 24,662 243 135 23 45 21 15 22,176 2,243\nSPINA BIFIDA/MENINGOCELE................................. 24,662 135 87 15 16 13 3 22,284 2,243\nHYDROCEPHALUS................................................... 24,662 214 122 34 33 17 3 22,205 2,243\nMICROCEPHALUS.................................................... 24,662 32 15 5 8 2 1 22,387 2,243\nOTHER CENTRAL NERVOUS SYSTEM ANOMALIE 24,662 253 143 31 41 25 8 22,166 2,243\n\nHEART MALFORMATIONS....................................... 24,662 424 230 58 71 33 21 21,995 2,243\nOTHER CIRCULATORY/RESPIRATORY\nANOMALIES............................................................... 24,662 179 94 29 28 17 8 22,240 2,243\n\nRECTAL ATRESIA/STENOSIS.................................. 24,662 26 11 5 5 2 2 22,393 2,243\nTRACHEO-ESOPHAGEAL FISTULA/ESOPHAGEAL\nATRESIA.................................................................... 24,662 37 9 3 6 10 6 22,382 2,243\nOMPHALOCELE/GASTROSCHISIS.......................... 24,662 218 121 30 45 12 5 22,201 2,243\nOTHER GASTROINTESTINAL ANOMALIES............ 24,662 98 43 15 24 9 5 22,321 2,243\n\nMALFORMED GENITALIA......................................... 24,662 112 56 21 20 8 6 22,307 2,243\nRENAL AGENESIS.................................................... 24,662 101 60 12 18 5 2 22,318 2,243\nOTHER UROGENITAL ANOMALIES......................... 24,662 158 87 24 22 15 8 22,261 2,243\n\nCLEFT LIP/PALATE................................................... 24,662 197 86 29 36 29 11 22,222 2,243\nPOLYDACTYLY/SYNDACTYLY/ADACTYLY............. 24,662 137 64 21 23 19 8 22,282 2,243\nCLUB FOOT............................................................... 24,662 205 113 27 34 20 10 22,214 2,243\nDIAPHRAGMATIC HERNIA....................................... 24,662 47 27 8 6 5 1 22,372 2,243\nOTHER MUSCULOSKELETAL/INTEGUMENTAL\nANOMALIES............................................................... 24,662 326 183 42 56 27 10 22,093 2,243\n\nDOWN'S SYNDROME............................................... 24,662 277 154 28 49 29 13 22,142 2,243\nOTHER CHROMOSOMAL ANOMALIES................... 24,662 631 350 81 109 55 24 21,788 2,243"
+  }
+ ],
+ "reference": {
+  "checkedPages": [
+   5
+  ],
+  "confidence": "medium",
+  "extractorAgreement": {
+   "6": 0.97
+  },
+  "method": "Draft from the text layer as recovered by two black-box extractors (poppler pdftotext reading-order mode; MuPDF via its Python binding), compared with each other and, for Latin text, with tesseract OCR of the rendered page; block order and completeness checked against the page image; characters are the text layer, not re-read from pixels.",
+  "notes": "Page chosen because it is rotated (page /Rotate or text running sideways); reading order is as displayed."
+ },
+ "schema": 1,
+ "scoredPages": [
+  5
+ ],
+ "source": {
+  "attribution": "Work of the United States government (17 U.S.C. 105); original URL in source_url; unmodified",
+  "license": "US-Government-Work",
+  "source_url": "http://wonder.cdc.gov/wonder/sci_data/mort/fetldeth/type_txt/fetal01/DocTables9-12.pdf",
+  "upstream_ref": "GovDocs1 (digitalcorpora.org), crawled 2009"
+ }
+}

@@ -1,0 +1,32 @@
+{
+ "category": "multi-column",
+ "generator": "real-world file; reference text built as described in reference.method",
+ "name": "multi-column-09-gov252847",
+ "pageCount": 18,
+ "pages": [
+  {
+   "text": "• Beuchat, L.R.  1974.  Combined effects of water activity, solute, and temperature on the growth of Vibrio parahaemolyticus.  Appl. Microbiol. 27:1075-1080. • Beuchat, L.R.  1973.  Interacting effects of pH, temperature, and salt concentration on growth and survival of Vibrio parahaemolyticus.  Appl. Microbiol. 25:844-846. • Boutin, B.K., J.G. Bradshaw, and W.H. Stroup. 1982.  Heat processing of oysters naturally contaminated with Vibrio cholerae Serotype O1.  J. Food Prot. 45:169-171. • Boyd, J.W. and B.A. Southcott.  1971.  Effects of sodium chloride on outgrowth and toxin production of Clostridium botulinum Type E in cod homogenates.  J. Fish. Res. Bd. Can. 28:1071-1075. • Brocklehurst, T.F. and B.M. Lund.  1990.  The influence of pH, temperature and organic acids on the initiation of growth of Yersinia enterocolitica. J. Appl. Bacteriol. 69:390-397. • Bryan, F.L.  1979.  Staphylococcus aureus.  In: Food Microbiology: Public health and Spoilage Aspects.  The Avi Publ. Co., Inc.  Westport, CT. • Buchanan, R.L.  1993.  Predictive food microbiology.  Trends Food Sci. Technol. 4:6-11. • Buchanan, R.L. and L.A. Klawitter.  1992. The effect of incubation temperature, initial pH, and sodium chloride on the growth kinetics of Escherichia coli.  Food Microbiol. 9:185-196. • Buchanan, R.L.  1991.  Microbiological criteria for cooked, ready-to-eat shrimp and crabmeat.  Food Technol. 45:157-160 • Buchanan, R.L.  1991.  Using spreadsheet software for predictive microbiology applications.  J. Food Safety. 11:123-134. • Buchanan, R.L. and M.L. Cygnarowicz.  1990. A mathematical approach toward defining and calculating the duration of the lag phase. Food Microbiol. 7:237-240.\n\n• Buchanan, R.L. and J.G. Phillips.  1990.  Response surface model for predicting the effects of temperature, pH, sodium chloride content, sodium nitrite concentration and atmosphere on the growth of Listeria monocytogenes.  J. Food Prot. 53:370- 376,381. • Carlin, F., C. Nguyen-the and A. Abreu da Silva. 1995.  Factors affecting the growth of Listeria monocytogenes on minimally processed fresh endive. J. Appl. Bacteriol. 78:636-646. • Carlson, V.L. and G.H. Snoeyenbos.  1972.  Relationship of population kinetics of Salmonella typhimurium and cultural methodology.  Am. J. Vet. Res. 33:177-184. • Casales, M.R., C.E. Del Valle, and C.L. Soule. 1985.  Critical heating point for thermal processing of mussels in cans.  J. Food Sci. 50:836-837. • Chitchester, C.O. and H.D. Graham (eds).  1973. Microbial Safety of Fishery Products.  Academic Press, New York. • Christiansen, L.N., J. Deffner, E.M. Foster, and H. Sugiyama.  1968.  Survival and outgrowth of Clostridium botulinum type E spores in smoked fish. Appl. Microbiol. 16:553-557. • Cole, M.B., M.V. Jones, and C. Holyoak.  1990. The effect of pH, salt concentration and temperature on the survival and growth of Listeria monocytogenes.  J. Appl. Bacteriol. 69:63-72. • Colwell, R.R.(ed.).  1984.  Vibrios in the Environment.  John Wiley Interscience, New York. • Connor, D.E., V.N. Scott, D.T. Bernard, and D.A. Kautter.  1989.  Potential Clostridium botulinum hazards associated with extended shelf-life refrigerated foods; a review.  J. Food Safety. 10:131-153. • Cook, D.W.  1994.  Effect of time and temperature on multiplication of Vibrio vulnificus in postharvest Gulf Coast shellstock oysters.  Appl. Environ. Microbiol. 60:3483-3484.\n\nBibliography\n\n258"
+  }
+ ],
+ "reference": {
+  "checkedPages": [
+   9
+  ],
+  "confidence": "medium",
+  "extractorAgreement": {
+   "10": 0.975
+  },
+  "method": "Draft from the text layer as recovered by two black-box extractors (poppler pdftotext reading-order mode; MuPDF via its Python binding), compared with each other and, for Latin text, with tesseract OCR of the rendered page; block order and completeness checked against the page image; characters are the text layer, not re-read from pixels.",
+  "notes": "Reading order is column by column, left column first; running heads and page numbers at their top or bottom position."
+ },
+ "schema": 1,
+ "scoredPages": [
+  9
+ ],
+ "source": {
+  "attribution": "Work of the United States government (17 U.S.C. 105); original URL in source_url; unmodified",
+  "license": "US-Government-Work",
+  "source_url": "http://www.cfsan.fda.gov/~acrobat/haccpa06.pdf",
+  "upstream_ref": "GovDocs1 (digitalcorpora.org), crawled 2009"
+ }
+}

@@ -1,0 +1,30 @@
+{
+ "category": "math",
+ "generator": "real-world file; reference text built as described in reference.method",
+ "name": "math-04-zen19411286",
+ "pageCount": 16,
+ "pages": [
+  {
+   "text": "3.1\n\nParity and the intermediate value theorem\n\nThe number of roots on each half line has a definite parity, determined by the boundary value of P (or equivalently of f ) and the end behavior: Proposition 6 (Exterior root detection). Let d ≥ 2. (i) On (u, ∞): since P (t) → +∞ as t → +∞, the number of roots is odd if P (u) < 0 (i.e., f (0) < 0) and even if P (u) ≥ 0 (i.e., f (0) ≥ 0). (ii) On (−∞, −u): since P (t) → (−1)d · ∞ as t → −∞, the parity depends on both P (−u) and the degree. Specifically: • If d is even: the number of roots is odd if P (−u) < 0 (i.e., f (π) < 0) and even if P (−u) ≥ 0. • If d is odd: the number of roots is odd if P (−u) > 0 (i.e., f (π) > 0) and even if P (−u) ≤ 0. In the generic case (at most one root per half line), the exterior root count is: + Next = 1f (0)<0 ,\n\n(10)\n\n( 1f (π)<0 1f (π)>0\n\n(11)\n\nand for the left half line: − Next =\n\n4\n\nif d is even, if d is odd.\n\nCritical point analysis\n\nTo count the zeros of f on [0, π], we study its critical points. Differentiating (5) and factoring out sin θ > 0 on (0, π): Proposition 7. The interior critical points of f in (0, π) are the solutions of a polynomial equation of degree d − 1 in x = cos θ. Consequently, f has at most d − 1 interior critical points, and therefore at most d zeros in [0, π] consistent with P having at most d real roots. Proof. The derivative is f ′ (θ) = −\n\nd−3 X\n\nk αk cosk−1 θ sin θ − d sin dθ.\n\nk=1\n\nUsing sin dθ = sin θ · Ud−1 (cos θ), where Ud−1 is the Chebyshev polynomial of the second kind of degree d − 1, and dividing by − sin θ (positive on (0, π)), the critical points satisfy a polynomial equation of degree d − 1 in x = cos θ ∈ (−1, 1).\n\n5"
+  }
+ ],
+ "reference": {
+  "checkedPages": [],
+  "confidence": "low",
+  "extractorAgreement": {
+   "5": 0.788
+  },
+  "method": "Draft from the text layer as recovered by two black-box extractors (poppler pdftotext reading-order mode; MuPDF via its Python binding), compared with each other and, for Latin text, with tesseract OCR of the rendered page; block order and completeness checked against the page image; characters are the text layer, not re-read from pixels.",
+  "notes": "Equation content is in extractor order; only the prose and the sequence of displayed formulas were checked. Not yet reviewed against the page image (only compared across extractors): treat as a draft."
+ },
+ "schema": 1,
+ "scoredPages": [
+  4
+ ],
+ "source": {
+  "attribution": "Pratiher, Sawon: On the Nature of Polynomial Roots: A Chebyshev-Trigonometric Classification (Zenodo, doi:10.5281/zenodo.19411286), CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/); unmodified",
+  "license": "CC-BY-4.0",
+  "source_url": "https://zenodo.org/records/19411286",
+  "upstream_ref": "doi:10.5281/zenodo.19411286; file Chebyshev_Trigonometric_Polynomials.pdf"
+ }
+}

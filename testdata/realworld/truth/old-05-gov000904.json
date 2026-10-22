@@ -1,0 +1,32 @@
+{
+ "category": "old",
+ "generator": "real-world file; reference text built as described in reference.method",
+ "name": "old-05-gov000904",
+ "pageCount": 26,
+ "pages": [
+  {
+   "text": "Closely spaced ridges and troughs about 7 km long and 1 km wide alined radially or subradially to center of Orientale basin; progressive increase in size from type area towards Cordillera scarp at edge of Orientale basin about 550 km to southwest (outside map area). Subdues underlying topography; orientation of subradial structure influenced by pre-basin subjacent topography. Associated with Orientale satellitic craters (Isc). Gradational eastward into stringers and disconnected patches of faintly lineated materials that become indistinguishable from underlying terra units with increasing distance from basin Impact ejecta deposited ballistically and by radial flowage at or near ground surface If, Fra Mauro Formation Type area: 0° to 2°S., l6°W. to 17.5°W., north of crater Fra Mauro (informal definition: Eggleton, 1964; formal: Wilhelms, 1970b, p. 25) (Orbiter IV, 120, 121). Reference area: 3°S. to 4.5°S., 17°W. to 18°W. (Orbiter III, 132-135; Orbiter IV, 120) Sinuous to straight, smooth-textured ridges or elongate hummocks typically 2 to 4 km across and 5 to 20 km long, oriented radially and subradially to Imbrium basin Impact ejecta from Imbrium basin. Original form similar to Hevelius Formation but more degraded by erosion and mantling by younger materials Ial, Alpes Formation Type area: 47°N. to 48°N., 5°E. to 8°E., east of Montes Alpes (Page, 1970) (Orbiter IV, 110, 115; Orbiter V, 102) Included in Fra Mauro Formation by Eggleton (1965) and Schmitt, Trask, and Shoemaker (1967) Blocky or knobby but smooth-surfaced, closely spaced hills 2–5 km in diameter without conspicuous preferred orientation or lineation. Occurs both within Apennine ring, as at type area, and beyond, as near Kepler Related to nearby Imbrium basin; may be (1) erosionally degraded ejecta, (2) structurally deformed pre-basin bedrock, or (3) a combination of both Iap, material of Montes Apenninus Type area: 16°N. to 17.5°N., 3.5°W. to 4.5°W. (Orbiter IV, 109) Included in Fra Mauro Formation, hummocky member, by Hackman (1966) and Wilhelms (1968) Rough coarse blocks of material having elongate rectilinear outlines parallel to Apennine scarp bordering Imbrium basin, and smooth to undulating interblock materials. Blocks gradational in size with Alpes Formation (finer) and pre-Imbrian rugged material (coarser) Probably bedrock intensely fractured at time of Imbrium impact. Interblock materials possibly basin ejecta pIj, Janssen Formation Type area: 43°S. to 45°S., 37.5°E. to 39°E., in older crater Janssen (StuartAlexander, 1971) (Orbiter IV, 76) Rolling subdued terrain having numerous linear features including ridges, scarps, and grooves radial to Nectaris basin Nectaris basin ejecta blanket equivalent to, but more degraded and cratered than, the younger Fra Mauro and Hevelius Formations"
+  }
+ ],
+ "reference": {
+  "checkedPages": [
+   5
+  ],
+  "confidence": "high",
+  "extractorAgreement": {
+   "6": 0.995
+  },
+  "method": "Draft from the text layer as recovered by two black-box extractors (poppler pdftotext reading-order mode; MuPDF via its Python binding), compared with each other and, for Latin text, with tesseract OCR of the rendered page; block order and completeness checked against the page image; characters are the text layer, not re-read from pixels.",
+  "notes": ""
+ },
+ "schema": 1,
+ "scoredPages": [
+  5
+ ],
+ "source": {
+  "attribution": "Work of the United States government (17 U.S.C. 105); original URL in source_url; unmodified",
+  "license": "US-Government-Work",
+  "source_url": "http://astrogeology.usgs.gov/Projects/PlanetaryMapping/DIGGEOL/moon/703/lnr.pdf",
+  "upstream_ref": "GovDocs1 (digitalcorpora.org), crawled 2009"
+ }
+}

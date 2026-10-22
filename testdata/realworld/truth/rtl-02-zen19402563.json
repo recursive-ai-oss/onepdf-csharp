@@ -1,0 +1,32 @@
+{
+ "category": "rtl",
+ "generator": "real-world file; reference text built as described in reference.method",
+ "name": "rtl-02-zen19402563",
+ "pageCount": 3,
+ "pages": [
+  {
+   "text": "في هذا السياق، تظهر فكرة “برمجة الواقع”، حيث ال نكتفي بدراسة الظواهر، بل نصمم الظروف التي تنتجها. نحن ال ننتظر النتائج، بل نهيئ لها المسار .وهذا التحول يتطلب وعيا ً جديداً، ألن من يملك القدرة على التشكيل، يجب أن يملك أيضا ً الحكمة في االستخدام .فالقوة دون وعي قد تخلق نتائج غير محسوبة، أما القوة المصحوبة بالفهم، فهي التي تبني المستقبل. عالم خارجي، إن هذه الثورة تعيد تعريف العالقة بين اإلنسان والطبيعة .لم يعد اإلنسان كائنا ً منفصالً يحاول فهم ٍ نظام متكامل، يؤثر فيه ويتأثر به .وهذه الرؤية ال تقلل من قيمة العلم، بل ترفعها، ألنها تجعل بل أصبح جزءاً من ٍ المعرفة أكثر عمقاً، وأكثر ارتباطا ً بالحياة نفسها. أيها\n\nالسادة،\n\nإن من أخطر األوهام التي عاشها اإلنسان هو وهم االنفصال .حين اعتقد أنه يقف خارج الطبيعة، ينظر إليها من بعيد، ويحللها كشيء منفصل عنه .لكن الحقيقة التي تتكشف اليوم هي أننا جزء من هذا النسيج الكوني، وأن كل ما نقوم به من تجارب هو في الحقيقة تفاعل داخل هذا النسيج، وليس خارجه .ومن هنا، فإن فهمنا للعالم يجب أن يبدأ بفهم موقعنا فيه. إن الحكمة التي نحتاجها اليوم ليست في معرفة المزيد فقط، بل في فهم أعمق لما نعرفه .أن نسأل ليس فقط “كيف يعمل الشيء؟ ” بل “ما معنى أن يعمل بهذه الطريقة؟ ” .أن نبحث ليس فقط عن النتائج، بل عن العالقات التي تنتجها. وهذا النوع من التفكير هو ما يميز العلم في مرحلته القادمة. وفي هذا الطريق، نكتشف أن الفشل ليس نهاية، بل جزء من الحوار .كل تجربة ال تعطينا النتيجة المتوقعة، هي رسالة، هي إشارة إلى أن هناك شيئا ً لم نفهمه بعد .وهنا، يصبح العلم رحلة مستمرة من التعلّم، وليس مجرد سلسلة من النجاحات. أيها\n\nالحضور،\n\nإن المستقبل لن يكون لألسرع فقط، وال لألقوى فقط، بل لمن يفهم التوازن .التوازن بين الجرأة والحذر، بين االبتكار والمسؤولية، بين الطموح والوعي .فالعلم الذي ال تحكمه القيم، قد يتحول إلى أداة خطر، أما العلم الذي يقوده الفهم، فهو الذي يصنع التقدم الحقيقي."
+  }
+ ],
+ "reference": {
+  "checkedPages": [
+   1
+  ],
+  "confidence": "medium",
+  "extractorAgreement": {
+   "2": 0.779
+  },
+  "method": "Draft from the text layer as recovered by two black-box extractors (poppler pdftotext reading-order mode; MuPDF via its Python binding), compared with each other and, for Latin text, with tesseract OCR of the rendered page; block order and completeness checked against the page image; characters are the text layer, not re-read from pixels.",
+  "notes": "Text layer in logical order; the Arabic comma spacing is normalised; ToUnicode defects of the producer (for example lam-alef) are kept because they are what an extractor can recover."
+ },
+ "schema": 1,
+ "scoredPages": [
+  1
+ ],
+ "source": {
+  "attribution": "Alelaimat, Abdul Kareem: حينما يثور الورد (Zenodo, doi:10.5281/zenodo.19402563), CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/); unmodified",
+  "license": "CC-BY-4.0",
+  "source_url": "https://zenodo.org/records/19402563",
+  "upstream_ref": "doi:10.5281/zenodo.19402563; file حينما يثور الورد.pdf"
+ }
+}

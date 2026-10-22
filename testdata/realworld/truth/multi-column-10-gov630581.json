@@ -1,0 +1,32 @@
+{
+ "category": "multi-column",
+ "generator": "real-world file; reference text built as described in reference.method",
+ "name": "multi-column-10-gov630581",
+ "pageCount": 5,
+ "pages": [
+  {
+   "text": "Bore-sighted measurements in the 0.76µm O2 A-band provide direct constraints on the atmospheric pressure of the reflecting surface (Fig. 2a).  This information must be combined with the CO2 column estimates to derive the columnaveraged CO2 dry air mole fraction, XCO2. Aircraft studies show that A-band observations can provide surface pressure estimates with accuracies of ~1 millibar (O’Brien and Mitchell, 1992). A-Band spectra also provide a sensitive indicator of clouds and optically thick aerosols, which preclude full column measurements of CO2. Finally, spectra of the strong 2.06 µm band will provide independent constraints on the aerosol optical properties at nearinfrared wavelengths, dramatically improving the accuracy of XCO2 retrievals in aerosol-laden conditions [4].  Bore-sighted measurements in this band also provide information about the atmospheric temperature and humidity along the optical path, minimizing systematic errors associated with uncertainties in these parameters.  A single sounding consists of nearsimultaneous, bore-sighted spectra in the 0.76 µm O2 A-band and the CO2 bands at 1.61 and 2.06 µm. The spectral range for each channel includes the complete molecular absorption band as well as some nearby continuum. This minimizes biases due to uncertainties in atmospheric temperature and provides constraints on the optical properties of the surface albedo and aerosols. The spectral resolving power for each channel was selected to maximize the sensitivity to variations in the column abundances of CO2 and O2, and to minimize the impact of systematic measurement errors. A spectral resolving power, λ⁄∆λ ~21,000 separates individual CO2 lines in the 1.61 and 2.06 µm regions from weak H2O and CH4 lines\n\n3 of 5\n\nand from the underlying continuum.  For the O2 A-band, a resolving power of 17,500 is needed to distinguish the O2 doublets. With these resolving powers, the OCO retrieval algorithm can characterize the surface reflectance throughout the band and solve for the wavelength dependence of the aerosol scattering, minimizing XCO2 retrieval errors contributed by uncertainties in the continuum level. While many soundings must be collected on regional scales to adequately characterize regional variations in XCO2 on monthly time scales, contiguous spatial sampling is not required because CO2 diffuses over a large area as it is mixed through the column. However the full atmospheric column must be sampled to provide constraints on surface CO2 sources and sinks.  Clouds and optically thick aerosols preclude measurements of the complete column.  Studies by the OCO team indicate that probability of viewing a cloud-free scene increase as the size of the footprint decreases. To obtain an adequate number of soundings on regional scales, even in the presence of patchy clouds, each OCO spectrometer will have a 10 km-wide crosstrack field of view (FOV) at nadir.  This FOV is divided into ten (or more) crosstrack elements. Soundings are collected at a rate of 45 soundings per second as the spacecraft moves along its ground track at 6.78 km/sec. This yields ~740 soundings per degree of latitude along the orbit track. At this sampling rate, thousands of samples are collected on regional scales during each 16-day ground repeat cycle. The OCO instrument incorporates independent bore-sighted, long-slit, imaging, grating spectrometers for the 1.61 µm and 2.06 µm CO2 bands and the 0.76 µm O2 Aband. These 3 spectrometers are integrated into a common structure to improve rigidity and thermal stability. They use similar op-"
+  }
+ ],
+ "reference": {
+  "checkedPages": [
+   2
+  ],
+  "confidence": "medium",
+  "extractorAgreement": {
+   "3": 0.907
+  },
+  "method": "Draft from the text layer as recovered by two black-box extractors (poppler pdftotext reading-order mode; MuPDF via its Python binding), compared with each other and, for Latin text, with tesseract OCR of the rendered page; block order and completeness checked against the page image; characters are the text layer, not re-read from pixels.",
+  "notes": "Reading order is column by column, left column first; running heads and page numbers at their top or bottom position."
+ },
+ "schema": 1,
+ "scoredPages": [
+  2
+ ],
+ "source": {
+  "attribution": "Work of the United States government (17 U.S.C. 105); original URL in source_url; unmodified",
+  "license": "US-Government-Work",
+  "source_url": "http://oco.jpl.nasa.gov/pubs/pub3.pdf",
+  "upstream_ref": "GovDocs1 (digitalcorpora.org), crawled 2009"
+ }
+}

@@ -1,0 +1,32 @@
+{
+ "category": "report",
+ "generator": "real-world file; reference text built as described in reference.method",
+ "name": "report-04-gov168427",
+ "pageCount": 30,
+ "pages": [
+  {
+   "text": "DISCLAIMER This document is a compilation of biological data and a description of past, present, and likely future threats to the spotted darter, Etheostoma maculatum (Kirtland). It does not represent a decision by the U.S. Fish and Wildlife Service (Service) on whether this taxon should be designated as a candidate species for listing as threatened or endangered under the Federal Endangered Species Act. That decision will be made by the Service after reviewing this document; other relevant biological and threat data not included herein; and all relevant laws, regulations, and policies. The result of the decision will be posted on the Service's Region 3 Web site (refer to: http://midwest.fws.gov/eco_serv/endangrd/lists/concern.html). If designated as a candidate species, the taxon will subsequently be added to the Service's candidate species list that is periodically published in the Federal Register and posted on the World Wide Web (refer to: http://endangered.fws.gov/wildlife.html). Even if the taxon does not warrant candidate status it should benefit from the conservation recommendations that are contained in this document.\n\ni"
+  }
+ ],
+ "reference": {
+  "checkedPages": [
+   1
+  ],
+  "confidence": "high",
+  "extractorAgreement": {
+   "2": 1.0
+  },
+  "method": "Draft from the text layer as recovered by two black-box extractors (poppler pdftotext reading-order mode; MuPDF via its Python binding), compared with each other and, for Latin text, with tesseract OCR of the rendered page; block order and completeness checked against the page image; characters are the text layer, not re-read from pixels.",
+  "notes": ""
+ },
+ "schema": 1,
+ "scoredPages": [
+  1
+ ],
+ "source": {
+  "attribution": "Work of the United States government (17 U.S.C. 105); original URL in source_url; unmodified",
+  "license": "US-Government-Work",
+  "source_url": "http://www.fws.gov/Midwest/eco_serv/soc/fish/spda-sa.pdf",
+  "upstream_ref": "GovDocs1 (digitalcorpora.org), crawled 2009"
+ }
+}

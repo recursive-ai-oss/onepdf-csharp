@@ -1,0 +1,32 @@
+{
+ "category": "multi-column",
+ "generator": "real-world file; reference text built as described in reference.method",
+ "name": "multi-column-06-gov714841",
+ "pageCount": 17,
+ "pages": [
+  {
+   "text": "Journal of Commerce. 155 Michigan Avenue, Suite 700, Chicago, IL 60601.\n\nKeystone News Bulletin. Maclean Hunter Publishing Co., 29 North Wacker Drive, Chicago, IL 60606.\n\nLandmarc. National Coal Association, 1130 17th St., N.W., Washington, DC 20036.\n\nMining Engineering. Society of Mining, Metallurgy, and Exploration, Inc., 8307 Shaffer Parkway, Littleton, CO 80127-5002.\n\nNorthern Coal. King Publishing Co., P.O. Box 52210, Knoxville, TN 37950.\n\nPower Engineering. Technical Publishing, P.O. Box 1030, Barrington, IL 60010.\n\nQuarterly Review of Methane from Coal Seams Technology. Gas Research Institute, 8600 West Bryn Manor Ave., Chicago, Il 60631.\n\nSouthern Coal. King Publishing Co., P.O. Box 52210, Knoxville, TN 37950.\n\nUnited Mine Workers Journal. United Mine Workers of America, 900 15th St., NW., Washington, DC 20005.\n\nWestern Coal. King Publishing Co., P.O. Box 52210, Knoxville, TN 37950.\n\nWorld Mining Equipment. Technical Publishing, 875 Third Ave., New York, NY 10022.\n\nU.S Department of Energy\n\n“A Coal Combustion Primer.” PETC Review, Issue 2. Pittsburgh, PA, September 1990, pp. 15-19.\n\nAssistant Secretary for Environment, Safety, and Health. Energy Technologies and the Environment: Environmental Information Handbook, DOE/EH-0077. Washington, DC, October 1988.\n\nClean Coal Assistant Secretary for Fossil Energy. Technologies: Research, Development, and Demonstration Program Plan, DOE/FE-0284. Washington, DC, November 1993.\n\nClean Coal Assistant Secretary for Fossil Energy. Technology: The Investment Pays Off, DOE/FE-0291. Washington, DC, January 1994.\n\nClean Coal Assistant Secretary for Fossil Energy. Technology: The New Coal Era, DOE/FE-0913-P. Washington DC, June 1990.\n\nClean Coal Assistant Secretary for Fossil Energy. Technology Demonstration Program: Program Update 1993, DOE/FE-0299-P. Washington, DC, March 1994.\n\nReport to the Assistant Secretary for Fossil Energy. United States Congress: Clean Coal Technology Export Markets and Financing Mechanisms, DOE/FE-0307P. Washington, DC, May 1994.\n\nThe Clean Coal Assistant Secretary for Fossil Energy. Technology Program—Lessons Learned, DOE/FE-031. Washington, DC, July 1994.\n\n“Coal Preparation: The Foundation for Modern Coal Use.” PETC Review, Issue 5. Pittsburgh, PA, Spring 1992, pp. 4-13.\n\nNational Energy Strategy: Powerful Ideas for America. First Edition 1991/1992. Washington, DC, February 1991.\n\nNational Energy Strategy: Powerful Ideas for America, One Year Later. Washington, DC, February 1992.\n\nCoal Combustion Waste Office of Fossil Energy. Management Study, DOE/FE/62017.H1. Washington, DC, February 1993.\n\nU.S. Energy Deskbook, Technical Information Center. DOE/IR-051114-1. Oakridge, TN, June 1982.\n\nPETC Review, Issue 10. “What is Coal?” Pittsburgh, PA, Summer 1994, pp. 22-28.\n\nArgonne National Laboratory\n\nAir Toxic Emissions from the Combustion of Coal: Identifying and Quantifying Hazardous Air Pollutants from U.S. Coals, ANL/EAIS/TM-83. Argonne, IL, September 1992.\n\nEnergy Information Administration\n\nCoal “A Profile of New Coal Mines in the 1980’s.” Production 1990, DOE/EIA-0118(90). Washington, DC, September 1991, pp. 1-12.\n\nAnnual Energy Outlook 1993, DOE/EIA-0383(93). Washington, DC, January 1993.\n\nEnergy Information Administration/ Coal Data: A Reference"
+  }
+ ],
+ "reference": {
+  "checkedPages": [
+   11
+  ],
+  "confidence": "medium",
+  "extractorAgreement": {
+   "12": 0.986
+  },
+  "method": "Draft from the text layer as recovered by two black-box extractors (poppler pdftotext reading-order mode; MuPDF via its Python binding), compared with each other and, for Latin text, with tesseract OCR of the rendered page; block order and completeness checked against the page image; characters are the text layer, not re-read from pixels.",
+  "notes": "Reading order is column by column, left column first; running heads and page numbers at their top or bottom position."
+ },
+ "schema": 1,
+ "scoredPages": [
+  11
+ ],
+ "source": {
+  "attribution": "Work of the United States government (17 U.S.C. 105); original URL in source_url; unmodified",
+  "license": "US-Government-Work",
+  "source_url": "http://www.eia.doe.gov/cneaf/coal/coal_ref_pdf/back.pdf",
+  "upstream_ref": "GovDocs1 (digitalcorpora.org), crawled 2009"
+ }
+}

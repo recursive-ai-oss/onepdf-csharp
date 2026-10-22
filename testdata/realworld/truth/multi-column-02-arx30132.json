@@ -1,0 +1,32 @@
+{
+ "category": "multi-column",
+ "generator": "real-world file; reference text built as described in reference.method",
+ "name": "multi-column-02-arx30132",
+ "pageCount": 17,
+ "pages": [
+  {
+   "text": "similar role for logic puzzles (Xie et al., 2025; Stojanovski et al., 2025). All of these methods target short-context tasks, where a task is a short string; in long-context reasoning, the long context must itself be synthesized and kept consistent with the question and answer, which is the problem LONGZERO addresses.\n\nLong-Context Reinforcement Learning. Longcontext ability is usually built by context extension and continued pre-training (Peng et al., 2024; Fu et al., 2024; Gao et al., 2024), followed by finetuning on synthetic long-context data (Bai et al., 2024a; An et al., 2024; Xiong et al., 2024). RL has recently been applied directly to long-context reasoning, and most work focuses on how to construct training tasks: QwenLong-L1 and QwenLong- L1.5 write questions over real documents (Wan et al., 2025; Shen et al., 2025), LoongRL hides HotpotQA questions behind UUID chains among distractors (Wang et al., 2025a), SPELL lets one model question, answer, and verify over raw documents (Yang et al., 2025b), LongTraceRL builds questions from knowledge-graph walks and search trajectories (Lin et al., 2026), and GoLongRL curates a multi-task mixture (Lv et al., 2026). Other work improves the reward, for example with verifiable context rewards (Chen et al., 2026), or processes long inputs with memory agents (Yu et al., 2025a). These methods all obtain their contexts or questions from existing corpora, QA datasets, knowledge bases, or larger models; LONGZERO synthesizes both with the model being trained and is complementary to better rewards and algorithms.\n\nEvaluation of Long-Context Reasoning. Early evaluations relied on synthetic retrieval probes such as RULER (Hsieh et al., 2024), which revealed, for instance, that models miss information in the middle of long inputs (Liu et al., 2024a). Benchmarks have since moved toward realistic tasks and reasoning, such as LongBench and LongBench v2 (Bai et al., 2024b, 2025), MRCR (Vodrahalli et al., 2024), LongReason (Ling et al., 2025), and AA- LCR (Artificial Analysis, 2025).\n\n3 LONGZERO\n\nLet πθ denote the LLM to be trained. LONGZERO uses πθ itself to synthesize a training set D = Drea ∪Dret of long-context tasks with verifiable answers, and then optimizes πθ on D with GRPO (Figure 2).\n\n3.1 Data Synthesis LONGZERO synthesizes two kinds of data: reasoning data Drea, which require finding facts scattered across long documents, rejecting similar-looking distractors, and combining the facts into an answer, and retrieval data Dret, which require locating and reproducing one specific item among many similar ones in a long conversation. In both cases, the answer is determined by construction rather than by a model’s judgment of a long text. 3.1.1 Reasoning Data Synthesis A reasoning sample is drawn from a world: a set of fictional entities and facts rendered as M long documents of different genres, together with multihop questions that require combining facts from different documents. The difficulty of a question q over a context x grows with the length of the context, the number of hops, and the number of distractors:\n\nDifficulty(x, q) ∝|x| · Hq · Kq, (1)\n\nwhere |x| is the number of tokens in x, Hq is the number of hops of q, and Kq is the number of distractor facts that imitate its supporting facts. We use this relation as a design guide rather than as a fitted model: the specification controls Hq and Kq, and the expansion controls |x|. The central design choice is to generate the world top-down: πθ first writes a compact specification that fixes the questions, their supporting facts, and their answers, and only then expands it into long text. All entities are fictional, which reduces reliance on parametric knowledge; fictional biographies are likewise used to study knowledge storage and extraction (Allen-Zhu and Li, 2023). A program first samples a domain, a set of genres, and a style card that fixes the time period, naming style, and banned names, so that worlds are diverse. The remaining steps are shown on the left of Figure 2, and their prompts are given in Appendix A.2. πθ writes a world specification Specification. S = (V, F, F−, Q) as strict JSON. V contains named entities, among which at least two people share a surname and at least two organizations have confusably similar names. F contains atomic facts forming Q question chains that partially share bridge entities, where the chain of question q has Hq hops, and F−contains Kq distractor facts per chain that involve the same bridge entity but differ in role, time, or attribute. Each question q ∈Q\n\n3"
+  }
+ ],
+ "reference": {
+  "checkedPages": [
+   2
+  ],
+  "confidence": "medium",
+  "extractorAgreement": {
+   "3": 0.901
+  },
+  "method": "Draft from the text layer as recovered by two black-box extractors (poppler pdftotext reading-order mode; MuPDF via its Python binding), compared with each other and, for Latin text, with tesseract OCR of the rendered page; block order and completeness checked against the page image; characters are the text layer, not re-read from pixels.",
+  "notes": "Reading order is column by column, left column first; running heads and page numbers at their top or bottom position."
+ },
+ "schema": 1,
+ "scoredPages": [
+  2
+ ],
+ "source": {
+  "attribution": "Zhennan Wan, Jianfei Chen: LongZero: Enhancing Long-Context Reasoning in LLMs from Zero Data (arXiv:2610.30132v1), CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/); unmodified",
+  "license": "CC-BY-4.0",
+  "source_url": "https://arxiv.org/abs/2610.30132v1",
+  "upstream_ref": "arXiv:2610.30132v1"
+ }
+}

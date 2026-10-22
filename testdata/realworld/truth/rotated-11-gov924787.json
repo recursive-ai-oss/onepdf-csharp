@@ -1,0 +1,32 @@
+{
+ "category": "rotated",
+ "generator": "real-world file; reference text built as described in reference.method",
+ "name": "rotated-11-gov924787",
+ "pageCount": 23,
+ "pages": [
+  {
+   "text": "RD Instruction 2018-D\n\n§ 2018.153\n\nLoan and grant disbursement processing.\n\n(a) General policy. SO’s will process disbursement requests in accordance with related loan and grant program guidelines. Additionally, SO’s will need to refer to the applicable automated system user documentation for the data entry procedures associated with requesting loan and grant disbursement; (e.g., Program Loan Accounting System (PLAS), Automated Multi-Housing Accounting System (AMAS), Guaranteed Loan System (GLS), Dedicated Loan Origination and Servicing System (DLOS), and Rural Utilities Loan Servicing System (RULSS)). Exhibit A of this subpart provides general guidance for requesting loan and grant disbursements through each of the automated systems. This exhibit is subject to modifications as subsequent appropriation bills and system enhancements are implemented. Exhibit A also identifies loan and grant programs that are not maintained on an automated system, hereinafter referred to as manual programs. For manual programs, the SO will mail, phone, or fax a disbursement request to the office of the Deputy Chief Financial Officer (DCFO), Cash Management Branch (CMB), referenced in Exhibit A of this subpart. The delivery of disbursements to recipients will be made via the electronic funds transfer (EFT) or Treasury paper check method. The EFT method will be used if identified as the disbursement method for a disbursement type in Exhibit A of this subpart because EFT is more cost effective and disbursements are fully traceable if not received by the recipient. Also, the destruction, mutilation, loss, theft, and 2 to 3 day mail time associated with paper checks will be eliminated if the EFT method is used. Disbursements made by EFT will be available for withdrawal from a recipient's account at the designated financial institution 2 work days after update to the respective system referenced in Exhibit A. EFT disbursements must be delivered to the recipient within 5 working days and Treasury check disbursements must be delivered to the recipient within 20 working days. Accordingly, SO's should schedule loan closings within 5 working days of EFT disbursements and 20 working days from Treasury check dates. If a disbursement cannot be delivered within these timeframes, the funds must be returned to the applicable DCFO or Centralized Servicing Center (CSC) Cash Management organization referenced in Exhibit A for cancellation and reordered when needed. (b)\n\nEFT disbursements. (1) Enrollment. The SO will enroll the payee in EFT by completing Standard Form (SF) 3881, “ACH Vendor/Miscellaneous Payment Enrollment Form.” SF 3881 may also be obtained from the website for Treasury’s Financial Management Service at http://fms.treas.gov. The SO will submit the payee routing information for processing in accordance with § 2018.153(b)(2) or § 2018.153(b)(3) of this subpart, as applicable.\n\n2"
+  }
+ ],
+ "reference": {
+  "checkedPages": [
+   3
+  ],
+  "confidence": "medium",
+  "extractorAgreement": {
+   "4": 1.0
+  },
+  "method": "Draft from the text layer as recovered by two black-box extractors (poppler pdftotext reading-order mode; MuPDF via its Python binding), compared with each other and, for Latin text, with tesseract OCR of the rendered page; block order and completeness checked against the page image; characters are the text layer, not re-read from pixels.",
+  "notes": "Page chosen because it is rotated (page /Rotate or text running sideways); reading order is as displayed."
+ },
+ "schema": 1,
+ "scoredPages": [
+  3
+ ],
+ "source": {
+  "attribution": "Work of the United States government (17 U.S.C. 105); original URL in source_url; unmodified",
+  "license": "US-Government-Work",
+  "source_url": "http://www.rurdev.usda.gov/regs/regs/pdf/2018d.pdf",
+  "upstream_ref": "GovDocs1 (digitalcorpora.org), crawled 2009"
+ }
+}

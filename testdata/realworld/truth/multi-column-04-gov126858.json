@@ -1,0 +1,32 @@
+{
+ "category": "multi-column",
+ "generator": "real-world file; reference text built as described in reference.method",
+ "name": "multi-column-04-gov126858",
+ "pageCount": 12,
+ "pages": [
+  {
+   "text": "Apéndice E: Soluciones innovadoras de transporte\n\nuna operación completa a largo plazo con una flotilla de tres camionetas.\n\nLos obstáculos que surgieron El camino al éxito no estuvo sin tropiezos ni caídas. Los obstáculos y cómo se salvaron no son exclusi vos de URC Transit. Los principales obstáculos que enfrentó el proyecto se explican a continuación. Permitieron que se comprendiera cómo los centros de Redes de Vecindarios y otros grupos pueden evitar o sobreponerse a dificultades similares al crear sus propios servicios de transporte. Los obstáculos incluyeron: • Asistencia financiera. No existía una fuente lista de dinero para planear y establecer un programa de tránsito. Al establecer asociaciones con organizaciones locales y reunir distintos tipos de asistencia (desde asistencia para escribir propues tas de subsidio hasta capacitación para choferes y fondos de CDBG), URC pudo crear un programa. • Requisitos legales. Varios pasos legales hicieron más lento el proceso. Aunque el acuerdo legal entre el condado y la ciudad era necesario para canalizar los fondos del condado a URC Transit, las demoras en la preparación de la document ación legal demoró el inicio del proyecto. El estab lecimiento de la agencia sin fines de lucro fue una nueva y algo misteriosa experiencia para la may oría de los residentes y exigió mucha paciencia. Un problema inesperado surgió cuando el consejo trató de comprar seguro contra terceros y contra choques. Las aseguradoras se mostraron indecisas para proporcionar seguro a una agencia nueva que no tenía un historial. Al final, se encontró una compañía de seguros que proporcionara la cobertura necesaria. • Capacitación de choferes. Cada chofer tuvo que obtener una licencia comercial para conducir y cumplir con los requisitos de la Ley que garantiza un lugar de trabajo sin la presencia de drogas (Drug Free Workplace Act). El BCMT estuvo de acuerdo en colocar a los choferes bajo su programa de pruebas de detección de drogas y a ca pacitarlos para calificar para la licencia comercial.\n\n• La inexperiencia en la operación de un negocio de transporte. Los residentes no tenían experien cia en los problemas de tránsito. Sin embargo, los miembros del comité se aplicaron intensamente para aprender todo lo que necesitaban saber. Re cibieron ayuda de BCMT, del personal CTAA y de los voluntarios colegas de otras comunidades. La autoridad de la vivienda trabajó con URC Transit para elaborar un plan comercial y establecer siste mas financieros de contabilidad. • Demoras en el avance. Se presentaron reduccio nes leves y una importante en el servicio mientras UCR Transit esperaba financiamiento. La con stancia de los miembros del comité de URC y su creencia de que triunfarían vencieron los lapsos en el impulso. • La falta de servicios de cuidado infantil. Muchos de los inquilinos, que de otra manera podrían haber tomado empleos en los centros turísticos y otros negocios de la periferia, se dieron cuenta de que los salarios ofrecidos no eran suficientes para pagar el cuidado infantil y también cumplir con sus demás obligaciones. Además, la falta de dis ponibilidad de cuidado infantil tarde por la noche fue una de las principales razones por las que los residentes no pudieron aceptar empleos en turnos nocturnos. La falta de cuidado infantil accesible y económico sigue siendo un importante obstá culo para poder trabajar. El URC está preparando actualmente una solicitud de financiamiento para obtener servicios de cuidado infantil in situ para vencer este obstáculo.\n\nLecciones aprendidas Aunque la experiencia de URC Transit no es un camino seguro al éxito, los centros de Redes de Vecindarios pueden aprender un número de lecciones importantes allí. Las lecciones descritas más adelante se relacionan principalmente con sistemas de trán sito, pero muchas podrían ser útiles para los grupos que preparen otro tipo de servicios o actividades basados en la comunidad. • Piense en grande, comience en pequeño y crezca. No se restrinja al pensar sobre lo que\n\nE-7 Septiembre de 2006"
+  }
+ ],
+ "reference": {
+  "checkedPages": [
+   6
+  ],
+  "confidence": "medium",
+  "extractorAgreement": {
+   "7": 0.986
+  },
+  "method": "Draft from the text layer as recovered by two black-box extractors (poppler pdftotext reading-order mode; MuPDF via its Python binding), compared with each other and, for Latin text, with tesseract OCR of the rendered page; block order and completeness checked against the page image; characters are the text layer, not re-read from pixels.",
+  "notes": "Reading order is column by column, left column first; running heads and page numbers at their top or bottom position."
+ },
+ "schema": 1,
+ "scoredPages": [
+  6
+ ],
+ "source": {
+  "attribution": "Work of the United States government (17 U.S.C. 105); original URL in source_url; unmodified",
+  "license": "US-Government-Work",
+  "source_url": "http://www.hud.gov/offices/hsg/mfh/nnw/resourcesforcenters/target/appendixespan.pdf",
+  "upstream_ref": "GovDocs1 (digitalcorpora.org), crawled 2009"
+ }
+}
