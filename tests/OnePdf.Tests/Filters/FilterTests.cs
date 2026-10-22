@@ -615,7 +615,6 @@ public class UnsupportedFilterTests
 {
     [Theory]
     [InlineData("DCTDecode")]
-    [InlineData("CCITTFaxDecode")]
     [InlineData("Crypt")]
     [InlineData("Bogus")]
     public void ReportedNotThrown(string name)

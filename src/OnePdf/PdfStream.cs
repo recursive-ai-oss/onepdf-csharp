@@ -169,12 +169,21 @@ public sealed class PdfStream : PdfObject
             };
             if (p is not null)
             {
+                bool ccitt = filters[i] == "CCITTFaxDecode";
                 parameters[i] = new FilterParameters(
                     Predictor: ClampInt(p.GetInt("Predictor", 1)),
                     Colors: ClampInt(p.GetInt("Colors", 1)),
                     BitsPerComponent: ClampInt(p.GetInt("BitsPerComponent", 8)),
                     Columns: ClampInt(p.GetInt("Columns", 1)),
-                    EarlyChange: ClampInt(p.GetInt("EarlyChange", 1)));
+                    EarlyChange: ClampInt(p.GetInt("EarlyChange", 1)),
+                    K: ccitt ? ClampInt(p.GetInt("K", 0)) : 0,
+                    EndOfLine: ccitt && p.GetBool("EndOfLine"),
+                    EncodedByteAlign: ccitt && p.GetBool("EncodedByteAlign"),
+                    CcittColumns: ccitt ? ClampInt(p.GetInt("Columns", 1728)) : 1728,
+                    Rows: ccitt ? ClampInt(p.GetInt("Rows", 0)) : 0,
+                    EndOfBlock: !ccitt || p.GetBool("EndOfBlock", true),
+                    BlackIs1: ccitt && p.GetBool("BlackIs1"),
+                    DamagedRowsBeforeError: ccitt ? ClampInt(p.GetInt("DamagedRowsBeforeError", 0)) : 0);
             }
         }
 
