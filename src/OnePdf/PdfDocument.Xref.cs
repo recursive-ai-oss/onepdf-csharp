@@ -21,6 +21,7 @@ public sealed partial class PdfDocument
         try
         {
             ReadXrefChain();
+            SetupEncryption();
             if (Trailer.GetDictionary("Root") is null)
             {
                 reason = "the trailer's /Root does not lead to a dictionary";
@@ -37,11 +38,8 @@ public sealed partial class PdfDocument
             RebuildBySearching();
         }
 
+        SetupEncryption();
         BuildRevisions();
-        if (Trailer.ContainsKey("Encrypt"))
-        {
-            _diag.Info("The document is encrypted; decryption is not available, so strings and streams read as stored.");
-        }
     }
 
     // ISO 32000-2 7.5.2: the header is the first line, but writers put junk before it; look in the first KiB.

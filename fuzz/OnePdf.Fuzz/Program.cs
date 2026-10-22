@@ -25,6 +25,7 @@ internal static class Program
         ["noop"] = static data => _ = Library.Name.Length + data.Length,
         ["parser"] = ReaderTargets.Parser,
         ["document"] = ReaderTargets.Document,
+        ["model"] = ReaderTargets.DocumentModel,
         ["filters"] = FilterTarget.Run,
         ["security"] = SecurityTarget.Run,
     };
@@ -131,7 +132,7 @@ internal static class Program
 
     private static int OpenDir(string[] args)
     {
-        int ok = 0, failed = 0, slow = 0, crashes = 0;
+        int ok = 0, failed = 0, slow = 0, crashes = 0, modelErrors = 0;
         var typed = new Dictionary<string, int>();
         foreach (string f in Directory.EnumerateFiles(args[1], "*.pdf", SearchOption.AllDirectories).Order(StringComparer.Ordinal))
         {
@@ -140,6 +141,12 @@ internal static class Program
             {
                 using PdfDocument doc = PdfDocument.Open(f);
                 _ = doc.PageCount;
+                string fileName = Path.GetFileName(f);
+                ReaderTargets.WalkModel(doc, (part, e) =>
+                {
+                    modelErrors++;
+                    Console.WriteLine($"MODEL {fileName} [{part}]: {e.GetType().Name}: {e.Message}");
+                });
                 for (int i = 0; i < Math.Min(doc.ObjectCount, 5000); i++)
                 {
                     try
@@ -180,7 +187,7 @@ internal static class Program
             }
         }
 
-        Console.WriteLine($"opened={ok} typed-errors={failed} ({string.Join(", ", typed.Select(kv => kv.Key + "=" + kv.Value))}) crashes={crashes} slow={slow}");
+        Console.WriteLine($"opened={ok} typed-errors={failed} ({string.Join(", ", typed.Select(kv => kv.Key + "=" + kv.Value))}) crashes={crashes} slow={slow} model-errors={modelErrors}");
         return crashes == 0 ? 0 : 1;
     }
 }

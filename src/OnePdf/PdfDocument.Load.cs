@@ -132,7 +132,7 @@ public sealed partial class PdfDocument
 
         int num = (int)a.Int;
         int gen = (int)Math.Clamp(b.Int, 0, 65535);
-        var parser = new ObjectParser(lx, resolver, Limits, diag, num);
+        var parser = new ObjectParser(lx, resolver, Limits, diag, num, _decryptor is not null && num != _encryptObjNum ? this : null, gen);
         PdfObject? obj = parser.ReadObject(out string? kw);
         long size = parser.EstimatedBytes;
         if (obj is null)
@@ -229,35 +229,66 @@ public sealed partial class PdfDocument
         XrefEntry? e = LookupEntry(view, streamNumber);
         if (e is not { Type: 1 } || ResolveObject(streamNumber, view) is not PdfStream s)
         {
-            throw new PdfFormatException($"Object stream {streamNumber} is missing or is not a stream.") { ObjectNumber = streamNumber };
+            // Strict mode throws from Warn; otherwise the objects the cross-reference data placed here read as missing.
+            _diag.Warn($"Object stream {streamNumber} is missing or is not a stream; its objects read as null.", streamNumber);
+            return (EmptyObjStm, 64);
         }
 
         long n = s.Dictionary.GetInt("N", -1);
         long first = s.Dictionary.GetInt("First", -1);
         ReadOnlyMemory<byte> data = s.DecodeCore(CancellationToken.None);
-        if (n < 0 || n > Limits.MaxObjects || n > data.Length / 2 || first < 0 || first > data.Length)
+        bool nOk = n >= 0 && n <= Limits.MaxObjects && n <= data.Length / 2;
+        bool firstOk = first >= 0 && first <= data.Length;
+        long max = nOk ? n : Math.Min(data.Length / 2, Limits.MaxObjects);
+        var numbers = new List<int>();
+        var offsets = new List<int>();
+        long headerEnd = 0;
+        using (var src = new MemorySource(data))
+        using (var lx = new Lexer(src, 0))
         {
-            throw new PdfFormatException($"Object stream {streamNumber} has an invalid /N or /First.") { ObjectNumber = streamNumber };
-        }
-
-        var d = new ObjStmData { Data = data, First = (int)first, Numbers = new int[n], Offsets = new int[n] };
-        using var src = new MemorySource(data);
-        using var lx = new Lexer(src, 0);
-        for (int i = 0; i < n; i++)
-        {
-            Token a = lx.NextToken();
-            Token b = lx.NextToken();
-            if (a.Kind != TokenKind.Integer || b.Kind != TokenKind.Integer || a.Int is < 0 or > int.MaxValue || b.Int is < 0 or > int.MaxValue)
+            for (long i = 0; i < max; i++)
             {
-                throw new PdfFormatException($"The header of object stream {streamNumber} is damaged.") { ObjectNumber = streamNumber };
-            }
+                Token a = lx.NextToken();
+                if (a.Kind != TokenKind.Integer)
+                {
+                    break;
+                }
 
-            d.Numbers[i] = (int)a.Int;
-            d.Offsets[i] = (int)b.Int;
+                Token b = lx.NextToken();
+                if (b.Kind != TokenKind.Integer || a.Int is < 0 or > int.MaxValue || b.Int is < 0 or > int.MaxValue)
+                {
+                    break;
+                }
+
+                numbers.Add((int)a.Int);
+                offsets.Add((int)b.Int);
+                headerEnd = lx.Position;
+            }
         }
 
-        return (d, data.Length + (8L * n) + 64);
+        // /First must lie at or after the end of the header it follows; one inside it cannot be right.
+        if (firstOk && first < headerEnd)
+        {
+            firstOk = false;
+        }
+
+        if (!nOk || !firstOk)
+        {
+            // Salvage (docs/repair.md): the header is a run of 'number offset' integer pairs; they were read until they
+            // stopped, and /First is taken to be where they stop.
+            _diag.Warn($"Object stream {streamNumber} has an invalid /N or /First; its header was read by scanning.", streamNumber);
+        }
+
+        if (nOk && numbers.Count < n)
+        {
+            _diag.Warn($"The header of object stream {streamNumber} is damaged after {numbers.Count} of {n} entries; the rest are lost.", streamNumber);
+        }
+
+        var d = new ObjStmData { Data = data, First = firstOk ? (int)first : (int)headerEnd, Numbers = [.. numbers], Offsets = [.. offsets] };
+        return (d, data.Length + (8L * numbers.Count) + 64);
     }
+
+    private static readonly ObjStmData EmptyObjStm = new() { Data = ReadOnlyMemory<byte>.Empty, First = 0, Numbers = [], Offsets = [] };
 
     // ISO 32000-2 7.3.8.2: the stored length is /Length; when it is wrong the data ends at the 'endstream' keyword.
     internal StreamRange ComputeStreamRange(PdfStream s, long start)

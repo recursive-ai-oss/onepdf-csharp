@@ -18,10 +18,14 @@ internal sealed class ObjectParser
     private readonly int _maxDepth;
     private readonly DiagnosticBag? _diag;
     private readonly int _objNum;
+    private readonly PdfDocument? _decrypting;
+    private readonly int _generation;
     private Frame[] _stack = new Frame[8];
 
-    public ObjectParser(Lexer lexer, PdfResolver? resolver, PdfLimits limits, DiagnosticBag? diag, int objectNumber = -1)
+    public ObjectParser(Lexer lexer, PdfResolver? resolver, PdfLimits limits, DiagnosticBag? diag, int objectNumber = -1, PdfDocument? decrypting = null, int generation = 0)
     {
+        _decrypting = decrypting;
+        _generation = generation;
         _lx = lexer;
         _resolver = resolver;
         _maxDepth = limits.MaxNestingDepth;
@@ -93,7 +97,7 @@ internal sealed class ObjectParser
                     value = Count(new PdfReal(t.Real), 24);
                     break;
                 case TokenKind.String:
-                    value = Count(new PdfString(t.Bytes!), 32 + t.Bytes!.Length);
+                    value = Count(new PdfString(_decrypting is null ? t.Bytes! : _decrypting.DecryptStringBytes(t.Bytes!, _objNum, _generation)), 32 + t.Bytes!.Length);
                     break;
                 case TokenKind.Name:
                     value = Count(new PdfName(t.Text!), 32 + (2 * t.Text!.Length));
