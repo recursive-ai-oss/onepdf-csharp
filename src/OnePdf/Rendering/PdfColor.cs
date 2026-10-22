@@ -96,5 +96,5 @@ public readonly record struct PdfColor(PdfColorSpace Space, double C0, double C1
     public double this[int index] => index switch { 0 => C0, 1 => C1, 2 => C2, 3 => C3, _ => 0 };
 
     /// <summary>Number of meaningful components.</summary>
-    public int ComponentCount => Space.Kind == PdfColorSpaceKind.Pattern ? Space.ComponentCount : Space.ComponentCount;
+    public int ComponentCount => Space.ComponentCount;
 }
