@@ -34,6 +34,7 @@ internal static class Program
         ["cmap"] = CMapTarget.Run,
         ["security"] = SecurityTarget.Run,
         ["content"] = ContentTarget.Run,
+        ["extraction"] = ExtractionTarget.Run,
     };
 
     private static int Main(string[] args)

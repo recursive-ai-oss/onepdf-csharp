@@ -5,11 +5,11 @@ namespace OnePdf.Text;
 /// <summary>Per-glyph clean-up before layout: exclusions, <c>/ActualText</c>, ligatures, duplicates.</summary>
 internal static class GlyphPrep
 {
-    internal static PdfGlyph[] Prepare(PdfPageGlyphs page, PdfTextOptions o, CancellationToken ct)
+    internal static PdfTextGlyph[] Prepare(PdfPageGlyphs page, PdfTextOptions o, CancellationToken ct)
     {
-        IReadOnlyList<PdfGlyph> src = page.Glyphs;
+        IReadOnlyList<PdfTextGlyph> src = page.Glyphs;
         int n = src.Count;
-        List<PdfGlyph> work = new(n);
+        List<PdfTextGlyph> work = new(n);
         int curSpan = 0;
         bool replacing = false;
         bool first = false;
@@ -21,7 +21,7 @@ internal static class GlyphPrep
                 ct.ThrowIfCancellationRequested();
             }
 
-            PdfGlyph g = src[i];
+            PdfTextGlyph g = src[i];
             Matrix(g, out bool finite);
             if (!finite || !double.IsFinite(g.Advance) || !double.IsFinite(g.Ascent) || !double.IsFinite(g.Descent))
             {
@@ -75,7 +75,7 @@ internal static class GlyphPrep
             work.Add(g.WithText(text));
         }
 
-        PdfGlyph[] result = work.ToArray();
+        PdfTextGlyph[] result = work.ToArray();
         if (o.CollapseDuplicates && result.Length > 1)
         {
             result = CollapseDuplicates(result);
@@ -84,7 +84,7 @@ internal static class GlyphPrep
         return result;
     }
 
-    private static PdfTextMatrix Matrix(in PdfGlyph g, out bool finite)
+    private static PdfTextMatrix Matrix(in PdfTextGlyph g, out bool finite)
     {
         PdfTextMatrix m = g.Matrix;
         finite = double.IsFinite(m.A) && double.IsFinite(m.B) && double.IsFinite(m.C) && double.IsFinite(m.D) && double.IsFinite(m.E) && double.IsFinite(m.F);
@@ -173,7 +173,7 @@ internal static class GlyphPrep
     }
 
     /// <summary>Drops a glyph drawn again at almost the same place by a later operator (fake bold, drop shadow).</summary>
-    private static PdfGlyph[] CollapseDuplicates(PdfGlyph[] g)
+    private static PdfTextGlyph[] CollapseDuplicates(PdfTextGlyph[] g)
     {
         int n = g.Length;
         int[] order = new int[n];
@@ -229,7 +229,7 @@ internal static class GlyphPrep
             return g;
         }
 
-        List<PdfGlyph> keep = new(n);
+        List<PdfTextGlyph> keep = new(n);
         for (int i = 0; i < n; i++)
         {
             if (!drop[i])

@@ -63,7 +63,7 @@ internal static class PlainText
     internal static string ContentOrder(PdfPageText page)
     {
         StringBuilder sb = new();
-        IReadOnlyList<PdfGlyph> g = page.Glyphs;
+        IReadOnlyList<PdfTextGlyph> g = page.Glyphs;
         Item prev = default;
         bool havePrev = false;
         for (int i = 0; i < g.Count; i++)
@@ -165,7 +165,7 @@ internal static class PlainText
 
     internal static string Layout(PdfPageText page)
     {
-        PdfGlyph[] g = [.. page.Glyphs];
+        PdfTextGlyph[] g = [.. page.Glyphs];
         if (g.Length == 0)
         {
             return "";
@@ -206,7 +206,7 @@ internal static class PlainText
         return sb.ToString();
     }
 
-    private static void LayoutClass(PdfGlyph[] g, List<int> idx, StringBuilder sb)
+    private static void LayoutClass(PdfTextGlyph[] g, List<int> idx, StringBuilder sb)
     {
         Item[] items = TextLayout.MakeItems(g, idx);
         int lineCount = TextLayout.ClusterLines(items);

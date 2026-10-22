@@ -9,7 +9,7 @@ internal interface IGlyphSource
     /// <summary>The number of pages.</summary>
     int PageCount { get; }
 
-    /// <summary>The glyphs of one page in content order, in upright page space (see <see cref="PdfGlyph"/>).</summary>
+    /// <summary>The glyphs of one page in content order, in upright page space (see <see cref="PdfTextGlyph"/>).</summary>
     PdfPageGlyphs GetPage(int pageIndex, CancellationToken cancellationToken);
 }
 
@@ -118,7 +118,7 @@ public sealed class PdfTextExtractor
 
     internal static PdfPageText AnalyzeCore(PdfPageGlyphs page, PdfTextOptions o, PageStructure? structure, bool tagged, CancellationToken ct)
     {
-        PdfGlyph[] g = GlyphPrep.Prepare(page, o, ct);
+        PdfTextGlyph[] g = GlyphPrep.Prepare(page, o, ct);
         List<PdfDiagnostic> diag = [];
         List<PdfTextBlock>? blocks = null;
         bool used = false;
@@ -128,7 +128,7 @@ public sealed class PdfTextExtractor
             if (structure is not null)
             {
                 int total = 0, covered = 0;
-                foreach (PdfGlyph x in g)
+                foreach (PdfTextGlyph x in g)
                 {
                     if (!x.IsVisible || IsBlank(x.Text))
                     {
@@ -186,7 +186,7 @@ public sealed class PdfTextExtractor
         return true;
     }
 
-    private static List<PdfTextBlock> ByStructure(PdfGlyph[] g, PageStructure s, double pageHeight, CancellationToken ct)
+    private static List<PdfTextBlock> ByStructure(PdfTextGlyph[] g, PageStructure s, double pageHeight, CancellationToken ct)
     {
         SortedDictionary<int, List<int>> groups = [];
         List<int> orphans = [];

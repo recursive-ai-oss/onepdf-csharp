@@ -157,7 +157,7 @@ public static class PdfExtractionJson
         if (o.IncludeGlyphs)
         {
             w.WriteStartArray("glyphs");
-            foreach (PdfGlyph g in p.Glyphs)
+            foreach (PdfTextGlyph g in p.Glyphs)
             {
                 w.WriteStartObject();
                 w.WriteString("text", g.Text);

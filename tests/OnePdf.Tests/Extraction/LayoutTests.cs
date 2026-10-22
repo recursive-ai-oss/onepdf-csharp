@@ -19,7 +19,7 @@ public class LayoutTests
     public void TwoColumnsReadLeftThenRight()
     {
         // Content order interleaves the columns line by line; reading order must not.
-        List<PdfGlyph> g = [];
+        List<PdfTextGlyph> g = [];
         for (int i = 0; i < Left.Length; i++)
         {
             g.AddRange(Syn.Line(Left[i], 50, 700 - i * 14));
@@ -35,7 +35,7 @@ public class LayoutTests
     public void ThreeColumnsReadInOrder()
     {
         string[][] cols = [Left, Right, ["one two three", "four five six", "seven eight nine", "ten eleven twelve", "thirteen fourteen", "fifteen sixteen"]];
-        List<PdfGlyph> g = [];
+        List<PdfTextGlyph> g = [];
         for (int c = 0; c < 3; c++)
         {
             g.AddRange(Syn.Lines(cols[c], 40 + c * 190, 700));
@@ -48,7 +48,7 @@ public class LayoutTests
     [Fact]
     public void TitleAboveColumnsStaysFirstAndColumnsStayApart()
     {
-        List<PdfGlyph> g = [];
+        List<PdfTextGlyph> g = [];
         g.AddRange(Syn.Line("a long title across the whole page width here", 100, 740, 14));
         g.AddRange(Syn.Lines(Left, 50, 700));
         g.AddRange(Syn.Lines(Right, 330, 700));
@@ -68,7 +68,7 @@ public class LayoutTests
             ["Blankets", "40", "bale", "wool"],
             ["Lamp oil", "9", "drum", "sealed"],
         ];
-        List<PdfGlyph> g = [];
+        List<PdfTextGlyph> g = [];
         double[] xs = [50, 150, 250, 350];
         for (int r = 0; r < rows.Length; r++)
         {
@@ -90,7 +90,7 @@ public class LayoutTests
     [Fact]
     public void ProseColumnsAreNotATable()
     {
-        List<PdfGlyph> g = [];
+        List<PdfTextGlyph> g = [];
         g.AddRange(Syn.Lines(Left, 50, 700));
         g.AddRange(Syn.Lines(Right, 330, 700));
         Assert.All(Syn.Analyze(g).Blocks, b => Assert.False(b.IsTable));
@@ -99,7 +99,7 @@ public class LayoutTests
     [Fact]
     public void SuperscriptJoinsItsLine()
     {
-        List<PdfGlyph> g = Syn.Line("word", 50, 700);
+        List<PdfTextGlyph> g = Syn.Line("word", 50, 700);
         g.Add(Syn.Glyph("1", 70, 704, 6));
         g.AddRange(Syn.Line("and more text", 74, 700));
         PdfPageText p = Syn.Analyze(g);
@@ -111,7 +111,7 @@ public class LayoutTests
     {
         PdfPageGlyphs Page(int i)
         {
-            List<PdfGlyph> g = [];
+            List<PdfTextGlyph> g = [];
             g.AddRange(Syn.Line("Quarterly Harbor Report", 50, 760));
             g.AddRange(Syn.Line($"body text of page number {"abcdefg"[i]}", 50, 500));
             g.AddRange(Syn.Line($"Page {i + 1}", 280, 30));
@@ -136,7 +136,7 @@ public class LayoutTests
     [Fact]
     public void VerticalCjkReadsRightColumnFirstTopToBottom()
     {
-        List<PdfGlyph> g = [];
+        List<PdfTextGlyph> g = [];
         g.AddRange(Syn.Column("ふたつめの列です", 300, 700));
         g.AddRange(Syn.Column("ひとつめの列です", 330, 700));
         g.AddRange(Syn.Column("みっつめ", 270, 700));
@@ -148,7 +148,7 @@ public class LayoutTests
     [Fact]
     public void RotatedParagraphIsReadLast()
     {
-        List<PdfGlyph> g = [];
+        List<PdfTextGlyph> g = [];
         // A paragraph turned 90 degrees clockwise: glyphs run downwards, lines stack leftwards.
         string rot = "rotated words here";
         double y = 600;
@@ -160,7 +160,7 @@ public class LayoutTests
                 continue;
             }
 
-            g.Add(new PdfGlyph { Text = c.ToString(), Matrix = new PdfTextMatrix(0, -10, 10, 0, 500, y), Advance = 0.5, FillColor = 0 });
+            g.Add(new PdfTextGlyph { Text = c.ToString(), Matrix = new PdfTextMatrix(0, -10, 10, 0, 500, y), Advance = 0.5, FillColor = 0 });
             y -= 5;
         }
 
@@ -203,8 +203,8 @@ public class LayoutTests
     [Fact]
     public void ActualTextReplacesItsSpan()
     {
-        List<PdfGlyph> g = Syn.Line("pay ", 50, 700);
-        List<PdfGlyph> span = Syn.Line("xyz", 70, 700);
+        List<PdfTextGlyph> g = Syn.Line("pay ", 50, 700);
+        List<PdfTextGlyph> span = Syn.Line("xyz", 70, 700);
         for (int i = 0; i < span.Count; i++)
         {
             span[i] = span[i] with { ActualTextSpan = 1, ActualText = i == 0 ? "fee" : null };
@@ -218,7 +218,7 @@ public class LayoutTests
     [Fact]
     public void LigaturesAreDecomposedByDefaultAndCanBeKept()
     {
-        List<PdfGlyph> g = [Syn.Glyph("o", 50, 700), Syn.Glyph("\uFB03", 55, 700), Syn.Glyph("c", 60, 700), Syn.Glyph("e", 65, 700)];
+        List<PdfTextGlyph> g = [Syn.Glyph("o", 50, 700), Syn.Glyph("\uFB03", 55, 700), Syn.Glyph("c", 60, 700), Syn.Glyph("e", 65, 700)];
         Assert.Equal("office", Syn.Analyze(g).Text);
         Assert.Equal("o\uFB03ce", Syn.Analyze(g, new PdfTextOptions { DecomposeLigatures = false }).Text);
     }
@@ -226,7 +226,7 @@ public class LayoutTests
     [Fact]
     public void HyphenatedWordsAreKeptOrJoined()
     {
-        List<PdfGlyph> g = Syn.Lines(["an exam-", "ple of text"], 50, 700);
+        List<PdfTextGlyph> g = Syn.Lines(["an exam-", "ple of text"], 50, 700);
         Assert.Equal("an exam-\nple of text", Syn.Analyze(g).Text);
         Assert.Equal("an example of text", Syn.Analyze(g, new PdfTextOptions { JoinHyphenatedWords = true }).Text);
     }
@@ -234,8 +234,8 @@ public class LayoutTests
     [Fact]
     public void FakeBoldDuplicatesCollapse()
     {
-        List<PdfGlyph> g = Syn.Line("Bold", 50, 700);
-        foreach (PdfGlyph x in Syn.Line("Bold", 50.3, 700))
+        List<PdfTextGlyph> g = Syn.Line("Bold", 50, 700);
+        foreach (PdfTextGlyph x in Syn.Line("Bold", 50.3, 700))
         {
             g.Add(x);
         }
@@ -253,15 +253,15 @@ public class LayoutTests
     [Fact]
     public void InvisibleTextIsFlaggedAndClippedAndOffPageAreExcluded()
     {
-        List<PdfGlyph> g = Syn.Line("seen", 50, 700);
-        List<PdfGlyph> ocr = Syn.Line("ocr", 50, 600);
+        List<PdfTextGlyph> g = Syn.Line("seen", 50, 700);
+        List<PdfTextGlyph> ocr = Syn.Line("ocr", 50, 600);
         for (int i = 0; i < ocr.Count; i++)
         {
             ocr[i] = ocr[i] with { RenderMode = 3, IsVisible = false };
         }
 
         g.AddRange(ocr);
-        List<PdfGlyph> clipped = Syn.Line("gone", 50, 500);
+        List<PdfTextGlyph> clipped = Syn.Line("gone", 50, 500);
         for (int i = 0; i < clipped.Count; i++)
         {
             clipped[i] = clipped[i] with { IsClipped = true, IsVisible = false };
@@ -282,7 +282,7 @@ public class LayoutTests
     [Fact]
     public void LayoutModeKeepsColumnsAligned()
     {
-        List<PdfGlyph> g = [];
+        List<PdfTextGlyph> g = [];
         string[][] rows = [["Name", "Qty"], ["Apple", "3"], ["Fig", "12"]];
         for (int r = 0; r < rows.Length; r++)
         {
@@ -302,7 +302,7 @@ public class LayoutTests
     [Fact]
     public void ContentOrderFollowsTheStream()
     {
-        List<PdfGlyph> g = [];
+        List<PdfTextGlyph> g = [];
         g.AddRange(Syn.Line("second column first", 330, 700));
         g.AddRange(Syn.Line("first column second", 50, 700));
         g.AddRange(Syn.Line("next line", 50, 686));
@@ -313,13 +313,13 @@ public class LayoutTests
     public void StructureOrderOverridesGeometryWhenItCoversThePage()
     {
         // Two paragraphs side by side that geometry reads left to right; the tree says right first.
-        List<PdfGlyph> g = [];
-        foreach (PdfGlyph x in Syn.Lines(Left, 50, 700))
+        List<PdfTextGlyph> g = [];
+        foreach (PdfTextGlyph x in Syn.Lines(Left, 50, 700))
         {
             g.Add(x with { MarkedContentId = 0 });
         }
 
-        foreach (PdfGlyph x in Syn.Lines(Right, 330, 700))
+        foreach (PdfTextGlyph x in Syn.Lines(Right, 330, 700))
         {
             g.Add(x with { MarkedContentId = 1 });
         }
@@ -373,9 +373,9 @@ public class LayoutTests
     public void EmptyAndDegeneratePagesWork()
     {
         Assert.Equal("", Syn.Analyze([]).Text);
-        PdfGlyph bad = Syn.Glyph("a", double.NaN, 700);
+        PdfTextGlyph bad = Syn.Glyph("a", double.NaN, 700);
         Assert.Equal("", Syn.Analyze([bad]).Text);
-        Assert.Equal("", Syn.Analyze([default(PdfGlyph)]).Text);
+        Assert.Equal("", Syn.Analyze([default(PdfTextGlyph)]).Text);
     }
 
     [Fact]
@@ -385,5 +385,33 @@ public class LayoutTests
         cts.Cancel();
         PdfTextExtractor ex = new(new FakeSource(Syn.Page(Syn.Line("abc", 50, 700))), null, null);
         Assert.Throws<OperationCanceledException>(() => ex.ExtractDocument(cts.Token));
+    }
+}
+
+public class ExtractionFuzzSmoke
+{
+    [Fact]
+    public void MutatedGlyphListsNeverThrow()
+    {
+        Random rng = new(12345);
+        byte[] seed = new byte[1 + 10 * 60];
+        for (int round = 0; round < 400; round++)
+        {
+            rng.NextBytes(seed);
+            if (round % 3 == 0)
+            {
+                // structured: a plausible line of glyphs, then noise
+                for (int i = 0; i < 40; i++)
+                {
+                    seed[1 + i * 10 + 6] = 0;
+                    seed[1 + i * 10 + 5] = 10;
+                    seed[1 + i * 10 + 1] = 0;
+                    seed[1 + i * 10 + 2] = (byte)(i * 6);
+                }
+            }
+
+            OnePdf.Fuzz.ExtractionTarget.Run(seed);
+            OnePdf.Fuzz.ExtractionTarget.Run(seed.AsSpan(0, rng.Next(2, seed.Length)));
+        }
     }
 }

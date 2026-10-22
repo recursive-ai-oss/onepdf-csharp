@@ -163,7 +163,7 @@ internal static class Program
         PdfPageGlyphs[] pages = new PdfPageGlyphs[Pages];
         for (int p = 0; p < Pages; p++)
         {
-            List<PdfGlyph> g = [];
+            List<PdfTextGlyph> g = [];
             for (int col = 0; col < 2; col++)
             {
                 for (int line = 0; line < 50; line++)
@@ -174,7 +174,7 @@ internal static class Program
                         string t = (c % 6 == 5) ? " " : ((char)('a' + (c * 7 + line + p) % 26)).ToString();
                         if (t != " ")
                         {
-                            g.Add(new PdfGlyph { Text = t, Matrix = new PdfTextMatrix(10, 0, 0, 10, x, 740 - line * 14), Advance = 0.5, FillColor = 0 });
+                            g.Add(new PdfTextGlyph { Text = t, Matrix = new PdfTextMatrix(10, 0, 0, 10, x, 740 - line * 14), Advance = 0.5, FillColor = 0 });
                         }
 
                         x += 5;

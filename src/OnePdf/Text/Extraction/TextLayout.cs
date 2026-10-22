@@ -29,7 +29,7 @@ internal static class TextLayout
     private static readonly double[] Dx = [1, 0, -1, 0];
     private static readonly double[] Dy = [0, 1, 0, -1];
 
-    internal static int Quantize(in PdfGlyph g)
+    internal static int Quantize(in PdfTextGlyph g)
     {
         double dx, dy;
         if (g.IsVertical)
@@ -53,7 +53,7 @@ internal static class TextLayout
         return ((k % 4) + 4) % 4;
     }
 
-    internal static Item MakeItem(in PdfGlyph g, int index)
+    internal static Item MakeItem(in PdfTextGlyph g, int index)
     {
         int k = Quantize(g);
         double ux = Dx[k], uy = Dy[k];
@@ -106,7 +106,7 @@ internal static class TextLayout
         (cp >= 0xFF00 && cp <= 0xFFEF) || (cp >= 0x20000 && cp <= 0x3FFFF);
 
     /// <summary>Lays out the glyphs of <paramref name="subset"/> (indices into <paramref name="g"/>) and returns blocks in reading order.</summary>
-    internal static List<PdfTextBlock> Run(PdfGlyph[] g, ReadOnlySpan<int> subset, CancellationToken ct)
+    internal static List<PdfTextBlock> Run(PdfTextGlyph[] g, ReadOnlySpan<int> subset, CancellationToken ct)
     {
         List<PdfTextBlock> result = [];
         if (subset.Length == 0)
@@ -144,7 +144,7 @@ internal static class TextLayout
         return result;
     }
 
-    internal static Item[] MakeItems(PdfGlyph[] g, List<int> idx)
+    internal static Item[] MakeItems(PdfTextGlyph[] g, List<int> idx)
     {
         Item[] items = new Item[idx.Count];
         for (int i = 0; i < items.Length; i++)
@@ -155,7 +155,7 @@ internal static class TextLayout
         return items;
     }
 
-    private static void LayoutClass(PdfGlyph[] g, List<int> idx, List<PdfTextBlock> output, CancellationToken ct)
+    private static void LayoutClass(PdfTextGlyph[] g, List<int> idx, List<PdfTextBlock> output, CancellationToken ct)
     {
         Item[] items = MakeItems(g, idx);
         int lineCount = ClusterLines(items);
@@ -653,7 +653,7 @@ internal static class TextLayout
         internal bool CellStart;
     }
 
-    private static PdfTextBlock? MakeBlock(PdfGlyph[] g, Item[] items, List<Frag> frags, bool table)
+    private static PdfTextBlock? MakeBlock(PdfTextGlyph[] g, Item[] items, List<Frag> frags, bool table)
     {
         Dictionary<int, List<Frag>> byLine = [];
         foreach (Frag f in frags)
@@ -755,7 +755,7 @@ internal static class TextLayout
         return words;
     }
 
-    private static PdfTextLine? MakeLine(PdfGlyph[] g, Item[] items, List<Frag> frags, int para)
+    private static PdfTextLine? MakeLine(PdfTextGlyph[] g, Item[] items, List<Frag> frags, int para)
     {
         List<WordBuild> words = [];
         for (int f = 0; f < frags.Count; f++)

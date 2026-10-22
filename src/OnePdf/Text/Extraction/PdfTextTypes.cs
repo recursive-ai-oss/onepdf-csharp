@@ -152,7 +152,7 @@ public sealed class PdfPageText
     private readonly PdfTextOptions _options;
     private string?[]? _textCache;
 
-    internal PdfPageText(int pageIndex, double width, double height, PdfGlyph[] glyphs, PdfTextBlock[] blocks, bool usedStructureTree,
+    internal PdfPageText(int pageIndex, double width, double height, PdfTextGlyph[] glyphs, PdfTextBlock[] blocks, bool usedStructureTree,
         IReadOnlyList<PdfDiagnostic> diagnostics, PdfTextOptions options)
     {
         PageIndex = pageIndex;
@@ -175,7 +175,7 @@ public sealed class PdfPageText
     public double Height { get; }
 
     /// <summary>The glyphs that took part in extraction (after exclusions, ligature decomposition and <c>/ActualText</c>), in content order.</summary>
-    public IReadOnlyList<PdfGlyph> Glyphs { get; }
+    public IReadOnlyList<PdfTextGlyph> Glyphs { get; }
 
     /// <summary>Blocks in reading order.</summary>
     public IReadOnlyList<PdfTextBlock> Blocks { get; }

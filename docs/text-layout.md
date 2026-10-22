@@ -9,7 +9,7 @@ page scale. The analysis is deterministic: no randomness and no dependence on th
 A producer supplies, per page, glyphs in content order in *upright page space* (points, y up, `/Rotate` applied). Each glyph has its
 Unicode text, a matrix from em space to the page, an advance, ascent and descent, a vertical-writing flag, fill colour, render mode,
 visible/clipped flags, a marked-content id and, for `/ActualText` spans, a span number plus the string on the span's first glyph. See
-`PdfGlyph` for the glyph box definition.
+`PdfTextGlyph` for the glyph box definition.
 
 ## Clean-up (before layout)
 

@@ -31,7 +31,7 @@ public readonly record struct PdfQuad(double X0, double Y0, double X1, double Y1
 /// glyph space (one em = one unit) to page space, so the font size is folded into it.</para>
 /// <para>Content order is the order of the list the glyph arrives in.</para>
 /// </remarks>
-public readonly struct PdfGlyph
+public readonly struct PdfTextGlyph
 {
     /// <summary>The Unicode text of the glyph (usually one code point; a ligature glyph may carry several). Never null; may be empty for glyphs whose text was replaced by <see cref="ActualText"/>.</summary>
     public string Text { get; init; }
@@ -79,7 +79,7 @@ public readonly struct PdfGlyph
     public string? ActualText { get; init; }
 
     /// <summary>Creates a glyph with default metrics (ascent 0.9, descent -0.2, visible, no marked content).</summary>
-    public PdfGlyph()
+    public PdfTextGlyph()
     {
         Text = "";
         FontId = -1;
@@ -142,7 +142,7 @@ public readonly struct PdfGlyph
     }
 
     /// <summary>A copy with different text.</summary>
-    public PdfGlyph WithText(string text) => this with { Text = text };
+    public PdfTextGlyph WithText(string text) => this with { Text = text };
 
     /// <inheritdoc/>
     public override string ToString() => string.Create(CultureInfo.InvariantCulture, $"{Text} @({Matrix.E:0.##},{Matrix.F:0.##})");
@@ -156,7 +156,7 @@ public sealed class PdfPageGlyphs
     /// <param name="width">Width of the upright page in points.</param>
     /// <param name="height">Height of the upright page in points.</param>
     /// <param name="glyphs">The glyphs in content order.</param>
-    public PdfPageGlyphs(int pageIndex, double width, double height, IReadOnlyList<PdfGlyph> glyphs)
+    public PdfPageGlyphs(int pageIndex, double width, double height, IReadOnlyList<PdfTextGlyph> glyphs)
     {
         ArgumentNullException.ThrowIfNull(glyphs);
         PageIndex = pageIndex;
@@ -175,5 +175,5 @@ public sealed class PdfPageGlyphs
     public double Height { get; }
 
     /// <summary>The glyphs in content order.</summary>
-    public IReadOnlyList<PdfGlyph> Glyphs { get; }
+    public IReadOnlyList<PdfTextGlyph> Glyphs { get; }
 }
