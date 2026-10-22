@@ -20,6 +20,7 @@ using SharpFuzz;
 //   seeds <target> <out dir> [pdf dir] [font dir]            writes starting inputs for a target (used by run.sh)
 //   interpret-dir <directory>                               opens every .pdf and interprets its first pages into display lists
 //   open-dir <directory> [seconds-per-file]                 opens, walks and times every .pdf in a directory tree
+//   fonts-dir <directory>...                                 loads and decodes every font of every page, reports counts by font type
 internal static class Program
 {
     private delegate void Target(ReadOnlySpan<byte> data);
@@ -36,6 +37,7 @@ internal static class Program
         ["fontprogram"] = FontProgramTarget.Run,
         ["cmap"] = CMapTarget.Run,
         ["security"] = SecurityTarget.Run,
+        ["pdffont"] = FontSweep.Target,
         ["image"] = ImageTarget.Run,
         ["content"] = ContentTarget.Run,
         ["shading"] = ShadingTarget.Run,
@@ -47,6 +49,11 @@ internal static class Program
         if (args.Length > 0 && args[0] == "mutate")
         {
             return Mutate(args);
+        }
+
+        if (args.Length > 1 && args[0] == "fonts-dir")
+        {
+            return FontSweep.RunDirs(args);
         }
 
         if (args.Length > 2 && args[0] == "replay")
