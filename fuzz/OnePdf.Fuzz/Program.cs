@@ -14,7 +14,10 @@ using SharpFuzz;
 // escape, then add one line to `Targets` below.
 //
 // Without a libFuzzer host there are two local modes:
-//   mutate <target> <seconds> <seed file or directory>...   random byte-level mutation of the seeds, in process
+//   mutate <target> <seconds> <seed file or directory>...   random byte-level mutation of the seeds, in process; a crashing
+//                                                           input is saved under $ONEPDF_FUZZ_WORK/findings/mutate (printed as base64 when unset)
+//   replay <target> <file>...                                runs saved inputs once each (reproduces a finding)
+//   seeds <target> <out dir> [pdf dir] [font dir]            writes starting inputs for a target (used by run.sh)
 //   interpret-dir <directory>                               opens every .pdf and interprets its first pages into display lists
 //   open-dir <directory> [seconds-per-file]                 opens, walks and times every .pdf in a directory tree
 internal static class Program
@@ -43,6 +46,16 @@ internal static class Program
             return Mutate(args);
         }
 
+        if (args.Length > 2 && args[0] == "replay")
+        {
+            return Replay(args);
+        }
+
+        if (args.Length > 0 && args[0] == "seeds")
+        {
+            return Seeds.Run(args);
+        }
+
         if (args.Length > 1 && args[0] == "interpret-dir")
         {
             return InterpretSweep.Run(args);
@@ -62,6 +75,35 @@ internal static class Program
 
         Fuzzer.LibFuzzer.Run(data => target(data));
         return 0;
+    }
+
+    private static int Replay(string[] args)
+    {
+        if (!Targets.TryGetValue(args[1], out Target? target))
+        {
+            Console.Error.WriteLine("unknown target " + args[1]);
+            return 2;
+        }
+
+        int failures = 0;
+        foreach (string f in args.Skip(2))
+        {
+            var sw = Stopwatch.StartNew();
+            try
+            {
+                target(File.ReadAllBytes(f));
+                Console.WriteLine($"ok {f} ({sw.Elapsed.TotalSeconds:F2}s)");
+            }
+#pragma warning disable CA1031 // Replay reports any escaping exception as a failure.
+            catch (Exception ex)
+#pragma warning restore CA1031
+            {
+                failures++;
+                Console.WriteLine($"FAIL {f}: {ex}");
+            }
+        }
+
+        return failures == 0 ? 0 : 1;
     }
 
     private static int Mutate(string[] args)
@@ -127,9 +169,21 @@ internal static class Program
             catch (Exception ex)
 #pragma warning restore CA1031
             {
-                string path = Path.Combine(Path.GetTempPath(), $"crash-{args[1]}-{runs}.bin");
-                File.WriteAllBytes(path, input);
-                Console.WriteLine($"CRASH {ex.GetType().Name}: {ex.Message}\n{ex.StackTrace}\nsaved {path}");
+                string? work = Environment.GetEnvironmentVariable("ONEPDF_FUZZ_WORK");
+                string saved;
+                if (string.IsNullOrEmpty(work))
+                {
+                    saved = "not saved (set ONEPDF_FUZZ_WORK); base64: " + Convert.ToBase64String(input.AsSpan(0, Math.Min(input.Length, 4096)));
+                }
+                else
+                {
+                    string dir = Path.Combine(work, "findings", "mutate");
+                    Directory.CreateDirectory(dir);
+                    saved = Path.Combine(dir, $"crash-{args[1]}-{runs}.bin");
+                    File.WriteAllBytes(saved, input);
+                }
+
+                Console.WriteLine($"CRASH {ex.GetType().Name}: {ex.Message}\n{ex.StackTrace}\nsaved {saved}");
                 return 1;
             }
 
