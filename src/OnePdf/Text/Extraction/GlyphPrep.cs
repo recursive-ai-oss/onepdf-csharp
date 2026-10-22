@@ -72,6 +72,11 @@ internal static class GlyphPrep
                 text = Decompose(text);
             }
 
+            if (o.FoldCompatibilityForms)
+            {
+                text = FoldCompatibility(text);
+            }
+
             text = Sanitize(text);
             work[kept++] = ReferenceEquals(text, g.Text) ? g : g.WithText(text);
         }
@@ -128,6 +133,64 @@ internal static class GlyphPrep
         }
 
         return sb.ToString();
+    }
+
+    private static bool MayFold(char c) =>
+        c >= '⺀' && (c <= '⿟' || (c >= '豈' && c <= '﫿') || (c >= 'יִ' && c <= '﷿') || (c >= 'ﹰ' && c <= '﻿') || char.IsHighSurrogate(c));
+
+    /// <summary>
+    /// Replaces presentation forms and compatibility characters by the characters they stand for (Kangxi and CJK radicals, CJK
+    /// compatibility ideographs, Hebrew and Arabic presentation forms): the full decomposition from the Unicode Character Database,
+    /// from a generated table because <c>string.Normalize</c> does nothing when globalization is invariant. Latin ligatures
+    /// U+FB00 to U+FB06 are left to <see cref="Decompose"/>.
+    /// </summary>
+    internal static string FoldCompatibility(string s)
+    {
+        int first = -1;
+        for (int i = 0; i < s.Length; i++)
+        {
+            if (MayFold(s[i]))
+            {
+                first = i;
+                break;
+            }
+        }
+
+        if (first < 0)
+        {
+            return s;
+        }
+
+        ReadOnlySpan<int> keys = FoldData.Keys;
+        StringBuilder sb = new(s.Length + 8);
+        bool changed = false;
+        for (int i = 0; i < s.Length; i++)
+        {
+            char c = s[i];
+            int cp = c;
+            int len = 1;
+            if (char.IsHighSurrogate(c) && i + 1 < s.Length && char.IsLowSurrogate(s[i + 1]))
+            {
+                cp = char.ConvertToUtf32(c, s[i + 1]);
+                len = 2;
+            }
+
+            int k = cp >= 0x2E80 ? keys.BinarySearch(cp) : -1;
+            if (k >= 0)
+            {
+                ReadOnlySpan<int> offsets = FoldData.Offsets;
+                sb.Append(FoldData.Text[offsets[k]..offsets[k + 1]]);
+                changed = true;
+            }
+            else
+            {
+                sb.Append(s, i, len);
+            }
+
+            i += len - 1;
+        }
+
+        return changed ? sb.ToString() : s;
     }
 
     /// <summary>Replaces unpaired surrogates by U+FFFD so every string can be written as UTF-8 and JSON.</summary>

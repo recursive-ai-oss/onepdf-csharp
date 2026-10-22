@@ -133,8 +133,9 @@ public class DisplayListTests
         using PdfDocument doc = TestPdf.Open(data);
         string t = TestPdf.Record(doc).ToText();
         string[] runs = TestPdf.Lines(t, "text");
-        Assert.Contains("codes=4142 glyphs=[65@0,0,0.6 66@6,0,0.6]", runs[0]);
-        Assert.Contains("codes=43 glyphs=[67@0,0,0.6]", runs[1]);
+        Assert.Contains("codes=4142 glyphs=[65@0,0,0.6", runs[0]);
+        Assert.Contains(" 66@6,0,0.6", runs[0]);
+        Assert.Contains("codes=43 glyphs=[67@0,0,0.6", runs[1]);
     }
 
     // ---- the format document ----

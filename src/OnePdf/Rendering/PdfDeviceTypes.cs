@@ -127,23 +127,41 @@ public enum PdfTextRenderMode
 }
 
 /// <summary>
-/// One glyph of a run. Positions come from the font's width information; outline, glyph id and Unicode are filled in
-/// once a font program is attached and are empty or negative until then.
+/// One glyph of a run. Positions come from the font's width information. The outline is the glyph as a path in text-space
+/// units for a font size of one (already multiplied by the font's glyph-space matrix, so a TrueType font's units-per-em or a
+/// substitute font's horizontal fit is applied); <see cref="PdfGlyphRun.GlyphMatrix"/> maps it to user space. The outline is
+/// empty when the glyph is blank, the font has no glyph for the code (nothing is drawn, the text position still advances), the
+/// font is a Type 3 font, or <see cref="PdfInterpretOptions.GlyphOutlines"/> is false.
 /// </summary>
 /// <param name="Code">The character code (one to four bytes, big-endian).</param>
 /// <param name="ByteLength">How many bytes of the string the code took.</param>
-/// <param name="OffsetX">Distance of the glyph origin from the run start along the writing direction, in text-space units (character and word spacing and horizontal scaling included).</param>
+/// <param name="OffsetX">Distance of the glyph origin from the run start along the writing direction, in text-space units (character and word spacing and horizontal scaling included). In vertical writing the glyph origin sits at the position vector's offset from the text position (ISO 32000-2 9.7.4.3).</param>
 /// <param name="OffsetY">Vertical distance of the glyph origin from the run start, in text-space units (non-zero in vertical writing mode).</param>
-/// <param name="Width">The glyph's advance in em units (1 = the font size), as the font declares it.</param>
-/// <param name="GlyphId">The glyph id in the font program, or -1 when unknown.</param>
-/// <param name="Unicode">The Unicode text the glyph stands for, or null when unknown.</param>
-/// <param name="Outline">The glyph outline in glyph space scaled to one em, or an empty path.</param>
-public readonly record struct PdfGlyph(int Code, int ByteLength, double OffsetX, double OffsetY, double Width, int GlyphId = -1, string? Unicode = null, PdfPath Outline = default);
+/// <param name="Width">The glyph's advance in em units (1 = the font size), as the font declares it (for vertical writing, the horizontal width w0; the vertical advance is in <see cref="VerticalAdvance"/>).</param>
+/// <param name="GlyphId">The glyph id in the font program, or -1 when the font has no program (substituted fonts report the id in the substitute).</param>
+/// <param name="Unicode">The Unicode text the glyph stands for, or null when no source of text knew it.</param>
+/// <param name="Outline">The glyph outline, see above.</param>
+/// <param name="VectorX">Vertical writing only: x of the position vector from the horizontal to the vertical glyph origin, in em units; 0 otherwise.</param>
+/// <param name="VectorY">Vertical writing only: y of the position vector, in em units; 0 otherwise.</param>
+/// <param name="VerticalAdvance">Vertical writing only: the vertical advance w1 in em units (negative moves down); 0 otherwise.</param>
+public readonly record struct PdfGlyph(
+    int Code,
+    int ByteLength,
+    double OffsetX,
+    double OffsetY,
+    double Width,
+    int GlyphId = -1,
+    string? Unicode = null,
+    PdfPath Outline = default,
+    double VectorX = 0,
+    double VectorY = 0,
+    double VerticalAdvance = 0);
 
 /// <summary>
 /// One shown string (<c>Tj</c>, <c>'</c>, <c>"</c> or one string element of <c>TJ</c>). The glyph at index <c>i</c> has the
 /// rendering matrix <c>[Tfs·Th 0 0 Tfs 0 Trise] × T(OffsetX, OffsetY) × TextMatrix × Ctm</c> (ISO 32000-2 9.4.4).
-/// Memory is valid only for the duration of the call.
+/// Memory is valid only for the duration of the call. For a Type 3 font the run carries the text (code, Unicode, advance) with
+/// empty outlines; the glyph procedures follow as <see cref="IPdfDevice.BeginType3Glyph"/> brackets, one per painted glyph.
 /// </summary>
 /// <param name="FontName">The key in the Font resource dictionary, without the slash (may be empty).</param>
 /// <param name="Font">The font dictionary, or null when the name did not resolve.</param>
@@ -294,3 +312,13 @@ public readonly record struct PdfSoftMaskInfo(int Id, bool Luminosity, PdfBounds
 /// <param name="Rect">The annotation rectangle in default user space.</param>
 /// <param name="Flags">The <c>/F</c> flags.</param>
 public readonly record struct PdfAnnotationInfo(PdfDictionary Annotation, string Subtype, PdfBounds Rect, int Flags);
+
+/// <summary>A Type 3 glyph about to be drawn as content (ISO 32000-2 9.6.5).</summary>
+/// <param name="FontName">The key in the Font resource dictionary, without the slash (may be empty).</param>
+/// <param name="Font">The Type 3 font dictionary.</param>
+/// <param name="Code">The character code.</param>
+/// <param name="GlyphName">The glyph name the encoding gave the code, or null.</param>
+/// <param name="Unicode">The Unicode text of the glyph, or null when unknown.</param>
+/// <param name="Advance">The advance in em units (width through the font matrix).</param>
+/// <param name="FontBBox">The font's <c>/FontBBox</c> in glyph space, or null; a conservative bound of the glyph for culling.</param>
+public readonly record struct PdfType3GlyphInfo(string FontName, PdfDictionary Font, int Code, string? GlyphName, string? Unicode, double Advance, PdfBounds? FontBBox);

@@ -1,3 +1,6 @@
+using OnePdf.FontPrograms;
+using OnePdf.PdfFonts;
+
 namespace OnePdf.Content;
 
 /// <summary>The interpreter's mutable graphics state. Saved copies are made with <see cref="Clone"/>.</summary>
@@ -46,11 +49,12 @@ internal sealed class GState
     }
 }
 
-internal sealed class FontInfo(string name, PdfDictionary? dictionary, IPdfFontMetrics metrics)
+internal sealed class FontInfo(string name, PdfDictionary? dictionary, PdfFont font)
 {
     public string Name { get; } = name;
 
+    /// <summary>The font dictionary, or null for the default font used when the name did not resolve.</summary>
     public PdfDictionary? Dictionary { get; } = dictionary;
 
-    public IPdfFontMetrics Metrics { get; } = metrics;
+    public PdfFont Font { get; } = font;
 }

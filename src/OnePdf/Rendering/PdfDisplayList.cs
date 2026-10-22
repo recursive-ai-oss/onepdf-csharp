@@ -34,6 +34,8 @@ public sealed class PdfDisplayList : IPdfDevice
         EndMc,
         BeginAnnot,
         EndAnnot,
+        BeginType3,
+        EndType3,
     }
 
     private struct Item
@@ -92,6 +94,7 @@ public sealed class PdfDisplayList : IPdfDevice
     private readonly List<PdfGroupInfo> _groups = [];
     private readonly List<PdfSoftMaskInfo> _masks = [];
     private readonly List<PdfAnnotationInfo> _annots = [];
+    private readonly List<PdfType3GlyphInfo> _type3 = [];
     private readonly List<PdfPageInfo> _pages = [];
     private readonly List<int> _openClips = [];
     private readonly List<int> _openOther = [];
@@ -270,6 +273,24 @@ public sealed class PdfDisplayList : IPdfDevice
 
                 case Kind.EndAnnot:
                     device.EndAnnotation();
+                    break;
+                case Kind.BeginType3:
+                    {
+                        if (cull && !Overlaps(in it, in clip) && it.Match > i)
+                        {
+                            SkipRegion(device, i, it.Match);
+                            i = it.Match;
+                            break;
+                        }
+
+                        Load(it.State, ref state, ref stateLoaded);
+                        PdfType3GlyphInfo g3 = _type3[it.A];
+                        device.BeginType3Glyph(in g3, in state);
+                        break;
+                    }
+
+                case Kind.EndType3:
+                    device.EndType3Glyph();
                     break;
                 default:
                     break;
@@ -615,4 +636,17 @@ public sealed class PdfDisplayList : IPdfDevice
 
     /// <inheritdoc/>
     public void EndAnnotation() => CloseBracket(_openOther, Add(Kind.EndAnnot, 0, Unbounded));
+
+    /// <inheritdoc/>
+    public void BeginType3Glyph(in PdfType3GlyphInfo glyph, in PdfGraphicsState state)
+    {
+        PdfBounds b = glyph.FontBBox is { } fb && fb.IsFinite ? state.Ctm.TransformBounds(fb) : Unbounded;
+        _type3.Add(glyph);
+        int idx = Add(Kind.BeginType3, StateIndex(state), b);
+        _items[idx].A = _type3.Count - 1;
+        _openOther.Add(idx);
+    }
+
+    /// <inheritdoc/>
+    public void EndType3Glyph() => CloseBracket(_openOther, Add(Kind.EndType3, 0, Unbounded));
 }

@@ -45,6 +45,12 @@ public sealed class PdfTextOptions
     /// <summary>Replace the Latin ligature code points U+FB00–U+FB06 by their letters. Default true.</summary>
     public bool DecomposeLigatures { get; set; } = true;
 
+    /// <summary>
+    /// Replace presentation forms and compatibility characters by the characters they stand for: Kangxi and CJK radicals, CJK
+    /// compatibility ideographs, Hebrew and Arabic presentation forms (the Unicode compatibility decomposition). Default true.
+    /// </summary>
+    public bool FoldCompatibilityForms { get; set; } = true;
+
     /// <summary>Join a word broken by a hyphen at the end of a line to the first word of the next line in plain text (the hyphen is dropped). Default false: hyphens are kept.</summary>
     public bool JoinHyphenatedWords { get; set; }
 

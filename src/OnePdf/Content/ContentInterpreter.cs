@@ -1,3 +1,6 @@
+using OnePdf.FontPrograms;
+using OnePdf.PdfFonts;
+
 namespace OnePdf.Content;
 
 /// <summary>
@@ -65,6 +68,12 @@ internal sealed partial class ContentInterpreter
     private PdfMatrix _tm = PdfMatrix.Identity;
     private PdfMatrix _tlm = PdfMatrix.Identity;
     private PdfGlyph[] _glyphs = new PdfGlyph[256];
+    private FontGlyph?[] _fontGlyphs = new FontGlyph?[256];
+    private readonly Dictionary<FontGlyph, PdfPath> _outlinePaths = new(ReferenceEqualityComparer.Instance);
+    private readonly List<(PdfGlyph[] Glyphs, FontGlyph?[] Fonts)> _spareBuffers = [];
+    private FontInfo? _defaultFont;
+    private int _type3Depth;
+    private bool _inCharProc;
 
     private ContentInterpreter(PdfDocument doc, IPdfDevice device, PdfInterpretOptions options, CancellationToken ct)
     {
@@ -725,7 +734,15 @@ internal sealed partial class ContentInterpreter
 
                 break;
             case ContentOp.CharProcWidth:
+                break;
             case ContentOp.CharProcBox:
+                // d1 declares a glyph that carries shape only: colour operators after it are ignored and the glyph paints in the
+                // colour current when it was shown (ISO 32000-2 9.6.5, Table 113). d1 outside a Type 3 glyph is ignored.
+                if (_inCharProc)
+                {
+                    _noColor = true;
+                }
+
                 break;
 
             default:
