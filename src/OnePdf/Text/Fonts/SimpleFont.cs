@@ -99,6 +99,7 @@ internal sealed class SimpleFont : PdfFont
     private readonly int _firstChar;
     private readonly StandardFontMetrics? _std;
     private readonly bool _zapf;
+    private Func<int, int>? _codePointMap;
     private readonly ProgramUnicode? _programUnicode;
     private readonly FontGlyph?[] _cache = new FontGlyph?[256];
     private readonly CmapSubtable? _cmap31;
@@ -127,7 +128,8 @@ internal sealed class SimpleFont : PdfFont
         if (Program is null)
         {
             PdfFontRequest req = FontSupport.BuildRequest(Name, _desc, null, false);
-            Program = FontSupport.LoadSubstitute(context, req);
+            Program = FontSupport.LoadSubstitute(context, req, out FontProgram[] fallbacks, out _codePointMap);
+            Fallbacks = fallbacks;
             IsSubstituted = Program is not null;
             context.Document.ReportInfo(Program is null
                 ? $"No font program for '{Name}': glyph outlines are unavailable (metrics and text still work)."
@@ -223,13 +225,24 @@ internal sealed class SimpleFont : PdfFont
         bool hasUnicode = FontSupport.TryToUnicode(_toUnicode, (uint)code, 1, out string text) || FontSupport.NameToUnicode(name, _zapf, out text);
 
         int gid = -1;
+        int face = 0;
         bool exists = false;
         FontProgram? p = Program;
         if (p is not null)
         {
             if (IsSubstituted)
             {
-                gid = FontSupport.FindGlyphByNameOrUnicode(p, name, hasUnicode ? text : null);
+                gid = FontSupport.FindGlyphByNameOrUnicode(p, name, hasUnicode ? text : null, _codePointMap);
+                for (int i = 0; gid <= 0 && i < Fallbacks.Length; i++)
+                {
+                    int g2 = FontSupport.FindGlyphByNameOrUnicode(Fallbacks[i], name, hasUnicode ? text : null, _codePointMap);
+                    if (g2 > 0)
+                    {
+                        gid = g2;
+                        face = i + 1;
+                    }
+                }
+
                 exists = gid > 0;
             }
             else if (p is SfntFont { Cff: null } sf)
@@ -257,10 +270,11 @@ internal sealed class SimpleFont : PdfFont
         }
 
         double width = Width(code, name, gid);
-        double[]? matrix = p?.FontMatrix;
-        if (IsSubstituted && p is not null && exists && width > 0)
+        FontProgram? gp = face > 0 ? Fallbacks[face - 1] : p;
+        double[]? matrix = gp?.FontMatrix;
+        if (IsSubstituted && gp is not null && exists && width > 0)
         {
-            matrix = ScaleToWidth(p, gid, width);
+            matrix = ScaleToWidth(gp, gid, width);
         }
 
         return new FontGlyph(this)
@@ -273,6 +287,7 @@ internal sealed class SimpleFont : PdfFont
             HasUnicode = hasUnicode,
             Exists = exists,
             Name = name,
+            Face = face,
             Advance = width / 1000.0,
             OutlineMatrix = matrix,
         };

@@ -127,8 +127,14 @@ internal static class FontSupport
         desc.Dictionary is { } d && (d.Get("FontFile") is PdfStream || d.Get("FontFile2") is PdfStream || d.Get("FontFile3") is PdfStream);
 
     /// <summary>Asks the provider for a substitute and opens it; null when there is none or it does not parse.</summary>
-    public static FontProgram? LoadSubstitute(FontContext ctx, PdfFontRequest request)
+    public static FontProgram? LoadSubstitute(FontContext ctx, PdfFontRequest request) =>
+        LoadSubstitute(ctx, request, out _, out _);
+
+    /// <summary>As the one-argument form, also opening the substitute's fallback fonts (those that fail to parse are left out) and returning its code point map.</summary>
+    public static FontProgram? LoadSubstitute(FontContext ctx, PdfFontRequest request, out FontProgram[] fallbacks, out Func<int, int>? map)
     {
+        fallbacks = [];
+        map = null;
         PdfSubstituteFont? sub;
         try
         {
@@ -144,13 +150,37 @@ internal static class FontSupport
             return null;
         }
 
-        if (sub.CacheKey is not null && SharedPrograms.TryGetValue(sub.CacheKey, out FontProgram? shared))
+        FontProgram? primary = OpenSubstitute(ctx, sub);
+        if (primary is not null)
         {
-            return shared;
+            map = sub.MapCodePoint;
+            if (sub.Fallbacks.Count > 0)
+            {
+                var list = new List<FontProgram>(sub.Fallbacks.Count);
+                foreach (PdfSubstituteFont f in sub.Fallbacks)
+                {
+                    if (OpenSubstitute(ctx, f) is { } fp)
+                    {
+                        list.Add(fp);
+                    }
+                }
+
+                fallbacks = [.. list];
+            }
         }
 
+        return primary;
+    }
+
+    private static FontProgram? OpenSubstitute(FontContext ctx, PdfSubstituteFont sub)
+    {
         try
         {
+            if (sub.CacheKey is not null && SharedPrograms.TryGetValue(sub.CacheKey, out FontProgram? shared))
+            {
+                return shared;
+            }
+
             ReadOnlyMemory<byte> data = sub.Data;
             FontProgram p = FontProgramLoader.Sniff(data.Span) is FontProgramKind.TrueType or FontProgramKind.OpenTypeCff
                 ? SfntFont.Parse(data, sub.FaceIndex)
@@ -287,7 +317,7 @@ internal static class FontSupport
     /// Finds a glyph in a program by name, then (for programs with a Unicode cmap) by the Unicode value of the text. Used for
     /// substitutes, whose glyph order and names are the provider's, not the PDF's. -1 when nothing matches.
     /// </summary>
-    public static int FindGlyphByNameOrUnicode(FontProgram program, string? name, string? text)
+    public static int FindGlyphByNameOrUnicode(FontProgram program, string? name, string? text, Func<int, int>? map = null)
     {
         int gid;
         if (name is not null)
@@ -305,12 +335,12 @@ internal static class FontSupport
             return -1;
         }
 
-        if (program is SfntFont sfnt)
+        if (map is not null)
         {
-            CmapSubtable? cmap = sfnt.FindUnicodeCmap();
-            if (cmap is not null)
+            int mapped = map(cp);
+            if (mapped != cp && mapped >= 0)
             {
-                gid = cmap.Lookup(cp);
+                gid = FindByCodePoint(program, mapped);
                 if (gid > 0)
                 {
                     return gid;
@@ -318,9 +348,27 @@ internal static class FontSupport
             }
         }
 
+        return FindByCodePoint(program, cp);
+    }
+
+    private static int FindByCodePoint(FontProgram program, int cp)
+    {
+        if (program is SfntFont sfnt)
+        {
+            CmapSubtable? cmap = sfnt.FindUnicodeCmap();
+            if (cmap is not null)
+            {
+                int g = cmap.Lookup(cp);
+                if (g > 0)
+                {
+                    return g;
+                }
+            }
+        }
+
         // Programs with glyph names but no cmap (Type 1, CFF): the AGL-style name of the character.
         string uni = cp <= 0xFFFF ? "uni" + cp.ToString("X4", CultureInfo.InvariantCulture) : "u" + cp.ToString("X", CultureInfo.InvariantCulture);
-        gid = program.FindGlyph(uni);
+        int gid = program.FindGlyph(uni);
         return gid > 0 ? gid : -1;
     }
 }

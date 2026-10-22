@@ -75,6 +75,19 @@ public sealed class PdfSubstituteFont
     /// <summary>The face name, for diagnostics.</summary>
     public string Name { get; }
 
+    /// <summary>
+    /// Further fonts to consult, in order, for characters this font lacks (for example a Latin font behind a math font). They are
+    /// used by simple fonts only; each is loaded like the primary font. Empty by default.
+    /// </summary>
+    public IReadOnlyList<PdfSubstituteFont> Fallbacks { get; init; } = [];
+
+    /// <summary>
+    /// Optional adjustment of a character's code point before it is looked up by Unicode in this font and its fallbacks, for
+    /// substitutes that carry a shape at a different address than the Adobe Glyph List gives. Null (the default) means no change.
+    /// The lookup tries the mapped value first and the original second. Must be a pure function.
+    /// </summary>
+    public Func<int, int>? MapCodePoint { get; init; }
+
     /// <summary>Identifier for sharing parsed programs, or null.</summary>
     public string? CacheKey { get; }
 

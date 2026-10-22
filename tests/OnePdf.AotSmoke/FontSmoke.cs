@@ -1,7 +1,9 @@
+using System.Collections.Generic;
 using System.Text;
 using OnePdf.FontData;
 using OnePdf.Fonts;
 using OnePdf.FontPrograms;
+using OnePdf.PdfFonts;
 
 namespace OnePdf.AotSmoke;
 
@@ -43,6 +45,11 @@ internal static class FontSmoke
             return "substitute font";
         }
 
+        if (RegisteredOutline() is { } reg)
+        {
+            return reg;
+        }
+
         try
         {
             FontProgramLoader.Open(Encoding.ASCII.GetBytes("not a font at all"));
@@ -52,5 +59,19 @@ internal static class FontSmoke
         {
             return null;
         }
+    }
+
+    // Registers the package and gets an outline for a Helvetica glyph from a file that does not embed the font.
+    private static string? RegisteredOutline()
+    {
+        PdfFontProviders.UseSystemFonts = false;
+        FontsPackage.Register();
+        const string Pdf = "%PDF-1.4\n1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n2 0 obj\n<< /Type /Pages /Kids [] /Count 0 >>\nendobj\n" +
+            "3 0 obj\n<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>\nendobj\ntrailer\n<< /Root 1 0 R >>\n";
+        using PdfDocument doc = PdfDocument.Open(Encoding.ASCII.GetBytes(Pdf));
+        PdfFont font = doc.GetFont((PdfDictionary?)doc.GetObject(3));
+        var glyphs = new List<FontGlyph>();
+        font.Decode("A"u8, glyphs);
+        return font.IsSubstituted && glyphs.Count == 1 && !glyphs[0].GetOutline().IsEmpty ? null : "registered substitute outline";
     }
 }
