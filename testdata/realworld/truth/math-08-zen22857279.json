@@ -1,0 +1,32 @@
+{
+ "category": "math",
+ "generator": "real-world file; reference text built as described in reference.method",
+ "name": "math-08-zen22857279",
+ "pageCount": 41,
+ "pages": [
+  {
+   "text": "4 JACOB NOEL\n\nAlongside these monodromy results, we isolate a separability consequence of the binomial Newton face and the Brylawski identity. Following [10], a polynomial F ∈Z[X, Y ] satisfying\n\n(Y −1)rF  Y Y −1, Y  = Y r+s (1.3)\n\nis a normalized (r + s, r)-Brylawski polynomial. For positive weights, in(s,r) F denotes the sum of the monomials on the corresponding maximal face of the Newton polygon.\n\nTheorem 1.5 (Newton–Brylawski separability). Let r, s > 0 and let F ∈Z[X, Y ] be monic in X, satisfy (1.3), and have in(s,r) F = Xr + Y s. Put g = gcd(r, s), and let lbe an odd prime such that\n\nl| r, l∤s, g < l. (1.4)\n\nThen F mod lis separable in X over Fl(Y ). If, moreover, r and vl(r) are odd, then\n\ndiscX F(X, Y ) /∈Q(Y )×2. (1.5)\n\nThe separability conclusion permits good specializations and their Frobenius factor patterns. The discriminant conclusion says that geometric monodromy contains an odd permutation, because the discriminant of a separable polynomial is a square precisely when its root action lies in the alternating group. Theorem 1.5 is independent of Theorem 1.1; it applies when the first root- dependent correction is unavailable.\n\n1.1. Proof strategy. The trace arguments use the density bound to control the entire polar part of the roots at infinity: the branches share a common polar series multiplied by their roots-of-unity labels. Cancellation of those labels in a block sum therefore cancels every polar term. Classical constancy and integrality arguments then force an exact block-trace identity (Theorem 7.1). The defect bound thus converts a finite phase calculation into a divisibility constraint on the number of blocks; higher coefficients can exclude the remaining candidate trace identities. For the hypercube proof, set\n\ng = gcd(N, E), L = N/g, h = σ/g.\n\nThe integer g is the number of inertia orbits above Y = ∞, each of length L. The proof separates into the cases g = 1 and g > 1; when N is prime, transitivity alone gives primitivity. Since N prime forces g = 1 (then n is prime and N ≡1 (mod n)), the three regimes are nested:\n\n{N prime} transitivity ⊂ {g = 1} centered sums ⊂ {g ≥1} characteristic two\n\nThe labels name the ingredient that primitivity needs at each level beyond the previous one; the transposition of Section 4 is common to all three. When N is prime, that is, a Mersenne prime, a transitive group of prime degree is primitive, and Theorem 1.1 follows from irreducibility, the simple branch point, and Lemma 7.7. When g = 1 and N is composite, the centered block sums of Section 7.1 exclude every nontrivial block system; this is the argument of Theorem 1.3, and reduction modulo two is unnecessary. When g > 1, which first happens at n = 6, centered sums give the divisibility condition k | g, and the characteristic-two action of Sections 5 and 6 forces the number of blocks to be coprime to g. Table 2.2(a) records the parameters in small dimensions; Remark 7.6 works through the three block-system tests for n = 6.\n\nAt infinity we shift to the rank-generating polynomial and rescale by the density defect. Strict uniform density leaves the binomial initial face XN + Y σ, which gives the inertia cycles. Edge isoperimetry then shows that single edges are the unique nonempty nonspanning subsets contribut- ing to the first root-dependent correction. Its coefficient E has two uses: together with the prime supplied by Lemma 2.1, it produces a simple branch point; it also centers the sums attached to a hypothetical block system.\n\nThe second local picture, in Section 5, uses random-cluster coordinates and the 2-Gauss valua- tion. Nontrivial orbits of the translation group Fn 2 on edge subsets have even cardinality, so only"
+  }
+ ],
+ "reference": {
+  "checkedPages": [
+   3
+  ],
+  "confidence": "medium",
+  "extractorAgreement": {
+   "4": 0.95
+  },
+  "method": "Draft from the text layer as recovered by two black-box extractors (poppler pdftotext reading-order mode; MuPDF via its Python binding), compared with each other and, for Latin text, with tesseract OCR of the rendered page; every scored page then compared with its rendered image: block order, completeness, columns, headers and footers corrected. Characters are the text layer, not re-read from pixels.",
+  "notes": "LaTeX paper page with displayed formulas and a theorem. Prose and the sequence of paragraphs and displays compared with the page image; formula-internal order (fractions, subscripts, the script l read as a plain l) is as the text layer has it and is the uncertainty."
+ },
+ "schema": 1,
+ "scoredPages": [
+  3
+ ],
+ "source": {
+  "attribution": "Jacob Noel: Full symmetric Tutte monodromy: hypercubes, uniform matroids, and density criteria (Zenodo, doi:10.5281/zenodo.22857279), CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/); unmodified",
+  "license": "CC-BY-4.0",
+  "source_url": "https://zenodo.org/records/22857279",
+  "upstream_ref": "doi:10.5281/zenodo.22857279; file HYPERCUBE_TUTTE_MONODROMY.pdf"
+ }
+}

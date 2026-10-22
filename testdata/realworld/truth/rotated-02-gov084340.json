@@ -16,8 +16,8 @@
   "extractorAgreement": {
    "5": 0.966
   },
-  "method": "Draft from the text layer as recovered by two black-box extractors (poppler pdftotext reading-order mode; MuPDF via its Python binding), compared with each other and, for Latin text, with tesseract OCR of the rendered page; block order and completeness checked against the page image; characters are the text layer, not re-read from pixels.",
-  "notes": "Page chosen because it is rotated (page /Rotate or text running sideways); reading order is as displayed."
+  "method": "Draft from the text layer as recovered by two black-box extractors (poppler pdftotext reading-order mode; MuPDF via its Python binding), compared with each other and, for Latin text, with tesseract OCR of the rendered page; every scored page then compared with its rendered image: block order, completeness, columns, headers and footers corrected. Characters are the text layer, not re-read from pixels.",
+  "notes": "Landscape table of species against trap and attractant columns; each row lists its species and the crosses of that row. Row order, completeness and cross counts compared with the page image. Which column a cross sits in is not recoverable from text alone, so a faithful extraction can only be scored on the row text: low confidence for that reason."
  },
  "schema": 1,
  "scoredPages": [

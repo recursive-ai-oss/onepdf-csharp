@@ -1030,5 +1030,77 @@
   "sha1": "e379247a5b4ebfa69f15c33b215206b183d6231a",
   "attribution": "Work of the United States government (17 U.S.C. 105); original URL in source_url; unmodified",
   "size": 78435
+ },
+ {
+  "name": "math-08-zen22857279",
+  "category": "math",
+  "path": "testdata/realworld/pdf/math-08-zen22857279.pdf",
+  "url": "https://zenodo.org/records/22857279",
+  "upstream_ref": "doi:10.5281/zenodo.22857279; file HYPERCUBE_TUTTE_MONODROMY.pdf",
+  "license": "CC-BY-4.0",
+  "sha256": "296da9c9b37e788c54953f68ad4d461cab2739319a2f0e44d3594e29a5b7103c",
+  "sha1": "",
+  "attribution": "Jacob Noel: Full symmetric Tutte monodromy: hypercubes, uniform matroids, and density criteria (Zenodo, doi:10.5281/zenodo.22857279), CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/); unmodified",
+  "size": 366695
+ },
+ {
+  "name": "old-09-gov672225",
+  "category": "old",
+  "path": "testdata/realworld/pdf/old-09-gov672225.pdf",
+  "url": "http://www.epa.gov/OMSWWW/cert/cfeis/certveh2.pdf",
+  "upstream_ref": "GovDocs1 (digitalcorpora.org), crawled 2009",
+  "license": "US-Government-Work",
+  "sha256": "cba3de907cd4d8d672d62320e89af97072f7e0e3c357da593a50eab9f037e51a",
+  "sha1": "acf2ddffda3ec13d8ea5a884c1692408611cee42",
+  "attribution": "Work of the United States government (17 U.S.C. 105); original URL in source_url; unmodified",
+  "size": 45388
+ },
+ {
+  "name": "report-09-gov504076",
+  "category": "report",
+  "path": "testdata/realworld/pdf/report-09-gov504076.pdf",
+  "url": "http://www.loc.gov/law/help/iraq%20_legal_history_and_traditions.pdf",
+  "upstream_ref": "GovDocs1 (digitalcorpora.org), crawled 2009",
+  "license": "US-Government-Work",
+  "sha256": "587b59c35a2be903c87ba97ac9ac425643a1eff40f19198e2e6ea4b0f82a7a4b",
+  "sha1": "d9239ba86ba371ae6f964b91f7ba3c0c1093ee80",
+  "attribution": "Work of the United States government (17 U.S.C. 105); original URL in source_url; unmodified",
+  "size": 385882
+ },
+ {
+  "name": "report-10-gov378915",
+  "category": "report",
+  "path": "testdata/realworld/pdf/report-10-gov378915.pdf",
+  "url": "http://www.eia.doe.gov/cneaf/solar.renewables/page/wood/wood.pdf",
+  "upstream_ref": "GovDocs1 (digitalcorpora.org), crawled 2009",
+  "license": "US-Government-Work",
+  "sha256": "b15c0b4c472ab58bdf85547dd2275bc59e44f8d2540f7e44bef00773c0baf500",
+  "sha1": "ae9aba42a5bf3595149a385e57579b6f993688a3",
+  "attribution": "Work of the United States government (17 U.S.C. 105); original URL in source_url; unmodified",
+  "size": 76881
+ },
+ {
+  "name": "scanned-ocr-11-gov882015",
+  "category": "scanned-ocr",
+  "path": "testdata/realworld/pdf/scanned-ocr-11-gov882015.pdf",
+  "url": "http://www.bls.gov/opub/mlr/1982/12/art6full.pdf",
+  "upstream_ref": "GovDocs1 (digitalcorpora.org), crawled 2009",
+  "license": "US-Government-Work",
+  "sha256": "98afe8b9fe0a1db64d13999653867c0366b245abceaf8283d1d768f05fe83414",
+  "sha1": "6743757a004f607f8f71942e7f8614edaf19ab28",
+  "attribution": "Work of the United States government (17 U.S.C. 105); original URL in source_url; unmodified",
+  "size": 781926
+ },
+ {
+  "name": "table-09-gov588188",
+  "category": "table",
+  "path": "testdata/realworld/pdf/table-09-gov588188.pdf",
+  "url": "http://www.ssa.gov/policy/docs/statcomps/ssi_sc/1998/mp.pdf",
+  "upstream_ref": "GovDocs1 (digitalcorpora.org), crawled 2009",
+  "license": "US-Government-Work",
+  "sha256": "99307139f8979ed237ed4853a7a85af6268c5f9474ebf234bd210a3be0b00b58",
+  "sha1": "53629b4bd8f491b4630a34638f811ca9a74ca1a1",
+  "attribution": "Work of the United States government (17 U.S.C. 105); original URL in source_url; unmodified",
+  "size": 34305
  }
 ]

@@ -5,17 +5,19 @@
  "pageCount": 23,
  "pages": [
   {
-   "text": ".3المؤثرون • • •\n\nالباحثون الجامعات الجهات التنظيمية\n\nاًلستنتاج: السوق متعدد الطبقات، وقرار الشراء مؤسسي جماعي\n\n🔷 ثالثاا :تحليل الطلب ()Clinical Demand الطلب هنا ليس “شراء” بل: اعتماد عالجي ()Therapeutic Adoption\n\nما الذي يحدد الطلب؟ .1 .2 .3 .4\n\nفعالية الدواء ()Efficacy األمان ()Safety مقارنة بالعالجات الحالية النتائج السريرية ()Clinical Outcomes\n\nنوع الطلب: • •\n\nبطيء في البداية ثم يتسارع بعد اإلثبات\n\nيسمى: Evidence-Based Demand"
+   "text": "3. المؤثرون\n\n• الباحثون\n\n• الجامعات\n\n• الجهات التنظيمية\n\nاًلستنتاج:\n\nالسوق متعدد الطبقات، وقرار الشراء مؤسسي جماعي\n\n🔷 ثالثاا: تحليل الطلب (Clinical Demand)\n\nالطلب هنا ليس “شراء” بل:\n\nاعتماد عالجي (Therapeutic Adoption)\n\nما الذي يحدد الطلب؟\n\n1. فعالية الدواء (Efficacy)\n\n2. األمان (Safety)\n\n3. مقارنة بالعالجات الحالية\n\n4. النتائج السريرية (Clinical Outcomes)\n\nنوع الطلب:\n\n• بطيء في البداية\n\n• ثم يتسارع بعد اإلثبات\n\nيسمى:\n\nEvidence-Based Demand"
   }
  ],
  "reference": {
-  "checkedPages": [],
-  "confidence": "low",
+  "checkedPages": [
+   1
+  ],
+  "confidence": "medium",
   "extractorAgreement": {
    "2": 0.625
   },
-  "method": "Draft from the text layer as recovered by two black-box extractors (poppler pdftotext reading-order mode; MuPDF via its Python binding), compared with each other and, for Latin text, with tesseract OCR of the rendered page; block order and completeness checked against the page image; characters are the text layer, not re-read from pixels.",
-  "notes": "Text layer in logical order; the Arabic comma spacing is normalised; ToUnicode defects of the producer (for example lam-alef) are kept because they are what an extractor can recover. Not yet reviewed against the page image (only compared across extractors): treat as a draft."
+  "method": "Draft from the text layer as recovered by two black-box extractors (poppler pdftotext reading-order mode; MuPDF via its Python binding), compared with each other and, for Latin text, with tesseract OCR of the rendered page; every scored page then compared with its rendered image: block order, completeness, columns, headers and footers corrected. Characters are the text layer, not re-read from pixels.",
+  "notes": "Arabic with Latin terms in parentheses, written in logical order: list numbers precede their text, parentheses enclose the Latin term. Producer defects of the ToUnicode map (missing lam-alef in several words, a doubled alef) are kept because they are what an extractor can recover. Headings, list items, bullets and the two pin icons compared with the page image; the pin and diamond icons are emoji glyphs where the layer has them."
  },
  "schema": 1,
  "scoredPages": [

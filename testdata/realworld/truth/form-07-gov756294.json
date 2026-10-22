@@ -5,17 +5,19 @@
  "pageCount": 3,
  "pages": [
   {
-   "text": "CCC-661(04-28-04)\n\nPage 3 of 3\n\nPART F -COUNTY COMMITTEE REVIEW OF EVIDENCE YES\n\nNO\n\nYES\n\nNO\n\nYES\n\nNO\n\n13A. Are the livestock losses due to the declared disaster condition, and are there other losses that would support a finding that the losses were the result of the eligible disaster declaration? If ''NO'', Disapprove in Part G below. 13B. Describe in detail the reasons for the COC determination.\n\n14A. Is the producer's reported livestock inventory at the time of the disaster in Part C reasonable and supported by adequate documentation? If ''NO'', Disapprove in Part G below. 14B. Describe in detail the reasons for the COC determination.\n\n15A. Are the producer's reported livestock losses in Part D reasonable and supported by adequate documentation? If ''NO'', Disapprove in Part G below. 15B. Describe in detail the reasons for the COC determination.\n\nPART G - COUNTY COMMITTEE DETERMINATION 16A. DETERMINATION:\n\n16B. FSA COUNTY OFFICE NAME AND ADDRESS (INCLUDE ZIP CODE)\n\n16C. FSA COUNTY OFFICE TELEPHONE NUMBER (INCLUDE AREA CODE)\n\nAPPROVED DISAPPROVED 16D. COC's SIGNATURE\n\n16E. DATE (MM-DD-YYYY)"
+   "text": "CCC-661(04-28-04)\n\nPage 3 of 3\n\nPART F -COUNTY COMMITTEE REVIEW OF EVIDENCE YES\n\nNO\n\n13A. Are the livestock losses due to the declared disaster condition, and are there other losses that would support a finding that the losses were the result of the eligible disaster declaration? If ''NO'', Disapprove in Part G below. 13B. Describe in detail the reasons for the COC determination.\n\nYES\n\nNO\n\n14A. Is the producer's reported livestock inventory at the time of the disaster in Part C reasonable and supported by adequate documentation? If ''NO'', Disapprove in Part G below. 14B. Describe in detail the reasons for the COC determination.\n\nYES\n\nNO\n\n15A. Are the producer's reported livestock losses in Part D reasonable and supported by adequate documentation? If ''NO'', Disapprove in Part G below. 15B. Describe in detail the reasons for the COC determination.\n\nPART G - COUNTY COMMITTEE DETERMINATION 16A. DETERMINATION:\n\n16B. FSA COUNTY OFFICE NAME AND ADDRESS (INCLUDE ZIP CODE)\n\n16C. FSA COUNTY OFFICE TELEPHONE NUMBER (INCLUDE AREA CODE)\n\nAPPROVED DISAPPROVED 16D. COC's SIGNATURE\n\n16E. DATE (MM-DD-YYYY)"
   }
  ],
  "reference": {
-  "checkedPages": [],
-  "confidence": "low",
+  "checkedPages": [
+   2
+  ],
+  "confidence": "medium",
   "extractorAgreement": {
    "3": 1.0
   },
-  "method": "Draft from the text layer as recovered by two black-box extractors (poppler pdftotext reading-order mode; MuPDF via its Python binding), compared with each other and, for Latin text, with tesseract OCR of the rendered page; block order and completeness checked against the page image; characters are the text layer, not re-read from pixels.",
-  "notes": "Static form text only; field values and widgets are not page text. Not yet reviewed against the page image (only compared across extractors): treat as a draft."
+  "method": "Draft from the text layer as recovered by two black-box extractors (poppler pdftotext reading-order mode; MuPDF via its Python binding), compared with each other and, for Latin text, with tesseract OCR of the rendered page; every scored page then compared with its rendered image: block order, completeness, columns, headers and footers corrected. Characters are the text layer, not re-read from pixels.",
+  "notes": "Static form text only; field values and widgets are not page text. YES/NO column heads sit above the question they belong to."
  },
  "schema": 1,
  "scoredPages": [
