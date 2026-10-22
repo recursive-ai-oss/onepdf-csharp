@@ -102,6 +102,28 @@ standard strings, predefined charsets and Expert encoding, and the Macintosh sta
 from the published specifications (ISO 32000-1 Annex D, Adobe Technical Note #5176 appendices A to C, and the Apple TrueType
 Reference Manual, 'post' table). They are listed here for provenance; no license terms attach to them.
 
+### Unicode bidirectional class data
+
+`src/OnePdf/Text/Extraction/BidiData.g.cs` is generated (`tools/bidi/generate.py`) from the Unicode Character Database 16.0.0 files
+`DerivedBidiClass.txt` and `BidiBrackets.txt`. Copyright (c) 1991-2024 Unicode, Inc., under the Unicode License v3
+(https://www.unicode.org/license.txt):
+
+> Permission is hereby granted, free of charge, to any person obtaining a copy of data files and any associated documentation (the "Data Files") or
+> software and any associated documentation (the "Software") to deal in the Data Files or Software without restriction, including without limitation
+> the rights to use, copy, modify, merge, publish, distribute, and/or sell copies of the Data Files or Software, and to permit persons to whom the
+> Data Files or Software are furnished to do so, provided that either (a) this copyright and permission notice appear with all copies of the Data
+> Files or Software, or (b) this copyright and permission notice appear in associated Documentation.
+>
+> THE DATA FILES AND SOFTWARE ARE PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+> MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT OF THIRD PARTY RIGHTS.
+>
+> IN NO EVENT SHALL THE COPYRIGHT HOLDER OR HOLDERS INCLUDED IN THIS NOTICE BE LIABLE FOR ANY CLAIM, OR ANY SPECIAL INDIRECT OR CONSEQUENTIAL DAMAGES, OR
+> ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+> OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THE DATA FILES OR SOFTWARE.
+>
+> Except as contained in this notice, the name of a copyright holder shall not be used in advertising or otherwise to promote the sale, use or other
+> dealings in these Data Files or Software without prior written authorization of the copyright holder.
+
 ## Fonts package (`RecursiveAI.OnePdf.Fonts`)
 
 The package license expression is `(MIT OR Apache-2.0) AND OFL-1.1`: the code is `MIT OR Apache-2.0`, the font files are under the SIL Open Font License, Version 1.1 (https://openfontlicense.org). The fonts are the upstream release files, embedded byte for byte as resources: nothing is subset, converted or rebuilt (the Liberation fonts carry Reserved Font Names). Each font's full license text, with its copyright lines, is in the package under `licenses/` and in the source tree under `src/OnePdf.Fonts/Fonts/`; `src/OnePdf.Fonts/Fonts/README.md` gives the release URLs, and `tools/fonts/fetch.sh` verifies the files against them by SHA-256. The fonts are not offered on their own.
