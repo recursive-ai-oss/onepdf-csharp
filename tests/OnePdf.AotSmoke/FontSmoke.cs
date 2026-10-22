@@ -1,5 +1,6 @@
 using System.Text;
 using OnePdf.FontData;
+using OnePdf.Fonts;
 using OnePdf.FontPrograms;
 
 namespace OnePdf.AotSmoke;
@@ -34,6 +35,12 @@ internal static class FontSmoke
         if (CffStandardData.StandardString(1) != "space" || CffStandardData.MacGlyphName(3) != "space")
         {
             return "cff data";
+        }
+
+        if (!SubstituteFonts.TryFind("Arial-BoldMT", out SubstituteFace face) || face.Name != "LiberationSans-Bold"
+            || FontProgramLoader.Open(face.GetData()).GlyphCount < 100)
+        {
+            return "substitute font";
         }
 
         try
