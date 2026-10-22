@@ -2,6 +2,7 @@ using System;
 using System.Text;
 using OnePdf;
 using OnePdf.Fonts;
+using OnePdf.Text;
 
 // Exercises the library from a NativeAOT-published app; grows as the library does.
 if (Library.Name != "OnePDF" || FontsPackage.Name != "OnePdf.Fonts")
@@ -74,6 +75,31 @@ if (!text.StartsWith("onepdf-display-list 1", StringComparison.Ordinal) || !text
 {
     Console.Error.WriteLine("interpretation did not produce the expected display list");
     return 1;
+}
+
+// Text extraction: two columns of glyphs (content order interleaved), an RTL word, layout, bidi and the JSON writer.
+{
+    var gl = new System.Collections.Generic.List<PdfTextGlyph>();
+    void Put(string t, double x, double y) => gl.Add(new PdfTextGlyph { Text = t, Matrix = new PdfTextMatrix(10, 0, 0, 10, x, y), Advance = 0.5 });
+    string[] left = { "alpha beta gamma delta epsilon", "zeta eta theta iota kappa lambda", "mu nu xi omicron pi rho sigma" };
+    string[] right = { "one two three four five six", "seven eight nine ten eleven", "twelve thirteen fourteen fifteen" };
+    for (int i = 0; i < 3; i++)
+    {
+        for (int k = 0; k < left[i].Length; k++) { if (left[i][k] != ' ') { Put(left[i][k].ToString(), 50 + 5 * k, 700 - 14 * i); } }
+        for (int k = 0; k < right[i].Length; k++) { if (right[i][k] != ' ') { Put(right[i][k].ToString(), 330 + 5 * k, 700 - 14 * i); } }
+    }
+
+    string he = "\u05DD\u05D5\u05DC\u05E9"; // visual order of a Hebrew word
+    for (int k = 0; k < he.Length; k++) { Put(he[k].ToString(), 50 + 5 * k, 600); }
+    PdfPageText pt = PdfTextExtractor.Analyze(new PdfPageGlyphs(0, 612, 792, gl));
+    // The Hebrew word sits under the left column, so it belongs to that column.
+    string want = string.Join("\n", left) + "\n\n\u05E9\u05DC\u05D5\u05DD\n\n" + string.Join("\n", right);
+    string json = PdfExtractionJson.ToJson(new[] { pt });
+    if (pt.Text != want || pt.GetText(PdfTextMode.Layout).Length == 0 || !json.StartsWith("{\"format\":\"onepdf.extraction\"", StringComparison.Ordinal))
+    {
+        Console.Error.WriteLine("text extraction did not produce the expected text: " + pt.Text);
+        return 1;
+    }
 }
 
 Console.WriteLine("ok");
