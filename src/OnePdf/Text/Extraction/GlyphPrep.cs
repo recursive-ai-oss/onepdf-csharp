@@ -320,6 +320,9 @@ internal static class GlyphPrep
         int[] i0 = ArrayPool<int>.Shared.Rent(n);
         int[] i1 = ArrayPool<int>.Shared.Rent(n);
         bool[] drop = ArrayPool<bool>.Shared.Rent(n);
+        double[] sx = ArrayPool<double>.Shared.Rent(n);
+        double[] sf = ArrayPool<double>.Shared.Rent(n);
+        double[] ss = ArrayPool<double>.Shared.Rent(n);
         try
         {
             for (int i = 0; i < n; i++)
@@ -331,32 +334,42 @@ internal static class GlyphPrep
 
             int[] order = SortByX(k0, i0, k1, i1, n, out _);
 
-            bool any = false;
+            // The three values the scan reads, laid out in visiting order so that it runs over contiguous memory.
             for (int p = 0; p < n; p++)
             {
                 int i = order[p];
-                double size = es[i];
+                sx[p] = ex[i];
+                sf[p] = ef[i];
+                ss[p] = es[i];
+            }
+
+            bool any = false;
+            for (int p = 0; p < n; p++)
+            {
+                double size = ss[p];
                 double tol = LayoutParameters.DuplicateOffsetEm * size;
-                for (int q = p + 1, steps = 0; q < n && steps < 32; q++, steps++)
+                double x = sx[p], f = sf[p];
+                int limit = Math.Min(n, p + 1 + 32);
+                for (int q = p + 1; q < limit; q++)
                 {
-                    int j = order[q];
-                    if (ex[j] - ex[i] > tol)
+                    if (sx[q] - x > tol)
                     {
                         break;
                     }
 
                     // Cheapest test first; all of them must hold.
-                    if (Math.Abs(ef[j] - ef[i]) > tol)
+                    if (Math.Abs(sf[q] - f) > tol)
                     {
                         continue;
                     }
 
+                    int i = order[p], j = order[q];
                     if (g[i].Text.Length == 0 || g[i].Text != g[j].Text || g[i].IsVertical != g[j].IsVertical)
                     {
                         continue;
                     }
 
-                    if (Math.Abs(es[j] - size) > 0.05 * size)
+                    if (Math.Abs(ss[q] - size) > 0.05 * size)
                     {
                         continue;
                     }
@@ -390,6 +403,9 @@ internal static class GlyphPrep
             ArrayPool<int>.Shared.Return(i0);
             ArrayPool<int>.Shared.Return(i1);
             ArrayPool<bool>.Shared.Return(drop);
+            ArrayPool<double>.Shared.Return(sx);
+            ArrayPool<double>.Shared.Return(sf);
+            ArrayPool<double>.Shared.Return(ss);
         }
     }
 

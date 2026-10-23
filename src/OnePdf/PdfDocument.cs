@@ -30,7 +30,6 @@ public sealed partial class PdfDocument : IDisposable
         Cache = new ObjectCache(Math.Max(0, options.ObjectCacheBytes));
         _scan = new Lazy<ScanResult>(ScanFile, LazyThreadSafetyMode.ExecutionAndPublication);
         _pageCount = new Lazy<int>(CountPagesLean, LazyThreadSafetyMode.ExecutionAndPublication);
-        InitModel();
         Initialize();
     }
 
@@ -75,7 +74,7 @@ public sealed partial class PdfDocument : IDisposable
 
     internal long FileLength => _source.Length;
 
-    /// <summary>Opens a document from a file. The file is opened once and read by position.</summary>
+    /// <summary>Opens a document from a file. The file is opened once and read by position; a file of up to 64 KiB is read whole at open, so parsing it needs no further reads.</summary>
     /// <exception cref="PdfFormatException">The file is not a PDF or is too damaged to repair (any repair in strict mode).</exception>
     /// <exception cref="PdfLimitException">A bound in <see cref="PdfOpenOptions.Limits"/> was exceeded.</exception>
     public static PdfDocument Open(string path, PdfOpenOptions? options = null)
