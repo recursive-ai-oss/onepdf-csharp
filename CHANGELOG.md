@@ -9,6 +9,10 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 - Writing. `PdfOpenOptions.AllowEditing` opens a document for changing; `PdfDictionary.SetEntry`/`RemoveEntry`, `PdfArray.Append`/`Insert`/`SetItem`/`RemoveAt`/`Clear`, `PdfStream.SetData`/`SetStoredBytes`, `PdfDocument.AddObject`/`SetObject`/`RemoveObject`/`CreateStream`/`SetInfo`/`SetXmp`, and public constructors for the simple COS types. See `docs/writing.md`.
 - `PdfDocument.Save` writes a complete new file (classic table, or cross-reference and object streams; optional Flate for unfiltered streams; unreachable objects dropped, numbers compact) and can keep, remove or set encryption (AES-128 revision 4, AES-256 revision 6). `PdfDocument.SaveIncremental` appends an update that leaves the original bytes untouched. Options are in `PdfSaveOptions` and `PdfEncryptionOptions`.
 - A `save` fuzz target (open, change, save, reopen).
+- Page operations on editable documents: `RemovePage`/`RemovePages`, `MovePage`, `ReorderPages`, `RotatePage`/`SetPageRotation`, `InsertBlankPage`, `DuplicatePage`, and `PdfDocument.CreateEmpty`. Deleting a page repairs the bookmarks, links, named destinations, open action, form fields and page labels that referred to it.
+- Pages across documents: `PdfDocument.ImportPages` copies pages with their whole dependency graph (resources, fonts, images, annotations with appearances; inherited `/Resources`, `/MediaBox`, `/CropBox` and `/Rotate` written into the page), each shared object once. Bookmarks, named destinations used by links, form fields (clashing names renamed), optional content, page labels and the structure tree of tagged files come along (`PdfImportOptions`). `PdfDocument.Merge` joins documents; `PdfDocument.Split` cuts one into several (`PdfPageRange`, or a number of pages per part). See `docs/page-operations.md`.
+- `docs/migrating-from-pdfsharp.md`, a guide for moving from PDFsharp.
+- The `save` fuzz target also runs page operations, merge and split.
 
 ### Fixed
 

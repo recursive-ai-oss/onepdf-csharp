@@ -25,6 +25,8 @@ public sealed class PdfPageCollection : IReadOnlyList<PdfPage>
     /// <summary>The number of pages.</summary>
     public int Count => _nodes.Count;
 
+    internal PdfPageNode NodeAt(int index) => _nodes[index];
+
     /// <summary>The page at a zero-based index.</summary>
     /// <exception cref="ArgumentOutOfRangeException"><paramref name="index"/> is negative or not less than <see cref="Count"/>.</exception>
     public PdfPage this[int index]

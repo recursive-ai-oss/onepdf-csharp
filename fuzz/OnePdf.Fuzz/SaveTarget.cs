@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using OnePdf;
 
@@ -58,9 +59,95 @@ internal static class SaveTarget
                     Reopen(bytes, limits);
                 }
             }
+
+            PageOperations(input, sel, limits);
         }
         catch (PdfException)
         {
+        }
+    }
+
+    /// <summary>
+    /// Page operations on a fresh editable copy: rotate, duplicate, move, reorder, delete, insert, import from a second reading of the
+    /// same bytes, merge and split. Page counts must add up at every step, and the merged file must open again with that count.
+    /// </summary>
+    internal static void PageOperations(byte[] input, int sel, PdfLimits limits)
+    {
+        using PdfDocument doc = PdfDocument.Open(input, new PdfOpenOptions { Limits = limits, AllowEditing = true });
+        int count = doc.Pages.Count;
+        if (count == 0)
+        {
+            doc.InsertBlankPage(0, 100, 100);
+            count = 1;
+        }
+
+        doc.RotatePage(sel % count, 90 * (1 + (sel % 3)));
+        if ((sel & 1) != 0)
+        {
+            doc.DuplicatePage(sel % count);
+            count++;
+            Expect(doc.Pages.Count == count, "duplicate");
+        }
+
+        if ((sel & 2) != 0 && count > 1)
+        {
+            doc.MovePage(0, count - 1);
+        }
+
+        if ((sel & 4) != 0 && count > 1)
+        {
+            int[] reversed = new int[count];
+            for (int i = 0; i < count; i++)
+            {
+                reversed[i] = count - 1 - i;
+            }
+
+            doc.ReorderPages(reversed);
+        }
+
+        if ((sel & 8) != 0 && count > 1)
+        {
+            doc.RemovePage(sel % count);
+            count--;
+            Expect(doc.Pages.Count == count, "remove");
+        }
+
+        doc.InsertBlankPage(sel % (count + 1), 50, 60);
+        count++;
+        Expect(doc.PageCount == count && doc.Pages.Count == count, "insert");
+
+        using PdfDocument other = PdfDocument.Open(input, new PdfOpenOptions { Limits = limits });
+        int m = other.Pages.Count;
+        doc.ImportPages(other, null, sel % (count + 1));
+        count += m;
+        Expect(doc.Pages.Count == count, "import");
+
+        using PdfDocument merged = PdfDocument.Merge([doc, other]);
+        Expect(merged.Pages.Count == count + m, "merge");
+        using var saved = new MemoryStream();
+        merged.Save(saved, new PdfSaveOptions { XrefFormat = (sel & 16) != 0 ? PdfXrefFormat.Table : PdfXrefFormat.Stream });
+        using PdfDocument again = PdfDocument.Open(saved.ToArray(), new PdfOpenOptions { Limits = limits });
+        Expect(again.Pages.Count == count + m, "merged file reopened with a different page count");
+
+        if (m > 0)
+        {
+            IReadOnlyList<PdfDocument> parts = PdfDocument.Split(other, 1 + (sel % 3));
+            int total = 0;
+            foreach (PdfDocument part in parts)
+            {
+                total += part.Pages.Count;
+                part.Dispose();
+            }
+
+            Expect(total == m, "split");
+        }
+    }
+
+    private static void Expect(bool condition, string what)
+    {
+        if (!condition)
+        {
+            throw new InvalidOperationException("page operations: " + what);
         }
     }
 
