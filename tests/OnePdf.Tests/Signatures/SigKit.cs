@@ -119,6 +119,8 @@ internal sealed class TestPki
         RsaSigner = Leaf("CN=Rita RSA, O=Test", signerKey, Intermediate, Now.AddYears(-1), Now.AddYears(5), Usage.Sign);
         using var ec = ECDsa.Create(ECCurve.NamedCurves.nistP256);
         EcSigner = Leaf("CN=Edna EC, O=Test", ec, Intermediate, Now.AddYears(-1), Now.AddYears(5), Usage.Sign);
+        using var ec384 = ECDsa.Create(ECCurve.NamedCurves.nistP384);
+        Ec384Signer = Leaf("CN=Ed Three-Eighty-Four, O=Test", ec384, Intermediate, Now.AddYears(-1), Now.AddYears(5), Usage.Sign);
         using var tsaKey = RSA.Create(2048);
         Tsa = Leaf("CN=Test TSA", tsaKey, Intermediate, Now.AddYears(-1), Now.AddYears(5), Usage.Timestamp);
         using var oldKey = RSA.Create(2048);
@@ -136,6 +138,8 @@ internal sealed class TestPki
     public X509Certificate2 RsaSigner { get; }
 
     public X509Certificate2 EcSigner { get; }
+
+    public X509Certificate2 Ec384Signer { get; }
 
     public X509Certificate2 Tsa { get; }
 
@@ -359,7 +363,7 @@ internal static class CmsKit
     }
 
     /// <summary>An RFC 3161 token from the shared test authority over <paramref name="imprint"/>.</summary>
-    public static byte[] Timestamp(byte[] imprint, HashAlgorithmName imprintHash, DateTimeOffset time, X509Certificate2? tsa = null)
+    public static byte[] Timestamp(byte[] imprint, HashAlgorithmName imprintHash, DateTimeOffset time, X509Certificate2? tsa = null, byte[]? nonce = null)
     {
         TestPki pki = TestPki.Shared;
         tsa ??= pki.Tsa;
@@ -368,7 +372,8 @@ internal static class CmsKit
             Der.Oid("1.2.3.4.1"),
             Der.Seq(Alg(HashOid(imprintHash)), Der.Oct(imprint)),
             Der.Int(42),
-            Der.GeneralizedTime(time));
+            Der.GeneralizedTime(time),
+            nonce is null ? [] : Der.IntBytes(nonce));
         var spec = new CmsSpec { Hash = HashAlgorithmName.SHA256, Cades = true, SigningTime = time, Embedded = [tsa, pki.Intermediate] };
         return Build(Hash(HashAlgorithmName.SHA256, tst), tsa, [tsa, pki.Intermediate], spec, tst, "1.2.840.113549.1.9.16.1.4");
     }

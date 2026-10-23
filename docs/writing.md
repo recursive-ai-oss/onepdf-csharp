@@ -43,4 +43,4 @@ An update goes on top of the file as it is. A file that needed repair on open ma
 
 ## Not covered
 
-Page operations and copying pages between documents are in [page-operations.md](page-operations.md). Adding content to a page, linearized output, public-key encryption, and signing are later work.
+Page operations and copying pages between documents are in [page-operations.md](page-operations.md); content creation is in [content-creation.md](content-creation.md) and signing in [signatures.md](signatures.md). Linearized output and public-key encryption are later work.
