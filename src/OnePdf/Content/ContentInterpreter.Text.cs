@@ -335,6 +335,7 @@ internal sealed partial class ContentInterpreter
         PdfFont font = fi.Font;
         bool vertical = font.WMode == 1;
         bool type3 = font.IsType3;
+        bool keepFontGlyphs = type3 && _options.GlyphOutlines;
         bool outlines = _options.GlyphOutlines && !type3 && _g.RenderMode != 3 && _hidden == 0;
         double fs = _g.FontSize, tc = _g.CharSpace, tw = _g.WordSpace, th = _g.HorizScale;
         double x = 0, y = 0;
@@ -386,7 +387,11 @@ internal sealed partial class ContentInterpreter
                 x += ((w * fs) + spacing) * th;
             }
 
-            _fontGlyphs[count] = g;
+            if (keepFontGlyphs)
+            {
+                _fontGlyphs[count] = g; // only Type 3 glyph procedures read these back
+            }
+
             count++;
             pos = next;
             if (count == MaxGlyphsPerRun || pos >= s.Length)
