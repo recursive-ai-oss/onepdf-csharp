@@ -35,6 +35,7 @@ internal sealed partial class ContentInterpreter
     private readonly Operand[] _ops = new Operand[OperandCapacity];
     private readonly double[] _a = new double[OperandCapacity];
     private readonly List<GState> _saved = [];
+    private readonly List<GState> _spare = []; // states released by Q, reused by the next q
     private readonly List<byte> _mc = [];
     private readonly HashSet<string> _reported = new(StringComparer.Ordinal);
     private readonly HashSet<int> _activeForms;
@@ -230,8 +231,13 @@ internal sealed partial class ContentInterpreter
     private void Restore()
     {
         PopClips(_g);
+        GState done = _g;
         _g = _saved[^1];
         _saved.RemoveAt(_saved.Count - 1);
+        if (_spare.Count < 64)
+        {
+            _spare.Add(done);
+        }
     }
 
     private void CloseMarkedContent()
@@ -391,7 +397,19 @@ internal sealed partial class ContentInterpreter
                 else
                 {
                     _saved.Add(_g);
-                    _g = _g.Clone();
+                    GState next;
+                    if (_spare.Count > 0)
+                    {
+                        next = _spare[^1];
+                        _spare.RemoveAt(_spare.Count - 1);
+                        next.CopyFrom(_g);
+                    }
+                    else
+                    {
+                        next = _g.Clone();
+                    }
+
+                    _g = next;
                 }
 
                 break;

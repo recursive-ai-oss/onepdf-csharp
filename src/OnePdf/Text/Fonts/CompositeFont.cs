@@ -145,6 +145,10 @@ internal sealed class CompositeFont : PdfFont
     private readonly double _dw2W;
     private readonly ConcurrentDictionary<long, FontGlyph> _cache = new();
 
+    // Two-byte codes inside the codespace are the common case for CID fonts: a flat table of 256-entry pages, filled on demand,
+    // answers them without hashing. Racing threads publish one shared instance through the dictionary, as for the other codes.
+    private FontGlyph?[]?[] _pages2 = new FontGlyph?[]?[256];
+
     public CompositeFont(PdfDictionary dictionary, FontContext context)
         : base(dictionary, context)
     {
@@ -233,7 +237,11 @@ internal sealed class CompositeFont : PdfFont
     /// <inheritdoc />
     public override bool IsComposite => true;
 
-    internal override void ClearGlyphCache() => _cache.Clear();
+    internal override void ClearGlyphCache()
+    {
+        _cache.Clear();
+        _pages2 = new FontGlyph?[]?[256];
+    }
 
     /// <summary>The CMap that splits strings into codes and maps them to CIDs.</summary>
     internal CMap Encoding => _cmap;
@@ -299,8 +307,38 @@ internal sealed class CompositeFont : PdfFont
             return position;
         }
 
+        if (length == 2 && valid && code <= 0xFFFF)
+        {
+            FontGlyph?[]?[] pages = _pages2;
+            FontGlyph?[]? page = Volatile.Read(ref pages[code >> 8]);
+            if (page is null)
+            {
+                Interlocked.CompareExchange(ref pages[code >> 8], new FontGlyph?[256], null);
+                page = pages[code >> 8]!;
+            }
+
+            FontGlyph? hit = Volatile.Read(ref page[code & 255]);
+            if (hit is null)
+            {
+                hit = Lookup(code, length, valid);
+                if (_cache.Count < MaxCachedGlyphs)
+                {
+                    page[code & 255] = hit;
+                }
+            }
+
+            glyph = hit;
+            return position + length;
+        }
+
+        glyph = Lookup(code, length, valid);
+        return position + length;
+    }
+
+    private FontGlyph Lookup(uint code, int length, bool valid)
+    {
         long key = ((long)length << 33) | ((long)(valid ? 1 : 0) << 32) | code;
-        if (!_cache.TryGetValue(key, out glyph))
+        if (!_cache.TryGetValue(key, out FontGlyph? glyph))
         {
             glyph = Build(code, length, valid);
             if (_cache.Count < MaxCachedGlyphs)
@@ -309,7 +347,7 @@ internal sealed class CompositeFont : PdfFont
             }
         }
 
-        return position + length;
+        return glyph;
     }
 
     private FontGlyph Build(uint code, int length, bool valid)

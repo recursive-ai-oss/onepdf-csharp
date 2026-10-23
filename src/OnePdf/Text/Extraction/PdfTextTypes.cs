@@ -73,7 +73,7 @@ public sealed class PdfTextOptions
     /// Keep the glyphs in the result: <see cref="PdfPageText.Glyphs"/>, <see cref="PdfTextWord.GlyphIndices"/> and the glyph part of the JSON form. Default true.
     /// Glyphs are by far the largest part of a result (about 136 bytes each, a million for a 300-page book). With false the
     /// page keeps its blocks, lines, words and boxes, the glyph list is empty, the word glyph indices are empty, and only the plain
-    /// text of <see cref="Mode"/> is available (it is built once the page is complete; <see cref="PdfPageText.GetText"/> with another mode throws <see cref="InvalidOperationException"/>).
+    /// text of <see cref="Mode"/> is available (<see cref="PdfPageText.GetText"/> with another mode, other than reading order, throws <see cref="InvalidOperationException"/>).
     /// Use it when only text, words, lines and positions are wanted.
     /// </summary>
     public bool RetainGlyphs { get; set; } = true;
@@ -181,6 +181,15 @@ public sealed class PdfPageText
         _options = options;
     }
 
+    /// <summary>A result whose glyphs were never kept (see <see cref="PdfTextOptions.RetainGlyphs"/>).</summary>
+    internal static PdfPageText WithoutGlyphs(int pageIndex, double width, double height, PdfTextBlock[] blocks, IReadOnlyList<PdfDiagnostic> diagnostics, PdfTextOptions options)
+    {
+        var page = new PdfPageText(pageIndex, width, height, [], blocks, false, diagnostics, options);
+        page._glyphsDropped = true;
+        page.ClearWordGlyphs();
+        return page;
+    }
+
     /// <summary>Zero-based page index.</summary>
     public int PageIndex { get; }
 
@@ -242,7 +251,8 @@ public sealed class PdfPageText
             return hit;
         }
 
-        if (_glyphsDropped)
+        // The reading-order text is built from the blocks alone, so it stays available after the glyphs are gone.
+        if (_glyphsDropped && mode != PdfTextMode.ReadingOrder)
         {
             throw new InvalidOperationException("The glyphs of this page were not retained; only the text of the mode in the options is available.");
         }
@@ -252,7 +262,10 @@ public sealed class PdfPageText
 
     private bool _glyphsDropped;
 
-    /// <summary>Builds the text of the options' mode, then lets go of the glyphs (<see cref="PdfTextOptions.RetainGlyphs"/> false). Call after headers and footers are flagged.</summary>
+    /// <summary>
+    /// Lets go of the glyphs (<see cref="PdfTextOptions.RetainGlyphs"/> false) once the page is analyzed. The text of the options' mode is
+    /// built first when it needs them; reading-order text needs only the blocks and is built on first use, after headers and footers are flagged.
+    /// </summary>
     internal void DropGlyphs()
     {
         if (_glyphsDropped)
@@ -260,10 +273,19 @@ public sealed class PdfPageText
             return;
         }
 
-        _ = GetText(_options.Mode);
+        if (_options.Mode != PdfTextMode.ReadingOrder)
+        {
+            _ = GetText(_options.Mode);
+        }
+
         _glyphsDropped = true;
         GlyphArray = [];
         Glyphs = GlyphArray;
+        ClearWordGlyphs();
+    }
+
+    private void ClearWordGlyphs()
+    {
         foreach (PdfTextBlock b in Blocks)
         {
             foreach (PdfTextLine l in b.Lines)

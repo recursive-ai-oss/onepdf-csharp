@@ -9,104 +9,146 @@ internal static class GlyphPrep
     /// <summary>Characters below this are never changed by <see cref="Decompose"/>, <see cref="FoldCompatibility"/> or <see cref="Sanitize"/>; a test holds the three to it.</summary>
     internal const char PlainBelow = '\u2E80';
 
-    internal static PdfTextGlyph[] Prepare(PdfPageGlyphs page, PdfTextOptions o, CancellationToken ct)
+    /// <summary>
+    /// Prepares the glyphs of a page. With <paramref name="pooled"/> the result array is rented from the shared pool and may be longer than
+    /// <paramref name="count"/>; the caller returns it. Otherwise it has exactly <paramref name="count"/> elements.
+    /// </summary>
+    internal static PdfTextGlyph[] Prepare(PdfPageGlyphs page, PdfTextOptions o, bool pooled, out int count, CancellationToken ct)
     {
-        ReadOnlySpan<PdfTextGlyph> src = page.Span;
-        if (src.IsEmpty && page.Glyphs.Count > 0)
+        ReadOnlySpan<PdfTextGlyph> src;
+        PdfTextGlyph[] work;
+        int n;
+        if (pooled && page.TakePooled(out PdfTextGlyph[]? owned, out n))
         {
-            src = page.Glyphs is PdfTextGlyph[] arr ? arr : [.. page.Glyphs];
+            // The page's own pooled buffer is compacted in place: kept glyphs only ever move to a lower index.
+            work = owned;
+            src = owned.AsSpan(0, n);
+        }
+        else
+        {
+            src = page.Span;
+            if (src.IsEmpty && page.Glyphs.Count > 0)
+            {
+                src = page.Glyphs is PdfTextGlyph[] arr ? arr : [.. page.Glyphs];
+            }
+
+            n = src.Length;
+            work = pooled ? ArrayPool<PdfTextGlyph>.Shared.Rent(n) : new PdfTextGlyph[n];
         }
 
-        int n = src.Length;
-        PdfTextGlyph[] work = new PdfTextGlyph[n];
+        // The duplicate search wants each kept glyph's x, y and size; they are taken here, while the glyph is in hand.
+        bool collapse = o.CollapseDuplicates && n > 1;
+        double[]? ex = collapse ? ArrayPool<double>.Shared.Rent(n) : null;
+        double[]? ef = collapse ? ArrayPool<double>.Shared.Rent(n) : null;
+        double[]? es = collapse ? ArrayPool<double>.Shared.Rent(n) : null;
         int kept = 0;
-        int curSpan = 0;
-        bool replacing = false;
-        bool first = false;
-
-        for (int i = 0; i < n; i++)
+        try
         {
-            if ((i & 1023) == 0)
-            {
-                ct.ThrowIfCancellationRequested();
-            }
+            int curSpan = 0;
+            bool replacing = false;
+            bool first = false;
 
-            ref readonly PdfTextGlyph g = ref src[i];
-            if (!IsFinite(g.Matrix) || !double.IsFinite(g.Advance) || !double.IsFinite(g.Ascent) || !double.IsFinite(g.Descent))
+            for (int i = 0; i < n; i++)
             {
-                continue;
-            }
+                if ((i & 1023) == 0)
+                {
+                    ct.ThrowIfCancellationRequested();
+                }
 
-            if (!o.IncludeClippedAndOffPage)
-            {
-                if (g.IsClipped)
+                ref readonly PdfTextGlyph g = ref src[i];
+                if (!IsFinite(g.Matrix) || !double.IsFinite(g.Advance) || !double.IsFinite(g.Ascent) || !double.IsFinite(g.Descent))
                 {
                     continue;
                 }
 
-                g.Corners(out double ax, out double ay, out double bx, out double by, out double cx, out double cy, out double dx, out double dy);
-                double cxm = (Math.Min(Math.Min(ax, bx), Math.Min(cx, dx)) + Math.Max(Math.Max(ax, bx), Math.Max(cx, dx))) / 2;
-                double cym = (Math.Min(Math.Min(ay, by), Math.Min(cy, dy)) + Math.Max(Math.Max(ay, by), Math.Max(cy, dy))) / 2;
-                if (cxm < -LayoutParameters.OffPageMargin || cym < -LayoutParameters.OffPageMargin ||
-                    cxm > page.Width + LayoutParameters.OffPageMargin || cym > page.Height + LayoutParameters.OffPageMargin)
+                if (!o.IncludeClippedAndOffPage)
                 {
-                    continue;
+                    if (g.IsClipped)
+                    {
+                        continue;
+                    }
+
+                    g.Corners(out double ax, out double ay, out double bx, out double by, out double cx, out double cy, out double dx, out double dy);
+                    double cxm = (Math.Min(Math.Min(ax, bx), Math.Min(cx, dx)) + Math.Max(Math.Max(ax, bx), Math.Max(cx, dx))) / 2;
+                    double cym = (Math.Min(Math.Min(ay, by), Math.Min(cy, dy)) + Math.Max(Math.Max(ay, by), Math.Max(cy, dy))) / 2;
+                    if (cxm < -LayoutParameters.OffPageMargin || cym < -LayoutParameters.OffPageMargin ||
+                        cxm > page.Width + LayoutParameters.OffPageMargin || cym > page.Height + LayoutParameters.OffPageMargin)
+                    {
+                        continue;
+                    }
                 }
+
+                string text = g.Text ?? "";
+                if (g.ActualTextSpan != 0)
+                {
+                    if (g.ActualTextSpan != curSpan)
+                    {
+                        curSpan = g.ActualTextSpan;
+                        replacing = g.ActualText is not null;
+                        first = true;
+                    }
+
+                    if (replacing)
+                    {
+                        text = first ? g.ActualText! : "";
+                        first = false;
+                    }
+                }
+                else
+                {
+                    curSpan = 0;
+                    replacing = false;
+                }
+
+                // A single character below U+2E80 is untouched by ligature decomposition, compatibility folding and surrogate repair
+                // (all three only act on U+2E80 and above); most text is that, so it skips the three scans.
+                if (!(text.Length == 1 && text[0] < PlainBelow))
+                {
+                    if (o.DecomposeLigatures)
+                    {
+                        text = Decompose(text);
+                    }
+
+                    if (o.FoldCompatibilityForms)
+                    {
+                        text = FoldCompatibility(text);
+                    }
+
+                    text = Sanitize(text);
+                }
+
+                if (collapse)
+                {
+                    ex![kept] = g.Matrix.E;
+                    ef![kept] = g.Matrix.F;
+                    es![kept] = g.Size;
+                }
+
+                work[kept++] = ReferenceEquals(text, g.Text) ? g : g.WithText(text);
             }
 
-            string text = g.Text ?? "";
-            if (g.ActualTextSpan != 0)
+            if (collapse && kept > 1)
             {
-                if (g.ActualTextSpan != curSpan)
-                {
-                    curSpan = g.ActualTextSpan;
-                    replacing = g.ActualText is not null;
-                    first = true;
-                }
-
-                if (replacing)
-                {
-                    text = first ? g.ActualText! : "";
-                    first = false;
-                }
+                kept = CollapseCore(work, kept, ex!, ef!, es!);
             }
-            else
-            {
-                curSpan = 0;
-                replacing = false;
-            }
-
-            // A single character below U+2E80 is untouched by ligature decomposition, compatibility folding and surrogate repair
-            // (all three only act on U+2E80 and above); most text is that, so it skips the three scans.
-            if (!(text.Length == 1 && text[0] < PlainBelow))
-            {
-                if (o.DecomposeLigatures)
-                {
-                    text = Decompose(text);
-                }
-
-                if (o.FoldCompatibilityForms)
-                {
-                    text = FoldCompatibility(text);
-                }
-
-                text = Sanitize(text);
-            }
-
-            work[kept++] = ReferenceEquals(text, g.Text) ? g : g.WithText(text);
         }
-
-        if (o.CollapseDuplicates && kept > 1)
+        finally
         {
-            kept = CollapseDuplicates(work, kept);
+            if (collapse)
+            {
+                ArrayPool<double>.Shared.Return(ex!);
+                ArrayPool<double>.Shared.Return(ef!);
+                ArrayPool<double>.Shared.Return(es!);
+            }
         }
 
         // The result is exactly sized; the common case (nothing dropped) hands the working array over without a copy.
-        if (kept != n)
+        if (kept != n && !pooled)
         {
             Array.Resize(ref work, kept);
         }
 
+        count = kept;
         return work;
     }
 
@@ -259,9 +301,20 @@ internal static class GlyphPrep
     /// </summary>
     internal static int CollapseDuplicates(PdfTextGlyph[] g, int n)
     {
-        double[] ex = ArrayPool<double>.Shared.Rent(n);
-        double[] ef = ArrayPool<double>.Shared.Rent(n);
-        double[] es = ArrayPool<double>.Shared.Rent(n);
+        double[] x = new double[n], f = new double[n], s = new double[n];
+        for (int i = 0; i < n; i++)
+        {
+            x[i] = g[i].Matrix.E;
+            f[i] = g[i].Matrix.F;
+            s[i] = g[i].Size;
+        }
+
+        return CollapseCore(g, n, x, f, s);
+    }
+
+    /// <summary>The duplicate search over glyphs whose x, y (origin) and size are already in <paramref name="ex"/>, <paramref name="ef"/>, <paramref name="es"/>.</summary>
+    private static int CollapseCore(PdfTextGlyph[] g, int n, double[] ex, double[] ef, double[] es)
+    {
         ulong[] k0 = ArrayPool<ulong>.Shared.Rent(n);
         ulong[] k1 = ArrayPool<ulong>.Shared.Rent(n);
         int[] i0 = ArrayPool<int>.Shared.Rent(n);
@@ -269,15 +322,9 @@ internal static class GlyphPrep
         bool[] drop = ArrayPool<bool>.Shared.Rent(n);
         try
         {
-            // One sequential pass pulls the three numbers the search needs out of the wide glyph records.
             for (int i = 0; i < n; i++)
             {
-                ref readonly PdfTextGlyph s = ref g[i];
-                double x = s.Matrix.E;
-                ex[i] = x;
-                ef[i] = s.Matrix.F;
-                es[i] = s.Size;
-                k0[i] = SortableBits(x);
+                k0[i] = SortableBits(ex[i]);
                 i0[i] = i;
                 drop[i] = false;
             }
@@ -338,9 +385,6 @@ internal static class GlyphPrep
         }
         finally
         {
-            ArrayPool<double>.Shared.Return(ex);
-            ArrayPool<double>.Shared.Return(ef);
-            ArrayPool<double>.Shared.Return(es);
             ArrayPool<ulong>.Shared.Return(k0);
             ArrayPool<ulong>.Shared.Return(k1);
             ArrayPool<int>.Shared.Return(i0);

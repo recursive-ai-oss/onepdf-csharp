@@ -208,6 +208,14 @@ public sealed class PdfPageGlyphs
     /// <summary>The glyphs as a span over the storage; empty after <see cref="Release"/>.</summary>
     internal ReadOnlySpan<PdfTextGlyph> Span => _pooled is not null ? _pooled.AsSpan(0, _count) : [];
 
+    /// <summary>Hands the pooled buffer to the caller, who then owns it (and must return it to the pool). False for pages built from a list or already released.</summary>
+    internal bool TakePooled([System.Diagnostics.CodeAnalysis.NotNullWhen(true)] out PdfTextGlyph[]? buffer, out int count)
+    {
+        buffer = Interlocked.Exchange(ref _pooled, null);
+        count = _count;
+        return buffer is not null;
+    }
+
     /// <summary>Gives a pooled buffer back (the glyphs are gone afterwards). No effect on pages built from a list.</summary>
     internal void Release()
     {
