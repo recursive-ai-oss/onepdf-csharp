@@ -40,6 +40,7 @@
     <Compile Include="../../fuzz/OnePdf.Fuzz/SaveTarget.cs" Link="Writing/SaveTarget.cs" />
     <Compile Include="../../fuzz/OnePdf.Fuzz/FontSubsetTarget.cs" Link="Creation/FontSubsetTarget.cs" />
     <Compile Include="../../fuzz/OnePdf.Fuzz/ExtractionTarget.cs" Link="Extraction/ExtractionTarget.cs" />
+    <Compile Include="../../fuzz/OnePdf.Fuzz/SignatureTarget.cs" Link="Signatures/SignatureTarget.cs" />
   </ItemGroup>
 
   <ItemGroup>

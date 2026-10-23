@@ -13,6 +13,12 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- The signature target signs its starting files with the test kit that the unit tests use. -->
+    <Compile Include="../../tests/OnePdf.Tests/Signatures/SigKit.cs" Link="Signatures/SigKit.cs" />
+    <Compile Include="../../tests/OnePdf.Tests/Signatures/SigKit.Pdf.cs" Link="Signatures/SigKit.Pdf.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="../../src/OnePdf/OnePdf.csproj" />
   </ItemGroup>
 

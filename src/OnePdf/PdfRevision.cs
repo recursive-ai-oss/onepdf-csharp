@@ -40,6 +40,8 @@ public sealed class PdfRevision
     /// </summary>
     public long EndOffset => _end.Value;
 
+    internal IEnumerable<int> ChangedObjectNumbers => _section.Entries.Keys;
+
     /// <summary>The catalog as of this revision, or null if it does not resolve to a dictionary.</summary>
     public PdfDictionary? Catalog => Resolve(_section.Trailer.GetRaw("Root") ?? _doc.Trailer.GetRaw("Root")) as PdfDictionary;
 
