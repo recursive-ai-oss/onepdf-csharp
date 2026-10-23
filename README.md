@@ -271,10 +271,8 @@ about 2.3× the peak memory on the 300-page file (single-page extraction keeps t
 
 **PDFium and mutool use less peak memory than OnePDF.** On born-digital text, PDFium peaks at 43 MiB and mutool at 45 MiB against
 OnePDF's 104 MiB at degree 1 (112 MiB at the default degree); on the scan and CJK files the gap is smaller (PDFium 52 and 42 MiB,
-mutool 43 and 44 MiB, OnePDF 56 and 66 MiB). On these files OnePDF's text time is lower than both at degree 1 (for example 211 ms
-against 626 ms and 261 ms on the 300-page file). The PDFium figures go through Docnet.Core at one thread; the mutool figures include
-starting its process, and its peak includes the child process. Both engines render and do more than extract text, so this is a
-single-task comparison, not a verdict on them.
+mutool 43 and 44 MiB, OnePDF 56 and 66 MiB). The PDFium figures go through Docnet.Core at one thread; the mutool figures include
+starting its process, and its peak includes the child process.
 
 **Method.** Measured on a dedicated workstation (AMD Ryzen 9 7950X3D, 16 cores / 32 threads, Linux Mint 22.3 x64, .NET SDK
 10.0.402, runtime .NET 10.0.13); other jobs were held off during the run. Times are BenchmarkDotNet 0.15.8 means with the default job and
