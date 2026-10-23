@@ -21,6 +21,8 @@
 
   <ItemGroup>
     <PackageReference Include="xunit.v3" />
+    <!-- Test-only: a second reader that must still open what the writer produces. -->
+    <PackageReference Include="PdfPig" />
     <!-- Test-only: backs the JPEG decoder adapter that exercises the image decoder registry. -->
     <PackageReference Include="RecursiveAI.OneImage" />
   </ItemGroup>

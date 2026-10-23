@@ -31,6 +31,11 @@ public sealed partial class PdfDocument : IDisposable
         _scan = new Lazy<ScanResult>(ScanFile, LazyThreadSafetyMode.ExecutionAndPublication);
         _pageCount = new Lazy<int>(CountPagesLean, LazyThreadSafetyMode.ExecutionAndPublication);
         Initialize();
+        if (options.AllowEditing)
+        {
+            _pinned = new System.Collections.Concurrent.ConcurrentDictionary<int, PdfObject>();
+            _nextObjectNumber = ObjectCount;
+        }
     }
 
     /// <summary>The bounds in force for this document.</summary>

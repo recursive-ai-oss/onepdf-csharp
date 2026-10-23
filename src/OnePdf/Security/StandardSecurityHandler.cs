@@ -285,7 +285,7 @@ internal static class StandardSecurityHandler
     // ---- Revisions 2 to 4 ----
 
     // Algorithm 2: compute the encryption key from a (padded) user password.
-    private static byte[] ComputeKeyLegacy(EncryptionParameters p, ReadOnlySpan<byte> paddedUserPassword, ReadOnlySpan<byte> id, int r, int n)
+    internal static byte[] ComputeKeyLegacy(EncryptionParameters p, ReadOnlySpan<byte> paddedUserPassword, ReadOnlySpan<byte> id, int r, int n)
     {
         int len = 32 + 32 + 4 + id.Length + 4;
         byte[] input = new byte[len];
@@ -466,7 +466,7 @@ internal static class StandardSecurityHandler
         }
     }
 
-    private static byte[] Hash(byte[] password, ReadOnlySpan<byte> salt, ReadOnlySpan<byte> udata, int r)
+    internal static byte[] Hash(byte[] password, ReadOnlySpan<byte> salt, ReadOnlySpan<byte> udata, int r)
     {
         byte[] input = new byte[password.Length + salt.Length + udata.Length];
         password.CopyTo(input, 0);

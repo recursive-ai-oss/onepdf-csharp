@@ -101,6 +101,52 @@ internal sealed class SecurityDecryptor : IDisposable
         return Decrypt(method, data, objectNumber, generation);
     }
 
+    /// <summary>Encrypts a string of object <paramref name="objectNumber"/> with the string method (the inverse of <see cref="DecryptString"/>).</summary>
+    public DecryptResult EncryptString(ReadOnlySpan<byte> data, int objectNumber, int generation) =>
+        Encrypt(_stringMethod, data, objectNumber, generation);
+
+    /// <summary>Encrypts stream data with the stream method (or the embedded-file method), leaving a metadata stream alone when /EncryptMetadata is false.</summary>
+    public DecryptResult EncryptStream(ReadOnlySpan<byte> data, int objectNumber, int generation, bool isMetadata, bool isEmbeddedFile)
+    {
+        CryptMethod method = isMetadata && !EncryptMetadata ? CryptMethod.None : isEmbeddedFile ? _embeddedMethod : _streamMethod;
+        return Encrypt(method, data, objectNumber, generation);
+    }
+
+    // Algorithm 1 in the other direction: AES output is a random 16-byte IV followed by PKCS#5-padded CBC ciphertext.
+    private DecryptResult Encrypt(CryptMethod method, ReadOnlySpan<byte> data, int objectNumber, int generation)
+    {
+        try
+        {
+            switch (method)
+            {
+                case CryptMethod.None:
+                case CryptMethod.Rc4:
+                    return Decrypt(method, data, objectNumber, generation); // RC4 is its own inverse
+
+                case CryptMethod.AesV2:
+                {
+                    Span<byte> key = stackalloc byte[16];
+                    int n = ObjectKey(objectNumber, generation, aes: true, key);
+                    try
+                    {
+                        return new DecryptResult(AesCbc.EncryptWithIv(key.Slice(0, n), data), DecryptIssues.None);
+                    }
+                    finally
+                    {
+                        CryptographicOperations.ZeroMemory(key);
+                    }
+                }
+
+                default:
+                    return new DecryptResult(AesCbc.EncryptWithIv(_fileKey, data), DecryptIssues.None);
+            }
+        }
+        catch (PlatformNotSupportedException e)
+        {
+            throw new SecurityUnsupportedException("This runtime has no AES implementation, so the document cannot be encrypted.", e);
+        }
+    }
+
     /// <summary>Clears the file key.</summary>
     public void Dispose() => CryptographicOperations.ZeroMemory(_fileKey);
 
@@ -257,6 +303,28 @@ internal static class AesCbc
     {
         SetKey(aes, key);
         return aes.EncryptCbc(plain, iv, PaddingMode.None);
+    }
+
+    /// <summary>A random IV, then the PKCS#5-padded CBC encryption of <paramref name="plain"/>.</summary>
+    public static byte[] EncryptWithIv(ReadOnlySpan<byte> key, ReadOnlySpan<byte> plain)
+    {
+        RequireAvailable();
+        using Aes aes = Aes.Create();
+        SetKey(aes, key);
+        byte[] iv = RandomNumberGenerator.GetBytes(16);
+        byte[] cipher = aes.EncryptCbc(plain, iv, PaddingMode.PKCS7);
+        byte[] result = new byte[16 + cipher.Length];
+        iv.CopyTo(result, 0);
+        cipher.CopyTo(result, 16);
+        return result;
+    }
+
+    public static byte[] EncryptEcbNoPadding(ReadOnlySpan<byte> key, ReadOnlySpan<byte> plain)
+    {
+        RequireAvailable();
+        using Aes aes = Aes.Create();
+        SetKey(aes, key);
+        return aes.EncryptEcb(plain, PaddingMode.None);
     }
 
     public static byte[] DecryptEcbNoPadding(ReadOnlySpan<byte> key, ReadOnlySpan<byte> cipher)
