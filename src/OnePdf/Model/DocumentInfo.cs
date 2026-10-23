@@ -93,6 +93,8 @@ public sealed class XmpMetadata
     private static readonly XName PdfProducer = PdfNs + "Producer";
     private static readonly XName PdfKeywords = PdfNs + "Keywords";
     private static readonly XName XmlLang = XNamespace.Xml + "lang";
+    private static readonly XName PdfaidPart = (XNamespace)"http://www.aiim.org/pdfa/ns/id/" + "part";
+    private static readonly XName PdfaidConformance = (XNamespace)"http://www.aiim.org/pdfa/ns/id/" + "conformance";
 
     internal XmpMetadata(ReadOnlyMemory<byte> raw)
     {
@@ -134,6 +136,8 @@ public sealed class XmpMetadata
         CreateDate = Date(Simple(descriptions, XmpCreateDate));
         ModifyDate = Date(Simple(descriptions, XmpModifyDate));
         MetadataDate = Date(Simple(descriptions, XmpMetadataDate));
+        PdfAConformance = Simple(descriptions, PdfaidConformance);
+        PdfAPart = int.TryParse(Simple(descriptions, PdfaidPart), System.Globalization.NumberStyles.None, System.Globalization.CultureInfo.InvariantCulture, out int part) ? part : null;
     }
 
     /// <summary>The packet exactly as stored (decoded stream bytes). Do not modify.</summary>
@@ -171,6 +175,12 @@ public sealed class XmpMetadata
 
     /// <summary><c>xmp:MetadataDate</c>, same reading as <see cref="CreateDate"/>.</summary>
     public DateTimeOffset? MetadataDate { get; }
+
+    /// <summary><c>pdfaid:part</c>, the part of ISO 19005 the packet claims, or null.</summary>
+    public int? PdfAPart { get; }
+
+    /// <summary><c>pdfaid:conformance</c> (<c>A</c>, <c>B</c> or <c>U</c>), or null.</summary>
+    public string? PdfAConformance { get; }
 
     // A property is either a child element or, in the compact form, an attribute of rdf:Description.
     private static string? Simple(List<XElement> descs, XName name)
