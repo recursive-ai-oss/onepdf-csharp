@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Linq;
 using System.Text;
 using OnePdf;
 
@@ -59,10 +60,61 @@ internal static class AppearanceTarget
             var list = new PdfDisplayList();
             page.Interpret(list);
             _ = list.ToText().Length;
+            FillAndFlatten(Wrap(data[0], data[1..]), data);
         }
         catch (PdfException)
         {
         }
+    }
+
+    // Fills the fields with values taken from the input, stores the appearances, flattens the page, writes the file and reads it back.
+    // Only PdfFormValueException (a refused value) and the library's own exceptions may escape the calls.
+    private static void FillAndFlatten(byte[] bytes, ReadOnlySpan<byte> data)
+    {
+        using PdfDocument doc = PdfDocument.Open(bytes, new PdfOpenOptions { Limits = Limits, AllowEditing = true });
+        string text = Encoding.Latin1.GetString(data[Math.Max(1, data.Length - 24)..]);
+        int mode = data[0] / 4 % 5;
+        var options = new PdfFillOptions { OverrideReadOnly = (data[0] & 1) != 0, TruncateToMaxLength = (data[0] & 2) != 0 };
+        if (doc.Form is { } form)
+        {
+            foreach (PdfFormField f in form.TerminalFields.Take(8).ToList())
+            {
+                try
+                {
+                    switch (mode)
+                    {
+                        case 0:
+                            f.SetValue(text, options);
+                            break;
+                        case 1:
+                            f.SetChecked((data.Length & 1) == 0, options);
+                            break;
+                        case 2:
+                            f.SetValues([text, "a"], options);
+                            break;
+                        case 3:
+                            f.Reset(options);
+                            break;
+                        default:
+                            f.SetValue(f.Options.Count > 0 ? f.Options[^1].Export : "Yes", options);
+                            break;
+                    }
+                }
+                catch (PdfFormValueException)
+                {
+                }
+            }
+
+            form.GenerateMissingAppearances();
+        }
+
+        doc.Flatten(new PdfFlattenOptions { IncludeMarkup = (data[0] & 8) != 0, Visibility = (data[0] & 16) != 0 ? PdfAnnotationMode.Print : PdfAnnotationMode.View });
+        using var ms = new MemoryStream();
+        doc.Save(ms);
+        using PdfDocument again = PdfDocument.Open(ms.ToArray(), new PdfOpenOptions { Limits = Limits });
+        var list = new PdfDisplayList();
+        again.Pages[0].Interpret(list);
+        _ = list.ToText().Length;
     }
 
     public static byte[] Wrap(byte selector, ReadOnlySpan<byte> entries)

@@ -38,7 +38,7 @@ public sealed record PdfFieldOption(string Export, string Display);
 /// A node of the interactive form's field tree. Type, flags, value, default value, options and maximum length are inherited
 /// from ancestors when the field does not have them itself (ISO 32000-2 12.7.4.1).
 /// </summary>
-public sealed class PdfFormField
+public sealed partial class PdfFormField
 {
     private readonly PdfDocument _doc;
     private readonly List<PdfFormField> _children = [];
@@ -216,7 +216,7 @@ public sealed class PdfFormField
 }
 
 /// <summary>The interactive form of the document (<c>/AcroForm</c>, ISO 32000-2 12.7). Values are data; nothing is calculated or validated, no script runs.</summary>
-public sealed class PdfAcroForm
+public sealed partial class PdfAcroForm
 {
     private readonly PdfDocument _doc;
     private readonly List<PdfFormField> _roots;
@@ -243,7 +243,7 @@ public sealed class PdfAcroForm
     public IEnumerable<PdfFormField> TerminalFields => _all.Where(static f => f.Children.Count == 0);
 
     /// <summary>The field with this fully qualified name, or null.</summary>
-    public PdfFormField? FindField(string fullName) => _all.FirstOrDefault(f => string.Equals(f.FullName, fullName, StringComparison.Ordinal));
+    public PdfFormField? FindField(string fullName) => ByName().GetValueOrDefault(fullName);
 
     /// <summary>True when <c>/NeedAppearances</c> is set: appearance streams may be stale.</summary>
     public bool NeedAppearances => Dictionary.GetBool("NeedAppearances");

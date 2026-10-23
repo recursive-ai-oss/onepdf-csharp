@@ -239,6 +239,70 @@ using (PdfDocument updated = PdfDocument.Open(update.ToArray()))
     }
 }
 
+// Forms: fill a text field and a check box, store the appearances, flatten, save, reopen and extract the value.
+const string formPdf = "%PDF-1.7\n1 0 obj\n<< /Type /Catalog /Pages 2 0 R /AcroForm 5 0 R >>\nendobj\n"
+    + "2 0 obj\n<< /Type /Pages /Kids [3 0 R] /Count 1 >>\nendobj\n"
+    + "3 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 200 100] /Annots [6 0 R 7 0 R] >>\nendobj\n"
+    + "5 0 obj\n<< /Fields [6 0 R 7 0 R] /DA (/Helv 12 Tf 0 g) >>\nendobj\n"
+    + "6 0 obj\n<< /Type /Annot /Subtype /Widget /F 4 /FT /Tx /T (name) /Rect [10 10 150 30] /MK << /BC [0] >> >>\nendobj\n"
+    + "7 0 obj\n<< /Type /Annot /Subtype /Widget /F 4 /FT /Btn /T (ok) /Rect [10 50 30 70] /AS /Off >>\nendobj\n"
+    + "trailer\n<< /Root 1 0 R /Size 8 >>\n";
+using PdfDocument formDoc = PdfDocument.Open(Encoding.ASCII.GetBytes(formPdf), new PdfOpenOptions { AllowEditing = true });
+formDoc.Form!.SetValue("name", "Smoke test");
+formDoc.Form!.SetChecked("ok", true);
+formDoc.Form!.SetValue("name", "Smoke flat");
+PdfFlattenResult flat = formDoc.Flatten();
+using var formOut = new System.IO.MemoryStream();
+formDoc.Save(formOut);
+using PdfDocument formBack = PdfDocument.Open(formOut.ToArray());
+if (flat.Removed != 2 || formBack.Form is not null || !formBack.ExtractText()[0].Text.Contains("Smoke flat", StringComparison.Ordinal))
+{
+    Console.Error.WriteLine("form fill and flatten did not give the expected result");
+    return 1;
+}
+
+try
+{
+    using PdfDocument formAgain = PdfDocument.Open(Encoding.ASCII.GetBytes(formPdf), new PdfOpenOptions { AllowEditing = true });
+    formAgain.Form!.SetChecked("name", true);
+    return 1;
+}
+catch (PdfFormValueException e) when (e.Reason == PdfFormValueError.WrongType)
+{
+}
+
+// Page operations: merge two readings of the first document (outline, link and labels travel), then rotate,
+// duplicate, move and delete in the result, split it, and read the saved file back.
+using PdfDocument merged = PdfDocument.Merge([doc, doc]);
+merged.RotatePage(1, 90);
+merged.DuplicatePage(0);
+merged.MovePage(0, 2);
+merged.InsertBlankPage(1, 100, 100);
+merged.RemovePage(1);
+using var mergedBytes = new System.IO.MemoryStream();
+merged.Save(mergedBytes);
+using PdfDocument mergedBack = PdfDocument.Open(mergedBytes.ToArray());
+IReadOnlyList<PdfDocument> parts = PdfDocument.Split(mergedBack, 2);
+int partPages = 0;
+foreach (PdfDocument part in parts)
+{
+    partPages += part.PageCount;
+    part.Dispose();
+}
+
+int mergedLinks = 0;
+foreach (PdfPage mp in mergedBack.Pages)
+{
+    mergedLinks += mp.Links.Count;
+}
+
+if (mergedBack.PageCount != 3 || partPages != 3 || mergedBack.Outline.Count != 2
+    || mergedBack.Pages[1].Rotate != 180 || mergedLinks != 3 || mergedBack.Pages[2].Label != "i")
+{
+    Console.Error.WriteLine($"page operations did not give the expected document: {mergedBack.PageCount} {partPages} {mergedBack.Outline.Count} {mergedBack.Pages[1].Rotate} {mergedLinks} {mergedBack.Pages[2].Label}");
+    return 1;
+}
+
 Console.WriteLine("ok");
 return 0;
 
