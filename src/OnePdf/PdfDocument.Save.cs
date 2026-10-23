@@ -66,6 +66,11 @@ public sealed partial class PdfDocument
     {
         ArgumentNullException.ThrowIfNull(output);
         ThrowIfDisposed();
+        if (_redacted)
+        {
+            throw new InvalidOperationException("The document has been redacted. An incremental save would keep the removed content in the file; use Save.");
+        }
+
         options ??= new PdfSaveOptions();
         if (!output.CanWrite)
         {
