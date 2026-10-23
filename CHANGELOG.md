@@ -2,7 +2,7 @@
 
 All notable changes are listed here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and versions follow [Semantic Versioning](https://semver.org/).
 
-## [1.4.0] - 2026-10-23
+## [Unreleased]
 
 ### Added
 
@@ -12,6 +12,10 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 ### Fixed
 
 - Importing pages from a document whose fonts were added with `AddFont` copied the font before its subset had been built; the imported text drew with an empty font program. The source's fonts are now finished before pages are copied.
+
+## [1.4.0] - 2026-10-23
+
+### Added
 
 - Signature verification, read-only. `PdfDocument.GetSignatures()` lists signature fields and document time-stamps with signer name, reason, location, contact, `/M`, sub-filter, `/ByteRange`, the CMS bytes, the `/DocMDP` certification level and the field lock; `PdfFormField.GetSignature()` returns one field's signature. `PdfSignature.Verify` and `PdfDocument.VerifySignatures` check, with the platform's hashes, RSA (PKCS#1 v1.5 and PSS) and ECDSA and its X.509 chain builder (no `System.Security.Cryptography.Pkcs`):
   - the byte range (starts at 0, leaves out exactly `/Contents`, no gaps or overlaps, ends at a revision boundary) and which revision it covers;
