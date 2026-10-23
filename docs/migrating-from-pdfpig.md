@@ -124,5 +124,5 @@ package, `RecursiveAI.OneImage.Pdf`, built on OneImage; it is not available yet.
 
 ## What OnePDF does not have
 
-PdfPig can build documents (`PdfDocumentBuilder`) and OnePDF cannot: it is read-only in this version. If you only read PDFs, nothing
-is missing. If you write them, keep PdfPig (or another writer) for that part.
+PdfPig can build documents from nothing (`PdfDocumentBuilder`) and OnePDF cannot yet. OnePDF can change and save existing
+documents, including incremental updates and encryption ([writing](https://github.com/recursive-ai-oss/onepdf-csharp/blob/main/docs/writing.md)). If you create new PDFs, keep PdfPig (or another writer) for that part.

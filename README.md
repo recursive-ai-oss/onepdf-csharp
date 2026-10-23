@@ -1,7 +1,7 @@
 # OnePDF
 
-**A pure-managed, read-only .NET PDF library: open, repair, decrypt, extract text in reading order, read document structure, and
-interpret pages into a drawing device or a recorded display list.** Pure C# with no dependency beyond .NET itself; untrusted files
+**A pure-managed .NET PDF library: open, repair, decrypt, extract text in reading order, read document structure,
+interpret pages into a drawing device or a recorded display list, and edit and save documents.** Pure C# with no dependency beyond .NET itself; untrusted files
 are read through safe, bounds-checked code with size limits on by default.
 
 [![NuGet](https://img.shields.io/nuget/v/RecursiveAI.OnePdf)](https://www.nuget.org/packages/RecursiveAI.OnePdf)
@@ -30,6 +30,10 @@ are read through safe, bounds-checked code with size limits on by default.
 - **Safe on files you did not write.** No `unsafe` code, no pointers, no reinterpret casts. Limits (decoded size, expansion
   ratio, nesting, recursion, object count, operators per page, image pixels) are checked before the allocation or work they guard,
   and the parsers, filters and font readers are fuzzed. NativeAOT and trimming are supported.
+- **Editing and saving.** Change objects and metadata, then write a clean new file (classic cross-reference table, or
+  cross-reference and object streams) or an incremental update that leaves the original bytes untouched; keep, remove or set
+  AES encryption
+  ([writing](https://github.com/recursive-ai-oss/onepdf-csharp/blob/main/docs/writing.md)).
 - **Concurrent.** Objects parse lazily into a byte-budgeted cache with single-flight parsing; any number of threads can read pages
   of one document at once.
 
@@ -186,7 +190,8 @@ local system fonts. The code is safe C# with no `unsafe`, `Unsafe.*` or `MemoryM
 
 ## What it does not do
 
-- **It is read-only.** No saving, editing, merging, form filling, signing or redaction in this version.
+- **Editing is at the object level.** Saving, incremental updates and encryption on write are supported; form filling, signing,
+  redaction and adding page content are not in this version.
 - **It does not render pixels.** OnePDF resolves a page into drawing calls; a 2D engine paints them. Rasterizing is planned as a
   separate package, `RecursiveAI.OneImage.Pdf`, built on [OneImage](https://github.com/recursive-ai-oss/oneimage-csharp); it is
   not available yet. It will implement OnePDF's device and register PDF as an image format. OnePDF has no imaging dependency.
