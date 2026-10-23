@@ -775,6 +775,11 @@ internal static class FormFiller
 
         PdfDictionary own = fd.OwnerPlusOne == 0 ? fd : (PdfDictionary)Clone(doc, fd);
         PdfReference added = doc.AddObject(own);
+        if (AppearanceCache.For(doc).IsStandardDictionary(fd))
+        {
+            CreationState.For(doc).LibraryFonts.Add(added.Number);
+        }
+
         session.FontRefs[fd] = added;
         return added;
     }

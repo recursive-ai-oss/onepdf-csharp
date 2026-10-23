@@ -24,6 +24,28 @@ public class RedactionHostileTests
     }
 
     [Fact]
+    public void ANewObjectNeverTakesTheNumberOfADanglingReference()
+    {
+        // Page 2 points at object 8, which the file does not define. The streams redaction writes must not become object 8,
+        // or page 2 would suddenly draw page 1's text without having been checked.
+        const string file = "%PDF-1.7\n" +
+            "1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n" +
+            "2 0 obj\n<< /Type /Pages /Kids [3 0 R 4 0 R] /Count 2 >>\nendobj\n" +
+            "3 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 200 200] /Contents 5 0 R /Resources << /Font << /F1 6 0 R >> >> >>\nendobj\n" +
+            "4 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 200 200] /Contents 8 0 R /Resources << /Font << /F1 6 0 R >> >> >>\nendobj\n" +
+            "5 0 obj\n<< /Length 52 >>\nstream\nBT /F1 12 Tf 20 100 Td (Hello secret world) Tj ET\nendstream\nendobj\n" +
+            "6 0 obj\n<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>\nendobj\n" +
+            "trailer\n<< /Root 1 0 R >>\n";
+        byte[] pdf = Encoding.ASCII.GetBytes(file);
+        PdfRectangle secret = RedactionSupport.WordRect(pdf, "secret");
+        byte[] after = RedactionSupport.Redact(pdf, [new PdfRedactionRegion(0, secret)]);
+        using PdfDocument back = PdfDocument.Open(after);
+        Assert.Equal(2, back.PageCount);
+        Assert.Equal(string.Empty, back.Pages[1].ExtractText().Text.Trim());
+        Assert.False(RedactionSupport.Contains(RedactionSupport.Everything(after), "secret"));
+    }
+
+    [Fact]
     public void FormsNestedBeyondTheLimitFailTheCallInsteadOfLeavingText()
     {
         // Form 10 draws form 11, which draws form 12, ... form 49 holds the text.
@@ -66,8 +88,10 @@ public class RedactionHostileTests
         byte[] pdf = RedactionSupport.Page("/F10 Do", "/Resources << /XObject << /F10 10 0 R >> >>", b =>
             b.Stream(10, "/Type /XObject /Subtype /Form /BBox [0 0 200 200] /Resources << /XObject << /F10 10 0 R >> /Font << /F1 5 0 R >> >>", Encoding.Latin1.GetBytes("BT /F1 12 Tf 20 100 Td (Hello secret world) Tj ET /F10 Do")));
         PdfRectangle secret = RedactionSupport.WordRect(pdf, "secret");
-        byte[] after = RedactionSupport.Redact(pdf, [new PdfRedactionRegion(0, secret)]);
-        Assert.False(RedactionSupport.Contains(RedactionSupport.Everything(after), "secret"));
+        // The rewritten copy would still reach the original through the form's own resources, so the call refuses and changes nothing.
+        using PdfDocument d = RedactionSupport.Edit(pdf);
+        Assert.Throws<PdfRedactionException>(() => d.Redact([new PdfRedactionRegion(0, secret)]));
+        Assert.False(d.IsRedacted);
     }
 
     [Fact]

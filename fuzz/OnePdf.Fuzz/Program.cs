@@ -47,6 +47,7 @@ internal static class Program
         ["redact"] = RedactTarget.Run,
         ["fontsubset"] = FontSubsetTarget.Run,
         ["signature"] = SignatureTarget.Run,
+        ["pdfa"] = PdfATarget.Run,
     };
 
     private static int Main(string[] args)

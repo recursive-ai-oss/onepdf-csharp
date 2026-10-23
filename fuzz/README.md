@@ -21,6 +21,7 @@ One executable (`fuzz/OnePdf.Fuzz`) holds one target per input surface. SharpFuz
 | `type4` | 2 parameter bytes, then program text | PostScript calculator functions |
 | `save` | a PDF (seeded from the test files) | open for editing, change objects, full and incremental save, reopen what was written |
 | `signature` | a mode byte, then a CMS blob or a whole PDF | CMS and ASN.1 parsing, certificates, signature and time-stamp checks, chain building, byte ranges, change analysis |
+| `pdfa` | a PDF (seeded from the test files) | PDF/A check, preparation and save; a file that is written must pass the checker |
 | `extraction` | an options byte, then 10-byte glyph records | text layout, plain-text modes, extraction JSON, bidirectional reordering |
 
 Only the library's typed exceptions (and `OperationCanceledException`) may come out of a target. Any other exception, a hang (`-timeout`) or a memory blow-up (`-rss_limit_mb`) is a finding.

@@ -67,7 +67,7 @@ public sealed class PdfRedactionOptions
     /// <summary>Drawn over every area after redaction. Null (default) draws nothing, unless the region carries its own fill.</summary>
     public PdfRedactionOverlay? Overlay { get; init; }
 
-    /// <summary>Text to clear from the Info dictionary and the XMP packet (case-insensitive substring match). An Info entry that contains a term is removed; XMP elements and attributes that contain one are emptied. Default none.</summary>
+    /// <summary>Text to clear from the Info dictionary and the XMP packet (case-insensitive substring match). An Info entry that contains a term is removed; XMP elements and attributes that contain one are emptied, and so is an outline (bookmark) title that contains one. Default none.</summary>
     public IReadOnlyList<string> MetadataTerms { get; init; } = [];
 
     /// <summary>Remove document-level and page, annotation and field JavaScript and actions (data only; nothing runs). Default false.</summary>

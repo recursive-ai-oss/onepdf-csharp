@@ -321,6 +321,8 @@ internal sealed partial class ContentInterpreter
         if (number >= 0 && !_activeForms.Add(number))
         {
             Report(PdfSeverity.Warning, "A form XObject uses itself (directly or through others); the inner use was skipped.");
+            // The rewritten copy of a form that uses itself would still point at the original, so it cannot be checked.
+            _tap?.CannotVerify("a form XObject uses itself");
             return;
         }
 

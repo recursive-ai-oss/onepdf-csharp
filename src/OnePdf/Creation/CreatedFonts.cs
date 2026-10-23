@@ -332,7 +332,7 @@ internal sealed class EmbeddedCreatedFont : PdfCreatedFont
 
     public override double Descent => DescentValue;
 
-    private static int EmbeddingFlags(SfntFont f)
+    internal static int EmbeddingFlags(SfntFont f)
     {
         ReadOnlyMemory<byte> os2 = f.GetTable("OS/2");
         return os2.Length >= 10 ? Be.U16(os2.Span, 8) : 0;
@@ -439,6 +439,9 @@ internal sealed class EmbeddedCreatedFont : PdfCreatedFont
         return g < _font.GlyphCount ? g : 0;
     }
 
+    /// <summary>True once text was recorded that the font has no glyph for, so glyph 0 (.notdef) is referenced by the content.</summary>
+    internal bool UsedNotdef { get; private set; }
+
     internal override EncodedText Encode(string text, bool record)
     {
         var list = new List<byte>(record ? text.Length * 2 : 0);
@@ -456,6 +459,11 @@ internal sealed class EmbeddedCreatedFont : PdfCreatedFont
             int code = 0;
             if (gid == 0)
             {
+                if (record)
+                {
+                    UsedNotdef = true;
+                }
+
                 if (record && _reported.Add(rune.Value))
                 {
                     Document.ReportWarning($"The font {_postScriptName} has no glyph for U+{rune.Value:X4}; drawn as its missing-glyph box (.notdef).", -1, -1);

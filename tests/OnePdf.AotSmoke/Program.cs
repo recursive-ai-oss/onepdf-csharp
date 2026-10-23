@@ -24,6 +24,18 @@ if (OnePdf.AotSmoke.CreationSmoke.Run() is { } creationFailure)
     return 1;
 }
 
+if (OnePdf.AotSmoke.PdfASmoke.Run() is { } pdfaFailure)
+{
+    Console.Error.WriteLine("PDF/A: " + pdfaFailure);
+    return 1;
+}
+
+if (OnePdf.AotSmoke.RedactionSmoke.Run() is { } redactionFailure)
+{
+    Console.Error.WriteLine("redaction: " + redactionFailure);
+    return 1;
+}
+
 if (OnePdf.AotSmoke.SignatureSmoke.Run() is { } signatureFailure)
 {
     Console.Error.WriteLine("signature verification: " + signatureFailure);

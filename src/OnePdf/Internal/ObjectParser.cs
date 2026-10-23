@@ -227,6 +227,7 @@ internal sealed class ObjectParser
                 Token r = _lx.NextToken();
                 if (r.IsKeyword("R"))
                 {
+                    _resolver?.Doc.NoteReference((int)t.Int);
                     return Count(new PdfReference((int)t.Int, (int)g.Int), 32);
                 }
             }

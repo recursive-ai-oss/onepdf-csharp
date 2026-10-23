@@ -137,6 +137,15 @@ public class RedactionCorpusTests
         byte[] saved = ms.ToArray();
 
         using PdfDocument reopened = PdfDocument.Open(saved);
+
+        // A page without areas is drawn exactly as before.
+        if (doc.Pages.Count > pages)
+        {
+            // Saving renumbers objects, so references are compared by shape only.
+            static string Norm(string s) => System.Text.RegularExpressions.Regex.Replace(System.Text.RegularExpressions.Regex.Replace(s, @"/Length (\d+ \d+ R|\d+)", "/Length N"), @"\d+ \d+ R", "N R").TrimEnd();
+            Assert.Equal(Norm(RedactionSupport.DisplayList(pdf, pages)), Norm(RedactionSupport.DisplayList(saved, pages)));
+        }
+
         for (int p = 0; p < pages; p++)
         {
             string[] banned = [.. gone.Where(g => g.Page == p).Select(g => g.Word)];

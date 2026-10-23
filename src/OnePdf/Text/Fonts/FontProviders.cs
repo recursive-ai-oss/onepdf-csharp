@@ -116,6 +116,9 @@ public static class PdfFontProviders
     private static readonly object Gate = new();
     private static IPdfFontProvider[] s_registered = [];
 
+    /// <summary>The providers added with <see cref="Register"/>, without the system fonts, in registration order.</summary>
+    internal static IPdfFontProvider[] RegisteredProviders => Volatile.Read(ref s_registered);
+
     /// <summary>
     /// Whether the default chain looks at fonts installed on this machine. Defaults to true. Turn it off for output that must not
     /// depend on the machine's fonts.

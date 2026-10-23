@@ -2,6 +2,23 @@
 
 All notable changes are listed here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and versions follow [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Added
+
+- True redaction. `PdfDocument.Redact` removes glyphs, vector paths, shadings and image samples inside given areas by rewriting page, form and annotation-appearance content (remaining glyphs keep their places), blanks and re-encodes images as Flate, removes or redacts annotations and form values under the areas, strips alternate text and structure text of the removed content, and clears metadata (Info, XMP, outline titles) that matches given terms. `ApplyRedactAnnotations` applies the `/Redact` annotations in a file. A page that cannot be read completely fails the call with `PdfRedactionException` and leaves the document unchanged. A `redact` fuzz target covers it. See `docs/redaction.md`.
+
+## [1.5.0] - 2026-10-23
+
+### Added
+
+- PDF/A production. `PdfSaveOptions.PdfA` (`PdfAOptions`: part 2 or 3, level B or U) writes ISO 19005-2/-3 files from a full save: it first adds an sRGB output intent (a version 2 ICC profile OnePDF generates from the published sRGB parameters) and an XMP packet built from the Info dictionary, sets the Print flag and stores generated appearances on annotations, clears `/NeedAppearances` once every widget has an appearance, and embeds Liberation faces (from `RecursiveAI.OnePdf.Fonts`) for standard fonts OnePDF itself added. What is still wrong is refused with `PdfAException`, whose `Violations` list every problem with its clause, object and page: non-embedded fonts, CMYK, encryption, JavaScript and other forbidden actions, LZW, embedded files in part 2, missing appearances, level U fonts without Unicode mapping and more. `PdfDocument.CheckPdfA` reports without changing anything, `PreparePdfA` makes the repairs, and `PdfDocument.AttachFile` adds attachments for part 3. Output is deterministic with `PdfSaveOptions.DocumentId`. A `pdfa` fuzz target covers it. See `docs/pdfa.md`.
+- `XmpMetadata.PdfAPart` and `PdfAConformance` read the PDF/A identification of a packet.
+
+### Fixed
+
+- Importing pages from a document whose fonts were added with `AddFont` copied the font before its subset had been built; the imported text drew with an empty font program. The source's fonts are now finished before pages are copied.
+
 ## [1.4.0] - 2026-10-23
 
 ### Added
@@ -101,6 +118,7 @@ First release. Two packages, `RecursiveAI.OnePdf` (the library, `net10.0`, no de
 - Limits on by default (`PdfLimits`) and fuzzed parsers, filters and font readers; no `unsafe` code. OnePDF never runs code or touches the network.
 - `RecursiveAI.OnePdf.Fonts`: Liberation and Noto substitute outlines under the SIL Open Font License 1.1, registered with `FontsPackage.Register()`.
 
+[1.5.0]: https://github.com/recursive-ai-oss/onepdf-csharp/releases/tag/v1.5.0
 [1.4.0]: https://github.com/recursive-ai-oss/onepdf-csharp/releases/tag/v1.4.0
 [1.3.0]: https://github.com/recursive-ai-oss/onepdf-csharp/releases/tag/v1.3.0
 [1.2.0]: https://github.com/recursive-ai-oss/onepdf-csharp/releases/tag/v1.2.0

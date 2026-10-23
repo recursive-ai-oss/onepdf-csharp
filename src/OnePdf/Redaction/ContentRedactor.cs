@@ -327,7 +327,18 @@ internal sealed class ContentRedactor : PdfDevice, IContentTap
         Ctx ctx = _stack[^1];
         _stack.RemoveAt(_stack.Count - 1);
         FlushPath(ctx);
-        EmitThrough(ctx, ctx.Copied, ctx.Data.Length);
+        // Bytes after the last executed operator were never run: a string or array cut off by the end of the data, or operands
+        // without their operator. They may hold text that was never checked against the areas, so unless they are only white space
+        // and comments they are dropped (ISO 32000-2 7.8.2: an operator is only meaningful with its operator keyword).
+        if (IsBlank(ctx.Data.Span[ctx.Copied..]))
+        {
+            EmitThrough(ctx, ctx.Copied, ctx.Data.Length);
+        }
+        else
+        {
+            ctx.Changed = true;
+        }
+
         while (_mc.Count > ctx.McBase)
         {
             _mc.RemoveAt(_mc.Count - 1);
@@ -351,6 +362,27 @@ internal sealed class ContentRedactor : PdfDevice, IContentTap
         {
             _child = ctx;
         }
+    }
+
+    private static bool IsBlank(ReadOnlySpan<byte> s)
+    {
+        for (int i = 0; i < s.Length; i++)
+        {
+            byte b = s[i];
+            if (b == (byte)'%')
+            {
+                while (i + 1 < s.Length && s[i + 1] is not ((byte)'\n' or (byte)'\r'))
+                {
+                    i++;
+                }
+            }
+            else if (b is not ((byte)' ' or (byte)'\t' or (byte)'\n' or (byte)'\r' or (byte)'\f' or 0))
+            {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     private static void EmitThrough(Ctx ctx, int from, int to, bool raw = false)
