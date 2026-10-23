@@ -2,6 +2,15 @@
 
 All notable changes are listed here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and versions follow [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Added
+
+- Page operations on editable documents: `RemovePage`/`RemovePages`, `MovePage`, `ReorderPages`, `RotatePage`/`SetPageRotation`, `InsertBlankPage`, `DuplicatePage`, and `PdfDocument.CreateEmpty`. Deleting a page repairs the bookmarks, links, named destinations, open action, form fields and page labels that referred to it.
+- Pages across documents: `PdfDocument.ImportPages` copies pages with their whole dependency graph (resources, fonts, images, annotations with appearances; inherited `/Resources`, `/MediaBox`, `/CropBox` and `/Rotate` written into the page), each shared object once. Bookmarks, named destinations used by links, form fields (clashing names renamed), optional content, page labels and the structure tree of tagged files come along (`PdfImportOptions`). `PdfDocument.Merge` joins documents; `PdfDocument.Split` cuts one into several (`PdfPageRange`, or a number of pages per part). See `docs/page-operations.md`.
+- `docs/migrating-from-pdfsharp.md`, a guide for moving from PDFsharp.
+- The `save` fuzz target also runs page operations, merge and split.
+
 ## [1.2.0] - 2026-10-23
 
 ### Added

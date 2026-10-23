@@ -18,7 +18,7 @@ public sealed partial class PdfDocument : IDisposable
     private readonly IPdfSource _source;
     private readonly DiagnosticBag _diag;
     private readonly PdfOpenOptions _options;
-    private readonly Lazy<int> _pageCount;
+    private Lazy<int> _pageCount;
     private int _disposed;
 
     private PdfDocument(IPdfSource source, PdfOpenOptions options)
@@ -320,6 +320,8 @@ public sealed partial class PdfDocument : IDisposable
     private void ThrowIfDisposed() => ObjectDisposedException.ThrowIf(Volatile.Read(ref _disposed) != 0, this);
 
     internal void ReportWarning(string message, int objectNumber, long offset) => _diag.Warn(message, objectNumber, offset);
+
+    internal void ReportInfo(string message, int objectNumber = -1) => _diag.Info(message, objectNumber);
 
     /// <summary>Counts the pages of a page tree (the same walk as <see cref="Pages"/>).</summary>
     internal int CountPages(PdfDictionary? catalog, string scope) => WalkPages(catalog, scope).Count;
