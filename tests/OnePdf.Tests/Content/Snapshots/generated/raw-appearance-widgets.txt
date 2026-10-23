@@ -1,5 +1,5 @@
 # page 1
-onepdf-display-list 4
+onepdf-display-list 5
 page box=0 0 500 780 name=CropBox rotate=0 unit=1 scale=1 size=500 780 base=[1 0 0 -1 0 780]
   begin-annot /Widget rect=40 704 240 728 flags=4
     gs ctm=[1 0 0 -1 40 76] fill=gray(0) stroke=gray(0) lw=1 cap=0 join=0 miter=10 dash=[] phase=0 flat=1 ri=RelativeColorimetric fa=1 sa=1 bm=Normal sm=0 ais=0 op=000

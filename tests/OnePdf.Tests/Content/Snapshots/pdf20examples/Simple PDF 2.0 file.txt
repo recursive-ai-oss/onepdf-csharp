@@ -1,16 +1,14 @@
 # page 1
-onepdf-display-list 4
+onepdf-display-list 5
 page box=0 0 612 396 name=CropBox rotate=0 unit=1 scale=1 size=612 396 base=[1 0 0 -1 0 396]
   gs ctm=[1 0 0 -1 0 396] fill=gray(0) stroke=gray(0) lw=1 cap=0 join=0 miter=10 dash=[] phase=0 flat=1 ri=RelativeColorimetric fa=1 sa=1 bm=Normal sm=0 ais=0 op=000
   stroke M 150 250 L 150 350
   gs ctm=[1 0 0 -1 0 396] fill=gray(0) stroke=gray(0) lw=4 cap=0 join=0 miter=10 dash=[4 6] phase=0 flat=1 ri=RelativeColorimetric fa=1 sa=1 bm=Normal sm=0 ais=0 op=000
   stroke M 150 250 L 400 250
   gs ctm=[1 0 0 -1 0 396] fill=rgb(0.5 0.75 1) stroke=rgb(1 0 0) lw=1 cap=0 join=0 miter=10 dash=[] phase=0 flat=1 ri=RelativeColorimetric fa=1 sa=1 bm=Normal sm=0 ais=0 op=000
-  fill nonzero M 200 300 L 250 300 L 250 375 L 200 375 Z
-  stroke M 200 300 L 250 300 L 250 375 L 200 375 Z
+  fillstroke nonzero M 200 300 L 250 300 L 250 375 L 200 375 Z
   gs ctm=[1 0 0 -1 0 396] fill=gray(0.7) stroke=rgb(0.5 0.1 0.2) lw=1 cap=0 join=0 miter=10 dash=[] phase=0 flat=1 ri=RelativeColorimetric fa=1 sa=1 bm=Normal sm=0 ais=0 op=000
-  fill nonzero M 300 300 C 300 400 400 400 400 300 Z
-  stroke M 300 300 C 300 400 400 400 400 300 Z
+  fillstroke nonzero M 300 300 C 300 400 400 400 400 300 Z
   gs ctm=[1 0 0 -1 0 396] fill=gray(0) stroke=gray(0) lw=1 cap=0 join=0 miter=10 dash=[] phase=0 flat=1 ri=RelativeColorimetric fa=1 sa=1 bm=Normal sm=0 ais=0 op=000
   text font=/F1 size=24 mode=0 tc=0 tw=0 th=1 rise=0 tm=[1 0 0 1 100 100] vert=0 adv=117.336 0 codes=48656c6c6f20576f726c64 glyphs=[72@0,0,0.722:g43:u48 101@17.328,0,0.556:g72:u65 108@30.672,0,0.222:g79:u6c 108@36,0,0.222:g79:u6c 111@41.328,0,0.556:g82:u6f 32@54.672,0,0:g3:u20 87@54.672,0,0.944:g58:u57 111@77.328,0,0.556:g82:u6f 114@90.672,0,0.333:g85:u72 108@98.664,0,0.222:g79:u6c 100@103.992,0,0.556:g71:u64]
 end-page

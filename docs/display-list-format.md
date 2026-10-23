@@ -1,6 +1,6 @@
 # Display-list text format
 
-**Format version: 4**
+**Format version: 5**
 
 The text form of a `PdfDisplayList` (or of any interpretation, written straight from the interpreter). It is used for
 snapshot tests and is meant to be comparable across implementations: it is plain UTF-8 text, one record per line, with
@@ -8,7 +8,7 @@ snapshot tests and is meant to be comparable across implementations: it is plain
 
 ## Header
 
-The first line is `onepdf-display-list 4`: the magic word and the format version.
+The first line is `onepdf-display-list 5`: the magic word and the format version.
 
 ## Numbers
 
@@ -28,9 +28,10 @@ indentation is informative. The record keyword is the first word.
 |---|---|
 | `page box=<box> name=<CropBox\|MediaBox\|BleedBox\|TrimBox\|ArtBox> rotate=<0\|90\|180\|270> unit=<n> scale=<n> size=<w> <h> base=<matrix>` | Start of a page: the selected box in default user space, the rotation and user unit applied, the total scale, the output size and the matrix from default user space to the output (y grows downward). |
 | `end-page` | End of the page. |
-| `gs ctm=<matrix> fill=<color> stroke=<color> lw=<n> cap=<n> join=<n> miter=<n> dash=[<n> ...] phase=<n> flat=<n> ri=<name> fa=<n> sa=<n> bm=<name> sm=<id> ais=<0\|1> op=<fill><stroke><mode>` | The graphics state that applies to the records that follow, written whenever it differs from the last one written. `ctm` maps the user space of the following paths to the output. `fa`/`sa` are the fill and stroke alpha, `bm` the blend mode, `sm` the soft mask id (0 = none), `op` three characters: fill overprint, stroke overprint (0/1) and the overprint mode. |
+| `gs ctm=<matrix> fill=<color> stroke=<color> lw=<n> cap=<n> join=<n> miter=<n> dash=[<n> ...] phase=<n> flat=<n> ri=<name> fa=<n> sa=<n> bm=<name> sm=<id> ais=<0\|1> op=<fill><stroke><mode> [tk=0]` | The graphics state that applies to the records that follow, written whenever it differs from the last one written. `ctm` maps the user space of the following paths to the output. `fa`/`sa` are the fill and stroke alpha, `bm` the blend mode, `sm` the soft mask id (0 = none), `op` three characters: fill overprint, stroke overprint (0/1) and the overprint mode. `tk=0` appears only when the text knockout flag (`/TK`, ISO 32000-2 9.3.8) is off; it is on by default and then not written. |
 | `fill <nonzero\|evenodd> <path>` | Fill a path. |
 | `stroke <path>` | Stroke a path. |
+| `fillstroke <nonzero\|evenodd> <path>` | Fill and stroke one path as a single knockout group, from the `B`, `B*`, `b` and `b*` operators (ISO 32000-2 11.7.4.4); the path is already closed for `b` and `b*`. A fill followed by a separate stroke (`f` then `S`) stays two records. |
 | `clip <nonzero\|evenodd> <path>` | Intersect the clip with a path; opens a clip bracket. |
 | `text-clip` | Intersect the clip with the glyphs shown in clipping render modes since the last `BT`; opens a clip bracket. |
 | `pop-clip` | Close the most recent clip bracket. |
@@ -65,4 +66,4 @@ non-regular characters as `#xx`, strings as `<hex>`, references as `n g R`, stre
 The version is an integer that changes whenever the output for any input could change (new records, new fields, different
 rounding). Readers must reject a version they do not know.
 
-History: 2 added the `data=` field to image lines and the `calgray`/`calrgb` colour spaces (before, CalGray and CalRGB printed as `gray` and `rgb`); an ICC profile that is damaged or does not match its component count now prints as the device space with that many components. Version 3 replaced the unevaluated `shading /Name obj=` record by the decoded `shading type=...` record, added `pattern-def`, and changed pattern colours to `pattern(#<id> /Name ...)`. Version 4 added the `begin-glyph` bracket for Type 3 glyph procedures and the `:v` suffix of vertical glyphs; glyph runs now carry real glyph ids, Unicode and widths from the PDF fonts.
+History: 2 added the `data=` field to image lines and the `calgray`/`calrgb` colour spaces (before, CalGray and CalRGB printed as `gray` and `rgb`); an ICC profile that is damaged or does not match its component count now prints as the device space with that many components. Version 3 replaced the unevaluated `shading /Name obj=` record by the decoded `shading type=...` record, added `pattern-def`, and changed pattern colours to `pattern(#<id> /Name ...)`. Version 4 added the `begin-glyph` bracket for Type 3 glyph procedures and the `:v` suffix of vertical glyphs; glyph runs now carry real glyph ids, Unicode and widths from the PDF fonts. Version 5 added the `fillstroke` record (before, `B`/`b` wrote a `fill` and a `stroke` record) and the `tk=0` field of `gs`.

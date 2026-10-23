@@ -1,20 +1,15 @@
 # page 1
-onepdf-display-list 4
+onepdf-display-list 5
 page box=0 0 612 792 name=CropBox rotate=0 unit=1 scale=1 size=612 792 base=[1 0 0 -1 0 792]
   gs ctm=[1 0 0 -1 0 792] fill=gray(0) stroke=gray(0) lw=0.1 cap=0 join=0 miter=10 dash=[] phase=0 flat=1 ri=RelativeColorimetric fa=1 sa=1 bm=Normal sm=0 ais=0 op=000
   clip evenodd M 0 0.028 L 611.972 0.028 L 611.972 792 L 0 792 Z
     gs ctm=[1 0 0 -1 0 792] fill=rgb(1 1 1) stroke=rgb(0 0 0) lw=0.1 cap=0 join=0 miter=10 dash=[] phase=0 flat=1 ri=RelativeColorimetric fa=1 sa=1 bm=Normal sm=0 ais=0 op=000
-    fill evenodd M 56.7 726.75 L 255.2 726.75 L 255.2 749.5 L 56.7 749.5 Z
-    stroke M 56.7 726.75 L 255.2 726.75 L 255.2 749.5 L 56.7 749.5 Z
-    fill evenodd M 56.7 689.9 L 198.5 689.9 L 198.5 712.65 L 56.7 712.65 Z
-    stroke M 56.7 689.9 L 198.5 689.9 L 198.5 712.65 L 56.7 712.65 Z
-    fill evenodd M 56.7 604.9 L 255.2 604.9 L 255.2 675.8 L 56.7 675.8 Z
-    stroke M 56.7 604.9 L 255.2 604.9 L 255.2 675.8 L 56.7 675.8 Z
-    fill evenodd M 56.7 568 L 198.5 568 L 198.5 590.75 L 56.7 590.75 Z
-    stroke M 56.7 568 L 198.5 568 L 198.5 590.75 L 56.7 590.75 Z
+    fillstroke evenodd M 56.7 726.75 L 255.2 726.75 L 255.2 749.5 L 56.7 749.5 Z
+    fillstroke evenodd M 56.7 689.9 L 198.5 689.9 L 198.5 712.65 L 56.7 712.65 Z
+    fillstroke evenodd M 56.7 604.9 L 255.2 604.9 L 255.2 675.8 L 56.7 675.8 Z
+    fillstroke evenodd M 56.7 568 L 198.5 568 L 198.5 590.75 L 56.7 590.75 Z
     fill evenodd M 59.7 571 L 195.5 571 L 195.5 587.75 L 59.7 587.75 Z
-    fill evenodd M 56.7 491.5 L 198.5 491.5 L 198.5 553.9 L 56.7 553.9 Z
-    stroke M 56.7 491.5 L 198.5 491.5 L 198.5 553.9 L 56.7 553.9 Z
+    fillstroke evenodd M 56.7 491.5 L 198.5 491.5 L 198.5 553.9 L 56.7 553.9 Z
     fill evenodd M 59.45 494.25 L 195.75 494.25 L 195.75 551.15 L 59.45 551.15 Z
     fill evenodd M 56.7 457.45 L 155.95 457.45 L 155.95 477.35 L 56.7 477.35 Z
     gs ctm=[1 0 0 -1 0 792] fill=rgb(1 1 1) stroke=rgb(0 0 0) lw=0.8 cap=0 join=0 miter=10 dash=[] phase=0 flat=1 ri=RelativeColorimetric fa=1 sa=1 bm=Normal sm=0 ais=0 op=000
