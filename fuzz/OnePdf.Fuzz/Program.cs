@@ -44,6 +44,7 @@ internal static class Program
         ["shading"] = ShadingTarget.Run,
         ["extraction"] = ExtractionTarget.Run,
         ["save"] = SaveTarget.Run,
+        ["redact"] = RedactTarget.Run,
         ["fontsubset"] = FontSubsetTarget.Run,
         ["signature"] = SignatureTarget.Run,
     };

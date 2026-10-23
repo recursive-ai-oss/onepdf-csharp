@@ -75,6 +75,22 @@ internal static class Seeds
 
                 break;
 
+            case "redact":
+                {
+                    byte[] head = [0, 20, 90, 60, 20, 100, 150, 50, 40, 10, 10, 80, 80, 150, 20, 60, 60, 0, 0, 0];
+                    foreach (string f in pdfs)
+                    {
+                        if (new FileInfo(f).Length <= MaxPdfBytes)
+                        {
+                            PutData("pdf", File.ReadAllBytes(f), head);
+                        }
+                    }
+
+                    PutData("cs", "BT /F1 12 Tf 20 100 Td (Hello secret world) Tj ET q 1 0 0 rg 0 0 50 50 re f Q"u8, head);
+                    PutData("cs", "q 1 0 0 1 10 10 cm /Fm Do Q BT /F1 10 Tf [(a) -120 (b)] TJ (c) ' 1 2 (d) \" ET BI /W 2 /H 2 /BPC 8 /CS /G ID abcd EI"u8, [255, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]);
+                    break;
+                }
+
             case "appearance":
                 for (byte k = 0; k < 21; k++)
                 {

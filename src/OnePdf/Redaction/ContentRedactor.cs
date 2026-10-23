@@ -353,14 +353,74 @@ internal sealed class ContentRedactor : PdfDevice, IContentTap
         }
     }
 
-    private static void EmitThrough(Ctx ctx, int from, int to)
+    private static void EmitThrough(Ctx ctx, int from, int to, bool raw = false)
     {
         if (to > from)
         {
-            ctx.Out.Add(ctx.Data.Span[from..to]);
+            CopyClean(ctx, from, to, raw);
         }
 
         ctx.Copied = Math.Max(ctx.Copied, to);
+    }
+
+    // Copies input bytes to the output without the comments in them: a comment can hold text that was on the page. Strings and hex
+    // strings are skipped over so a percent sign inside one is kept. Inline image data is copied as it is (it is binary).
+    private static void CopyClean(Ctx ctx, int from, int to, bool raw)
+    {
+        ReadOnlySpan<byte> s = ctx.Data.Span[from..to];
+        if (raw || s.IndexOf((byte)'%') < 0)
+        {
+            ctx.Out.Add(s);
+            return;
+        }
+
+        int depth = 0;
+        bool hex = false;
+        for (int i = 0; i < s.Length; i++)
+        {
+            byte b = s[i];
+            if (depth > 0)
+            {
+                if (b == (byte)'\\' && i + 1 < s.Length)
+                {
+                    ctx.Out.Add(b);
+                    ctx.Out.Add(s[++i]);
+                    continue;
+                }
+
+                depth += b == (byte)'(' ? 1 : b == (byte)')' ? -1 : 0;
+            }
+            else if (hex)
+            {
+                hex = b != (byte)'>';
+            }
+            else if (b == (byte)'(')
+            {
+                depth = 1;
+            }
+            else if (b == (byte)'<' && !(i + 1 < s.Length && s[i + 1] == (byte)'<'))
+            {
+                hex = true;
+            }
+            else if (b == (byte)'<')
+            {
+                ctx.Out.Add(b);
+                ctx.Out.Add(s[++i]);
+                continue;
+            }
+            else if (b == (byte)'%')
+            {
+                while (i + 1 < s.Length && s[i + 1] is not ((byte)'\n' or (byte)'\r'))
+                {
+                    i++;
+                }
+
+                ctx.Out.Add((byte)' ');
+                continue;
+            }
+
+            ctx.Out.Add(b);
+        }
     }
 
     private static void FlushPath(Ctx ctx)
@@ -372,7 +432,7 @@ internal sealed class ContentRedactor : PdfDevice, IContentTap
 
         foreach ((int s, int e) in ctx.PathOps)
         {
-            ctx.Out.Add(ctx.Data.Span[s..e]);
+            CopyClean(ctx, s, e, raw: false);
             ctx.Out.Add((byte)'\n');
         }
 
@@ -568,7 +628,7 @@ internal sealed class ContentRedactor : PdfDevice, IContentTap
                 break;
         }
 
-        EmitThrough(ctx, start, end);
+        EmitThrough(ctx, start, end, raw: op == ContentOp.BeginInline);
     }
 
     private void MarkHit()
