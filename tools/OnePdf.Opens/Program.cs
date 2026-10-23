@@ -4,6 +4,7 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using OnePdf;
+using OnePdf.Text;
 
 // Corpus comparison and crash/hang sweep.
 //
@@ -14,7 +15,7 @@ using OnePdf;
 //       and its media box could be read; it is information only.
 //       Passwords: no engine is given a password. Each tries the empty password on its own; a file that still asks for one
 //       is classified "password" and is left out of the OnePDF-vs-PdfPig counts when both engines ask.
-//   sweep <out-dir> [--jobs N] <label>=<dir>...
+//   sweep <out-dir> [--jobs N] [--drop-glyphs] <label>=<dir>...
 //       For every file, in a child process: open, ExtractText for the whole document, interpret every page into a
 //       PdfDisplayList and replay it. The parent measures wall time per page (as printed by the child, which flushes a
 //       line per page) and the child's peak resident set. Findings: an unexpected exception, a crash, a hang (no progress
@@ -38,7 +39,7 @@ internal static class Program
 
             if (args.Length >= 2 && args[0] == "--child-sweep")
             {
-                return ChildSweep(args[1]);
+                return ChildSweep(args[1], args.Length > 2 && args[2] == "drop-glyphs");
             }
 
             if (args.Length >= 3 && (args[0] == "opens" || args[0] == "sweep"))
@@ -208,16 +209,20 @@ internal static class Program
     private sealed class Sink : PdfDevice;
 
     /// <summary>Open, whole-document text, every page into a display list. Prints a progress line per step.</summary>
-    private static int ChildSweep(string file)
+    private static int ChildSweep(string file, bool dropGlyphs)
     {
         var ci = CultureInfo.InvariantCulture;
+        // Diagnosis aid: ONEPDF_SWEEP_PHASES=text or interpret runs only that phase (default: both).
+        string phases = Environment.GetEnvironmentVariable("ONEPDF_SWEEP_PHASES") ?? "all";
         try
         {
             PdfDocument doc;
+            int n;
             Console.WriteLine("S open");
             try
             {
                 doc = PdfDocument.Open(file);
+                n = doc.Pages.Count;
             }
             catch (PdfException ex)
             {
@@ -227,14 +232,18 @@ internal static class Program
 
             using (doc)
             {
-                int n = doc.Pages.Count;
                 Console.WriteLine($"N {n}");
                 Console.WriteLine("S text");
                 var sw = Stopwatch.StartNew();
                 try
                 {
+                    if (phases == "interpret")
+                    {
+                        throw new PdfFormatException("text skipped");
+                    }
+
                     int chars = 0;
-                    foreach (var t in doc.ExtractText())
+                    foreach (var t in doc.ExtractText(new PdfTextOptions { RetainGlyphs = !dropGlyphs }))
                     {
                         chars += t.Text.Length;
                     }
@@ -247,7 +256,7 @@ internal static class Program
                     Console.WriteLine($"E text {ex.GetType().Name} {Clean(ex.Message)}");
                 }
 
-                for (int i = 0; i < n; i++)
+                for (int i = 0; i < n && phases != "text"; i++)
                 {
                     Console.WriteLine($"S {i.ToString(ci)}");
                     sw.Restart();
@@ -434,12 +443,17 @@ internal static class Program
         string outDir = args[1];
         int jobs = 8;
         double timeout = 120;
+        bool dropGlyphs = false;
         var corpora = new List<(string Label, string Dir)>();
         for (int i = 2; i < args.Length; i++)
         {
             if (args[i] == "--jobs")
             {
                 jobs = int.Parse(args[++i], CultureInfo.InvariantCulture);
+            }
+            else if (args[i] == "--drop-glyphs")
+            {
+                dropGlyphs = true;
             }
             else if (args[i] == "--timeout")
             {
@@ -466,7 +480,7 @@ internal static class Program
             Parallel.For(0, files.Length, new ParallelOptions { MaxDegreeOfParallelism = jobs }, i =>
             {
                 string rel = Path.GetRelativePath(dir, files[i]);
-                results[i] = mode == "opens" ? OpensRow(label, rel, files[i], timeout) : SweepRow(label, rel, files[i]);
+                results[i] = mode == "opens" ? OpensRow(label, rel, files[i], timeout) : SweepRow(label, rel, files[i], dropGlyphs);
                 int d = Interlocked.Increment(ref done);
                 if (d % 500 == 0)
                 {
@@ -595,9 +609,9 @@ internal static class Program
         return sb.ToString();
     }
 
-    private static string[] SweepRow(string label, string rel, string path)
+    private static string[] SweepRow(string label, string rel, string path, bool dropGlyphs)
     {
-        ChildRun r = RunChild(["--child-sweep", path], idleSeconds: 60, hardSeconds: 3600, limitHeap: false);
+        ChildRun r = RunChild(dropGlyphs ? ["--child-sweep", path, "drop-glyphs"] : ["--child-sweep", path], idleSeconds: 60, hardSeconds: 3600, limitHeap: false);
         var inv = CultureInfo.InvariantCulture;
         var findings = new List<string>();
         string result = "ok";
