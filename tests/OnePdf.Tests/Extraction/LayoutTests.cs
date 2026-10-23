@@ -386,6 +386,51 @@ public class LayoutTests
         PdfTextExtractor ex = new(new FakeSource(Syn.Page(Syn.Line("abc", 50, 700))), null, null);
         Assert.Throws<OperationCanceledException>(() => ex.ExtractDocument(cts.Token));
     }
+    private static readonly string[][] LeftParas =
+    [
+        ["alpha one alpha two", "alpha three alpha four"], ["bravo one bravo two", "bravo three bravo four"], ["charlie one charlie two", "charlie three charlie four"],
+    ];
+
+    private static readonly string[][] RightParas =
+    [
+        ["delta one delta two", "delta three delta four"], ["echo one echo two", "echo three echo four"], ["foxtrot one foxtrot two", "foxtrot three foxtrot four"],
+    ];
+
+    private static List<PdfTextGlyph> AlignedColumns(bool spanning)
+    {
+        // Both columns have paragraph gaps at the same heights (every paragraph is two lines plus a 14 pt gap).
+        List<PdfTextGlyph> g = [];
+        for (int p = 0; p < 3; p++)
+        {
+            g.AddRange(Syn.Lines(LeftParas[p], 50, 700 - p * 56));
+            g.AddRange(Syn.Lines(RightParas[p], 330, 700 - p * 56));
+        }
+
+        if (spanning)
+        {
+            // A full-width note below blocks every vertical stripe of the region, so the vertical cut cannot separate the columns there.
+            g.AddRange(Syn.Line("a note that runs across the full width of both columns on this page", 50, 700 - 3 * 56));
+        }
+
+        return g;
+    }
+
+    [Fact]
+    public void ColumnsWithAlignedParagraphGapsAreNotInterleavedBandByBand()
+    {
+        string text = Syn.Analyze(AlignedColumns(true)).Text;
+        string left = string.Join("\n\n", LeftParas.Select(p => string.Join('\n', p)));
+        string right = string.Join("\n\n", RightParas.Select(p => string.Join('\n', p)));
+        Assert.Equal(left + "\n\n" + right + "\n\na note that runs across the full width of both columns on this page", text);
+    }
+
+    [Fact]
+    public void ColumnsWithAlignedParagraphGapsReadLeftThenRight()
+    {
+        string text = Syn.Analyze(AlignedColumns(false)).Text;
+        Assert.True(text.IndexOf("charlie three", StringComparison.Ordinal) < text.IndexOf("delta one", StringComparison.Ordinal));
+    }
+
 }
 
 public class ExtractionFuzzSmoke

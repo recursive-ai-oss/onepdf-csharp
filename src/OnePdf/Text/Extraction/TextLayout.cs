@@ -745,6 +745,8 @@ internal static class TextLayout
         int[] gb = w.Ints.Rent(nf + 2);
         int[] tmp = w.Ints.Rent(nf);
         double[] dscr = w.Doubles.Rent(nf);
+        double[] stripesA = w.Doubles.Rent(2 * nf);
+        double[] stripesB = w.Doubles.Rent(2 * nf);
         int guard = 0;
         while (sp > 0)
         {
@@ -774,6 +776,7 @@ internal static class TextLayout
             double ms = Median(dscr.AsSpan(0, len));
             int groups = Partition(f, reg, s, len, true, LayoutParameters.ColumnGutterEm * ms, ks, gb);
             bool reverse = false;
+            bool horizontal = false;
             if (groups > 0)
             {
                 if (IsTable(w, f, reg, s, len, ks, gb, groups, ms, dscr))
@@ -787,6 +790,7 @@ internal static class TextLayout
             else
             {
                 groups = Partition(f, reg, s, len, false, LayoutParameters.BlockGapEm * ms, ks, gb);
+                horizontal = true;
             }
 
             if (groups > 0)
@@ -795,8 +799,14 @@ internal static class TextLayout
                 {
                     reg[s + i] = ks[i].Idx;
                 }
+
+                if (horizontal)
+                {
+                    groups = MergeColumnBands(f, reg, s, ks, gb, groups, LayoutParameters.ColumnGutterEm * ms, stripesA, stripesB);
+                }
             }
-            else
+
+            if (groups <= 1)
             {
                 groups = SplitByLineKind(w, f, reg, s, len, ks, gb, tmp);
                 if (groups == 0)
@@ -833,6 +843,100 @@ internal static class TextLayout
             leafLen[leaves] = len;
             leafTable[leaves++] = table ? 1 : 0;
         }
+    }
+
+    /// <summary>
+    /// Joins neighbouring horizontal bands that are the same columns cut at paragraph gaps. Some other part of the region (a full-width note, a figure
+    /// caption) crosses the gutter, so the vertical cut failed and the region is being cut into bands; if two successive bands each split into columns
+    /// and share a gutter, the gap between them is only the paragraph gap that both columns have at the same height. Cutting there would read the
+    /// columns band by band, so the bands are kept together and the next round cuts them into columns. <paramref name="gb"/> is compacted in place;
+    /// returns the new group count.
+    /// </summary>
+    private static int MergeColumnBands(Frag[] f, int[] reg, int s, KeyIdx[] ks, int[] gb, int groups, double gap, double[] prev, double[] cur)
+    {
+        int pn = GutterStripes(f, reg, s + gb[0], gb[1] - gb[0], gap, ks, prev, out bool pm);
+        int outGroups = 1;
+        for (int j = 1; j < groups; j++)
+        {
+            int cn = GutterStripes(f, reg, s + gb[j], gb[j + 1] - gb[j], gap, ks, cur, out bool cm);
+            if (pm && cm && ShareStripe(prev, pn, cur, cn, gap))
+            {
+                // Merged into the previous band: its start stays, this band's start is dropped.
+            }
+            else
+            {
+                gb[outGroups++] = gb[j];
+            }
+
+            (prev, cur) = (cur, prev);
+            pn = cn;
+            pm = cm;
+        }
+
+        gb[outGroups] = gb[groups];
+
+        // 1 when everything merged: the region is whole again and the caller moves on to the next kind of cut.
+        return outGroups;
+    }
+
+    /// <summary>Writes the empty vertical stripes (start, end pairs, at least <paramref name="gap"/> wide) of a run of fragments into <paramref name="stripes"/>; returns how many.</summary>
+    private static int GutterStripes(Frag[] f, int[] reg, int s, int len, double gap, KeyIdx[] ks, double[] stripes, out bool paragraphs)
+    {
+        for (int i = 0; i < len; i++)
+        {
+            int id = reg[s + i];
+            ks[i] = new KeyIdx { Key = f[id].X0, Idx = id };
+        }
+
+        IntroSort.Sort<KeyIdx, ByKeyOrder>(ks.AsSpan(0, len));
+        int n = 0;
+        bool multi = false;
+        int firstLine = f[ks[0].Idx].Line;
+        double curEnd = f[ks[0].Idx].X1;
+        for (int i = 1; i < len; i++)
+        {
+            if (ks[i].Key - curEnd >= gap)
+            {
+                stripes[2 * n] = curEnd;
+                stripes[2 * n + 1] = ks[i].Key;
+                n++;
+                firstLine = f[ks[i].Idx].Line;
+            }
+            else if (f[ks[i].Idx].Line != firstLine)
+            {
+                multi = true;
+            }
+
+            curEnd = Math.Max(curEnd, f[ks[i].Idx].X1);
+        }
+
+        paragraphs = n > 0 && multi;
+        return n;
+    }
+
+    private static bool ShareStripe(double[] a, int an, double[] b, int bn, double gap)
+    {
+        int i = 0, j = 0;
+        while (i < an && j < bn)
+        {
+            double lo = Math.Max(a[2 * i], b[2 * j]);
+            double hi = Math.Min(a[2 * i + 1], b[2 * j + 1]);
+            if (hi - lo >= gap)
+            {
+                return true;
+            }
+
+            if (a[2 * i + 1] < b[2 * j + 1])
+            {
+                i++;
+            }
+            else
+            {
+                j++;
+            }
+        }
+
+        return false;
     }
 
     private static int DistinctLines(LayoutWork w, Frag[] f, int[] reg, int s, int len)

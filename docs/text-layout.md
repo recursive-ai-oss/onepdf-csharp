@@ -72,6 +72,12 @@ A region (initially the whole page, per direction) is split recursively, with an
    above two columns).
 5. Otherwise the region is a block.
 
+**Column bands.** When the horizontal cut finds bands (step 3), successive bands are first joined if each is made of columns with at least one multi-line column
+(an empty stripe of at least 1.25 em, with two or more lines in a column on its side) and the stripes of the two bands overlap by at least 1.25 em. This is the case
+where something spanning both columns (a full-width note, a caption) defeats the vertical cut, and the columns' paragraph gaps happen to sit at the same heights: cutting at
+them would read the columns band by band. The joined bands go back on the stack and are cut into columns by step 2. Bands of single lines (rows of a form or table)
+are never joined this way. If every band joins, the region is left uncut by step 3 and goes on to step 4.
+
 The vertical cut is tried first so columns whose paragraphs happen to share gaps are not cut across; a full-width title is separated by the
 horizontal cut because it blocks every vertical stripe.
 
