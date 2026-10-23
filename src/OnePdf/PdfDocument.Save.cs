@@ -31,6 +31,7 @@ public sealed partial class PdfDocument
             throw new ArgumentException("The stream is not writable.", nameof(output));
         }
 
+        CreationState.FinishFonts(this);
         using var saver = new FullSaver(this, options ?? new PdfSaveOptions(), cancellationToken);
         saver.Run(output);
     }
@@ -81,6 +82,7 @@ public sealed partial class PdfDocument
             throw new PdfFormatException("The file was rebuilt by scanning, so there is no cross-reference section to chain an update to; use Save instead.");
         }
 
+        CreationState.FinishFonts(this);
         byte[] last = new byte[1];
         if (_source.Length > 0)
         {

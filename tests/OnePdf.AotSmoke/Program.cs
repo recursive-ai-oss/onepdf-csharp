@@ -18,6 +18,12 @@ if (OnePdf.AotSmoke.FontSmoke.Run() is { } failure)
     return 1;
 }
 
+if (OnePdf.AotSmoke.CreationSmoke.Run() is { } creationFailure)
+{
+    Console.Error.WriteLine("content creation: " + creationFailure);
+    return 1;
+}
+
 const string Xmp =
     "<x:xmpmeta xmlns:x=\"adobe:ns:meta/\"><rdf:RDF xmlns:rdf=\"http://www.w3.org/1999/02/22-rdf-syntax-ns#\">" +
     "<rdf:Description xmlns:dc=\"http://purl.org/dc/elements/1.1/\" xmlns:xmp=\"http://ns.adobe.com/xap/1.0/\">" +

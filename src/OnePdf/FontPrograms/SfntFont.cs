@@ -119,6 +119,9 @@ internal sealed class SfntFont : FontProgram
         _post = new Lazy<PostNames?>(() => tables.TryGetValue(Be.Tag("post"), out ReadOnlyMemory<byte> p) ? PostNames.Read(p, GlyphCount) : null, LazyThreadSafetyMode.ExecutionAndPublication);
     }
 
+    /// <summary>The bytes of the table with the 4-character <paramref name="tag"/> (clipped to the file), for the font writer. Empty when the font lacks it.</summary>
+    internal ReadOnlyMemory<byte> GetTable(string tag) => _tables.TryGetValue(Be.Tag(tag), out ReadOnlyMemory<byte> t) ? t : default;
+
     /// <summary>True for a TrueType font recognised as one whose composite glyphs need their instructions (see <see cref="TrickyFonts"/>) and whose programs ran at load.</summary>
     public bool RunsGlyphPrograms { get; }
 

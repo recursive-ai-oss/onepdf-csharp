@@ -133,6 +133,18 @@ public sealed class PdfPage
     }
 
     /// <summary>
+    /// Starts adding new content (text, paths, images, forms) to this page. Draw into the returned builder, then call
+    /// <see cref="PdfPageContentBuilder.Commit"/>. See <see cref="PdfContentBuilder"/> for the coordinates used.
+    /// </summary>
+    /// <param name="placement">Over (default) or under the page's existing content.</param>
+    /// <exception cref="InvalidOperationException">The document was not opened with <see cref="PdfOpenOptions.AllowEditing"/>.</exception>
+    public PdfPageContentBuilder BeginContent(PdfContentPlacement placement = PdfContentPlacement.Overlay)
+    {
+        Document.EnsureEditable(0);
+        return new PdfPageContentBuilder(this, placement);
+    }
+
+    /// <summary>
     /// Extracts this page's text: words, lines and blocks in reading order, and <see cref="Text.PdfPageText.Text"/> in the mode the
     /// options choose. Headers and footers are only flagged by whole-document extraction (<see cref="PdfDocument.ExtractText"/>).
     /// </summary>

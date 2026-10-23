@@ -10,6 +10,11 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <!-- A tiny TrueType font built in code, shared with the unit tests. -->
+    <Compile Include="../OnePdf.Tests/Creation/SyntheticFont.cs" Link="SyntheticFont.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="../../src/OnePdf/OnePdf.csproj" />
     <ProjectReference Include="../../src/OnePdf.Fonts/OnePdf.Fonts.csproj" />
   </ItemGroup>

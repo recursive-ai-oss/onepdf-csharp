@@ -88,7 +88,7 @@ internal sealed class FullSaver : SaverBase, IReferenceMapper, IDisposable
         }
 
         // Encryption: keep (the document's own key), remove, or set up new.
-        (byte[] First, byte[] Second)? id = ReadId(Doc);
+        (byte[] First, byte[] Second)? id = Options.DocumentId is { Length: > 0 } fixedId ? (fixedId, fixedId) : ReadId(Doc);
         PdfDictionary? encryptDict = null;
         string minVersion = "1.0";
         switch (Options.Encryption)
