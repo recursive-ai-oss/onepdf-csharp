@@ -42,6 +42,18 @@ internal sealed class CmsSigner
         }
 
         X509Certificate2 cert = credential.Certificate;
+        // Certificate bytes can be accepted and only fail when read (macOS); find out now, before the document is touched.
+        bool readable = Internal.SignatureVerifier.CertPool.IsUsable(cert);
+        foreach (X509Certificate2 c in credential.Chain)
+        {
+            readable &= Internal.SignatureVerifier.CertPool.IsUsable(c);
+        }
+
+        if (!readable)
+        {
+            throw new PdfSigningException(PdfSigningError.UnsupportedAlgorithm, "The signer certificate or a chain certificate is damaged and cannot be read.");
+        }
+
         PdfSigningKeyType type;
         int bits;
         using (RSA? rsa = cert.GetRSAPublicKey())
