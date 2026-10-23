@@ -48,7 +48,9 @@ are read through safe, bounds-checked code with size limits on by default.
   each signature in later revisions. Sign as an incremental update: approval or certification signatures (PAdES baseline B-B, B-T with a
   time-stamp from your callback, or `adbe.pkcs7.detached`), visible or invisible, with a local key or an external signer, and document
   time-stamps
-  ([signatures](https://github.com/recursive-ai-oss/onepdf-csharp/blob/main/docs/signatures.md)).
+  ([signatures](https://github.com/recursive-ai-oss/onepdf-csharp/blob/main/docs/signatures.md)). Changes the
+  specification permits after a signature are listed, not judged: see
+  [known attacks and what the result says](https://github.com/recursive-ai-oss/onepdf-csharp/blob/main/docs/signatures.md#known-attacks-and-what-the-result-says).
 - **Concurrent.** Objects parse lazily into a byte-budgeted cache with single-flight parsing; any number of threads can read pages
   of one document at once.
 
