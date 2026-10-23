@@ -1,0 +1,308 @@
+# page 1
+onepdf-display-list 4
+page box=0 0 500 780 name=CropBox rotate=0 unit=1 scale=1 size=500 780 base=[1 0 0 -1 0 780]
+  begin-annot /Widget rect=40 704 240 728 flags=4
+    gs ctm=[1 0 0 -1 40 76] fill=gray(0) stroke=gray(0) lw=1 cap=0 join=0 miter=10 dash=[] phase=0 flat=1 ri=RelativeColorimetric fa=1 sa=1 bm=Normal sm=0 ais=0 op=000
+    clip nonzero M 0 0 L 200 0 L 200 24 L 0 24 Z
+      gs ctm=[1 0 0 -1 40 76] fill=rgb(0.95 0.95 0.85) stroke=gray(0) lw=1 cap=0 join=0 miter=10 dash=[] phase=0 flat=1 ri=RelativeColorimetric fa=1 sa=1 bm=Normal sm=0 ais=0 op=000
+      fill nonzero M 0 0 L 200 0 L 200 24 L 0 24 Z
+      gs ctm=[1 0 0 -1 40 76] fill=gray(0) stroke=rgb(0 0 0.5) lw=1 cap=0 join=0 miter=10 dash=[] phase=0 flat=1 ri=RelativeColorimetric fa=1 sa=1 bm=Normal sm=0 ais=0 op=000
+      stroke M 0.5 0.5 L 199.5 0.5 L 199.5 23.5 L 0.5 23.5 Z
+      begin-mc /Tx props=null
+        gs ctm=[1 0 0 -1 40 76] fill=gray(0) stroke=gray(0) lw=1 cap=0 join=0 miter=10 dash=[] phase=0 flat=1 ri=RelativeColorimetric fa=1 sa=1 bm=Normal sm=0 ais=0 op=000
+        clip nonzero M 1 1 L 199 1 L 199 23 L 1 23 Z
+          text font=/F0 size=12 mode=0 tc=0 tw=0 th=1 rise=0 tm=[1 0 0 1 3 7.68] vert=0 adv=62.004 0 codes=48656c6c6f20576f726c64 glyphs=[72@0,0,0.722:g43:u48 101@8.664,0,0.556:g72:u65 108@15.336,0,0.222:g79:u6c 108@18,0,0.222:g79:u6c 111@20.664,0,0.556:g82:u6f 32@27.336,0,0.278:g3:u20 87@30.672,0,0.944:g58:u57 111@42,0,0.556:g82:u6f 114@48.672,0,0.333:g85:u72 108@52.668,0,0.222:g79:u6c 100@55.332,0,0.556:g71:u64]
+        pop-clip
+      end-mc
+    pop-clip
+  end-annot
+  begin-annot /Widget rect=260 704 460 728 flags=4
+    gs ctm=[1 0 0 -1 260 76] fill=gray(0) stroke=gray(0) lw=1 cap=0 join=0 miter=10 dash=[] phase=0 flat=1 ri=RelativeColorimetric fa=1 sa=1 bm=Normal sm=0 ais=0 op=000
+    clip nonzero M 0 0 L 200 0 L 200 24 L 0 24 Z
+      gs ctm=[1 0 0 -1 260 76] fill=rgb(0.95 0.95 0.85) stroke=gray(0) lw=1 cap=0 join=0 miter=10 dash=[] phase=0 flat=1 ri=RelativeColorimetric fa=1 sa=1 bm=Normal sm=0 ais=0 op=000
+      fill nonzero M 0 0 L 200 0 L 200 24 L 0 24 Z
+      gs ctm=[1 0 0 -1 260 76] fill=gray(0) stroke=rgb(0 0 0.5) lw=1 cap=0 join=0 miter=10 dash=[] phase=0 flat=1 ri=RelativeColorimetric fa=1 sa=1 bm=Normal sm=0 ais=0 op=000
+      stroke M 0.5 0.5 L 199.5 0.5 L 199.5 23.5 L 0.5 23.5 Z
+      begin-mc /Tx props=null
+        gs ctm=[1 0 0 -1 260 76] fill=gray(0) stroke=gray(0) lw=1 cap=0 join=0 miter=10 dash=[] phase=0 flat=1 ri=RelativeColorimetric fa=1 sa=1 bm=Normal sm=0 ais=0 op=000
+        clip nonzero M 1 1 L 199 1 L 199 23 L 1 23 Z
+          gs ctm=[1 0 0 -1 260 76] fill=rgb(0 0 1) stroke=gray(0) lw=1 cap=0 join=0 miter=10 dash=[] phase=0 flat=1 ri=RelativeColorimetric fa=1 sa=1 bm=Normal sm=0 ais=0 op=000
+          text font=/F0 size=12 mode=0 tc=0 tw=0 th=1 rise=0 tm=[1 0 0 1 126.968 7.68] vert=0 adv=70.032 0 codes=526967687420616c69676e6564 glyphs=[82@0,0,0.722:g53:u52 105@8.664,0,0.222:g76:u69 103@11.328,0,0.556:g74:u67 104@18,0,0.556:g75:u68 116@24.672,0,0.278:g87:u74 32@28.008,0,0.278:g3:u20 97@31.344,0,0.556:g68:u61 108@38.016,0,0.222:g79:u6c 105@40.68,0,0.222:g76:u69 103@43.344,0,0.556:g74:u67 110@50.016,0,0.556:g81:u6e 101@56.688,0,0.556:g72:u65 100@63.36,0,0.556:g71:u64]
+        pop-clip
+      end-mc
+    pop-clip
+  end-annot
+  begin-annot /Widget rect=40 668 240 692 flags=4
+    gs ctm=[1 0 0 -1 40 112] fill=gray(0) stroke=gray(0) lw=1 cap=0 join=0 miter=10 dash=[] phase=0 flat=1 ri=RelativeColorimetric fa=1 sa=1 bm=Normal sm=0 ais=0 op=000
+    clip nonzero M 0 0 L 200 0 L 200 24 L 0 24 Z
+      gs ctm=[1 0 0 -1 40 112] fill=rgb(0.95 0.95 0.85) stroke=gray(0) lw=1 cap=0 join=0 miter=10 dash=[] phase=0 flat=1 ri=RelativeColorimetric fa=1 sa=1 bm=Normal sm=0 ais=0 op=000
+      fill nonzero M 0 0 L 200 0 L 200 24 L 0 24 Z
+      gs ctm=[1 0 0 -1 40 112] fill=gray(0) stroke=rgb(0 0 0.5) lw=1 cap=0 join=0 miter=10 dash=[] phase=0 flat=1 ri=RelativeColorimetric fa=1 sa=1 bm=Normal sm=0 ais=0 op=000
+      stroke M 0.5 0.5 L 199.5 0.5 L 199.5 23.5 L 0.5 23.5 Z
+      begin-mc /Tx props=null
+        gs ctm=[1 0 0 -1 40 112] fill=gray(0) stroke=gray(0) lw=1 cap=0 join=0 miter=10 dash=[] phase=0 flat=1 ri=RelativeColorimetric fa=1 sa=1 bm=Normal sm=0 ais=0 op=000
+        clip nonzero M 1 1 L 199 1 L 199 23 L 1 23 Z
+          text font=/F0 size=10 mode=0 tc=0 tw=0 th=1 rise=0 tm=[1 0 0 1 76 8.4] vert=0 adv=48 0 codes=43656e7465726564 glyphs=[67@0,0,0.6:g38:u43 101@6,0,0.6:g72:u65 110@12,0,0.6:g81:u6e 116@18,0,0.6:g87:u74 101@24,0,0.6:g72:u65 114@30,0,0.6:g85:u72 101@36,0,0.6:g72:u65 100@42,0,0.6:g71:u64]
+        pop-clip
+      end-mc
+    pop-clip
+  end-annot
+  begin-annot /Widget rect=260 668 460 698 flags=4
+    gs ctm=[1 0 0 -1 260 112] fill=gray(0) stroke=gray(0) lw=1 cap=0 join=0 miter=10 dash=[] phase=0 flat=1 ri=RelativeColorimetric fa=1 sa=1 bm=Normal sm=0 ais=0 op=000
+    clip nonzero M 0 0 L 200 0 L 200 30 L 0 30 Z
+      gs ctm=[1 0 0 -1 260 112] fill=rgb(0.95 0.95 0.85) stroke=gray(0) lw=1 cap=0 join=0 miter=10 dash=[] phase=0 flat=1 ri=RelativeColorimetric fa=1 sa=1 bm=Normal sm=0 ais=0 op=000
+      fill nonzero M 0 0 L 200 0 L 200 30 L 0 30 Z
+      gs ctm=[1 0 0 -1 260 112] fill=gray(0) stroke=rgb(0 0 0.5) lw=1 cap=0 join=0 miter=10 dash=[] phase=0 flat=1 ri=RelativeColorimetric fa=1 sa=1 bm=Normal sm=0 ais=0 op=000
+      stroke M 0.5 0.5 L 199.5 0.5 L 199.5 29.5 L 0.5 29.5 Z
+      begin-mc /Tx props=null
+        gs ctm=[1 0 0 -1 260 112] fill=gray(0) stroke=gray(0) lw=1 cap=0 join=0 miter=10 dash=[] phase=0 flat=1 ri=RelativeColorimetric fa=1 sa=1 bm=Normal sm=0 ais=0 op=000
+        clip nonzero M 1 1 L 199 1 L 199 29 L 1 29 Z
+          text font=/F0 size=10.3257 mode=0 tc=0 tw=0 th=1 rise=0 tm=[1 0 0 1 3 11.2827] vert=0 adv=193.9993 0 codes=4175746f2073697a6520746578742074686174206973206c6f6e6720656e6f75676820746f20736872696e6b glyphs=[65@0,0,0.667:g36:u41 117@6.8872,0,0.556:g88:u75 116@12.6283,0,0.278:g87:u74 111@15.4989,0,0.556:g82:u6f 32@21.24,0,0.278:g3:u20 115@24.1105,0,0.5:g86:u73 105@29.2734,0,0.222:g76:u69 122@31.5657,0,0.5:g93:u7a 101@36.7285,0,0.556:g72:u65 32@42.4696,0,0.278:g3:u20 116@45.3401,0,0.278:g87:u74 101@48.2107,0,0.556:g72:u65 120@53.9518,0,0.5:g91:u78 116@59.1146,0,0.278:g87:u74 32@61.9852,0,0.278:g3:u20 116@64.8557,0,0.278:g87:u74 104@67.7263,0,0.556:g75:u68 97@73.4674,0,0.556:g68:u61 116@79.2084,0,0.278:g87:u74 32@82.079,0,0.278:g3:u20 105@84.9495,0,0.222:g76:u69 115@87.2418,0,0.5:g86:u73 32@92.4047,0,0.278:g3:u20 108@95.2752,0,0.222:g79:u6c 111@97.5675,0,0.556:g82:u6f 110@103.3086,0,0.556:g81:u6e 103@109.0497,0,0.556:g74:u67 32@114.7908,0,0.278:g3:u20 101@117.6614,0,0.556:g72:u65 110@123.4024,0,0.556:g81:u6e 111@129.1435,0,0.556:g82:u6f 117@134.8846,0,0.556:g88:u75 103@140.6257,0,0.556:g74:u67 104@146.3668,0,0.556:g75:u68 32@152.1079,0,0.278:g3:u20 116@154.9784,0,0.278:g87:u74 111@157.849,0,0.556:g82:u6f 32@163.5901,0,0.278:g3:u20 115@166.4606,0,0.5:g86:u73 104@171.6235,0,0.556:g75:u68 114@177.3645,0,0.333:g85:u72 105@180.803,0,0.222:g76:u69 110@183.0953,0,0.556:g81:u6e 107@188.8364,0,0.5:g78:u6b]
+        pop-clip
+      end-mc
+    pop-clip
+  end-annot
+  begin-annot /Widget rect=40 596 240 656 flags=4
+    gs ctm=[1 0 0 -1 40 184] fill=gray(0) stroke=gray(0) lw=1 cap=0 join=0 miter=10 dash=[] phase=0 flat=1 ri=RelativeColorimetric fa=1 sa=1 bm=Normal sm=0 ais=0 op=000
+    clip nonzero M 0 0 L 200 0 L 200 60 L 0 60 Z
+      gs ctm=[1 0 0 -1 40 184] fill=rgb(0.95 0.95 0.85) stroke=gray(0) lw=1 cap=0 join=0 miter=10 dash=[] phase=0 flat=1 ri=RelativeColorimetric fa=1 sa=1 bm=Normal sm=0 ais=0 op=000
+      fill nonzero M 0 0 L 200 0 L 200 60 L 0 60 Z
+      gs ctm=[1 0 0 -1 40 184] fill=gray(0) stroke=rgb(0 0 0.5) lw=1 cap=0 join=0 miter=10 dash=[] phase=0 flat=1 ri=RelativeColorimetric fa=1 sa=1 bm=Normal sm=0 ais=0 op=000
+      stroke M 0.5 0.5 L 199.5 0.5 L 199.5 59.5 L 0.5 59.5 Z
+      begin-mc /Tx props=null
+        gs ctm=[1 0 0 -1 40 184] fill=gray(0) stroke=gray(0) lw=1 cap=0 join=0 miter=10 dash=[] phase=0 flat=1 ri=RelativeColorimetric fa=1 sa=1 bm=Normal sm=0 ais=0 op=000
+        clip nonzero M 1 1 L 199 1 L 199 59 L 1 59 Z
+          text font=/F0 size=11 mode=0 tc=0 tw=0 th=1 rise=0 tm=[1 0 0 1 3 47.1] vert=0 adv=173.624 0 codes=54686520717569636b2062726f776e20666f78206a756d7073206f76657220746865 glyphs=[84@0,0,0.611:g55:u54 104@6.721,0,0.556:g75:u68 101@12.837,0,0.556:g72:u65 32@18.953,0,0.278:g3:u20 113@22.011,0,0.556:g84:u71 117@28.127,0,0.556:g88:u75 105@34.243,0,0.222:g76:u69 99@36.685,0,0.5:g70:u63 107@42.185,0,0.5:g78:u6b 32@47.685,0,0.278:g3:u20 98@50.743,0,0.556:g69:u62 114@56.859,0,0.333:g85:u72 111@60.522,0,0.556:g82:u6f 119@66.638,0,0.722:g90:u77 110@74.58,0,0.556:g81:u6e 32@80.696,0,0.278:g3:u20 102@83.754,0,0.278:g73:u66 111@86.812,0,0.556:g82:u6f 120@92.928,0,0.5:g91:u78 32@98.428,0,0.278:g3:u20 106@101.486,0,0.222:g77:u6a 117@103.928,0,0.556:g88:u75 109@110.044,0,0.833:g80:u6d 112@119.207,0,0.556:g83:u70 115@125.323,0,0.5:g86:u73 32@130.823,0,0.278:g3:u20 111@133.881,0,0.556:g82:u6f 118@139.997,0,0.5:g89:u76 101@145.497,0,0.556:g72:u65 114@151.613,0,0.333:g85:u72 32@155.276,0,0.278:g3:u20 116@158.334,0,0.278:g87:u74 104@161.392,0,0.556:g75:u68 101@167.508,0,0.556:g72:u65]
+          text font=/F0 size=11 mode=0 tc=0 tw=0 th=1 rise=0 tm=[1 0 0 1 3 34.45] vert=0 adv=185.856 0 codes=6c617a7920646f672e205061636b206d7920626f782077697468206669766520646f7a656e glyphs=[108@0,0,0.222:g79:u6c 97@2.442,0,0.556:g68:u61 122@8.558,0,0.5:g93:u7a 121@14.058,0,0.5:g92:u79 32@19.558,0,0.278:g3:u20 100@22.616,0,0.556:g71:u64 111@28.732,0,0.556:g82:u6f 103@34.848,0,0.556:g74:u67 46@40.964,0,0.278:g17:u2e 32@44.022,0,0.278:g3:u20 80@47.08,0,0.667:g51:u50 97@54.417,0,0.556:g68:u61 99@60.533,0,0.5:g70:u63 107@66.033,0,0.5:g78:u6b 32@71.533,0,0.278:g3:u20 109@74.591,0,0.833:g80:u6d 121@83.754,0,0.5:g92:u79 32@89.254,0,0.278:g3:u20 98@92.312,0,0.556:g69:u62 111@98.428,0,0.556:g82:u6f 120@104.544,0,0.5:g91:u78 32@110.044,0,0.278:g3:u20 119@113.102,0,0.722:g90:u77 105@121.044,0,0.222:g76:u69 116@123.486,0,0.278:g87:u74 104@126.544,0,0.556:g75:u68 32@132.66,0,0.278:g3:u20 102@135.718,0,0.278:g73:u66 105@138.776,0,0.222:g76:u69 118@141.218,0,0.5:g89:u76 101@146.718,0,0.556:g72:u65 32@152.834,0,0.278:g3:u20 100@155.892,0,0.556:g71:u64 111@162.008,0,0.556:g82:u6f 122@168.124,0,0.5:g93:u7a 101@173.624,0,0.556:g72:u65 110@179.74,0,0.556:g81:u6e]
+          text font=/F0 size=11 mode=0 tc=0 tw=0 th=1 rise=0 tm=[1 0 0 1 3 21.8] vert=0 adv=53.185 0 codes=6c6971756f72206a7567732e glyphs=[108@0,0,0.222:g79:u6c 105@2.442,0,0.222:g76:u69 113@4.884,0,0.556:g84:u71 117@11,0,0.556:g88:u75 111@17.116,0,0.556:g82:u6f 114@23.232,0,0.333:g85:u72 32@26.895,0,0.278:g3:u20 106@29.953,0,0.222:g77:u6a 117@32.395,0,0.556:g88:u75 103@38.511,0,0.556:g74:u67 115@44.627,0,0.5:g86:u73 46@50.127,0,0.278:g17:u2e]
+          text font=/F0 size=11 mode=0 tc=0 tw=0 th=1 rise=0 tm=[1 0 0 1 3 9.15] vert=0 adv=93.555 0 codes=5365636f6e64207061726167726170682e glyphs=[83@0,0,0.667:g54:u53 101@7.337,0,0.556:g72:u65 99@13.453,0,0.5:g70:u63 111@18.953,0,0.556:g82:u6f 110@25.069,0,0.556:g81:u6e 100@31.185,0,0.556:g71:u64 32@37.301,0,0.278:g3:u20 112@40.359,0,0.556:g83:u70 97@46.475,0,0.556:g68:u61 114@52.591,0,0.333:g85:u72 97@56.254,0,0.556:g68:u61 103@62.37,0,0.556:g74:u67 114@68.486,0,0.333:g85:u72 97@72.149,0,0.556:g68:u61 112@78.265,0,0.556:g83:u70 104@84.381,0,0.556:g75:u68 46@90.497,0,0.278:g17:u2e]
+        pop-clip
+      end-mc
+    pop-clip
+  end-annot
+  begin-annot /Widget rect=260 632 460 656 flags=4
+    gs ctm=[1 0 0 -1 260 148] fill=gray(0) stroke=gray(0) lw=1 cap=0 join=0 miter=10 dash=[] phase=0 flat=1 ri=RelativeColorimetric fa=1 sa=1 bm=Normal sm=0 ais=0 op=000
+    clip nonzero M 0 0 L 200 0 L 200 24 L 0 24 Z
+      gs ctm=[1 0 0 -1 260 148] fill=rgb(0.95 0.95 0.85) stroke=gray(0) lw=1 cap=0 join=0 miter=10 dash=[] phase=0 flat=1 ri=RelativeColorimetric fa=1 sa=1 bm=Normal sm=0 ais=0 op=000
+      fill nonzero M 0 0 L 200 0 L 200 24 L 0 24 Z
+      gs ctm=[1 0 0 -1 260 148] fill=gray(0) stroke=rgb(0 0 0.5) lw=1 cap=0 join=0 miter=10 dash=[] phase=0 flat=1 ri=RelativeColorimetric fa=1 sa=1 bm=Normal sm=0 ais=0 op=000
+      stroke M 0.5 0.5 L 199.5 0.5 L 199.5 23.5 L 0.5 23.5 Z
+      begin-mc /Tx props=null
+        gs ctm=[1 0 0 -1 260 148] fill=gray(0) stroke=gray(0) lw=1 cap=0 join=0 miter=10 dash=[] phase=0 flat=1 ri=RelativeColorimetric fa=1 sa=1 bm=Normal sm=0 ais=0 op=000
+        clip nonzero M 1 1 L 199 1 L 199 23 L 1 23 Z
+          text font=/F0 size=12 mode=0 tc=0 tw=0 th=1 rise=0 tm=[1 0 0 1 10.039 7.68] vert=0 adv=6.672 0 codes=31 glyphs=[49@0,0,0.556:g20:u31]
+          text font=/F0 size=12 mode=0 tc=0 tw=0 th=1 rise=0 tm=[1 0 0 1 34.789 7.68] vert=0 adv=6.672 0 codes=32 glyphs=[50@0,0,0.556:g21:u32]
+          text font=/F0 size=12 mode=0 tc=0 tw=0 th=1 rise=0 tm=[1 0 0 1 59.539 7.68] vert=0 adv=6.672 0 codes=33 glyphs=[51@0,0,0.556:g22:u33]
+          text font=/F0 size=12 mode=0 tc=0 tw=0 th=1 rise=0 tm=[1 0 0 1 84.289 7.68] vert=0 adv=6.672 0 codes=34 glyphs=[52@0,0,0.556:g23:u34]
+          text font=/F0 size=12 mode=0 tc=0 tw=0 th=1 rise=0 tm=[1 0 0 1 109.039 7.68] vert=0 adv=6.672 0 codes=35 glyphs=[53@0,0,0.556:g24:u35]
+        pop-clip
+      end-mc
+      gs ctm=[1 0 0 -1 260 148] fill=gray(0) stroke=rgb(0 0 0.5) lw=1 cap=0 join=0 miter=10 dash=[] phase=0 flat=1 ri=RelativeColorimetric fa=1 sa=1 bm=Normal sm=0 ais=0 op=000
+      stroke M 25.75 1 L 25.75 23 M 50.5 1 L 50.5 23 M 75.25 1 L 75.25 23 M 100 1 L 100 23 M 124.75 1 L 124.75 23 M 149.5 1 L 149.5 23 M 174.25 1 L 174.25 23
+    pop-clip
+  end-annot
+  begin-annot /Widget rect=260 596 460 620 flags=4
+    gs ctm=[1 0 0 -1 260 184] fill=gray(0) stroke=gray(0) lw=1 cap=0 join=0 miter=10 dash=[] phase=0 flat=1 ri=RelativeColorimetric fa=1 sa=1 bm=Normal sm=0 ais=0 op=000
+    clip nonzero M 0 0 L 200 0 L 200 24 L 0 24 Z
+      gs ctm=[1 0 0 -1 260 184] fill=rgb(0.95 0.95 0.85) stroke=gray(0) lw=1 cap=0 join=0 miter=10 dash=[] phase=0 flat=1 ri=RelativeColorimetric fa=1 sa=1 bm=Normal sm=0 ais=0 op=000
+      fill nonzero M 0 0 L 200 0 L 200 24 L 0 24 Z
+      gs ctm=[1 0 0 -1 260 184] fill=gray(0) stroke=rgb(0 0 0.5) lw=1 cap=0 join=0 miter=10 dash=[] phase=0 flat=1 ri=RelativeColorimetric fa=1 sa=1 bm=Normal sm=0 ais=0 op=000
+      stroke M 0.5 0.5 L 199.5 0.5 L 199.5 23.5 L 0.5 23.5 Z
+      begin-mc /Tx props=null
+        gs ctm=[1 0 0 -1 260 184] fill=gray(0) stroke=gray(0) lw=1 cap=0 join=0 miter=10 dash=[] phase=0 flat=1 ri=RelativeColorimetric fa=1 sa=1 bm=Normal sm=0 ais=0 op=000
+        clip nonzero M 1 1 L 199 1 L 199 23 L 1 23 Z
+          text font=/F0 size=12 mode=0 tc=0 tw=0 th=1 rise=0 tm=[1 0 0 1 3 7.68] vert=0 adv=28.008 0 codes=2a2a2a2a2a2a glyphs=[42@0,0,0.389:g13:u2a 42@4.668,0,0.389:g13:u2a 42@9.336,0,0.389:g13:u2a 42@14.004,0,0.389:g13:u2a 42@18.672,0,0.389:g13:u2a 42@23.34,0,0.389:g13:u2a]
+        pop-clip
+      end-mc
+    pop-clip
+  end-annot
+  begin-annot /Widget rect=40 560 140 584 flags=4
+    gs ctm=[1 0 0 -1 40 220] fill=gray(0) stroke=gray(0) lw=1 cap=0 join=0 miter=10 dash=[] phase=0 flat=1 ri=RelativeColorimetric fa=1 sa=1 bm=Normal sm=0 ais=0 op=000
+    clip nonzero M 0 0 L 100 0 L 100 24 L 0 24 Z
+      gs ctm=[1 0 0 -1 40 220] fill=gray(0) stroke=rgb(1 0 0) lw=2 cap=0 join=0 miter=10 dash=[3 2] phase=0 flat=1 ri=RelativeColorimetric fa=1 sa=1 bm=Normal sm=0 ais=0 op=000
+      stroke M 1 1 L 99 1 L 99 23 L 1 23 Z
+      begin-mc /Tx props=null
+        gs ctm=[1 0 0 -1 40 220] fill=gray(0) stroke=gray(0) lw=1 cap=0 join=0 miter=10 dash=[] phase=0 flat=1 ri=RelativeColorimetric fa=1 sa=1 bm=Normal sm=0 ais=0 op=000
+        clip nonzero M 2 2 L 98 2 L 98 22 L 2 22 Z
+          text font=/F0 size=12 mode=0 tc=0 tw=0 th=1 rise=0 tm=[1 0 0 1 4 7.68] vert=0 adv=41.352 0 codes=446173686564 glyphs=[68@0,0,0.722:g39:u44 97@8.664,0,0.556:g68:u61 115@15.336,0,0.5:g86:u73 104@21.336,0,0.556:g75:u68 101@28.008,0,0.556:g72:u65 100@34.68,0,0.556:g71:u64]
+        pop-clip
+      end-mc
+    pop-clip
+  end-annot
+  begin-annot /Widget rect=150 560 250 584 flags=4
+    gs ctm=[1 0 0 -1 150 220] fill=gray(0) stroke=gray(0) lw=1 cap=0 join=0 miter=10 dash=[] phase=0 flat=1 ri=RelativeColorimetric fa=1 sa=1 bm=Normal sm=0 ais=0 op=000
+    clip nonzero M 0 0 L 100 0 L 100 24 L 0 24 Z
+      gs ctm=[1 0 0 -1 150 220] fill=rgb(0.8 0.8 0.8) stroke=gray(0) lw=1 cap=0 join=0 miter=10 dash=[] phase=0 flat=1 ri=RelativeColorimetric fa=1 sa=1 bm=Normal sm=0 ais=0 op=000
+      fill nonzero M 0 0 L 100 0 L 100 24 L 0 24 Z
+      gs ctm=[1 0 0 -1 150 220] fill=gray(1) stroke=rgb(0.4 0.4 0.4) lw=2 cap=0 join=0 miter=10 dash=[] phase=0 flat=1 ri=RelativeColorimetric fa=1 sa=1 bm=Normal sm=0 ais=0 op=000
+      fill nonzero M 2 2 L 2 22 L 98 22 L 96 20 L 4 20 L 4 4
+      gs ctm=[1 0 0 -1 150 220] fill=rgb(0.4 0.4 0.4) stroke=rgb(0.4 0.4 0.4) lw=2 cap=0 join=0 miter=10 dash=[] phase=0 flat=1 ri=RelativeColorimetric fa=1 sa=1 bm=Normal sm=0 ais=0 op=000
+      fill nonzero M 98 22 L 98 2 L 2 2 L 4 4 L 96 4 L 96 20
+      gs ctm=[1 0 0 -1 150 220] fill=gray(0) stroke=rgb(0.4 0.4 0.4) lw=2 cap=0 join=0 miter=10 dash=[] phase=0 flat=1 ri=RelativeColorimetric fa=1 sa=1 bm=Normal sm=0 ais=0 op=000
+      stroke M 1 1 L 99 1 L 99 23 L 1 23 Z
+      begin-mc /Tx props=null
+        gs ctm=[1 0 0 -1 150 220] fill=gray(0) stroke=gray(0) lw=1 cap=0 join=0 miter=10 dash=[] phase=0 flat=1 ri=RelativeColorimetric fa=1 sa=1 bm=Normal sm=0 ais=0 op=000
+        clip nonzero M 4 4 L 96 4 L 96 20 L 4 20 Z
+          text font=/F0 size=12 mode=0 tc=0 tw=0 th=1 rise=0 tm=[1 0 0 1 6 7.68] vert=0 adv=43.356 0 codes=426576656c6564 glyphs=[66@0,0,0.667:g37:u42 101@8.004,0,0.556:g72:u65 118@14.676,0,0.5:g89:u76 101@20.676,0,0.556:g72:u65 108@27.348,0,0.222:g79:u6c 101@30.012,0,0.556:g72:u65 100@36.684,0,0.556:g71:u64]
+        pop-clip
+      end-mc
+    pop-clip
+  end-annot
+  begin-annot /Widget rect=260 560 360 584 flags=4
+    gs ctm=[1 0 0 -1 260 220] fill=gray(0) stroke=gray(0) lw=1 cap=0 join=0 miter=10 dash=[] phase=0 flat=1 ri=RelativeColorimetric fa=1 sa=1 bm=Normal sm=0 ais=0 op=000
+    clip nonzero M 0 0 L 100 0 L 100 24 L 0 24 Z
+      gs ctm=[1 0 0 -1 260 220] fill=rgb(0.8 0.8 0.8) stroke=gray(0) lw=1 cap=0 join=0 miter=10 dash=[] phase=0 flat=1 ri=RelativeColorimetric fa=1 sa=1 bm=Normal sm=0 ais=0 op=000
+      fill nonzero M 0 0 L 100 0 L 100 24 L 0 24 Z
+      gs ctm=[1 0 0 -1 260 220] fill=gray(0.5) stroke=rgb(0.4 0.4 0.4) lw=2 cap=0 join=0 miter=10 dash=[] phase=0 flat=1 ri=RelativeColorimetric fa=1 sa=1 bm=Normal sm=0 ais=0 op=000
+      fill nonzero M 2 2 L 2 22 L 98 22 L 96 20 L 4 20 L 4 4
+      gs ctm=[1 0 0 -1 260 220] fill=gray(0.75) stroke=rgb(0.4 0.4 0.4) lw=2 cap=0 join=0 miter=10 dash=[] phase=0 flat=1 ri=RelativeColorimetric fa=1 sa=1 bm=Normal sm=0 ais=0 op=000
+      fill nonzero M 98 22 L 98 2 L 2 2 L 4 4 L 96 4 L 96 20
+      gs ctm=[1 0 0 -1 260 220] fill=gray(0) stroke=rgb(0.4 0.4 0.4) lw=2 cap=0 join=0 miter=10 dash=[] phase=0 flat=1 ri=RelativeColorimetric fa=1 sa=1 bm=Normal sm=0 ais=0 op=000
+      stroke M 1 1 L 99 1 L 99 23 L 1 23 Z
+      begin-mc /Tx props=null
+        gs ctm=[1 0 0 -1 260 220] fill=gray(0) stroke=gray(0) lw=1 cap=0 join=0 miter=10 dash=[] phase=0 flat=1 ri=RelativeColorimetric fa=1 sa=1 bm=Normal sm=0 ais=0 op=000
+        clip nonzero M 4 4 L 96 4 L 96 20 L 4 20 Z
+          text font=/F0 size=12 mode=0 tc=0 tw=0 th=1 rise=0 tm=[1 0 0 1 6 7.68] vert=0 adv=26.016 0 codes=496e736574 glyphs=[73@0,0,0.278:g44:u49 110@3.336,0,0.556:g81:u6e 115@10.008,0,0.5:g86:u73 101@16.008,0,0.556:g72:u65 116@22.68,0,0.278:g87:u74]
+        pop-clip
+      end-mc
+    pop-clip
+  end-annot
+  begin-annot /Widget rect=370 560 470 584 flags=4
+    gs ctm=[1 0 0 -1 370 220] fill=gray(0) stroke=gray(0) lw=1 cap=0 join=0 miter=10 dash=[] phase=0 flat=1 ri=RelativeColorimetric fa=1 sa=1 bm=Normal sm=0 ais=0 op=000
+    clip nonzero M 0 0 L 100 0 L 100 24 L 0 24 Z
+      gs ctm=[1 0 0 -1 370 220] fill=gray(0) stroke=rgb(0 0 0) lw=1 cap=0 join=0 miter=10 dash=[] phase=0 flat=1 ri=RelativeColorimetric fa=1 sa=1 bm=Normal sm=0 ais=0 op=000
+      stroke M 0 0.5 L 100 0.5
+      begin-mc /Tx props=null
+        gs ctm=[1 0 0 -1 370 220] fill=gray(0) stroke=gray(0) lw=1 cap=0 join=0 miter=10 dash=[] phase=0 flat=1 ri=RelativeColorimetric fa=1 sa=1 bm=Normal sm=0 ais=0 op=000
+        clip nonzero M 1 1 L 99 1 L 99 23 L 1 23 Z
+          text font=/F0 size=12 mode=0 tc=0 tw=0 th=1 rise=0 tm=[1 0 0 1 3 7.68] vert=0 adv=51.348 0 codes=556e6465726c696e65 glyphs=[85@0,0,0.722:g56:u55 110@8.664,0,0.556:g81:u6e 100@15.336,0,0.556:g71:u64 101@22.008,0,0.556:g72:u65 114@28.68,0,0.333:g85:u72 108@32.676,0,0.222:g79:u6c 105@35.34,0,0.222:g76:u69 110@38.004,0,0.556:g81:u6e 101@44.676,0,0.556:g72:u65]
+        pop-clip
+      end-mc
+    pop-clip
+  end-annot
+  begin-annot /Widget rect=40 524 340 548 flags=4
+    gs ctm=[1 0 0 -1 40 256] fill=gray(0) stroke=gray(0) lw=1 cap=0 join=0 miter=10 dash=[] phase=0 flat=1 ri=RelativeColorimetric fa=1 sa=1 bm=Normal sm=0 ais=0 op=000
+    clip nonzero M 0 0 L 300 0 L 300 24 L 0 24 Z
+      gs ctm=[1 0 0 -1 40 256] fill=rgb(0.95 0.95 0.85) stroke=gray(0) lw=1 cap=0 join=0 miter=10 dash=[] phase=0 flat=1 ri=RelativeColorimetric fa=1 sa=1 bm=Normal sm=0 ais=0 op=000
+      fill nonzero M 0 0 L 300 0 L 300 24 L 0 24 Z
+      gs ctm=[1 0 0 -1 40 256] fill=gray(0) stroke=rgb(0 0 0.5) lw=1 cap=0 join=0 miter=10 dash=[] phase=0 flat=1 ri=RelativeColorimetric fa=1 sa=1 bm=Normal sm=0 ais=0 op=000
+      stroke M 0.5 0.5 L 299.5 0.5 L 299.5 23.5 L 0.5 23.5 Z
+      begin-mc /Tx props=null
+        gs ctm=[1 0 0 -1 40 256] fill=gray(0) stroke=gray(0) lw=1 cap=0 join=0 miter=10 dash=[] phase=0 flat=1 ri=RelativeColorimetric fa=1 sa=1 bm=Normal sm=0 ais=0 op=000
+        clip nonzero M 1 1 L 299 1 L 299 23 L 1 23 Z
+          text font=/F0 size=12 mode=0 tc=0 tw=0 th=1 rise=0 tm=[1 0 0 1 3 7.68] vert=0 adv=28.68 0 codes=436166e920 glyphs=[67@0,0,0.722:g38:u43 97@8.664,0,0.556:g68:u61 102@15.336,0,0.278:g73:u66 233@18.672,0,0.556:g171:uc3a9 32@25.344,0,0.278:g3:u20]
+          text font=/F2 size=12 mode=0 tc=0 tw=0 th=1 rise=0 tm=[1 0 0 1 31.68 7.68] vert=0 adv=9.216 0 codes=57 glyphs=[87@0,0,0.768:g189:ue284a6]
+          text font=/F0 size=12 mode=0 tc=0 tw=0 th=1 rise=0 tm=[1 0 0 1 40.896 7.68] vert=0 adv=36.684 0 codes=6d6567612020 glyphs=[109@0,0,0.833:g80:u6d 101@9.996,0,0.556:g72:u65 103@16.668,0,0.556:g74:u67 97@23.34,0,0.556:g68:u61 32@30.012,0,0.278:g3:u20 32@33.348,0,0.278:g3:u20]
+        pop-clip
+      end-mc
+    pop-clip
+  end-annot
+  begin-annot /Widget rect=360 484 384 548 flags=4
+    gs ctm=[0 -1 -1 0 384 296] fill=gray(0) stroke=gray(0) lw=1 cap=0 join=0 miter=10 dash=[] phase=0 flat=1 ri=RelativeColorimetric fa=1 sa=1 bm=Normal sm=0 ais=0 op=000
+    clip nonzero M 0 0 L 64 0 L 64 24 L 0 24 Z
+      gs ctm=[0 -1 -1 0 384 296] fill=rgb(1 1 0.8) stroke=gray(0) lw=1 cap=0 join=0 miter=10 dash=[] phase=0 flat=1 ri=RelativeColorimetric fa=1 sa=1 bm=Normal sm=0 ais=0 op=000
+      fill nonzero M 0 0 L 64 0 L 64 24 L 0 24 Z
+      gs ctm=[0 -1 -1 0 384 296] fill=gray(0) stroke=rgb(0 0 0) lw=1 cap=0 join=0 miter=10 dash=[] phase=0 flat=1 ri=RelativeColorimetric fa=1 sa=1 bm=Normal sm=0 ais=0 op=000
+      stroke M 0.5 0.5 L 63.5 0.5 L 63.5 23.5 L 0.5 23.5 Z
+      begin-mc /Tx props=null
+        gs ctm=[0 -1 -1 0 384 296] fill=gray(0) stroke=gray(0) lw=1 cap=0 join=0 miter=10 dash=[] phase=0 flat=1 ri=RelativeColorimetric fa=1 sa=1 bm=Normal sm=0 ais=0 op=000
+        clip nonzero M 1 1 L 63 1 L 63 23 L 1 23 Z
+          text font=/F0 size=11 mode=0 tc=0 tw=0 th=1 rise=0 tm=[1 0 0 1 3 8.04] vert=0 adv=38.522 0 codes=526f7461746564 glyphs=[82@0,0,0.722:g53:u52 111@7.942,0,0.556:g82:u6f 116@14.058,0,0.278:g87:u74 97@17.116,0,0.556:g68:u61 116@23.232,0,0.278:g87:u74 101@26.29,0,0.556:g72:u65 100@32.406,0,0.556:g71:u64]
+        pop-clip
+      end-mc
+    pop-clip
+  end-annot
+  begin-annot /Widget rect=40 488 240 512 flags=4
+    gs ctm=[1 0 0 -1 40 292] fill=gray(0) stroke=gray(0) lw=1 cap=0 join=0 miter=10 dash=[] phase=0 flat=1 ri=RelativeColorimetric fa=1 sa=1 bm=Normal sm=0 ais=0 op=000
+    clip nonzero M 0 0 L 200 0 L 200 24 L 0 24 Z
+      gs ctm=[1 0 0 -1 40 292] fill=rgb(0.95 0.95 0.85) stroke=gray(0) lw=1 cap=0 join=0 miter=10 dash=[] phase=0 flat=1 ri=RelativeColorimetric fa=1 sa=1 bm=Normal sm=0 ais=0 op=000
+      fill nonzero M 0 0 L 200 0 L 200 24 L 0 24 Z
+      gs ctm=[1 0 0 -1 40 292] fill=gray(0) stroke=rgb(0 0 0.5) lw=1 cap=0 join=0 miter=10 dash=[] phase=0 flat=1 ri=RelativeColorimetric fa=1 sa=1 bm=Normal sm=0 ais=0 op=000
+      stroke M 0.5 0.5 L 199.5 0.5 L 199.5 23.5 L 0.5 23.5 Z
+      begin-mc /Tx props=null
+        gs ctm=[1 0 0 -1 40 292] fill=gray(0) stroke=gray(0) lw=1 cap=0 join=0 miter=10 dash=[] phase=0 flat=1 ri=RelativeColorimetric fa=1 sa=1 bm=Normal sm=0 ais=0 op=000
+        clip nonzero M 1 1 L 199 1 L 199 23 L 1 23 Z
+          text font=/F0 size=12 mode=0 tc=0 tw=0 th=1 rise=0 tm=[1 0 0 1 3 7.68] vert=0 adv=31.344 0 codes=427261766f glyphs=[66@0,0,0.667:g37:u42 114@8.004,0,0.333:g85:u72 97@12,0,0.556:g68:u61 118@18.672,0,0.5:g89:u76 111@24.672,0,0.556:g82:u6f]
+        pop-clip
+      end-mc
+    pop-clip
+  end-annot
+  begin-annot /Widget rect=40 416 240 476 flags=4
+    gs ctm=[1 0 0 -1 40 364] fill=gray(0) stroke=gray(0) lw=1 cap=0 join=0 miter=10 dash=[] phase=0 flat=1 ri=RelativeColorimetric fa=1 sa=1 bm=Normal sm=0 ais=0 op=000
+    clip nonzero M 0 0 L 200 0 L 200 60 L 0 60 Z
+      gs ctm=[1 0 0 -1 40 364] fill=rgb(0.95 0.95 0.85) stroke=gray(0) lw=1 cap=0 join=0 miter=10 dash=[] phase=0 flat=1 ri=RelativeColorimetric fa=1 sa=1 bm=Normal sm=0 ais=0 op=000
+      fill nonzero M 0 0 L 200 0 L 200 60 L 0 60 Z
+      gs ctm=[1 0 0 -1 40 364] fill=gray(0) stroke=rgb(0 0 0.5) lw=1 cap=0 join=0 miter=10 dash=[] phase=0 flat=1 ri=RelativeColorimetric fa=1 sa=1 bm=Normal sm=0 ais=0 op=000
+      stroke M 0.5 0.5 L 199.5 0.5 L 199.5 59.5 L 0.5 59.5 Z
+      begin-mc /Tx props=null
+        gs ctm=[1 0 0 -1 40 364] fill=gray(0) stroke=gray(0) lw=1 cap=0 join=0 miter=10 dash=[] phase=0 flat=1 ri=RelativeColorimetric fa=1 sa=1 bm=Normal sm=0 ais=0 op=000
+        clip nonzero M 1 1 L 199 1 L 199 59 L 1 59 Z
+          text font=/F0 size=11 mode=0 tc=0 tw=0 th=1 rise=0 tm=[1 0 0 1 3 48.715] vert=0 adv=28.732 0 codes=427261766f glyphs=[66@0,0,0.667:g37:u42 114@7.337,0,0.333:g85:u72 97@11,0,0.556:g68:u61 118@17.116,0,0.5:g89:u76 111@22.616,0,0.556:g82:u6f]
+          text font=/F0 size=11 mode=0 tc=0 tw=0 th=1 rise=0 tm=[1 0 0 1 3 36.065] vert=0 adv=34.837 0 codes=436861726c6965 glyphs=[67@0,0,0.722:g38:u43 104@7.942,0,0.556:g75:u68 97@14.058,0,0.556:g68:u61 114@20.174,0,0.333:g85:u72 108@23.837,0,0.222:g79:u6c 105@26.279,0,0.222:g76:u69 101@28.721,0,0.556:g72:u65]
+          gs ctm=[1 0 0 -1 40 364] fill=rgb(0.6 0.756 0.854) stroke=gray(0) lw=1 cap=0 join=0 miter=10 dash=[] phase=0 flat=1 ri=RelativeColorimetric fa=1 sa=1 bm=Normal sm=0 ais=0 op=000
+          fill nonzero M 1 21.05 L 199 21.05 L 199 33.7 L 1 33.7 Z
+          gs ctm=[1 0 0 -1 40 364] fill=gray(0) stroke=gray(0) lw=1 cap=0 join=0 miter=10 dash=[] phase=0 flat=1 ri=RelativeColorimetric fa=1 sa=1 bm=Normal sm=0 ais=0 op=000
+          text font=/F0 size=11 mode=0 tc=0 tw=0 th=1 rise=0 tm=[1 0 0 1 3 23.415] vert=0 adv=25.674 0 codes=44656c7461 glyphs=[68@0,0,0.722:g39:u44 101@7.942,0,0.556:g72:u65 108@14.058,0,0.222:g79:u6c 116@16.5,0,0.278:g87:u74 97@19.558,0,0.556:g68:u61]
+          text font=/F0 size=11 mode=0 tc=0 tw=0 th=1 rise=0 tm=[1 0 0 1 3 10.765] vert=0 adv=25.069 0 codes=4563686f glyphs=[69@0,0,0.667:g40:u45 99@7.337,0,0.5:g70:u63 104@12.837,0,0.556:g75:u68 111@18.953,0,0.556:g82:u6f]
+          text font=/F0 size=11 mode=0 tc=0 tw=0 th=1 rise=0 tm=[1 0 0 1 3 -1.885] vert=0 adv=34.232 0 codes=466f7874726f74 glyphs=[70@0,0,0.611:g41:u46 111@6.721,0,0.556:g82:u6f 120@12.837,0,0.5:g91:u78 116@18.337,0,0.278:g87:u74 114@21.395,0,0.333:g85:u72 111@25.058,0,0.556:g82:u6f 116@31.174,0,0.278:g87:u74]
+        pop-clip
+      end-mc
+    pop-clip
+  end-annot
+  begin-annot /Widget rect=40 380 60 400 flags=4
+    gs ctm=[1 0 0 -1 40 400] fill=gray(0) stroke=gray(0) lw=1 cap=0 join=0 miter=10 dash=[] phase=0 flat=1 ri=RelativeColorimetric fa=1 sa=1 bm=Normal sm=0 ais=0 op=000
+    clip nonzero M 0 0 L 20 0 L 20 20 L 0 20 Z
+      gs ctm=[1 0 0 -1 40 400] fill=rgb(0 0 1) stroke=gray(0) lw=1 cap=0 join=0 miter=10 dash=[] phase=0 flat=1 ri=RelativeColorimetric fa=1 sa=1 bm=Normal sm=0 ais=0 op=000
+      fill nonzero M 2 2 L 18 2 L 18 18 L 2 18 Z
+    pop-clip
+  end-annot
+  begin-annot /Widget rect=80 380 100 400 flags=4
+    gs ctm=[1 0 0 -1 80 400] fill=gray(0) stroke=gray(0) lw=1 cap=0 join=0 miter=10 dash=[] phase=0 flat=1 ri=RelativeColorimetric fa=1 sa=1 bm=Normal sm=0 ais=0 op=000
+    clip nonzero M 0 0 L 20 0 L 20 20 L 0 20 Z
+    pop-clip
+  end-annot
+  begin-annot /Widget rect=120 380 140 400 flags=4
+    gs ctm=[1 0 0 -1 120 400] fill=gray(0) stroke=gray(0) lw=1 cap=0 join=0 miter=10 dash=[] phase=0 flat=1 ri=RelativeColorimetric fa=1 sa=1 bm=Normal sm=0 ais=0 op=000
+    clip nonzero M 0 0 L 20 0 L 20 20 L 0 20 Z
+      gs ctm=[1 0 0 -1 120 400] fill=rgb(0 0 1) stroke=gray(0) lw=1 cap=0 join=0 miter=10 dash=[] phase=0 flat=1 ri=RelativeColorimetric fa=1 sa=1 bm=Normal sm=0 ais=0 op=000
+      fill nonzero M 2 2 L 18 2 L 18 18 L 2 18 Z
+    pop-clip
+  end-annot
+  begin-annot /Widget rect=160 380 180 400 flags=4
+    gs ctm=[1 0 0 -1 160 400] fill=gray(0) stroke=gray(0) lw=1 cap=0 join=0 miter=10 dash=[] phase=0 flat=1 ri=RelativeColorimetric fa=1 sa=1 bm=Normal sm=0 ais=0 op=000
+    clip nonzero M 0 0 L 20 0 L 20 20 L 0 20 Z
+      gs ctm=[1 0 0 -1 160 400] fill=rgb(0 0 1) stroke=gray(0) lw=1 cap=0 join=0 miter=10 dash=[] phase=0 flat=1 ri=RelativeColorimetric fa=1 sa=1 bm=Normal sm=0 ais=0 op=000
+      fill nonzero M 2 2 L 18 2 L 18 18 L 2 18 Z
+    pop-clip
+  end-annot
+  begin-annot /Widget rect=220 380 240 400 flags=4
+    gs ctm=[1 0 0 -1 220 400] fill=gray(0) stroke=gray(0) lw=1 cap=0 join=0 miter=10 dash=[] phase=0 flat=1 ri=RelativeColorimetric fa=1 sa=1 bm=Normal sm=0 ais=0 op=000
+    clip nonzero M 0 0 L 20 0 L 20 20 L 0 20 Z
+      gs ctm=[1 0 0 -1 220 400] fill=rgb(0 0 1) stroke=gray(0) lw=1 cap=0 join=0 miter=10 dash=[] phase=0 flat=1 ri=RelativeColorimetric fa=1 sa=1 bm=Normal sm=0 ais=0 op=000
+      fill nonzero M 2 2 L 18 2 L 18 18 L 2 18 Z
+    pop-clip
+  end-annot
+  begin-annot /Widget rect=260 380 280 400 flags=4
+    gs ctm=[1 0 0 -1 260 400] fill=gray(0) stroke=gray(0) lw=1 cap=0 join=0 miter=10 dash=[] phase=0 flat=1 ri=RelativeColorimetric fa=1 sa=1 bm=Normal sm=0 ais=0 op=000
+    clip nonzero M 0 0 L 20 0 L 20 20 L 0 20 Z
+    pop-clip
+  end-annot
+  begin-annot /Widget rect=310 378 410 402 flags=4
+    gs ctm=[1 0 0 -1 310 402] fill=gray(0) stroke=gray(0) lw=1 cap=0 join=0 miter=10 dash=[] phase=0 flat=1 ri=RelativeColorimetric fa=1 sa=1 bm=Normal sm=0 ais=0 op=000
+    clip nonzero M 0 0 L 100 0 L 100 24 L 0 24 Z
+      gs ctm=[1 0 0 -1 310 402] fill=rgb(1 0.8 0.8) stroke=gray(0) lw=1 cap=0 join=0 miter=10 dash=[] phase=0 flat=1 ri=RelativeColorimetric fa=1 sa=1 bm=Normal sm=0 ais=0 op=000
+      fill nonzero M 0 0 L 100 0 L 100 24 L 0 24 Z
+      gs ctm=[1 0 0 -1 310 402] fill=gray(0) stroke=gray(0) lw=1 cap=0 join=0 miter=10 dash=[] phase=0 flat=1 ri=RelativeColorimetric fa=1 sa=1 bm=Normal sm=0 ais=0 op=000
+      text font=/Helv size=9 mode=0 tc=0 tw=0 th=1 rise=0 tm=[1 0 0 1 2 2] vert=0 adv=28.512 0 codes=5354414c45 glyphs=[83@0,0,0.667:g54:u53 84@6.003,0,0.611:g55:u54 65@11.502,0,0.667:g36:u41 76@17.505,0,0.556:g47:u4c 69@22.509,0,0.667:g40:u45]
+    pop-clip
+  end-annot
+  begin-annot /Widget rect=40 344 240 374 flags=4
+    gs ctm=[1 0 0 -1 40 436] fill=gray(0) stroke=gray(0) lw=1 cap=0 join=0 miter=10 dash=[] phase=0 flat=1 ri=RelativeColorimetric fa=1 sa=1 bm=Normal sm=0 ais=0 op=000
+    clip nonzero M 0 0 L 200 0 L 200 30 L 0 30 Z
+      gs ctm=[1 0 0 -1 40 436] fill=rgb(1 0.8 0.8) stroke=gray(0) lw=1 cap=0 join=0 miter=10 dash=[] phase=0 flat=1 ri=RelativeColorimetric fa=1 sa=1 bm=Normal sm=0 ais=0 op=000
+      fill nonzero M 0 0 L 200 0 L 200 30 L 0 30 Z
+      gs ctm=[1 0 0 -1 40 436] fill=gray(0) stroke=gray(0) lw=1 cap=0 join=0 miter=10 dash=[] phase=0 flat=1 ri=RelativeColorimetric fa=1 sa=1 bm=Normal sm=0 ais=0 op=000
+      text font=/Helv size=9 mode=0 tc=0 tw=0 th=1 rise=0 tm=[1 0 0 1 2 2] vert=0 adv=28.512 0 codes=5354414c45 glyphs=[83@0,0,0.667:g54:u53 84@6.003,0,0.611:g55:u54 65@11.502,0,0.667:g36:u41 76@17.505,0,0.556:g47:u4c 69@22.509,0,0.667:g40:u45]
+    pop-clip
+  end-annot
+end-page

@@ -564,7 +564,19 @@ internal sealed partial class ContentInterpreter
         }
 
         PdfStream? ap = annotation.GetAppearanceStream();
-        if (ap is null)
+        PdfGeneratedAppearance? generated = null;
+        if (_options.GenerateAppearances && subtype != "Link" && (ap is null || WantsRegeneration(annotation, subtype)))
+        {
+            int obj = annotation.Dictionary.Reference?.Number ?? -1;
+            generated = annotation.GenerateAppearance(_ct);
+            if (generated is not null)
+            {
+                Report(PdfSeverity.Info, "Drew a generated appearance (" + generated.Description + ") for the " + subtype + " annotation"
+                    + (obj >= 0 ? " " + obj.ToString(System.Globalization.CultureInfo.InvariantCulture) + " 0 R" : string.Empty) + ".");
+            }
+        }
+
+        if (ap is null && generated is null)
         {
             if (subtype != "Link")
             {
@@ -574,7 +586,7 @@ internal sealed partial class ContentInterpreter
             return;
         }
 
-        PdfRectangle r = annotation.Rect;
+        PdfRectangle r = generated?.Rect ?? annotation.Rect;
         if (r.IsEmpty && annotation.Dictionary.Get("Rect") is not PdfArray)
         {
             Report(PdfSeverity.Warning, "An annotation has no valid /Rect; it was skipped.");
@@ -584,10 +596,11 @@ internal sealed partial class ContentInterpreter
         var rect = new PdfBounds(r.Left, r.Bottom, r.Right, r.Top);
         int flags = (int)f;
         PdfDictionary a = annotation.Dictionary;
+        PdfDictionary apDict = generated?.Dictionary ?? ap!.Dictionary;
 
         // ISO 32000-2 12.5.5: the transformed appearance box is fitted onto the annotation rectangle.
-        PdfMatrix fm = ReadMatrix(ap.Dictionary.GetArray("Matrix"));
-        PdfBounds box = ReadRect(ap.Dictionary.GetArray("BBox")) ?? new PdfBounds(0, 0, 0, 0);
+        PdfMatrix fm = ReadMatrix(apDict.GetArray("Matrix"));
+        PdfBounds box = ReadRect(apDict.GetArray("BBox")) ?? new PdfBounds(0, 0, 0, 0);
         PdfBounds tb = fm.TransformBounds(box);
         double sx = tb.Width > 0 ? rect.Width / tb.Width : 1;
         double sy = tb.Height > 0 ? rect.Height / tb.Height : 1;
@@ -604,7 +617,14 @@ internal sealed partial class ContentInterpreter
         {
             ResetState(_page.BaseMatrix);
             _g.Ctm = ctm;
-            RunForm(ap, string.Empty, false);
+            if (generated is not null)
+            {
+                RunFormContent(generated.Dictionary, generated.Content, false);
+            }
+            else
+            {
+                RunForm(ap!, string.Empty, false);
+            }
         }
         finally
         {
@@ -618,6 +638,13 @@ internal sealed partial class ContentInterpreter
             }
         }
     }
+
+    // ISO 32000-2 12.7.3: with /NeedAppearances true the viewer rebuilds the appearances of fields from their values.
+    private bool WantsRegeneration(PdfAnnotation annotation, string subtype) =>
+        subtype == "Widget" && (_needAppearances ??= Appearance.AppearanceGenerator.FormNeedsAppearances(_doc))
+        && Appearance.WidgetAppearance.RegeneratesUnderNeedAppearances(_doc, annotation.Dictionary, annotation.GetAppearanceStream() is not null);
+
+    private bool? _needAppearances;
 
     // ISO 32000-2 12.5.3 Table 167: NoZoom keeps the appearance at its size at 100% magnification and NoRotate keeps it upright,
     // in both cases with the upper-left corner of the annotation rectangle (in default user space) staying where the page

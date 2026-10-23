@@ -40,6 +40,7 @@ internal static class Program
         ["pdffont"] = FontSweep.Target,
         ["image"] = ImageTarget.Run,
         ["content"] = ContentTarget.Run,
+        ["appearance"] = AppearanceTarget.Run,
         ["shading"] = ShadingTarget.Run,
         ["extraction"] = ExtractionTarget.Run,
     };

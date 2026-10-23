@@ -1,0 +1,93 @@
+%PDF-1.7
+%‚„œ”
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R /AcroForm << /Fields [] /NeedAppearances true >> >>
+endobj
+2 0 obj
+<< /Type /Pages /Kids [3 0 R] /Count 1 >>
+endobj
+3 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 500 780] /Contents 5 0 R /Resources << /Font << /F1 4 0 R >> >> /Annots [6 0 R 7 0 R 8 0 R 9 0 R 10 0 R 11 0 R 12 0 R 13 0 R 14 0 R 15 0 R 16 0 R 17 0 R 18 0 R 19 0 R 20 0 R] >>
+endobj
+4 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>
+endobj
+5 0 obj
+<<  /Length 171 >>
+stream
+BT /F1 14 Tf 40 700 Td (Marked up text line one) Tj 0 -40 Td (Marked up text line two) Tj 0 -40 Td (Marked up text line three) Tj 0 -40 Td (Marked up text line four) Tj ET
+endstream
+endobj
+6 0 obj
+<< /Type /Annot /F 4 /Subtype /Square /Rect [40 560 140 620] /C [1 0 0] /IC [1 1 0.6] /BS << /W 3 /S /S >> /CA 0.6 /P 3 0 R >>
+endobj
+7 0 obj
+<< /Type /Annot /F 4 /Subtype /Circle /Rect [160 560 260 620] /C [0 0.5 0] /BS << /W 2 /S /D /D [4 2] >> /P 3 0 R >>
+endobj
+8 0 obj
+<< /Type /Annot /F 4 /Subtype /Line /Rect [40 500 300 540] /L [50 510 290 530] /LE [/OpenArrow /ClosedArrow] /C [0 0 1] /IC [0 0 1] /BS << /W 2 >> /P 3 0 R >>
+endobj
+9 0 obj
+<< /Type /Annot /F 4 /Subtype /Line /Rect [320 480 440 560] /L [330 490 430 490] /LE [/Circle /Square] /LL 20 /LLE 5 /C [0.5 0 0.5] /IC [1 0.8 1] /P 3 0 R >>
+endobj
+10 0 obj
+<< /Type /Annot /F 4 /Subtype /Polygon /Rect [40 400 140 470] /Vertices [50 410 130 410 90 460] /C [0 0 0] /IC [0.8 1 0.8] /BS << /W 1 >> /P 3 0 R >>
+endobj
+11 0 obj
+<< /Type /Annot /F 4 /Subtype /PolyLine /Rect [160 400 300 470] /Vertices [170 410 220 460 260 410 290 450] /LE [/None /OpenArrow] /C [0.8 0 0] /BS << /W 2 >> /P 3 0 R >>
+endobj
+12 0 obj
+<< /Type /Annot /F 4 /Subtype /Ink /Rect [320 400 440 470] /InkList [[330 410 350 460 370 410 390 460 410 410] [330 440 430 440]] /C [0 0.4 0.8] /BS << /W 2 >> /P 3 0 R >>
+endobj
+13 0 obj
+<< /Type /Annot /F 4 /Subtype /Highlight /Rect [40 695 200 715] /QuadPoints [40 715 200 715 40 695 200 695] /C [1 1 0] /P 3 0 R >>
+endobj
+14 0 obj
+<< /Type /Annot /F 4 /Subtype /Underline /Rect [40 655 200 675] /QuadPoints [40 675 200 675 40 655 200 655] /C [0 0.6 0] /P 3 0 R >>
+endobj
+15 0 obj
+<< /Type /Annot /F 4 /Subtype /StrikeOut /Rect [40 615 200 635] /QuadPoints [40 635 200 635 40 615 200 615] /C [1 0 0] /P 3 0 R >>
+endobj
+16 0 obj
+<< /Type /Annot /F 4 /Subtype /Squiggly /Rect [40 575 200 595] /QuadPoints [40 595 200 595 40 575 200 575] /C [0 0 1] /P 3 0 R >>
+endobj
+17 0 obj
+<< /Type /Annot /F 4 /Subtype /FreeText /Rect [40 300 240 370] /DA (/Helv 12 Tf 0 0 0.6 rg) /Q 1 /Contents (Free text with a callout line pointing away from the box) /C [1 1 0.8] /BS << /W 2 >> /CL [240 335 300 300] /LE /OpenArrow /P 3 0 R >>
+endobj
+18 0 obj
+<< /Type /Annot /F 4 /Subtype /Text /Rect [320 340 340 360] /Name /Note /C [1 0.9 0.2] /Contents (A note) /P 3 0 R >>
+endobj
+19 0 obj
+<< /Type /Annot /F 4 /Subtype /Text /Rect [360 340 380 360] /Name /Comment /C [0.6 0.9 1] /Contents (A comment) /P 3 0 R >>
+endobj
+20 0 obj
+<< /Type /Annot /F 4 /Subtype /Text /Rect [400 340 420 360] /Name /Help /C [0.7 1 0.7] /Contents (Help) /P 3 0 R >>
+endobj
+xref
+0 21
+0000000000 65535 f 
+0000000015 00000 n 
+0000000113 00000 n 
+0000000170 00000 n 
+0000000407 00000 n 
+0000000504 00000 n 
+0000000727 00000 n 
+0000000869 00000 n 
+0000001001 00000 n 
+0000001175 00000 n 
+0000001348 00000 n 
+0000001514 00000 n 
+0000001701 00000 n 
+0000001889 00000 n 
+0000002036 00000 n 
+0000002185 00000 n 
+0000002332 00000 n 
+0000002478 00000 n 
+0000002737 00000 n 
+0000002871 00000 n 
+0000003011 00000 n 
+trailer
+<< /Size 21 /Root 1 0 R >>
+startxref
+3143
+%%EOF

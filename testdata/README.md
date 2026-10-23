@@ -19,3 +19,4 @@ Rules:
 `repros/`:
 
 - `encrypted-objstm-aes128.pdf` — `raw-base-objstm.pdf` encrypted by qpdf (AES-128, user password `up`, owner password `op`) keeping its object stream. The object stream is encrypted, so reading its header before authentication fails with an invalid `/N` or `/First`; the reader now authenticates first.
+- `appearance-short-line-ending-array.pdf` — a Line and a PolyLine whose `/LE` array has fewer than two names; the appearance generator indexed past the end of the array (found by fuzzing). Assembled by hand.
