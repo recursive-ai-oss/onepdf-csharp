@@ -13,7 +13,7 @@ internal static class SignatureVerifier
 {
     public static PdfSignatureVerification Verify(PdfSignature sig, PdfSignatureVerifyOptions options, CancellationToken ct)
     {
-        var v = new PdfSignatureVerification(sig);
+        var v = new PdfSignatureVerification(sig) { RequireKeyUsage = options.RequireSigningKeyUsage };
         var warnings = new List<string>();
         ByteRangeInfo br = sig.Range;
         v.ByteRange = br.Status;
@@ -224,6 +224,12 @@ internal static class SignatureVerifier
 
         if (o.Cert is not null)
         {
+            v.KeyUsage = o.KeyUsageProblem is null ? PdfCheckStatus.Valid : PdfCheckStatus.Invalid;
+            if (o.KeyUsageProblem is not null)
+            {
+                warnings.Add(o.KeyUsageProblem + (options.RequireSigningKeyUsage ? string.Empty : " (allowed by the options)"));
+            }
+
             ChainResult chain = BuildChain(o.Cert, pool, options, v.ValidationTime, warnings);
             v.Chain = chain.Status;
             v.ChainElements = chain.Elements;
@@ -241,6 +247,7 @@ internal static class SignatureVerifier
         public PdfCheckStatus Signature = PdfCheckStatus.Invalid;
         public X509Certificate2? Cert;
         public byte[] CertDer = [];
+        public string? KeyUsageProblem;
         public string? DigestName;
         public string? SigName;
         public bool Weak;
@@ -472,22 +479,51 @@ internal static class SignatureVerifier
             o.Signature = PdfCheckStatus.Invalid;
         }
 
+        o.KeyUsageProblem = KeyUsageProblem(o.Cert);
+
+        return o;
+    }
+
+    // Purposes under which a certificate may sign a document: none stated, or one of these (ISO 32000-2 12.8.3, RFC 5280 4.2.1.12,
+    // RFC 9336). A certificate limited to other purposes (time-stamping, TLS server, code signing) is not a document signer's.
+    private static readonly string[] DocumentSigningPurposes =
+    [
+        "2.5.29.37.0", "1.3.6.1.5.5.7.3.4", "1.2.840.113583.1.1.5", "1.3.6.1.4.1.311.10.3.12", "1.3.6.1.5.5.7.3.36",
+    ];
+
+    /// <summary>Why this certificate may not sign documents (RFC 5280 4.2.1.3 key usage, 4.2.1.12 extended key usage), or null.</summary>
+    internal static string? KeyUsageProblem(X509Certificate2 cert)
+    {
         try
         {
-            foreach (X509Extension ext in o.Cert.Extensions)
+            foreach (X509Extension ext in cert.Extensions)
             {
                 if (ext is X509KeyUsageExtension ku && (ku.KeyUsages & (X509KeyUsageFlags.DigitalSignature | X509KeyUsageFlags.NonRepudiation)) == 0)
                 {
-                    warnings.Add("The signer certificate's key usage does not allow signing.");
+                    return "The signer certificate's key usage does not include digitalSignature or nonRepudiation.";
+                }
+
+                if (ext is X509EnhancedKeyUsageExtension eku && eku.EnhancedKeyUsages.Count > 0)
+                {
+                    bool ok = false;
+                    foreach (Oid oid in eku.EnhancedKeyUsages)
+                    {
+                        ok |= oid.Value is not null && Array.IndexOf(DocumentSigningPurposes, oid.Value) >= 0;
+                    }
+
+                    if (!ok)
+                    {
+                        return "The signer certificate's extended key usage does not allow signing documents.";
+                    }
                 }
             }
+
+            return null;
         }
         catch (Exception e) when (e is CryptographicException or ArgumentException)
         {
-            warnings.Add("The signer certificate's extensions could not be read.");
+            return "The signer certificate's extensions could not be read.";
         }
-
-        return o;
     }
 
     // Returns false when an ESS signing-certificate attribute exists and does not match the certificate.
@@ -735,7 +771,9 @@ internal static class SignatureVerifier
 
             if (!timestamping)
             {
+                // RFC 3161 2.3: the authority's certificate must carry the time-stamping purpose.
                 w.Add("The time-stamp authority's certificate does not carry the time-stamping extended key usage.");
+                r.Signature = PdfCheckStatus.Invalid;
             }
 
             ChainResult chain = BuildChain(o.Cert, tokenPool, options, options.ValidationTime ?? genTime, w);

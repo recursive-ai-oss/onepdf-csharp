@@ -217,6 +217,13 @@ public sealed class PdfSignatureVerifyOptions
     /// </summary>
     public Func<X509Certificate2, X509Certificate2?, PdfRevocationStatus>? RevocationCheck { get; init; }
 
+    /// <summary>
+    /// Require the signer certificate to be usable for signing documents: key usage with digitalSignature or nonRepudiation, and an extended
+    /// key usage (when present) naming a document-signing, e-mail or any purpose (RFC 5280 4.2.1.3 and 4.2.1.12). Default true; when false the
+    /// problem is still reported in <see cref="PdfSignatureVerification.KeyUsage"/> and the warnings but does not make <c>IsValid</c> false.
+    /// </summary>
+    public bool RequireSigningKeyUsage { get; init; } = true;
+
     /// <summary>Compare the signed revision with later ones. Default true; only costs anything when later revisions exist.</summary>
     public bool AnalyzeModifications { get; init; } = true;
 }
@@ -261,6 +268,8 @@ public sealed class PdfSignatureVerification
         Signature = signature;
     }
 
+    internal bool RequireKeyUsage { get; set; } = true;
+
     /// <summary>The signature this result describes.</summary>
     public PdfSignature Signature { get; }
 
@@ -272,6 +281,12 @@ public sealed class PdfSignatureVerification
 
     /// <summary>The cryptographic signature (over the signed attributes, or the content digest) verifies with the signer certificate's key.</summary>
     public PdfCheckStatus SignatureCheck { get; internal set; } = PdfCheckStatus.NotChecked;
+
+    /// <summary>
+    /// Whether the signer certificate's key usage and extended key usage allow signing documents. <see cref="PdfCheckStatus.Invalid"/> when
+    /// they do not; <see cref="PdfCheckStatus.NotChecked"/> when there is no signer certificate (or for a document time-stamp).
+    /// </summary>
+    public PdfCheckStatus KeyUsage { get; internal set; } = PdfCheckStatus.NotChecked;
 
     /// <summary>The signer's certificate chain at <see cref="ValidationTime"/>.</summary>
     public PdfChainStatus Chain { get; internal set; } = PdfChainStatus.NotChecked;
@@ -325,13 +340,14 @@ public sealed class PdfSignatureVerification
     public IReadOnlyList<string> Warnings { get; internal set; } = [];
 
     /// <summary>
-    /// True when the byte range is valid, the digest matches, the signature verifies, the chain is trusted at the validation time
+    /// True when the byte range is valid, the digest matches, the signature verifies, the signer certificate may sign documents (unless
+    /// <see cref="PdfSignatureVerifyOptions.RequireSigningKeyUsage"/> is off), the chain is trusted at the validation time
     /// (and any time-stamp is valid), and no disallowed change follows. Revocation is not required; a weak algorithm is only a
     /// warning. Use the individual properties for anything finer.
     /// </summary>
     public bool IsValid =>
         ByteRange == PdfByteRangeStatus.Valid && Integrity == PdfCheckStatus.Valid && SignatureCheck == PdfCheckStatus.Valid
-        && Chain == PdfChainStatus.Trusted && (Timestamp is null || Timestamp.IsValid) && Revocation != PdfRevocationStatus.Revoked
+        && Chain == PdfChainStatus.Trusted && (KeyUsage != PdfCheckStatus.Invalid || !RequireKeyUsage) && (Timestamp is null || Timestamp.IsValid) && Revocation != PdfRevocationStatus.Revoked
         && Coverage != PdfSignatureCoverage.EarlierRevisionDisallowedChanges;
 }
 

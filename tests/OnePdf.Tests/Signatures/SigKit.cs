@@ -127,6 +127,12 @@ internal sealed class TestPki
         ExpiredSigner = Leaf("CN=Old Olaf", oldKey, Intermediate, Now.AddYears(-4), Now.AddYears(-2), Usage.Sign);
         using var otherKey = RSA.Create(2048);
         OtherRoot = CreateCa("CN=Other Root", otherKey, null, Now.AddYears(-6), Now.AddYears(20), 0);
+        using var kuKey = RSA.Create(2048);
+        KeyEnciphermentSigner = Leaf("CN=Key Only", kuKey, Intermediate, Now.AddYears(-1), Now.AddYears(5), Usage.KeyEncipherment);
+        using var tlsKey = RSA.Create(2048);
+        ServerAuthSigner = Leaf("CN=Tls Only", tlsKey, Intermediate, Now.AddYears(-1), Now.AddYears(5), Usage.ServerAuth);
+        using var mailKey = RSA.Create(2048);
+        EmailSigner = Leaf("CN=Mail Signer", mailKey, Intermediate, Now.AddYears(-1), Now.AddYears(5), Usage.EmailProtection);
         using var strangerKey = RSA.Create(2048);
         Stranger = Leaf("CN=Stranger", strangerKey, OtherRoot, Now.AddYears(-1), Now.AddYears(5), Usage.Sign);
     }
@@ -149,6 +155,15 @@ internal sealed class TestPki
 
     public X509Certificate2 Stranger { get; }
 
+    /// <summary>A certificate whose key usage is keyEncipherment only.</summary>
+    public X509Certificate2 KeyEnciphermentSigner { get; }
+
+    /// <summary>A certificate whose extended key usage is TLS server authentication only.</summary>
+    public X509Certificate2 ServerAuthSigner { get; }
+
+    /// <summary>A certificate with the e-mail protection purpose (allowed for signing documents).</summary>
+    public X509Certificate2 EmailSigner { get; }
+
     /// <summary>The root as a public-only certificate, for use as a trust anchor.</summary>
     public X509Certificate2 RootAnchor => X509CertificateLoader.LoadCertificate(Root.RawData);
 
@@ -158,6 +173,9 @@ internal sealed class TestPki
     {
         Sign,
         Timestamp,
+        KeyEncipherment,
+        ServerAuth,
+        EmailProtection,
     }
 
     private static X509Certificate2 Issue(CertificateRequest req, X509Certificate2 issuer, DateTimeOffset from, DateTimeOffset to)
@@ -199,12 +217,20 @@ internal sealed class TestPki
             _ => throw new ArgumentException("Unsupported key type.", nameof(key)),
         };
         req.CertificateExtensions.Add(new X509BasicConstraintsExtension(false, false, 0, true));
-        req.CertificateExtensions.Add(new X509KeyUsageExtension(X509KeyUsageFlags.DigitalSignature | X509KeyUsageFlags.NonRepudiation, true));
+        req.CertificateExtensions.Add(new X509KeyUsageExtension(usage == Usage.KeyEncipherment ? X509KeyUsageFlags.KeyEncipherment : X509KeyUsageFlags.DigitalSignature | X509KeyUsageFlags.NonRepudiation, true));
         req.CertificateExtensions.Add(new X509SubjectKeyIdentifierExtension(req.PublicKey, false));
         req.CertificateExtensions.Add(X509AuthorityKeyIdentifierExtension.CreateFromCertificate(issuer, true, false));
         if (usage == Usage.Timestamp)
         {
             req.CertificateExtensions.Add(new X509EnhancedKeyUsageExtension([new Oid("1.3.6.1.5.5.7.3.8")], true));
+        }
+        else if (usage == Usage.ServerAuth)
+        {
+            req.CertificateExtensions.Add(new X509EnhancedKeyUsageExtension([new Oid("1.3.6.1.5.5.7.3.1")], false));
+        }
+        else if (usage == Usage.EmailProtection)
+        {
+            req.CertificateExtensions.Add(new X509EnhancedKeyUsageExtension([new Oid("1.3.6.1.5.5.7.3.4")], false));
         }
 
         using X509Certificate2 pub = Issue(req, issuer, from, to);
@@ -253,6 +279,9 @@ internal sealed class CmsSpec
     public X509Certificate2? ClaimedSigner { get; init; }
 
     public bool PkcsSha1 { get; init; }
+
+    /// <summary>The certificate that signs the time-stamp token (the test authority when null).</summary>
+    public X509Certificate2? TimestampAuthority { get; init; }
 }
 
 internal static class CmsKit
@@ -337,7 +366,7 @@ internal static class CmsKit
         si.Add(Der.Oct(signature));
         if (spec.Timestamp)
         {
-            byte[] token = Timestamp(Hash(HashAlgorithmName.SHA256, signature), HashAlgorithmName.SHA256, spec.TimestampTime ?? DateTimeOffset.UtcNow);
+            byte[] token = Timestamp(Hash(HashAlgorithmName.SHA256, signature), HashAlgorithmName.SHA256, spec.TimestampTime ?? DateTimeOffset.UtcNow, spec.TimestampAuthority);
             si.Add(Der.Ctx(1, Attr("1.2.840.113549.1.9.16.2.14", token)));
         }
 
