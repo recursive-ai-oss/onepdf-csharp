@@ -121,9 +121,9 @@ public class SfntCffTests
         }
 
         TestContext.Current.SendDiagnosticMessage($"system fonts: {files.Length} files, {faces} faces ({cff} OpenType-CFF, {cid} CID-keyed), {glyphs} glyphs, {bitmapOnly} bitmap-only skipped");
-        Assert.True(faces > 50, "faces: " + faces);
+        // The number of installed fonts depends on the host; what is checked is that every face present parses.
         Assert.True(problems.Count == 0, string.Join("; ", problems));
-        Assert.True(glyphs > 10000);
+        Assert.SkipWhen(faces == 0, "No TrueType or OpenType system fonts installed on this host.");
         // Many hosts (Windows, minimal Linux images) have no OpenType-CFF fonts installed; the checks above still ran on what exists.
         Assert.SkipWhen(cff == 0, "No OpenType-CFF system fonts installed on this host.");
     }
