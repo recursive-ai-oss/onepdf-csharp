@@ -23,6 +23,8 @@ internal static class ImageLoader
         public PdfDictionary? CodecParms;
         public PdfImageOptions Options = PdfImageOptions.Default;
         public bool AllowMasks = true;
+        public int TargetWidth;
+        public int TargetHeight;
     }
 
     /// <summary>The samples of an image before PDF semantics: what is in the stream or what a decoder returned.</summary>
@@ -31,7 +33,7 @@ internal static class ImageLoader
         public long Stride => ((long)Width * (Components + (HasAlpha ? 1 : 0)) * Bpc + 7) / 8;
     }
 
-    public static PdfImageData? LoadXObject(PdfDocument doc, PdfStream stream, PdfDictionary? resources, PdfImageOptions options, bool allowMasks, CancellationToken ct)
+    public static PdfImageData? LoadXObject(PdfDocument doc, PdfStream stream, PdfDictionary? resources, PdfImageOptions options, bool allowMasks, CancellationToken ct, int targetWidth = 0, int targetHeight = 0)
     {
         PdfDictionary d = stream.Dictionary;
         var s = new Src
@@ -42,6 +44,8 @@ internal static class ImageLoader
             ObjNum = stream.Reference?.Number ?? -1,
             Options = options,
             AllowMasks = allowMasks,
+            TargetWidth = targetWidth,
+            TargetHeight = targetHeight,
             Data = stream.GetDecodedBytesSized(ExpectedSampleBytes(d, resources), ct),
             Codec = stream.UndecodedFilter,
         };
@@ -142,9 +146,9 @@ internal static class ImageLoader
         }
     }
 
-    public static PdfImageData? LoadInline(PdfDocument doc, PdfDictionary dict, ReadOnlyMemory<byte> data, PdfDictionary? resources, PdfImageOptions options, CancellationToken ct)
+    public static PdfImageData? LoadInline(PdfDocument doc, PdfDictionary dict, ReadOnlyMemory<byte> data, PdfDictionary? resources, PdfImageOptions options, CancellationToken ct, int targetWidth = 0, int targetHeight = 0)
     {
-        var s = new Src { Doc = doc, Dict = dict, Resources = resources, Inline = true, Options = options, Data = data };
+        var s = new Src { Doc = doc, Dict = dict, Resources = resources, Inline = true, Options = options, Data = data, TargetWidth = targetWidth, TargetHeight = targetHeight };
         var names = new List<string>();
         PdfObject? f = Pick(dict, s, "Filter", "F");
         if (f is PdfName fn)
@@ -327,6 +331,8 @@ internal static class ImageLoader
                 Globals = img.EncodedGlobals,
                 ColorTransform = sem.ColorTransform,
                 DeclaredBitsPerComponent = sem.BitsPerComponent,
+                TargetWidth = s.TargetWidth,
+                TargetHeight = s.TargetHeight,
             };
             PdfDecodedImage? res;
             try
@@ -353,7 +359,14 @@ internal static class ImageLoader
 
             if (res.Width != w || res.Height != h)
             {
-                doc.ReportWarning($"The {s.Codec} data is {res.Width}x{res.Height}, the dictionary says {w}x{h}; the data size is used.", s.ObjNum, -1);
+                // A smaller result to a request that carried a target size is the decoder using that hint, not damage.
+                bool reduced = s.TargetWidth > 0 && res.Width <= w && res.Height <= h;
+                if (!reduced)
+                {
+                    doc.ReportWarning($"The {s.Codec} data is {res.Width}x{res.Height}, the dictionary says {w}x{h}; the data size is used.", s.ObjNum, -1);
+                }
+
+
                 img.Width = res.Width;
                 img.Height = res.Height;
             }

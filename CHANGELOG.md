@@ -2,6 +2,17 @@
 
 All notable changes are listed here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and versions follow [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Added
+
+- `PdfImageDecodeRequest.TargetWidth` and `TargetHeight`: the size in device pixels the image covers on the page (the unit square under the CTM and output transform, rounded up, never above the image's own size), or 0 when unknown. A JPEG 2000 decoder can use it to decode at a reduced resolution. `PdfImage.TargetWidth`/`TargetHeight` expose the same values to devices. Decoding outside a page leaves them 0; existing decoders can ignore them.
+- A decoder may return fewer pixels than the dictionary declares. OnePDF passes the reduced size through (`PdfImageData.Width`/`Height`) without resampling; placement is unchanged because the image fills the unit square. No warning is recorded when a target size was given and the result is not larger than declared.
+
+### Fixed
+
+- TrueType instructions (fonts whose composites need their programs): ISECT now uses exact 128-bit arithmetic instead of treating a discriminant of -1 as degenerate. A glyph program that fails on its own now leaves only its own component unhinted; the whole glyph is drawn from its plain outline only when the shared per-glyph instruction budget is spent.
+
 ## [1.2.0] - 2026-10-23
 
 ### Added

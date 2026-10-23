@@ -222,15 +222,30 @@ public readonly record struct PdfGlyphRun(
 public readonly struct PdfImage
 {
     private readonly ImageSource? _source;
+    private readonly int _targetWidth;
+    private readonly int _targetHeight;
 
-    internal PdfImage(PdfDictionary dictionary, PdfStream? stream, ReadOnlyMemory<byte> inlineData, string name, PdfDocument document, PdfDictionary? resources)
+    internal PdfImage(PdfDictionary dictionary, PdfStream? stream, ReadOnlyMemory<byte> inlineData, string name, PdfDocument document, PdfDictionary? resources, double deviceWidth = 0, double deviceHeight = 0)
     {
         Dictionary = dictionary;
         Stream = stream;
         InlineData = inlineData;
         Name = name;
-        _source = new ImageSource(document, dictionary, stream, inlineData, resources);
+        // The target is the device extent rounded up (the small epsilon keeps 72.00000000001 from becoming 73) and never larger
+        // than the image; unknown (0) when the extent is degenerate or the dictionary has no usable size.
+        long w = Dimension(dictionary, "Width", "W");
+        long h = Dimension(dictionary, "Height", "H");
+        if (w >= 1 && h >= 1 && deviceWidth > 0 && deviceHeight > 0 && double.IsFinite(deviceWidth) && double.IsFinite(deviceHeight))
+        {
+            _targetWidth = (int)Math.Min(w, Math.Max(1, Math.Ceiling(Math.Min(deviceWidth, int.MaxValue) - 1e-6)));
+            _targetHeight = (int)Math.Min(h, Math.Max(1, Math.Ceiling(Math.Min(deviceHeight, int.MaxValue) - 1e-6)));
+        }
+
+        _source = new ImageSource(document, dictionary, stream, inlineData, resources, _targetWidth, _targetHeight);
     }
+
+    private static long Dimension(PdfDictionary d, string full, string abbr) => d.ContainsKey(full) ? d.GetInt(full) : d.GetInt(abbr);
+
 
     /// <summary>The image dictionary.</summary>
     public PdfDictionary Dictionary { get; }
@@ -246,6 +261,16 @@ public readonly struct PdfImage
 
     /// <summary>True for an inline image.</summary>
     public bool IsInline => Stream is null;
+
+    /// <summary>
+    /// The pixel width the image covers on the output, when the interpreter knows it: the axis-aligned extent of the image's unit
+    /// square under the call's CTM, rounded up and never larger than the image's own <c>/Width</c>. 0 when unknown (an image not
+    /// reached through a page). <see cref="GetData"/> passes it to image decoders as a hint.
+    /// </summary>
+    public int TargetWidth => _targetWidth;
+
+    /// <summary>The pixel height the image covers on the output; see <see cref="TargetWidth"/>. 0 when unknown.</summary>
+    public int TargetHeight => _targetHeight;
 
     /// <summary>
     /// The data as stored, still encoded (filters not applied): the inline bytes, or the XObject's bytes with the document's
@@ -269,7 +294,7 @@ public readonly struct PdfImage
 }
 
 /// <summary>What <see cref="PdfImage.GetData"/> needs to build the finished image, and the shared result for default options.</summary>
-internal sealed class ImageSource(PdfDocument document, PdfDictionary dictionary, PdfStream? stream, ReadOnlyMemory<byte> inlineData, PdfDictionary? resources)
+internal sealed class ImageSource(PdfDocument document, PdfDictionary dictionary, PdfStream? stream, ReadOnlyMemory<byte> inlineData, PdfDictionary? resources, int targetWidth, int targetHeight)
 {
     private readonly object _gate = new();
     private PdfImageData? _default;
@@ -296,8 +321,8 @@ internal sealed class ImageSource(PdfDocument document, PdfDictionary dictionary
 
     private PdfImageData? Build(PdfImageOptions options, CancellationToken ct) =>
         stream is not null
-            ? PdfImageData.FromXObject(document, stream, resources, options, ct)
-            : PdfImageData.FromInline(document, dictionary, inlineData, resources, options, ct);
+            ? ImageLoader.LoadXObject(document, stream, resources, options, allowMasks: true, ct, targetWidth, targetHeight)
+            : ImageLoader.LoadInline(document, dictionary, inlineData, resources, options, ct, targetWidth, targetHeight);
 }
 
 /// <summary>A transparency group about to be painted as a unit.</summary>

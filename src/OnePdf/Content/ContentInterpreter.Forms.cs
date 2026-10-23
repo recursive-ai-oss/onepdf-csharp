@@ -267,7 +267,8 @@ internal sealed partial class ContentInterpreter
             case "Image":
                 {
                     PdfGraphicsState s = Snapshot();
-                    var img = new PdfImage(xo.Dictionary, xo, default, name, _doc, _res);
+                    (double dw, double dh) = DeviceExtent(s.Ctm);
+                    var img = new PdfImage(xo.Dictionary, xo, default, name, _doc, _res, dw, dh);
                     _device.DrawImage(in img, in s);
                     break;
                 }
@@ -485,9 +486,29 @@ internal sealed partial class ContentInterpreter
         if (_hidden == 0)
         {
             PdfGraphicsState s = Snapshot();
-            var img = new PdfImage(d, null, data, string.Empty, _doc, _res);
+            (double dw, double dh) = DeviceExtent(s.Ctm);
+            var img = new PdfImage(d, null, data, string.Empty, _doc, _res, dw, dh);
             _device.DrawImage(in img, in s);
         }
+    }
+
+    /// <summary>
+    /// The axis-aligned size of the unit square under the CTM, which already ends in the output space: what an image drawn here
+    /// covers in device pixels. Zero when the matrix is not finite.
+    /// </summary>
+    private static (double Width, double Height) DeviceExtent(in PdfMatrix ctm)
+    {
+        if (!ctm.IsFinite)
+        {
+            return (0, 0);
+        }
+
+        (double x0, double y0) = ctm.Transform(0, 0);
+        (double x1, double y1) = ctm.Transform(1, 0);
+        (double x2, double y2) = ctm.Transform(0, 1);
+        (double x3, double y3) = ctm.Transform(1, 1);
+        return (Math.Max(Math.Max(x0, x1), Math.Max(x2, x3)) - Math.Min(Math.Min(x0, x1), Math.Min(x2, x3)),
+            Math.Max(Math.Max(y0, y1), Math.Max(y2, y3)) - Math.Min(Math.Min(y0, y1), Math.Min(y2, y3)));
     }
 
     /// <summary>The byte length of unfiltered inline image data from its dictionary, or -1 when it cannot be known.</summary>

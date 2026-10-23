@@ -52,12 +52,17 @@ internal sealed class TrueTypeGlyphs
             var budget = new TrueTypeHinter.HintBudget();
             var hinted = new PointBuffer();
             bool found = Append(hinted, glyphId, budget);
-            if (budget.Failure is null)
+            if (budget.Failure is not null)
+            {
+                Interlocked.CompareExchange(ref _hintFailure, budget.Failure, null);
+            }
+
+            // Only a spent shared budget sends the whole glyph back to its plain outline; a program that fails on its own
+            // leaves just its component unhinted (its points are untouched) and the rest keeps its fitted result.
+            if (!budget.Exhausted)
             {
                 return found ? hinted.ToOutline() : GlyphOutline.Empty;
             }
-
-            Interlocked.CompareExchange(ref _hintFailure, budget.Failure, null);
         }
 
         var pts = new PointBuffer();
@@ -458,7 +463,7 @@ internal sealed class TrueTypeGlyphs
     // Runs a simple glyph's own program on its points, before the glyph is placed in a composite.
     private void HintSimple(PointBuffer pts, int glyphId, ReadOnlySpan<byte> d, int contours, TrueTypeHinter.HintBudget budget)
     {
-        if (contours == 0 || budget.Failure is not null)
+        if (contours == 0 || budget.Exhausted)
         {
             return;
         }
@@ -488,7 +493,7 @@ internal sealed class TrueTypeGlyphs
     // A composite's program runs on the placed points of all its components.
     private void HintComposite(PointBuffer pts, in Frame f, ReadOnlySpan<byte> d, TrueTypeHinter.HintBudget budget)
     {
-        if (budget.Failure is not null)
+        if (budget.Exhausted)
         {
             return;
         }

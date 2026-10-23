@@ -57,6 +57,17 @@ public readonly struct PdfImageDecodeRequest
 
     /// <summary>The image dictionary's <c>/BitsPerComponent</c>, or 0 when absent.</summary>
     public int DeclaredBitsPerComponent { get; init; }
+
+    /// <summary>
+    /// The width in device pixels the image is drawn at on the page, or 0 when unknown (an image decoded outside a page). It is the
+    /// axis-aligned extent of the image's unit square under the CTM and output transform, rounded up and never above
+    /// <see cref="DeclaredWidth"/>. A hint only: a decoder that can decode at reduced resolution (JPEG 2000 resolution levels)
+    /// may return an image of this size or larger, or ignore the hint and return full size.
+    /// </summary>
+    public int TargetWidth { get; init; }
+
+    /// <summary>The height in device pixels the image is drawn at on the page, or 0 when unknown; see <see cref="TargetWidth"/>.</summary>
+    public int TargetHeight { get; init; }
 }
 
 /// <summary>
@@ -71,6 +82,11 @@ public readonly struct PdfImageDecodeRequest
 /// <para><b>JPX.</b> Return colour channels in the JP2/JPX colour space converted to a PDF-expressible one (sYCC to RGB),
 /// with <see cref="ColorSpace"/> set when the file states one, and the opacity channel, if any, last with
 /// <see cref="HasAlpha"/> set.</para>
+/// <para><b>Reduced size.</b> A decoder may return fewer pixels than <see cref="PdfImageDecodeRequest.DeclaredWidth"/> by
+/// <see cref="PdfImageDecodeRequest.DeclaredHeight"/>, typically after using the request's target size. OnePDF then passes the
+/// reduced dimensions through (<see cref="PdfImageData.Width"/> and <see cref="PdfImageData.Height"/> are the buffer's); it records a
+/// warning unless the request carried a target size and the result is not larger than declared. The image still fills the same unit square, so placement is unchanged. Masks and soft masks are scaled to the
+/// image by the device as usual. Nothing is resampled by OnePDF.</para>
 /// <para><b>JBIG2.</b> One component, one bit, in JBIG2's convention: 1 is black. OnePDF inverts it as ISO 32000-2 7.4.7
 /// requires.</para>
 /// </remarks>
