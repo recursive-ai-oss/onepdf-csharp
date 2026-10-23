@@ -99,6 +99,10 @@ decomposed, presentation forms (Kangxi radicals, Arabic and Hebrew forms) are fo
 The Unicode chain is ToUnicode, then glyph names through the Adobe Glyph List, then the font's own cmap, then predefined CMaps,
 then U+FFFD. OnePDF does no OCR.
 
+Whole-document `doc.ExtractText()` does not keep each page's glyph list, so a long document stays small; words, lines, blocks and every
+plain-text mode are still there, and `pageText.ReadGlyphs()` reads a page's glyphs on request. Single-page `page.ExtractText()` keeps
+them. Set `PdfTextOptions.RetainGlyphs` to choose either way.
+
 ### Interpret a page
 
 <!-- sample: Interpret -->
@@ -218,29 +222,94 @@ geometry and the same text on every platform.
 
 ## Benchmarks
 
-<!-- TODO(release): fill from the gate run on the shared workstation (bench/README.md). No number goes in this table until it was
-     measured; keep the SDK, runtime, CPU and load lines accurate. -->
-Compared with PdfPig on each task, wall-clock time and peak memory, each at degree of parallelism 1 and at the default degree
-(parallel figures are never shown as single-thread). **Measured on a shared workstation**, local runs with BenchmarkDotNet and peak
-RSS from `/usr/bin/time -v`, one run at a time; the machine's load is recorded with every figure.
+OnePDF against [PdfPig](https://github.com/UglyToad/PdfPig) 0.1.16 on the same files, in the same process, for each task: wall-clock
+time and peak memory, each at degree of parallelism 1 and at the default degree (min(4, cores), so 4 here). Parallel figures are
+shown on their own rows and are never single-thread results. PdfPig has no parallel mode; at the default degree each worker opens its
+own copy of the file and extracts a run of pages. Open and metadata work is single-threaded in both libraries. Speedup is PdfPig time
+divided by OnePDF time.
 
-| Task | OnePDF time | PdfPig time | Speedup | OnePDF peak | PdfPig peak |
-|---|---|---|---|---|---|
-| Open + page count, small | TBD | TBD | TBD | TBD | TBD |
-| Open + page count, 1,000 pages | TBD | TBD | TBD | TBD | TBD |
-| Open + page count, broken (needs repair) | TBD | TBD | TBD | TBD | TBD |
-| Metadata | TBD | TBD | TBD | TBD | TBD |
-| Full text, born-digital 300 pages | TBD | TBD | TBD | TBD | TBD |
-| Full text, scanned with OCR layer | TBD | TBD | TBD | TBD | TBD |
-| Full text, CJK | TBD | TBD | TBD | TBD | TBD |
-| Words with positions | TBD | TBD | TBD | TBD | TBD |
-| AES-256 encrypted, full text | TBD | TBD | TBD | TBD | TBD |
-| Whole-document parallel extraction | TBD | TBD | TBD | TBD | TBD |
+| Task | Degree | OnePDF time | PdfPig time | Speedup | OnePDF peak | PdfPig peak |
+|---|---|---|---|---|---|---|
+| Open + page count, small (2 pages) | — | 17.4 µs | 27.7 µs | 1.59× | 36 MiB | 79 MiB |
+| Open + page count, 1,000 pages | — | 2.55 ms | 4.15 ms | 1.63× | 38 MiB | 87 MiB |
+| Open + page count, broken (needs repair) | — | 4.41 ms | 17.5 ms | 3.96× | 44 MiB | 87 MiB |
+| Open + page count, AES-256 | — | 1.31 ms | 6.77 ms | 5.15× | 48 MiB | 103 MiB |
+| Metadata, small file | — | 20.5 µs | 22.6 µs | 1.10× | 42 MiB | 79 MiB |
+| Metadata, 300-page article | — | 0.48 ms | 4.06 ms | 8.50× | 40 MiB | 88 MiB |
+| Full text, born-digital 300 pages | 1 | 211 ms | 238 ms | 1.13× | 104 MiB | 124 MiB |
+| Full text, born-digital 300 pages (whole-document parallel) | default | 68.9 ms | 123 ms | 1.79× | 112 MiB | 135 MiB |
+| Full text, 40-page scan with OCR layer | 1 | 18.4 ms | 34.7 ms | 1.89× | 56 MiB | 165 MiB |
+| Full text, 40-page scan with OCR layer | default | 5.11 ms | 23.3 ms | 4.57× | 67 MiB | 230 MiB |
+| Full text, CJK (120 pages) | 1 | 57.5 ms | 229 ms | 3.99× | 66 MiB | 120 MiB |
+| Full text, CJK (120 pages) | default | 28.3 ms | 98.8 ms | 3.49× | 96 MiB | 138 MiB |
+| Words with positions, 300 pages | 1 | 214 ms | 327 ms | 1.53× | 117 MiB | 124 MiB |
+| Words with positions, 300 pages | default | 96.4 ms | 149 ms | 1.55× | 118 MiB | 139 MiB |
+| Words with positions, one dense page | 1 | 4.64 ms | 13.8 ms | 2.97× | 67 MiB | 101 MiB |
+| AES-256, full text (300 pages) | 1 | 217 ms | 249 ms | 1.15× | 112 MiB | 135 MiB |
+| AES-256, full text (300 pages) | default | 70.0 ms | 132 ms | 1.89× | 115 MiB | 143 MiB |
 
-Text quality (character error rate on content and reading-order error, overall and per category, against PdfPig's better of its
-default and layout pipelines): TBD.
+OnePDF is faster on every row. The smallest margins are single-thread born-digital text (1.13×) and metadata of a small file
+(1.10×, about 2 µs). Allocation is lower throughout: for example 62 MB against 562 MB for the 300-page text row at degree 1.
 
-SDK TBD, runtime TBD, CPU TBD, load before/during/after TBD.
+Information rows (not part of the comparison above):
+
+| Row | Degree | Time | Peak |
+|---|---|---|---|
+| OnePDF full text, 300 pages, glyph lists kept (`RetainGlyphs = true`) | 1 | 282 ms | 239 MiB |
+| OnePDF full text, 300 pages, glyph lists kept (`RetainGlyphs = true`) | default | 126 ms | 258 MiB |
+| OnePDF interpret one text-heavy page into a display list | 1 | 13.2 ms | 78 MiB |
+| OnePDF interpret one vector-heavy page (about 60,000 segments) | 1 | 7.17 ms | 48 MiB |
+| PDFium (Docnet.Core 2.6.0) full text, born-digital 300 pages | 1 | 626 ms | 43 MiB |
+| PDFium full text, 40-page scan with OCR layer | 1 | 31.9 ms | 52 MiB |
+| PDFium full text, CJK (120 pages) | 1 | 410 ms | 42 MiB |
+| mutool 1.23.10 (`mutool draw -F txt`, process start included) full text, born-digital 300 pages | 1 | 261 ms | 45 MiB |
+| mutool full text, 40-page scan with OCR layer | 1 | 43.2 ms | 43 MiB |
+| mutool full text, CJK (120 pages) | 1 | 188 ms | 44 MiB |
+
+Whole-document extraction drops each page's glyph list by default to keep long documents small; keeping them costs time and
+about 2.3× the peak memory on the 300-page file (single-page extraction keeps them).
+
+**PDFium and mutool use less peak memory than OnePDF.** On born-digital text, PDFium peaks at 43 MiB and mutool at 45 MiB against
+OnePDF's 104 MiB at degree 1 (112 MiB at the default degree); on the scan and CJK files the gap is smaller (PDFium 52 and 42 MiB,
+mutool 43 and 44 MiB, OnePDF 56 and 66 MiB). The PDFium figures go through Docnet.Core at one thread; the mutool figures include
+starting its process, and its peak includes the child process.
+
+**Method.** Measured on a dedicated workstation (AMD Ryzen 9 7950X3D, 16 cores / 32 threads, Linux Mint 22.3 x64, .NET SDK
+10.0.402, runtime .NET 10.0.13); other jobs were held off during the run. Times are BenchmarkDotNet 0.15.8 means with the default job and
+`[MemoryDiagnoser]`. Peak memory is the process's maximum resident set (`/usr/bin/time -v`), one cold process per row, and includes
+the .NET runtime itself, so the differences matter more than the absolute figures. Load average
+(1 minute) was 1.18 at the start, 1.40 when BenchmarkDotNet finished and 1.53 at the end, and stayed between 1.06 and 2.83 in the
+30-second trace during the run. Inputs and the benchmark project are in [bench/](bench/README.md); the files are generated by
+`tools/corpus/make_bench_inputs.py`. The mutool rows come from a second run on the same machine and commit (load 1.25 at the start, at most 1.31). Results are for these files on this machine; yours will differ.
+
+### Text extraction quality
+
+Character error rate on content (order-free) and reading-order error, in percent, lower is better. PdfPig is shown as its default
+`Page.Text` and as its documented layout pipeline (Docstrum blocks plus unsupervised reading order); on the real-world set the
+PdfPig figure is the better of the two for each metric and category, best of 8 runs.
+
+| Generated set (62 files, exact truth) | Content error | Reading-order error |
+|---|---|---|
+| **OnePDF** | **0.3** | **1.2** |
+| PdfPig, default | 21.9 | 22.7 |
+| PdfPig, layout pipeline | 5.6 | 10.7 |
+
+| Real-world set (92 files, 11 categories) | Content error | Reading-order error |
+|---|---|---|
+| **OnePDF** | **5.6** | **15.9** |
+| PdfPig, best of default and layout | 13.5 | 36.5 |
+
+How it is measured, and the per-category tables: [tools/OnePdf.Quality](tools/OnePdf.Quality/README.md) and
+[testdata/realworld](testdata/realworld/README.md). Reference text is the PDF's text layer in logical order, so an extractor that
+emits right-to-left text in visual order scores worse by design.
+
+### Robustness
+
+Over the test data and three public corpora, GovDocs1 (5,767 files), a 5,000-file sample of SafeDocs CC-MAIN-2021-31 and the veraPDF
+corpus (2,906 files; fetched by script, not committed), PdfPig opened no file that OnePDF failed to open, and OnePDF opened 20 files PdfPig did not. A sweep that
+opens each file, extracts all text and interprets every page, with default options, found 0 crashes and 0 hangs (slowest page 0.40 s,
+highest peak memory 889 MiB). The 13 fuzz targets (parser, document and repair, typed model, interpreter, filters, CCITT, decryption, PDF fonts, font programs,
+CMaps, shadings, Type 4 functions and text extraction) each ran 600 s under libFuzzer with no findings.
 
 ## Building
 

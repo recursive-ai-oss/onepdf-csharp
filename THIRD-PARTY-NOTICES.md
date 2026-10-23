@@ -102,10 +102,11 @@ standard strings, predefined charsets and Expert encoding, and the Macintosh sta
 from the published specifications (ISO 32000-1 Annex D, Adobe Technical Note #5176 appendices A to C, and the Apple TrueType
 Reference Manual, 'post' table). They are listed here for provenance; no license terms attach to them.
 
-### Unicode bidirectional class data
+### Unicode character data (bidirectional classes, compatibility folding)
 
 `src/OnePdf/Text/Extraction/BidiData.g.cs` is generated (`tools/bidi/generate.py`) from the Unicode Character Database 17.0.0 files
-`DerivedBidiClass.txt` and `BidiBrackets.txt`. Copyright (c) 1991-2025 Unicode, Inc., under the Unicode License v3
+`DerivedBidiClass.txt` and `BidiBrackets.txt`, and `src/OnePdf/Text/Extraction/FoldData.g.cs` (`tools/fold/generate.py`) from its
+`UnicodeData.txt` (decompositions of presentation forms and compatibility characters). Copyright (c) 1991-2025 Unicode, Inc., under the Unicode License v3
 (https://www.unicode.org/license.txt):
 
 > Permission is hereby granted, free of charge, to any person obtaining a copy of data files and any associated documentation (the "Data Files") or
