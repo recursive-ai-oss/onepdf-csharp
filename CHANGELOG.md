@@ -6,6 +6,7 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ### Added
 
+- Knockout data for devices. `PdfGraphicsState.TextKnockout` carries the ExtGState `/TK` flag (default true; saved and restored with `q`/`Q`). `IPdfDevice.FillStrokePath` (a default interface method, also virtual on `PdfDevice`) receives `B`, `B*`, `b` and `b*` as one call; its default calls `FillPath` then `StrokePath`, so existing devices behave as before. `PdfDisplayList` records it as one item and replays it as `FillStrokePath`. The display-list text format is version 5 (`fillstroke` record, `tk=0` in `gs`).
 - Writing. `PdfOpenOptions.AllowEditing` opens a document for changing; `PdfDictionary.SetEntry`/`RemoveEntry`, `PdfArray.Append`/`Insert`/`SetItem`/`RemoveAt`/`Clear`, `PdfStream.SetData`/`SetStoredBytes`, `PdfDocument.AddObject`/`SetObject`/`RemoveObject`/`CreateStream`/`SetInfo`/`SetXmp`, and public constructors for the simple COS types. See `docs/writing.md`.
 - `PdfDocument.Save` writes a complete new file (classic table, or cross-reference and object streams; optional Flate for unfiltered streams; unreachable objects dropped, numbers compact) and can keep, remove or set encryption (AES-128 revision 4, AES-256 revision 6). `PdfDocument.SaveIncremental` appends an update that leaves the original bytes untouched. Options are in `PdfSaveOptions` and `PdfEncryptionOptions`.
 - A `save` fuzz target (open, change, save, reopen).

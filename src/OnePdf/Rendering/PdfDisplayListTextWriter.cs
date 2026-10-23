@@ -10,7 +10,7 @@ namespace OnePdf;
 internal sealed class PdfDisplayListTextWriter(TextWriter output) : IPdfDevice
 {
     /// <summary>The version of the text format. Bump it with any change to the output.</summary>
-    public const int FormatVersion = 4;
+    public const int FormatVersion = 5;
 
     /// <summary>First token of the header line.</summary>
     public const string Magic = "onepdf-display-list";
@@ -18,7 +18,7 @@ internal sealed class PdfDisplayListTextWriter(TextWriter output) : IPdfDevice
     /// <summary>Every record keyword the writer can emit, for the format document's consistency check.</summary>
     public static readonly string[] Records =
     [
-        "page", "end-page", "gs", "fill", "stroke", "clip", "text-clip", "pop-clip", "text", "image", "shading", "pattern-def", "end-pattern-def",
+        "page", "end-page", "gs", "fill", "stroke", "fillstroke", "clip", "text-clip", "pop-clip", "text", "image", "shading", "pattern-def", "end-pattern-def",
         "begin-group", "end-group", "begin-softmask", "end-softmask", "begin-mc", "end-mc", "begin-annot", "end-annot", "begin-glyph", "end-glyph",
     ];
 
@@ -402,6 +402,11 @@ internal sealed class PdfDisplayListTextWriter(TextWriter output) : IPdfDevice
         sb.Append(" bm=").Append(s.BlendMode);
         sb.Append(" sm=").Append(s.SoftMaskId.ToString(CultureInfo.InvariantCulture));
         sb.Append(" ais=").Append(s.AlphaIsShape ? '1' : '0');
+        if (!s.TextKnockout)
+        {
+            sb.Append(" tk=0");
+        }
+
         sb.Append(" op=").Append(s.FillOverprint ? '1' : '0').Append(s.StrokeOverprint ? '1' : '0').Append(s.OverprintMode.ToString(CultureInfo.InvariantCulture));
         Line(sb.ToString());
     }
@@ -449,6 +454,15 @@ internal sealed class PdfDisplayListTextWriter(TextWriter output) : IPdfDevice
         EmitState(state);
         _sb.Clear();
         _sb.Append("stroke ");
+        Path(_sb, path);
+        Line(_sb.ToString());
+    }
+
+    public void FillStrokePath(in PdfPath path, bool evenOdd, in PdfGraphicsState state)
+    {
+        EmitState(state);
+        _sb.Clear();
+        _sb.Append("fillstroke ").Append(evenOdd ? "evenodd " : "nonzero ");
         Path(_sb, path);
         Line(_sb.ToString());
     }

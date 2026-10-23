@@ -24,6 +24,7 @@ internal sealed class GState
     public string Blend = "Normal";
     public int SoftMask;
     public bool Ais;
+    public bool TextKnockout = true;
     public bool FillOverprint;
     public bool StrokeOverprint;
     public int OverprintMode;
@@ -69,6 +70,7 @@ internal sealed class GState
         Blend = o.Blend;
         SoftMask = o.SoftMask;
         Ais = o.Ais;
+        TextKnockout = o.TextKnockout;
         FillOverprint = o.FillOverprint;
         StrokeOverprint = o.StrokeOverprint;
         OverprintMode = o.OverprintMode;

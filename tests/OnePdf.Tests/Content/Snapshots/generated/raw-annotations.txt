@@ -1,5 +1,5 @@
 # page 1
-onepdf-display-list 4
+onepdf-display-list 5
 page box=0 0 612 792 name=CropBox rotate=0 unit=1 scale=1 size=612 792 base=[1 0 0 -1 0 792]
   gs ctm=[1 0 0 -1 0 792] fill=gray(0) stroke=gray(0) lw=1 cap=0 join=0 miter=10 dash=[] phase=0 flat=1 ri=RelativeColorimetric fa=1 sa=1 bm=Normal sm=0 ais=0 op=000
   text font=/F1 size=14 mode=0 tc=0 tw=0 th=1 rise=0 tm=[1 0 0 1 72 760] vert=0 adv=102.746 0 codes=416e6e6f746174656420706167652e glyphs=[65@0,0,0.667:g36:u41 110@9.338,0,0.556:g81:u6e 110@17.122,0,0.556:g81:u6e 111@24.906,0,0.556:g82:u6f 116@32.69,0,0.278:g87:u74 97@36.582,0,0.556:g68:u61 116@44.366,0,0.278:g87:u74 101@48.258,0,0.556:g72:u65 100@56.042,0,0.556:g71:u64 32@63.826,0,0.278:g3:u20 112@67.718,0,0.556:g83:u70 97@75.502,0,0.556:g68:u61 103@83.286,0,0.556:g74:u67 101@91.07,0,0.556:g72:u65 46@98.854,0,0.278:g17:u2e]
@@ -8,8 +8,7 @@ page box=0 0 612 792 name=CropBox rotate=0 unit=1 scale=1 size=612 792 base=[1 0
     gs ctm=[1 0 0 -1 400 52] fill=gray(0) stroke=gray(0) lw=1 cap=0 join=0 miter=10 dash=[] phase=0 flat=1 ri=RelativeColorimetric fa=1 sa=1 bm=Normal sm=0 ais=0 op=000
     clip nonzero M 0 0 L 20 0 L 20 20 L 0 20 Z
       gs ctm=[1 0 0 -1 400 52] fill=rgb(1 1 0) stroke=gray(0) lw=1 cap=1 join=1 miter=10 dash=[] phase=0 flat=1 ri=RelativeColorimetric fa=1 sa=1 bm=Normal sm=0 ais=0 op=000
-      fill nonzero M 2 5 L 2 18 L 18 18 L 18 5 L 11 5 L 6 1 L 7 5 Z
-      stroke M 2 5 L 2 18 L 18 18 L 18 5 L 11 5 L 6 1 L 7 5 Z
+      fillstroke nonzero M 2 5 L 2 18 L 18 18 L 18 5 L 11 5 L 6 1 L 7 5 Z
       stroke M 5 14 L 15 14 M 5 11 L 15 11 M 5 8 L 11 8
     pop-clip
   end-annot
@@ -31,8 +30,7 @@ page box=0 0 612 792 name=CropBox rotate=0 unit=1 scale=1 size=612 792 base=[1 0
   begin-annot /Square rect=71.5 499.5 200.5 560.5 flags=4
     clip nonzero M 71.5 499.5 L 200.5 499.5 L 200.5 560.5 L 71.5 560.5 Z
       gs ctm=[1 0 0 -1 0 792] fill=rgb(0.9 0.9 1) stroke=rgb(1 0 0) lw=1 cap=0 join=0 miter=10 dash=[] phase=0 flat=1 ri=RelativeColorimetric fa=1 sa=1 bm=Normal sm=0 ais=0 op=000
-      fill nonzero M 72.5 500.5 L 199.5 500.5 L 199.5 559.5 L 72.5 559.5 Z
-      stroke M 72.5 500.5 L 199.5 500.5 L 199.5 559.5 L 72.5 559.5 Z
+      fillstroke nonzero M 72.5 500.5 L 199.5 500.5 L 199.5 559.5 L 72.5 559.5 Z
     pop-clip
   end-annot
 end-page

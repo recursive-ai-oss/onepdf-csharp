@@ -1,0 +1,40 @@
+%PDF-1.7
+%‚„œ”
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Kids [3 0 R] /Count 1 >>
+endobj
+3 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 200 200] /Contents 5 0 R /Resources << /ExtGState << /GA 4 0 R >> >> >>
+endobj
+4 0 obj
+<< /Type /ExtGState /CA 0.5 /ca 0.5 >>
+endobj
+5 0 obj
+<<  /Length 495 >>
+stream
+q /GA gs 1 0 0 rg 0 0 1 RG 8 w 10 150 40 40 re B Q
+q /GA gs 1 0 0 rg 0 0 1 RG 8 w 60 150 40 40 re B* Q
+q /GA gs 1 0 0 rg 0 0 1 RG 8 w 110 150 m 150 150 l 150 190 l b Q
+q /GA gs 1 0 0 rg 0 0 1 RG 8 w 160 150 m 190 150 l 190 190 l b* Q
+q /GA gs 1 0 0 rg 0 0 1 RG 8 w 10 100 40 40 re f 10 100 40 40 re S Q
+q /GA gs 1 0 0 rg 0 0 1 RG 8 w 60 100 40 40 re W B Q
+q /GA gs 1 0 0 rg 0 0 1 RG 8 w 110 100 40 40 re W n 100 90 60 60 re B Q
+q /GA gs 1 0 0 rg 0 0 1 RG 8 w 160 100 m 190 100 l 190 140 l h f* Q
+endstream
+endobj
+xref
+0 6
+0000000000 65535 f 
+0000000015 00000 n 
+0000000064 00000 n 
+0000000121 00000 n 
+0000000252 00000 n 
+0000000306 00000 n 
+trailer
+<< /Size 6 /Root 1 0 R >>
+startxref
+853
+%%EOF

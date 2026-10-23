@@ -373,7 +373,7 @@ internal sealed partial class ContentInterpreter
 
     private PdfGraphicsState SnapshotCore() => new(
         _g.Ctm, _g.Fill, _g.Stroke, _g.LineWidth, _g.LineCap, _g.LineJoin, _g.MiterLimit, _g.Dash, _g.DashPhase, _g.Flatness,
-        _g.Intent, _g.FillAlpha, _g.StrokeAlpha, _g.Blend, _g.SoftMask, _g.Ais, _g.FillOverprint, _g.StrokeOverprint, _g.OverprintMode);
+        _g.Intent, _g.FillAlpha, _g.StrokeAlpha, _g.Blend, _g.SoftMask, _g.Ais, _g.FillOverprint, _g.StrokeOverprint, _g.OverprintMode) { TextKnockout = _g.TextKnockout };
 
     private void Dispatch(ContentOp op, ContentLexer lx)
     {
@@ -820,13 +820,19 @@ internal sealed partial class ContentInterpreter
             PdfPath p = _path.View();
             if (_hidden == 0)
             {
-                if (fill)
+                if (fill && stroke)
+                {
+                    // B, B*, b and b* paint fill and stroke as one knockout group (ISO 32000-2 11.7.4.4).
+                    PdfGraphicsState s = Snapshot();
+                    _device.FillStrokePath(in p, evenOdd, in s);
+                }
+                else if (fill)
                 {
                     PdfGraphicsState s = Snapshot();
                     _device.FillPath(in p, evenOdd, in s);
                 }
 
-                if (stroke)
+                else if (stroke)
                 {
                     PdfGraphicsState s = Snapshot();
                     _device.StrokePath(in p, in s);
