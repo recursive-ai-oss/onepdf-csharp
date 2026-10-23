@@ -87,6 +87,39 @@ public class HostileInputTests
     }
 
     [Fact]
+    public void DamagedSignerCertificateIsReportedNotThrown()
+    {
+        // The signer certificate keeps its issuer and serial (so it is still matched to the signer) but a byte inside it is wrong.
+        // Some platforms parse certificates lazily, so the damage only shows when a property is read.
+        byte[] file = SignedPdf.SignWith(SignedPdf.BaseFile(new SignedPdf.Options { SubFilter = "ETSI.CAdES.detached" }, out _), TestPki.Shared.RsaSigner, new CmsSpec { Cades = true });
+        string text = System.Text.Encoding.Latin1.GetString(file);
+        int hole = text.IndexOf("/Contents <", StringComparison.Ordinal) + 11;
+        string signerHex = Convert.ToHexString(TestPki.Shared.RsaSigner.RawData);
+        int certAt = text.IndexOf(signerHex, hole, StringComparison.OrdinalIgnoreCase);
+        Assert.True(certAt > 0);
+
+        // The signature algorithm OID (06 09 2A 86 48 86 F7 0D 01 01 0B) inside the certificate: break its tag.
+        const string oidHex = "06092A864886F70D01010B";
+        int oidAt = text.IndexOf(oidHex, certAt, StringComparison.OrdinalIgnoreCase);
+        Assert.InRange(oidAt, certAt, certAt + signerHex.Length);
+        byte[] broken = (byte[])file.Clone();
+        broken[oidAt + 1] = (byte)'7';
+        PdfSignatureVerification v = SignedPdf.VerifyOne(broken);
+        Assert.False(v.IsValid);
+        Assert.NotEqual(PdfCheckStatus.Valid, v.SignatureCheck);
+
+        // Every few bytes of the certificate, damaged one at a time: always a result, never an exception.
+        for (int i = 8; i < signerHex.Length; i += 14)
+        {
+            byte[] copy = (byte[])file.Clone();
+            int p = certAt + i;
+            copy[p] = copy[p] == (byte)'F' ? (byte)'0' : (byte)'F';
+            PdfSignatureVerification r = SignedPdf.VerifyOne(copy);
+            Assert.NotNull(r.Warnings);
+        }
+    }
+
+    [Fact]
     public void MutatedSignedFilesNeverThrow()
     {
         byte[] file = SignedPdf.SignWith(SignedPdf.BaseFile(new SignedPdf.Options(), out _), TestPki.Shared.RsaSigner, new CmsSpec { Cades = true, Timestamp = true });
