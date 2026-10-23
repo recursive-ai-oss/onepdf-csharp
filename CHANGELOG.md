@@ -2,6 +2,12 @@
 
 All notable changes are listed here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and versions follow [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Fixed
+
+- Reading order: columns whose paragraph gaps fall at the same heights are no longer read band by band when something spanning both columns (a full-width note or caption) stops the vertical cut. The horizontal cut now keeps successive bands together when each holds multi-line columns and they share a gutter, and the columns are cut apart afterwards. On the committed and local real-world set the reading-order error is 13.8 % overall (was 15.2 %): multi-column 7.6 % (was 16.8 %), table 0.6 % (3.0 %), form 4.2 % (6.5 %), rotated 9.3 % (12.2 %); math moves from 11.9 % to 12.5 %. The generated set is unchanged. See `docs/text-layout.md`.
+
 ## [1.6.0] - 2026-10-23
 
 ### Added
