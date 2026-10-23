@@ -128,7 +128,7 @@ internal sealed class FullSaver : SaverBase, IReferenceMapper, IDisposable
             minVersion = Higher(minVersion, "1.5");
         }
 
-        string version = Higher(Higher(Doc.Version ?? "1.4", minVersion), Options.MinimumVersion ?? "1.0");
+        string version = Options.ExactVersion ?? Higher(Higher(Doc.Version ?? "1.4", minVersion), Options.MinimumVersion ?? "1.0");
 
         Sink = new ByteSink(output);
         Writer = new ObjectWriter(Doc, this, Options);

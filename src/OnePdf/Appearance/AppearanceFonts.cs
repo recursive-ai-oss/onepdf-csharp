@@ -89,6 +89,20 @@ internal sealed class AppearanceCache
         return f;
     }
 
+    /// <summary>True when <paramref name="d"/> is one of the standard 14 font dictionaries this cache made.</summary>
+    public bool IsStandardDictionary(PdfDictionary d)
+    {
+        foreach (PdfDictionary s in _standard.Values)
+        {
+            if (ReferenceEquals(s, d))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     /// <summary>A direct standard 14 font dictionary (WinAnsi for the text faces; Symbol and ZapfDingbats keep their own encodings).</summary>
     public PdfDictionary Standard(string baseFont) => _standard.GetOrAdd(baseFont, static name =>
     {

@@ -6,6 +6,13 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ### Added
 
+- PDF/A production. `PdfSaveOptions.PdfA` (`PdfAOptions`: part 2 or 3, level B or U) writes ISO 19005-2/-3 files from a full save: it first adds an sRGB output intent (a version 2 ICC profile OnePDF generates from the published sRGB parameters) and an XMP packet built from the Info dictionary, sets the Print flag and stores generated appearances on annotations, clears `/NeedAppearances` once every widget has an appearance, and embeds Liberation faces (from `RecursiveAI.OnePdf.Fonts`) for standard fonts OnePDF itself added. What is still wrong is refused with `PdfAException`, whose `Violations` list every problem with its clause, object and page: non-embedded fonts, CMYK, encryption, JavaScript and other forbidden actions, LZW, embedded files in part 2, missing appearances, level U fonts without Unicode mapping and more. `PdfDocument.CheckPdfA` reports without changing anything, `PreparePdfA` makes the repairs, and `PdfDocument.AttachFile` adds attachments for part 3. Output is deterministic with `PdfSaveOptions.DocumentId`. A `pdfa` fuzz target covers it. See `docs/pdfa.md`.
+- `XmpMetadata.PdfAPart` and `PdfAConformance` read the PDF/A identification of a packet.
+
+### Fixed
+
+- Importing pages from a document whose fonts were added with `AddFont` copied the font before its subset had been built; the imported text drew with an empty font program. The source's fonts are now finished before pages are copied.
+
 - Signature verification, read-only. `PdfDocument.GetSignatures()` lists signature fields and document time-stamps with signer name, reason, location, contact, `/M`, sub-filter, `/ByteRange`, the CMS bytes, the `/DocMDP` certification level and the field lock; `PdfFormField.GetSignature()` returns one field's signature. `PdfSignature.Verify` and `PdfDocument.VerifySignatures` check, with the platform's hashes, RSA (PKCS#1 v1.5 and PSS) and ECDSA and its X.509 chain builder (no `System.Security.Cryptography.Pkcs`):
   - the byte range (starts at 0, leaves out exactly `/Contents`, no gaps or overlaps, ends at a revision boundary) and which revision it covers;
   - the digest, the signed attributes and the signature, for `adbe.pkcs7.detached`, `ETSI.CAdES.detached` (with the signing-certificate attribute), `ETSI.RFC3161` document time-stamps, and the legacy `adbe.pkcs7.sha1` (flagged weak); `adbe.x509.rsa_sha1` is reported as unsupported and weak;

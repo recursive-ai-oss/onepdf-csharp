@@ -76,11 +76,32 @@ internal sealed class CreationState
 
     public List<EmbeddedCreatedFont> Embedded { get; } = [];
 
+    /// <summary>Object numbers of standard 14 font dictionaries that the library itself made for generated appearances.</summary>
+    public HashSet<int> LibraryFonts { get; } = [];
+
     public PdfReference? QRef { get; set; }
 
     public PdfReference? BigQRef { get; set; }
 
     public static CreationState For(PdfDocument doc) => s_states.GetValue(doc, static _ => new CreationState());
+
+    /// <summary>Embedded fonts (object number and name) whose recorded text referenced glyph 0.</summary>
+    public static List<(int Number, string Name)> NotdefFonts(PdfDocument doc)
+    {
+        var list = new List<(int, string)>();
+        if (s_states.TryGetValue(doc, out CreationState? state))
+        {
+            foreach (EmbeddedCreatedFont f in state.Embedded)
+            {
+                if (f.UsedNotdef)
+                {
+                    list.Add((f.Reference?.Number ?? -1, f.BaseFontName));
+                }
+            }
+        }
+
+        return list;
+    }
 
     public static void FinishFonts(PdfDocument doc)
     {

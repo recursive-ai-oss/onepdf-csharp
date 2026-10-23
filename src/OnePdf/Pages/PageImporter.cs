@@ -77,6 +77,8 @@ internal sealed partial class PageImporter
     /// </summary>
     public List<ImportedPage> Import(IReadOnlyList<int> indexes, PdfImportOptions options, CancellationToken ct)
     {
+        // A font made with AddFont is cut down to the glyphs used only when its document is saved; copy it in that state.
+        CreationState.FinishFonts(_src);
         _ct = ct;
         int mark = _dst.ObjectMark;
         _sourceLimit = _same ? mark : int.MaxValue;
