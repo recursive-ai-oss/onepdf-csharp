@@ -28,6 +28,8 @@ internal sealed partial class ContentInterpreter
 
     private readonly PdfDocument _doc;
     private readonly IPdfDevice _device;
+    private IContentTap? _tap;
+    private int _tapSuspended;
     private readonly PdfInterpretOptions _options;
     private readonly CancellationToken _ct;
     private readonly PdfLimits _limits;
@@ -109,12 +111,16 @@ internal sealed partial class ContentInterpreter
     /// Interprets the page: BeginPage, the page's content streams, the annotation appearances, EndPage. EndPage and every
     /// bracket close even when a limit stops the page or the token is cancelled.
     /// </summary>
-    public static void Run(PdfPage page, IPdfDevice device, PdfInterpretOptions? options, CancellationToken cancellationToken = default)
+    public static void Run(PdfPage page, IPdfDevice device, PdfInterpretOptions? options, CancellationToken cancellationToken = default) =>
+        Run(page, device, options, null, cancellationToken);
+
+    /// <summary>As <see cref="Run(PdfPage, IPdfDevice, PdfInterpretOptions?, CancellationToken)"/>, also telling <paramref name="tap"/> where each operator sits in its stream.</summary>
+    public static void Run(PdfPage page, IPdfDevice device, PdfInterpretOptions? options, IContentTap? tap, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(page);
         ArgumentNullException.ThrowIfNull(device);
         cancellationToken.ThrowIfCancellationRequested();
-        var interp = new ContentInterpreter(page.Document, device, options ?? new PdfInterpretOptions(), cancellationToken);
+        var interp = new ContentInterpreter(page.Document, device, options ?? new PdfInterpretOptions(), cancellationToken) { _tap = tap };
         interp.RunPage(page);
     }
 
@@ -158,6 +164,7 @@ internal sealed partial class ContentInterpreter
                 catch (PdfException e)
                 {
                     Report(PdfSeverity.Error, "A content stream could not be decoded and was skipped: " + e.Message);
+                    _tap?.CannotVerify("a content stream could not be decoded: " + e.Message);
                 }
             }
 
@@ -287,10 +294,30 @@ internal sealed partial class ContentInterpreter
 
     private void Execute(ContentLexer lx)
     {
+        IContentTap? tap = _tapSuspended == 0 ? _tap : null;
+        tap?.StreamBegin(lx.Data, _res);
+        try
+        {
+            ExecuteCore(lx, tap);
+        }
+        finally
+        {
+            tap?.StreamEnd();
+        }
+    }
+
+    private void ExecuteCore(ContentLexer lx, IContentTap? tap)
+    {
         _nOps = 0;
         long untilCheck = 0;
+        int opStart = 0;
         while (!_stopped)
         {
+            if (_nOps == 0)
+            {
+                opStart = lx.Position;
+            }
+
             ContentToken t = lx.Next(out Operand operand, out ContentOp op);
             if (t == ContentToken.End)
             {
@@ -310,6 +337,7 @@ internal sealed partial class ContentInterpreter
             if (++_opCount > _limits.MaxOperatorsPerPage)
             {
                 Report(PdfSeverity.Error, "The page has more content operators than the limit allows; interpretation stopped.");
+                _tap?.CannotVerify("the page has more content operators than the limit allows");
                 _stopped = true;
                 break;
             }
@@ -320,6 +348,7 @@ internal sealed partial class ContentInterpreter
             }
 
             Dispatch(op, lx);
+            tap?.Operator(op, opStart, lx.Position);
             _nOps = 0;
             lx.ResetItems();
         }

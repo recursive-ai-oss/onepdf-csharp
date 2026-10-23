@@ -6,6 +6,7 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ### Added
 
+- True redaction. `PdfDocument.Redact` removes glyphs, vector paths, shadings and image samples inside given areas by rewriting page, form and annotation-appearance content (remaining glyphs keep their places), blanks and re-encodes images as Flate, removes or redacts annotations and form values under the areas, strips alternate text and structure text of the removed content, and clears metadata (Info, XMP, outline titles) that matches given terms. `ApplyRedactAnnotations` applies the `/Redact` annotations in a file. A page that cannot be read completely fails the call with `PdfRedactionException` and leaves the document unchanged. A `redact` fuzz target covers it. See `docs/redaction.md`.
 - `PdfSoftMaskInfo.TransferTable`: the soft mask's `/TR` transfer function (ISO 32000-2 11.6.5.2) evaluated by OnePDF into 256 bytes (entry `i` is the output for `i / 255`, rounded half up and clamped), null for no `/TR` or `/Identity`. Function types 0, 2, 3 and 4 are supported; an unusable function is ignored with a warning. The display-list text format is version 6: `begin-softmask` gains `trtable=`.
 
 ### Fixed

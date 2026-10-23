@@ -198,7 +198,15 @@ internal sealed partial class ContentInterpreter
         _device.BeginSoftMask(in info, in state);
         try
         {
-            RunForm(g, string.Empty, true);
+            _tapSuspended++;
+            try
+            {
+                RunForm(g, string.Empty, true);
+            }
+            finally
+            {
+                _tapSuspended--;
+            }
         }
         finally
         {
@@ -354,12 +362,14 @@ internal sealed partial class ContentInterpreter
         if (_formDepth >= _limits.MaxRecursionDepth)
         {
             Report(PdfSeverity.Error, "Form XObjects are nested deeper than the recursion limit; one was skipped.");
+            _tap?.CannotVerify("form XObjects are nested deeper than the recursion limit");
             return;
         }
 
         if (_saved.Count >= MaxSaveDepth)
         {
             Report(PdfSeverity.Error, "Graphics state nesting is too deep to run a form XObject.");
+            _tap?.CannotVerify("graphics state nesting is too deep to run a form XObject");
             return;
         }
 
@@ -367,6 +377,8 @@ internal sealed partial class ContentInterpreter
         if (number >= 0 && !_activeForms.Add(number))
         {
             Report(PdfSeverity.Warning, "A form XObject uses itself (directly or through others); the inner use was skipped.");
+            // The rewritten copy of a form that uses itself would still point at the original, so it cannot be checked.
+            _tap?.CannotVerify("a form XObject uses itself");
             return;
         }
 
@@ -380,6 +392,7 @@ internal sealed partial class ContentInterpreter
             catch (PdfException e)
             {
                 Report(PdfSeverity.Error, "A form XObject could not be decoded and was skipped: " + e.Message);
+                _tap?.CannotVerify("a form XObject could not be decoded: " + e.Message);
                 return;
             }
 
