@@ -1,6 +1,6 @@
 # Display-list text format
 
-**Format version: 5**
+**Format version: 6**
 
 The text form of a `PdfDisplayList` (or of any interpretation, written straight from the interpreter). It is used for
 snapshot tests and is meant to be comparable across implementations: it is plain UTF-8 text, one record per line, with
@@ -8,7 +8,7 @@ snapshot tests and is meant to be comparable across implementations: it is plain
 
 ## Header
 
-The first line is `onepdf-display-list 5`: the magic word and the format version.
+The first line is `onepdf-display-list 6`: the magic word and the format version.
 
 ## Numbers
 
@@ -41,7 +41,7 @@ indentation is informative. The record keyword is the first word.
 | `pattern-def #<id> /Name tiling paint=<1\|2> tile=<1-3> bbox=<box> step=<x> <y> matrix=<matrix>` / `end-pattern-def` | The first use of a tiling pattern in a colour: its definition, followed (indented, between the two records) by the records of its cell, which are written like a page's content with pattern space as user space. `matrix` maps pattern space to the output. Colours name the pattern as `pattern(#<id> ...)`. |
 | `pattern-def #<id> /Name shading matrix=<matrix>` / `end-pattern-def` | The first use of a shading pattern: one `shading` record between the two. |
 | `begin-group bbox=<box> isolated=<0\|1> knockout=<0\|1> cs=<object>` / `end-group` | A transparency group. |
-| `begin-softmask id=<n> type=<luminosity\|alpha> bbox=<box> bc=<object> tr=<object>` / `end-softmask` | A soft mask definition; its content sits between the two records. |
+| `begin-softmask id=<n> type=<luminosity\|alpha> bbox=<box> bc=<object> tr=<object> trtable=<hex\|none>` / `end-softmask` | A soft mask definition; its content sits between the two records. `trtable` is the 256-byte transfer table OnePDF evaluated from `/TR` (ISO 32000-2 11.6.5.2), 512 lower-case hex digits, or `none` for identity. |
 | `begin-mc /Tag props=<object>` / `end-mc` | A marked-content sequence. `props` is `null` without properties. |
 | `begin-glyph font=<name> code=<n> name=<glyph name\|none> adv=<n> [u=<UTF-8 hex>]` / `end-glyph` | A Type 3 glyph procedure, run as content after the `text` record that showed it (not for render mode 3 or a code without a procedure). The records between the two are written like a page's content; the `gs` line before `begin-glyph` has a CTM that already includes the font matrix and the text space, so glyph coordinates map straight to the output. |
 | `begin-annot /Subtype rect=<box> flags=<n>` / `end-annot` | An annotation appearance. |
@@ -66,4 +66,4 @@ non-regular characters as `#xx`, strings as `<hex>`, references as `n g R`, stre
 The version is an integer that changes whenever the output for any input could change (new records, new fields, different
 rounding). Readers must reject a version they do not know.
 
-History: 2 added the `data=` field to image lines and the `calgray`/`calrgb` colour spaces (before, CalGray and CalRGB printed as `gray` and `rgb`); an ICC profile that is damaged or does not match its component count now prints as the device space with that many components. Version 3 replaced the unevaluated `shading /Name obj=` record by the decoded `shading type=...` record, added `pattern-def`, and changed pattern colours to `pattern(#<id> /Name ...)`. Version 4 added the `begin-glyph` bracket for Type 3 glyph procedures and the `:v` suffix of vertical glyphs; glyph runs now carry real glyph ids, Unicode and widths from the PDF fonts. Version 5 added the `fillstroke` record (before, `B`/`b` wrote a `fill` and a `stroke` record) and the `tk=0` field of `gs`.
+History: 2 added the `data=` field to image lines and the `calgray`/`calrgb` colour spaces (before, CalGray and CalRGB printed as `gray` and `rgb`); an ICC profile that is damaged or does not match its component count now prints as the device space with that many components. Version 3 replaced the unevaluated `shading /Name obj=` record by the decoded `shading type=...` record, added `pattern-def`, and changed pattern colours to `pattern(#<id> /Name ...)`. Version 4 added the `begin-glyph` bracket for Type 3 glyph procedures and the `:v` suffix of vertical glyphs; glyph runs now carry real glyph ids, Unicode and widths from the PDF fonts. Version 5 added the `fillstroke` record (before, `B`/`b` wrote a `fill` and a `stroke` record) and the `tk=0` field of `gs`. Version 6 added the `trtable=` field of `begin-softmask`.

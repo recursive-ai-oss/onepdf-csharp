@@ -23,9 +23,6 @@ internal sealed class ByteRangeInfo
     /// <summary>Index into <see cref="PdfDocument.Revisions"/> of the covered revision.</summary>
     public int Revision { get; private set; } = -1;
 
-    /// <summary>The bytes of the hex string in the hole, decoded; null when the hole could not be read as hex.</summary>
-    public byte[]? HoleContents { get; private set; }
-
     public bool DelimitersExcluded { get; private set; }
 
     public static ByteRangeInfo Analyze(PdfSignature sig)
@@ -123,8 +120,7 @@ internal sealed class ByteRangeInfo
             return;
         }
 
-        HoleContents = decoded;
-        if (!doc.IsEncrypted && !sig.RawContents.Span.SequenceEqual(decoded))
+        if (!sig.RawContents.Span.SequenceEqual(decoded))
         {
             Fail(PdfByteRangeStatus.ContentsMismatch, "The bytes left out of the signature are not the value of /Contents.");
             return;

@@ -18,6 +18,10 @@ internal static class VeraPdf
         }
     }
 
+    /// <summary>What the validator printed to its log (warnings about font programs and the like) on this thread's last <see cref="Validate"/>.</summary>
+    [ThreadStatic]
+    public static string? LastLog;
+
     public static string Require()
     {
         string? p = Path;
@@ -50,7 +54,7 @@ internal static class VeraPdf
             Task<string> err = p.StandardError.ReadToEndAsync();
             string xml = p.StandardOutput.ReadToEnd();
             p.WaitForExit();
-            _ = err.Result;
+            LastLog = err.Result;
             var failures = new List<string>();
             if (!xml.Contains("isCompliant=\"true\"", StringComparison.Ordinal))
             {

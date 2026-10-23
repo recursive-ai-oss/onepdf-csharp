@@ -202,9 +202,11 @@ internal static class CffSubsetter
         byte[] topBytes(int csOff, int charsetOff, int fdSelOff, int fdArrOff)
         {
             var b = new List<byte>(64);
-            PutInt(b, stringCount + 391);
-            PutInt(b, stringCount + 392);
-            PutInt(b, 0);
+            // ROS comes first (TN #5176 section 9). Its operands use the shortest integer forms: a reader that looks for the
+            // leading ROS operator (veraPDF does) rejects the 3- and 5-byte forms there.
+            PutCompact(b, stringCount + 391);
+            PutCompact(b, stringCount + 392);
+            PutCompact(b, 0);
             PutOp(b, 0x0C1E);
             b.AddRange(topExtra);
 
@@ -675,6 +677,30 @@ internal static class CffSubsetter
     {
         b.Add(29);
         PutOffset(b, (uint)v, 4);
+    }
+
+    /// <summary>A DICT integer in its shortest form (TN #5176 table 3), as far as the 1- and 2-byte forms reach, else the 3-byte form.</summary>
+    private static void PutCompact(List<byte> b, int v)
+    {
+        if (v >= -107 && v <= 107)
+        {
+            b.Add((byte)(v + 139));
+        }
+        else if (v >= 108 && v <= 1131)
+        {
+            b.Add((byte)(247 + ((v - 108) >> 8)));
+            b.Add((byte)(v - 108));
+        }
+        else if (v >= -32768 && v <= 32767)
+        {
+            b.Add(28);
+            b.Add((byte)(v >> 8));
+            b.Add((byte)v);
+        }
+        else
+        {
+            PutInt(b, v);
+        }
     }
 
     private static void PutOp(List<byte> b, int op)

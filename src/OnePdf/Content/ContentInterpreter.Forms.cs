@@ -1,3 +1,5 @@
+using OnePdf.Functions;
+
 namespace OnePdf.Content;
 
 internal sealed partial class ContentInterpreter
@@ -186,7 +188,10 @@ internal sealed partial class ContentInterpreter
         PdfMatrix fm = ReadMatrix(g.Dictionary.GetArray("Matrix"));
         PdfBounds bounds = ReadRect(g.Dictionary.GetArray("BBox")) is { } bb ? fm.TransformBounds(bb) : PdfBounds.Unbounded;
         PdfObject? tr = d.Get("TR");
-        var info = new PdfSoftMaskInfo(++_nextMaskId, d.GetName("S") != "Alpha", bounds, d.GetArray("BC"), tr is PdfName ? null : tr);
+        var info = new PdfSoftMaskInfo(++_nextMaskId, d.GetName("S") != "Alpha", bounds, d.GetArray("BC"), tr is PdfName ? null : tr)
+        {
+            TransferTable = BuildTransferTable(tr),
+        };
         PdfGraphicsState state = Snapshot();
         int savedHidden = _hidden;
         _hidden = 0;
@@ -210,6 +215,57 @@ internal sealed partial class ContentInterpreter
         }
 
         _g.SoftMask = info.Id;
+    }
+
+    /// <summary>
+    /// Evaluates a soft mask's <c>/TR</c> (ISO 32000-2 11.6.5.2) at i/255 for i in 0..255. Null for an absent key or <c>/Identity</c>;
+    /// also null, with a warning, when the function is unusable (any other name, a bad program, not one input, no output).
+    /// </summary>
+    private byte[]? BuildTransferTable(PdfObject? tr)
+    {
+        if (tr is null || (tr is PdfName n && n.Value == "Identity"))
+        {
+            return null;
+        }
+
+        PdfFunction? f = null;
+        string? problem = null;
+        if (tr is not PdfName)
+        {
+            try
+            {
+                f = PdfFunction.Create(tr, _doc.Limits, out problem);
+            }
+            catch (PdfLimitException ex)
+            {
+                problem = ex.Message;
+            }
+        }
+
+        if (f is null || f.InputCount != 1 || f.OutputCount < 1)
+        {
+            Report(PdfSeverity.Warning, "A soft mask /TR is not a usable one-input function (" + (problem ?? "wrong shape") + "); identity was used.");
+            return null;
+        }
+
+        var table = new byte[256];
+        var input = new double[1];
+        var output = new double[f.OutputCount];
+        for (int i = 0; i < 256; i++)
+        {
+            input[0] = i / 255.0;
+            if ((f.Evaluate(input, output) & FunctionStatus.BadProgram) != 0)
+            {
+                Report(PdfSeverity.Warning, "A soft mask /TR function has a damaged program; identity was used.");
+                return null;
+            }
+
+            double y = output[0];
+            double r = double.IsNaN(y) ? 0 : Math.Floor((y * 255.0) + 0.5);
+            table[i] = (byte)Math.Clamp(r, 0, 255);
+        }
+
+        return table;
     }
 
     // ---- helpers ----

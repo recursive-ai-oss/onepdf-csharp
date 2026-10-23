@@ -1,5 +1,6 @@
 using System.Buffers.Binary;
 using System.Text;
+using OnePdf.FontPrograms;
 using OnePdf.Tests.Creation;
 
 namespace OnePdf.Tests.PdfA;
@@ -517,6 +518,16 @@ public class PdfATests
         Assert.Equal(3, back3.Xmp!.PdfAPart);
     }
 
+    [Fact]
+    public void CffSubsetGetsNoValidatorWarnings()
+    {
+        VeraPdf.Require();
+        using PdfDocument d = PdfADocs.Build("cff");
+        byte[] pdf = Write(d, PdfAPart.Part2, PdfAConformance.B);
+        Assert.Empty(VeraPdf.Validate(pdf, "2b"));
+        Assert.DoesNotContain("WARNING", VeraPdf.LastLog ?? string.Empty);
+    }
+
     [Theory]
     [InlineData("truetype")]
     [InlineData("cff")]
@@ -576,6 +587,33 @@ public class PdfATests
         string text = string.Join(" ", back.ExtractText().Select(p => p.Text));
         Assert.Contains("Helvetica text (caf\u00E9)", text, StringComparison.Ordinal);
         Assert.Contains("Courier bold text", text, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void StandardFontsAreSubsetWithAWindowsCmapAndKeepTheirText()
+    {
+        string plain;
+        using (PdfDocument source = PdfADocs.Standard14())
+        {
+            plain = string.Join(" ", source.ExtractText().Select(p => p.Text));
+        }
+
+        using PdfDocument d = PdfADocs.Standard14();
+        byte[] pdf = Write(d, PdfAPart.Part2, PdfAConformance.B);
+        // Four whole Liberation faces were about 834 KB; the subsets hold only the glyphs the encodings reach.
+        Assert.True(pdf.Length < 150_000, pdf.Length.ToString());
+        using PdfDocument back = PdfDocument.Open(pdf);
+        PdfDictionary fonts = back.Pages[0].Resources.GetDictionary("Font")!;
+        foreach (string key in fonts.Keys)
+        {
+            PdfDictionary f = fonts.GetDictionary(key)!;
+            Assert.Matches("^[A-Z]{6}\\+", f.GetName("BaseFont"));
+            Assert.Equal(f.GetName("BaseFont"), f.GetDictionary("FontDescriptor")!.GetName("FontName"));
+            byte[] program = f.GetDictionary("FontDescriptor")!.GetStream("FontFile2")!.GetDecodedBytes().ToArray();
+            Assert.NotNull(SfntFont.Parse(program, 0).FindCmap(3, 1));
+        }
+
+        Assert.Equal(plain, string.Join(" ", back.ExtractText().Select(p => p.Text)));
     }
 
     [Fact]
