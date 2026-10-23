@@ -199,8 +199,8 @@ local system fonts. The code is safe C# with no `unsafe`, `Unsafe.*` or `MemoryM
 
 ## What it does not do
 
-- **No signing, redaction or new page content yet.** Saving, incremental updates, encryption on write, page operations and
-  form filling and flattening are supported; field scripts are never run, so calculated fields are not recomputed.
+- **No signing or redaction yet.** Field scripts are never run, so calculated fields are not recomputed. New text is laid out
+  without a shaping engine, so complex scripts (Arabic, Indic and similar) are not shaped.
 - **It does not render pixels.** OnePDF resolves a page into drawing calls; a 2D engine paints them. Rasterizing is planned as a
   separate package, `RecursiveAI.OneImage.Pdf`, built on [OneImage](https://github.com/recursive-ai-oss/oneimage-csharp); it is
   not available yet. It will implement OnePDF's device and register PDF as an image format. OnePDF has no imaging dependency.
