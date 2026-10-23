@@ -85,6 +85,33 @@ New objects take the category of the changed object that refers to them. Each `P
 reason. `Coverage` is `WholeDocument` (nothing follows), `EarlierRevisionAllowedChanges`, `EarlierRevisionDisallowedChanges`, or `Unknown`
 (the byte range is not valid). Set `AnalyzeModifications = false` to skip the comparison.
 
+## Known attacks and what the result says
+
+The published attacks on PDF signature validation (universal signature forgery, incremental saving, signature wrapping, shadow and
+certification attacks) are each reproduced by a crafted file in `tests/OnePdf.Tests/Signatures/AttackTests.cs`. **Detected** means
+`IsValid` is false. **Advisory** means the permission level of the document lets the change through, so `IsValid` stays true and the
+change is listed in `Changes` (with its category and `Allowed = true`); callers who show a document as "signed and unchanged" should
+show those entries.
+
+| Class | Variants tested | Outcome |
+|---|---|---|
+| Universal signature forgery | `/ByteRange` or `/Contents` absent, null, empty, all zeros, wrong type, `[0 0 0 0]`, negative, real numbers, wrong count, shifted gap, indirect object or indirect number | Detected. An indirect `/ByteRange` or `/Contents` is refused (`Malformed`) even when it is correct, because the specification requires direct values |
+| Incremental saving | rewritten content, page, page tree, catalog, font; objects appended after `%%EOF` with no table, with a trailer only, or with a bad `startxref`; a trailer that points at a new catalog; an update stretched into the signed range; a rewritten signature dictionary or catalog to lower the certification | Detected. Data after the last `%%EOF` is reported as an unsigned change; a later `/Root` that differs from the signed one is a disallowed change |
+| Signature wrapping | second range starting early or inside the first, extra objects or a new table hidden in the excluded area, range moved past them, wrong lengths, more than one gap | Detected: the gap must be exactly the `/Contents` string and the range must end at a revision boundary |
+| Shadow: hide and replace | page content, page objects, font replaced by an update; xref switching to a second definition prepared before signing | Detected |
+| Shadow: form values | a field's value or appearance replaced, or pointed at a prepared appearance stream, under P=2 or 3 | **Advisory**: allowed by the level and listed as `FormFieldValue`. Detected under P=1 |
+| Evil annotation | annotation added under P=1 or 2 | Detected. Under P=3 **advisory**: listed as `Annotation`, allowed |
+| Evil annotation as a form widget | a widget with an appearance added under P=2 | **Advisory**: a new form field is a permitted change at level 2, listed as `FormFieldValue`. Detected under P=1 |
+| Sneaky signature | an unsigned signature field with an appearance added under P=2; a signature added under P=1 | The field is **advisory** at P=2 and detected at P=1; the added signature is detected at P=1 |
+| Certificate | untrusted root, expired signer at the validation time, key usage without `digitalSignature`/`nonRepudiation`, extended key usage for TLS or time-stamping only, a time-stamp signed by a certificate without the time-stamping purpose | Detected (`Chain`, `KeyUsage`, `Timestamp`) |
+
+`RequireSigningKeyUsage` (default true) makes a certificate that may not sign documents fail `IsValid`; with it off the problem is still
+in `KeyUsage` and the warnings. A key usage extension needs `digitalSignature` or `nonRepudiation`; an extended key usage, when present,
+must include document signing, e-mail protection, Adobe PDF signing or any purpose.
+
+Two things the result does not do: it reads signatures from the newest catalog only, so a later `/Root` whose catalog has no `/AcroForm`
+shows no signatures (the report says so and is never "all valid"); and a field whose `/FT` is not `/Sig` is not treated as a signature.
+
 ## Limits
 
 A signature value larger than the file cannot occur; the excluded area is capped by `PdfLimits.MaxMetadataBytes`; object comparison is capped

@@ -34,6 +34,12 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ### Fixed
 
+- Signature verification checked too little in several attack cases found by crafting the published PDF signature attacks (see `docs/signatures.md`, "Known attacks"):
+  - Data appended after the last `%%EOF` (objects with no cross-reference section, or a bare trailer) is now an unsigned change; before, a file whose signature covered its last revision still counted as the whole document.
+  - An update whose trailer points `/Root` at a different catalog is a disallowed change.
+  - The certification level is read from the signed revision, not from the newest dictionary.
+  - An indirect `/ByteRange` or `/Contents` is refused.
+  - A signer certificate whose key usage lacks `digitalSignature`/`nonRepudiation`, or whose extended key usage is only for other purposes, now fails `IsValid` (`PdfSignatureVerification.KeyUsage`; `PdfSignatureVerifyOptions.RequireSigningKeyUsage = false` allows it). A time-stamp signed by a certificate without the time-stamping purpose is invalid.
 - Signature verification no longer throws on a damaged embedded certificate on macOS, where the platform accepts certificate bytes and fails only when a property is read. Every certificate from the file, the extra certificates and the trust anchors is read once on load; one that fails is left out with a warning (the signer then counts as missing). Signing checks the credential's certificates the same way and reports `PdfSigningException` instead of a platform exception.
 
 ## [1.3.0] - 2026-10-23

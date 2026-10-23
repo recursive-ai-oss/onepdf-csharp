@@ -30,9 +30,17 @@ public sealed class PdfSignature
         }
 
         RawContents = dictionary.GetString("Contents")?.Bytes ?? ReadOnlyMemory<byte>.Empty;
+        // ISO 32000-2 12.8.1 has both values as direct objects: /Contents is the very string the byte range leaves out, and a range
+        // that is an indirect object, or holds indirect numbers, can be pointed at something other than what the file shows.
+        IndirectValues = dictionary.GetRaw("Contents") is PdfReference || dictionary.GetRaw("ByteRange") is PdfReference;
         if (dictionary.Get("ByteRange") is PdfArray br && br.Count <= 64)
         {
             var list = new List<long>(br.Count);
+            for (int k = 0; k < br.Count; k++)
+            {
+                IndirectValues |= br.GetRaw(k) is PdfReference;
+            }
+
             foreach (PdfObject? o in br.Items)
             {
                 if (o is PdfInteger i)
@@ -108,6 +116,9 @@ public sealed class PdfSignature
     }
 
     internal ReadOnlyMemory<byte> RawContents { get; }
+
+    /// <summary>True when <c>/Contents</c> or <c>/ByteRange</c> (or a number in it) is an indirect reference.</summary>
+    internal bool IndirectValues { get; }
 
     /// <summary>
     /// The document permission level this signature declares when it certifies the document (<c>/DocMDP</c> transform or

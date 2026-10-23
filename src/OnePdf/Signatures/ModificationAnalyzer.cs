@@ -42,9 +42,13 @@ internal static class ModificationAnalyzer
         IReadOnlyList<PdfRevision> revs = doc.Revisions;
         int r = v.CoveredRevision;
         int last = revs.Count - 1;
-        int? level = sig.CertificationLevel ?? DocMdpLevel(revs[r]);
+        // The level is read as the signed revision had it: a later update must not be able to raise it by rewriting the dictionary.
+        int? level = DocMdpLevel(revs[r]) ?? sig.CertificationLevel;
         v.DocMdpPermission = level;
-        if (r >= last)
+        long fileLength = doc.FileLength;
+        long signedEnd = sig.Range.SecondStart + sig.Range.SecondLength;
+        bool unsignedTail = signedEnd < fileLength && revs[last].EndOffset < fileLength && HasNonWhitespace(doc, revs[last].EndOffset, fileLength, ct);
+        if (r >= last && !unsignedTail)
         {
             v.Coverage = PdfSignatureCoverage.WholeDocument;
             return;
@@ -83,6 +87,21 @@ internal static class ModificationAnalyzer
 
         var ctx = new Context(doc, signed, newest, effective, locks);
         var changes = new List<PdfSignatureChange>();
+        if (unsignedTail)
+        {
+            // Bytes after the last %%EOF belong to no revision. A reader that rebuilds the cross-reference table by scanning (as
+            // repair does) would take objects from them, so they count as an unsigned change, not as padding.
+            changes.Add(new PdfSignatureChange(-1, PdfChangeCategory.Other, false, "data follows the last %%EOF and is not covered by any revision"));
+        }
+
+        PdfObject? signedRoot = RootOf(revs, r);
+        for (int k = r + 1; k <= last; k++)
+        {
+            if (revs[k].Trailer.GetRaw("Root") is PdfReference moved && !SameReference(signedRoot, moved))
+            {
+                changes.Add(new PdfSignatureChange(moved.Number, PdfChangeCategory.Other, false, "a later trailer points at a different catalog"));
+            }
+        }
         var fresh = new List<(int Number, PdfObject Value)>();
         var rootCategory = new Dictionary<int, (PdfChangeCategory Cat, bool Allowed, string Why)>();
         foreach (int n in numbers)
@@ -118,6 +137,39 @@ internal static class ModificationAnalyzer
         changes.Sort(static (a, b) => a.ObjectNumber.CompareTo(b.ObjectNumber));
         v.Changes = changes;
         v.Coverage = changes.Exists(static c => !c.Allowed) ? PdfSignatureCoverage.EarlierRevisionDisallowedChanges : PdfSignatureCoverage.EarlierRevisionAllowedChanges;
+    }
+
+    private static PdfObject? RootOf(IReadOnlyList<PdfRevision> revs, int from)
+    {
+        for (int i = from; i >= 0; i--)
+        {
+            if (revs[i].Trailer.GetRaw("Root") is { } root)
+            {
+                return root;
+            }
+        }
+
+        return null;
+    }
+
+    private static bool SameReference(PdfObject? a, PdfReference b) => a is PdfReference ra && ra.Number == b.Number && ra.Generation == b.Generation;
+
+    private static bool HasNonWhitespace(PdfDocument doc, long from, long to, CancellationToken ct)
+    {
+        const int chunk = 1 << 16;
+        for (long pos = from; pos < to; pos += chunk)
+        {
+            ct.ThrowIfCancellationRequested();
+            foreach (byte b in doc.ReadRange(pos, (int)Math.Min(chunk, to - pos)).Span)
+            {
+                if (b is not (0 or 9 or 10 or 12 or 13 or 32))
+                {
+                    return true;
+                }
+            }
+        }
+
+        return false;
     }
 
     private static PdfObject? Read(PdfRevision rev, int n, List<string> warnings)
