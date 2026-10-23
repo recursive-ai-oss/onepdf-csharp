@@ -5,6 +5,7 @@ interpret pages into a drawing device or a recorded display list.** Pure C# with
 are read through safe, bounds-checked code with size limits on by default.
 
 [![NuGet](https://img.shields.io/nuget/v/RecursiveAI.OnePdf)](https://www.nuget.org/packages/RecursiveAI.OnePdf)
+[![NuGet: Fonts](https://img.shields.io/nuget/v/RecursiveAI.OnePdf.Fonts?label=fonts)](https://www.nuget.org/packages/RecursiveAI.OnePdf.Fonts)
 [![CI](https://github.com/recursive-ai-oss/onepdf-csharp/actions/workflows/ci.yml/badge.svg)](https://github.com/recursive-ai-oss/onepdf-csharp/actions/workflows/ci.yml)
 [![.NET 10](https://img.shields.io/badge/.NET-10.0-512BD4)](#install)
 [![License](https://img.shields.io/badge/license-MIT%20OR%20Apache--2.0-blue)](#license)
@@ -36,6 +37,7 @@ are read through safe, bounds-checked code with size limits on by default.
 
 ```sh
 dotnet add package RecursiveAI.OnePdf
+dotnet add package RecursiveAI.OnePdf.Fonts   # optional: substitute fonts for the standard 14
 ```
 
 The package is `RecursiveAI.OnePdf`; the namespace is `OnePdf` (`using OnePdf;`). Target framework `net10.0`. Moving from PdfPig?
