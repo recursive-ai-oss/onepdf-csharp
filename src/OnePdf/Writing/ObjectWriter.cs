@@ -89,8 +89,14 @@ internal sealed class ObjectWriter
                 }
 
                 _stack[top] = (node, i + 1);
-                WriteName(sink, d.KeyAt(i));
-                Emit(sink, d.ValueAt(i), enc, number, generation, maxDepth);
+                string key = d.KeyAt(i);
+                WriteName(sink, key);
+                PdfObject entry = d.ValueAt(i);
+
+                // ISO 32000-2 7.6.2: the /Contents string of a signature dictionary is never encrypted, since the signature covers the
+                // file bytes as they lie. The /ByteRange entry is what marks the dictionary.
+                SecurityDecryptor? stringKey = enc is not null && entry is PdfString && key == "Contents" && d.ContainsKey("ByteRange") ? null : enc;
+                Emit(sink, entry, stringKey, number, generation, maxDepth);
             }
             else
             {

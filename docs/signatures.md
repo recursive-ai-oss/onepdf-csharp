@@ -1,7 +1,7 @@
 # Signature verification
 
 OnePDF reads the signatures in a PDF as data and checks them. It never runs anything in the file and never touches a network: no
-certificate downloads, no OCSP or CRL fetches, no time-stamp requests. Verification is on demand; opening a document does no signature work.
+certificate downloads, no OCSP or CRL fetches, no time-stamp requests. Verification is on demand; opening a document does no signature work. Signing is described [below](#signing).
 
     using var doc = PdfDocument.Open("contract.pdf");
     var options = new PdfSignatureVerifyOptions { TrustAnchors = [rootCertificate] };
@@ -90,7 +90,81 @@ reason. `Coverage` is `WholeDocument` (nothing follows), `EarlierRevisionAllowed
 A signature value larger than the file cannot occur; the excluded area is capped by `PdfLimits.MaxMetadataBytes`; object comparison is capped
 at 2^18 nodes per object and 2^20 changed objects. Cancellation is checked while the byte ranges are hashed and between signatures.
 
-## Not done
+## Signing
 
-Signing, the public-key security handler, long-term validation data (`/DSS`) beyond noting it, CRL/OCSP parsing, and Ed25519/Ed448 (the platform
+Signing is always an incremental update (ISO 32000-2 7.5.6), so earlier signatures stay valid and the original bytes are an exact prefix
+of the output. The document must be opened with `PdfOpenOptions.AllowEditing`; changes made through the mutable view before the call (a
+filled field, say) are part of the signed update.
+
+    using var doc = PdfDocument.Open("contract.pdf", new PdfOpenOptions { AllowEditing = true });
+    var credential = PdfSigningCredential.FromCertificate(signerWithKey, [intermediate]);
+    doc.Sign("contract-signed.pdf", credential, new PdfSigningOptions
+    {
+        FieldName = "Approval",                           // an unsigned signature field, or a new name
+        Rectangle = new PdfRectangle(72, 72, 272, 132),   // omit for an invisible signature
+        Reason = "I approve this contract",
+        Timestamp = request => MyTsaClient.Post(request.RequestDer.ToArray()),   // makes it PAdES B-T
+    });
+
+`Sign` takes a `Stream` or a path and writes nothing unless the whole signature succeeded. It holds the output in memory (about the
+file size). After a call, successful or failed, the document holds the pending signature objects: reopen the output (or the file) to
+sign again; a second call on the same instance throws `PdfSigningException` (`DocumentUsed`). To sign more than once, chain the outputs:
+sign, open the result with `AllowEditing`, fill a field if you like, sign again, add a document time-stamp.
+
+### Profiles
+
+| `PdfSigningOptions.Format` | Sub-filter | Signed attributes | Notes |
+|---|---|---|---|
+| `PadesBaseline` (default) | `ETSI.CAdES.detached` | `contentType` (id-data), `messageDigest`, `signingCertificateV2` | No `signingTime` (ETSI EN 319 142-1 6.3: the time is `/M`). The signer certificate and the chain you gave are embedded. With `Timestamp`: B-T, the token is the `signatureTimeStampToken` unsigned attribute. |
+| `Pkcs7Detached` | `adbe.pkcs7.detached` | `contentType`, `messageDigest`, `signingTime` | For older consumers. |
+
+Both use `issuerAndSerialNumber`, an empty detached `encapContentInfo`, digest identifiers with absent parameters (RFC 5754), and
+`sha*WithRSAEncryption`, RSASSA-PSS (hash = MGF1 hash, salt = hash length) or `ecdsa-with-SHA*`. A pre-2.0 file that has no signatures
+yet also gets `/Extensions /ESIC` (level 2 for CAdES, 1 for a document time-stamp; EN 319 142-1 5.6); a file that is already signed is not
+touched there, since a catalog change would count against the earlier signature.
+
+### Keys and external signers
+
+`PdfSigningCredential.FromCertificate(cert, chain)` needs an RSA or ECDSA private key the process can use (`NoPrivateKey` otherwise).
+`FromExternalSigner(cert, signer, chain)` calls `signer(PdfSignRequest)` with the digest of the DER signed attributes, the hash algorithm,
+the key type and the RSA padding; it returns the signature value (RSA: the raw signature; ECDSA: DER or IEEE P1363). OnePDF checks the
+value with the certificate's public key and refuses a wrong one (`SignerFailed`). OnePDF does not build chains: `chain` is what gets
+embedded after the signer certificate.
+
+### Time-stamps
+
+`PdfTimestampCallback` gets a `PdfTimestampRequest` (hash algorithm, message imprint, nonce, and the DER `TimeStampReq` with `certReq`
+set) and returns the `TimeStampResp` or the bare token. OnePDF checks the status (granted or granted with modifications), that the token
+is SignedData holding a TSTInfo, that its imprint equals the one sent and that it echoes the nonce; otherwise `TimestampRejected`. It does
+not verify the authority's signature or trust at signing time; `VerifySignatures` does. `AddDocumentTimestamp` writes a `/DocTimeStamp`
+field (`Timestamp1`, ...) whose token covers the whole file before it.
+
+### Certification and locks
+
+`PdfSigningOptions.Certify` adds the DocMDP transform (`/Reference`) and `/Perms /DocMDP`; only the first signature of a document may
+certify (`CertificationNotFirst`). `FieldLock` writes a `/Lock` dictionary on the signature field.
+
+### Visible signatures
+
+A rectangle (or an existing field with one) gives a visible signature. Its normal appearance is a Form XObject built with the content
+builder: an optional frame, an optional image on the left (a `PdfCreatedImage` of the same document, at most 40 percent of the width) and
+text lines (default: signer name, date, reason, location), in Helvetica sized to fit up to 10 points. An existing field that already has an
+appearance keeps it unless `Appearance` is given.
+
+### Space for `/Contents`
+
+The placeholder is `ContentsReserve` bytes (default: an estimate from the certificates, key size and, for a time-stamp, 8 KiB; 12 KiB for a
+document time-stamp), written as twice as many hex digits and patched in place after the byte range is known. If the CMS does not fit,
+`ContentsTooSmall` carries `RequiredBytes`; `PdfSigningResult.ContentsUsed` tells what an earlier signature of the same kind took. The
+`/Contents` string of a signature dictionary is never encrypted (ISO 32000-2 7.6.2); the rest of the update is encrypted like the document.
+
+### Not done in signing
+
+The time-stamp authority's own signature is not checked when signing. A time-stamp token is embedded as the callback returned it (a BER
+token is not re-encoded to DER). Long-term validation data (`/DSS`, PAdES B-LT and B-LTA), several signers in one CMS, signature policies,
+commitment types and `/Prop_Build` are not written. Ed25519 and Ed448 keys are not supported (the platform has no such primitive).
+
+## Not done in verification
+
+The public-key security handler, long-term validation data (`/DSS`) beyond noting it, CRL/OCSP parsing, and Ed25519/Ed448 (the platform
 has no such primitive) are not part of verification.

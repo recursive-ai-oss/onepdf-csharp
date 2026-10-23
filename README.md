@@ -43,9 +43,11 @@ are read through safe, bounds-checked code with size limits on by default.
 - **Content creation.** Draw text, paths, images and reusable forms onto new or existing pages (over or under what is there),
   with the 14 standard fonts or TrueType/OpenType fonts embedded as subsets with `ToUnicode` maps, and stamp or watermark pages
   ([content creation](https://github.com/recursive-ai-oss/onepdf-csharp/blob/main/docs/content-creation.md)).
-- **Signature verification.** Find signatures and document time-stamps, check byte ranges, digests, RSA (PKCS#1 and PSS) and ECDSA
+- **Signatures.** Find signatures and document time-stamps, check byte ranges, digests, RSA (PKCS#1 and PSS) and ECDSA
   signatures, RFC 3161 time-stamps and certificate chains (to anchors you supply; nothing is fetched), and classify what changed after
-  each signature in later revisions
+  each signature in later revisions. Sign as an incremental update: approval or certification signatures (PAdES baseline B-B, B-T with a
+  time-stamp from your callback, or `adbe.pkcs7.detached`), visible or invisible, with a local key or an external signer, and document
+  time-stamps
   ([signatures](https://github.com/recursive-ai-oss/onepdf-csharp/blob/main/docs/signatures.md)).
 - **Concurrent.** Objects parse lazily into a byte-budgeted cache with single-flight parsing; any number of threads can read pages
   of one document at once.
@@ -203,14 +205,14 @@ local system fonts. The code is safe C# with no `unsafe`, `Unsafe.*` or `MemoryM
 
 ## What it does not do
 
-- **No signing or redaction yet** (signatures can be verified, not made). Field scripts are never run, so calculated fields are not recomputed. New text is laid out
+- **No redaction yet**, and no long-term validation data (`/DSS`, PAdES B-LT/B-LTA) when signing. Field scripts are never run, so calculated fields are not recomputed. New text is laid out
   without a shaping engine, so complex scripts (Arabic, Indic and similar) are not shaped.
 - **It does not render pixels.** OnePDF resolves a page into drawing calls; a 2D engine paints them. Rasterizing is planned as a
   separate package, `RecursiveAI.OneImage.Pdf`, built on [OneImage](https://github.com/recursive-ai-oss/oneimage-csharp); it is
   not available yet. It will implement OnePDF's device and register PDF as an image format. OnePDF has no imaging dependency.
 - **No OCR.** Scanned pages without a text layer give no text.
 - **Missing annotation appearances are generated** for form fields and simple markup only (see [appearance generation](https://github.com/recursive-ai-oss/onepdf-csharp/blob/main/docs/appearance-generation.md)); other annotation types without one draw nothing and record a diagnostic.
-- **Public-key encryption** is not supported yet, and signatures can be verified but not made. Encrypted files need the standard handler and the BCL's AES, which
+- **Public-key encryption** is not supported yet. Encrypted files need the standard handler and the BCL's AES, which
   browser WebAssembly lacks (those files fail with a typed error there).
 - Permissions are reported, not enforced.
 

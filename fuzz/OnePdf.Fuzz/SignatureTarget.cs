@@ -7,14 +7,18 @@ using OnePdf.Tests.Signatures;
 namespace OnePdf.Fuzz;
 
 /// <summary>
-/// Signature target. A first byte picks the mode. Even: the rest is a CMS blob; it is parsed on its own and also placed in the
+/// Signature target. A first byte picks the mode. Even (bit 1 clear): the rest is a CMS blob; it is parsed on its own and also placed in the
 /// <c>/Contents</c> of a correctly ranged signed file, so certificate parsing, signature checks, chain building and
 /// the time-stamp path see it. Odd: the rest is a whole PDF and every signature in it is verified, with change analysis.
-/// Only the library's typed exceptions may escape.
+/// Bit 1 set with bit 0 clear: the rest is a time-stamp response checked against a fixed imprint and nonce. Only the library's typed exceptions may escape.
 /// </summary>
 internal static class SignatureTarget
 {
     private static readonly Lazy<(byte[] File, int HoleStart)> Template = new(Build);
+
+    private static readonly byte[] FixedImprint = new byte[32];
+
+    private static readonly byte[] FixedNonce = [0x22, 0x22, 0x22, 0x22, 0x22, 0x22, 0x22, 0x22];
 
     /// <summary>A signed file and the offset of its <c>/Contents</c> hex digits (for the seed writer and the CMS mode).</summary>
     public static (byte[] File, int HoleStart) Sample => Template.Value;
@@ -29,7 +33,12 @@ internal static class SignatureTarget
         byte[] rest = data[1..].ToArray();
         try
         {
-            if ((data[0] & 1) == 0)
+            if ((data[0] & 3) == 2)
+            {
+                // A time-stamp authority's answer, as the signing code receives it from its callback.
+                _ = Rfc3161.TryExtractToken(rest, System.Security.Cryptography.HashAlgorithmName.SHA256, FixedImprint, FixedNonce, out _, out _);
+            }
+            else if ((data[0] & 1) == 0)
             {
                 if (CmsSignedData.TryParse(rest, out CmsSignedData? sd, out _) && sd is not null)
                 {
@@ -82,6 +91,9 @@ internal static class SignatureTarget
     {
         (byte[] file, int hole) = Template.Value;
         yield return [1, .. file];
+        byte[] token = CmsKit.Timestamp(FixedImprint, System.Security.Cryptography.HashAlgorithmName.SHA256, DateTimeOffset.UtcNow, null, FixedNonce);
+        yield return [2, .. Der.Seq(Der.Seq(Der.Int(0)), token)];
+        yield return [2, .. token];
         byte[] cms = Convert.FromHexString(Encoding.ASCII.GetString(file, hole, SignedPdf.ContentsBytes * 2));
         int len = cms.Length;
         while (len > 0 && cms[len - 1] == 0)

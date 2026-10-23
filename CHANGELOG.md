@@ -13,7 +13,13 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
   - revocation, which is never fetched: reported as not checked unless a `RevocationCheck` callback answers from data the caller holds;
   - changes after signing, object by object and classified (form field value, new signature, annotation, page content, validation data, other) against the DocMDP level and FieldMDP locks.
   The result (`PdfSignatureVerification`) keeps every check separate; `IsValid` is a convenience. See `docs/signatures.md`.
-- A `signature` fuzz target (ASN.1/CMS parsing, certificates, chain building, byte ranges and change analysis).
+- A `signature` fuzz target (ASN.1/CMS parsing, certificates, chain building, byte ranges and change analysis; also time-stamp responses).
+- Signing. `PdfDocument.Sign` writes an incremental update holding an approval or certification signature (`PdfCertificationLevel` 1 to 3, an optional field `/Lock`), and `PdfDocument.AddDocumentTimestamp` adds an `ETSI.RFC3161` document time-stamp; both need a document opened with `AllowEditing`, keep the original bytes as an exact prefix and keep encryption (the `/Contents` string is never encrypted, ISO 32000-2 7.6.2).
+  - Formats: PAdES baseline B-B (`ETSI.CAdES.detached` with `contentType`, `messageDigest` and `signingCertificateV2`, no `signingTime`, and the ESIC extensions entry for pre-2.0 files), B-T when `PdfSigningOptions.Timestamp` is set, or `adbe.pkcs7.detached`. Digests SHA-256, SHA-384, SHA-512; RSA PKCS#1 or PSS, and ECDSA.
+  - Keys: `PdfSigningCredential.FromCertificate` (a certificate with a private key) or `FromExternalSigner`, a callback that receives the digest of the signed attributes and returns the signature value, for HSMs and remote signing. Every signature value is checked with the certificate's public key before it is embedded.
+  - Time-stamps only through a `PdfTimestampCallback` that receives the RFC 3161 request and returns a response or token; OnePDF opens no connection. The token's status, imprint and nonce are checked before it is embedded.
+  - Visible signatures get an appearance built with the content builder (name, date, reason, location, optional image). Failures throw `PdfSigningException` with a `PdfSigningError` reason and write nothing. Our own DER writer builds the CMS; no `System.Security.Cryptography.Pkcs`.
+  - `PdfSigningResult` reports the reserved and used `/Contents` size. See `docs/signatures.md`.
 
 ## [1.3.0] - 2026-10-23
 
