@@ -212,7 +212,7 @@ internal sealed class ContentRedactor : PdfDevice, IContentTap
     private bool _inAnnotation;
     private Ctx? _child;
     private PdfDictionary? _currentAnnotation;
-    private string? _unsafeReason;
+    private string? _failReason;
     private int _variantCount;
 
     public ContentRedactor(PdfDocument doc, PdfPage page, PdfRedactionOptions options, IReadOnlyList<PdfRectangle> regions, CancellationToken ct)
@@ -245,7 +245,7 @@ internal sealed class ContentRedactor : PdfDevice, IContentTap
 
     public Dictionary<PdfDictionary, PdfReference> AnnotationAppearances { get; } = new(ReferenceEqualityComparer.Instance);
 
-    public string? UnsafeReason => _unsafeReason;
+    public string? FailReason => _failReason;
 
     /// <summary>The new page content streams (one per content piece the interpreter ran), or null when nothing changed.</summary>
     public List<byte[]>? PageStreams
@@ -264,7 +264,7 @@ internal sealed class ContentRedactor : PdfDevice, IContentTap
 
     public bool Changed => _pageContexts.Exists(static c => c.Changed) || PageResources.Edited || AnnotationAppearances.Count > 0;
 
-    public void CannotVerify(string reason) => _unsafeReason ??= reason;
+    public void CannotVerify(string reason) => _failReason ??= reason;
 
     // ---- the contexts (one per content stream the interpreter runs) ----
 

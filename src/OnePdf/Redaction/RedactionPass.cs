@@ -223,7 +223,7 @@ internal sealed class RedactionPass
             throw new PdfRedactionException($"Page {index + 1} could not be redacted safely: {e.Message}", index, e);
         }
 
-        if (redactor.UnsafeReason is { } why)
+        if (redactor.FailReason is { } why)
         {
             throw new PdfRedactionException($"Page {index + 1} could not be redacted safely: {why}.", index);
         }
