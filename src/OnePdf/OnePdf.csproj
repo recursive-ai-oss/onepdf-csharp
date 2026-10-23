@@ -4,7 +4,7 @@
     <AssemblyName>$(LibName)</AssemblyName>
     <RootNamespace>$(LibName)</RootNamespace>
     <PackageId>$(PackagePrefix)$(LibName)</PackageId>
-    <Description>A pure-managed, read-only .NET PDF library with no dependencies beyond the base class library.</Description>
+    <Description>A pure-managed .NET PDF library: parse, repair, decrypt, extract text, interpret pages, edit and save. No dependencies beyond the base class library.</Description>
     <IsAotCompatible>true</IsAotCompatible>
     <IsTrimmable>true</IsTrimmable>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>

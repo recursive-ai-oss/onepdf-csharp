@@ -2,7 +2,7 @@
 
 All notable changes are listed here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and versions follow [Semantic Versioning](https://semver.org/).
 
-## [Unreleased]
+## [1.2.0] - 2026-10-23
 
 ### Added
 
@@ -51,6 +51,7 @@ First release. Two packages, `RecursiveAI.OnePdf` (the library, `net10.0`, no de
 - Limits on by default (`PdfLimits`) and fuzzed parsers, filters and font readers; no `unsafe` code. OnePDF never runs code or touches the network.
 - `RecursiveAI.OnePdf.Fonts`: Liberation and Noto substitute outlines under the SIL Open Font License 1.1, registered with `FontsPackage.Register()`.
 
+[1.2.0]: https://github.com/recursive-ai-oss/onepdf-csharp/releases/tag/v1.2.0
 [1.1.0]: https://github.com/recursive-ai-oss/onepdf-csharp/releases/tag/v1.1.0
 [1.0.1]: https://github.com/recursive-ai-oss/onepdf-csharp/releases/tag/v1.0.1
 [1.0.0]: https://github.com/recursive-ai-oss/onepdf-csharp/releases/tag/v1.0.0
