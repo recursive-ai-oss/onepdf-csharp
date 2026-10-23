@@ -8,6 +8,25 @@ public class PageHostileTests
 {
     private static PdfDocument Open(byte[] bytes, bool edit = false) => PdfDocument.Open(bytes, new PdfOpenOptions { AllowEditing = edit });
 
+    // A reference to a number the file never defines used to resolve to the object a copy had just reserved under that number,
+    // so duplicating a page within its own document followed one new object after another until memory ran out.
+    [Fact]
+    public void DuplicatingWithDanglingReferenceToTheNextObjectNumberTerminates()
+    {
+        byte[] input = File.ReadAllBytes(Path.Combine(WriterSupport.Root(), "testdata", "repros", "pages-duplicate-dangling-reference.pdf"));
+        using PdfDocument edit = Open(input, edit: true);
+        for (int i = 0; i < 2; i++)
+        {
+            edit.DuplicatePage(0);
+        }
+
+        Assert.Equal(3, edit.PageCount);
+        byte[] bytes = WriterSupport.Save(edit);
+        Assert.True(bytes.Length < 10000, "a copy must not grow beyond the page and its annotation");
+        using PdfDocument again = Open(bytes);
+        Assert.Equal(3, again.PageCount);
+    }
+
     [Fact]
     public void CyclicPageTreesStillMergeAndEdit()
     {

@@ -49,6 +49,9 @@ internal sealed partial class PageImporter
     private CancellationToken _ct;
     private bool _touched;
 
+    // Copying within one document: numbers from here on were created by this import, so a reference to one is not a source object.
+    private int _sourceLimit = int.MaxValue;
+
     private PageImporter(PdfDocument source, PdfDocument target)
     {
         _src = source;
@@ -76,6 +79,7 @@ internal sealed partial class PageImporter
     {
         _ct = ct;
         int mark = _dst.ObjectMark;
+        _sourceLimit = _same ? mark : int.MaxValue;
         _touched = false;
         var result = new ImportedPage?[indexes.Count];
         var pending = new List<int>(indexes.Count);
@@ -383,6 +387,14 @@ internal sealed partial class PageImporter
     private PdfReference? MapReference(PdfReference r, bool shared)
     {
         int n = r.Number;
+
+        // A dangling reference (to a number the file never defined) would otherwise resolve to the object this import just
+        // reserved under that number, and the copy would chase its own tail through the whole number space.
+        if (n >= _sourceLimit)
+        {
+            return null;
+        }
+
         if (shared)
         {
             return new PdfReference(n, r.Generation);
