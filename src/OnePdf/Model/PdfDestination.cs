@@ -131,10 +131,10 @@ public sealed class PdfAction
 
 public sealed partial class PdfDocument
 {
-    private Lazy<Dictionary<string, PdfObject>> _namedDestinations = null!;
+    private Lazy<Dictionary<string, PdfObject>>? _namedDestinations;
 
     /// <summary>The names of the document's named destinations (catalog <c>/Dests</c> and the <c>/Names</c> <c>/Dests</c> name tree), in no particular order.</summary>
-    public IReadOnlyCollection<string> NamedDestinationNames => _namedDestinations.Value.Keys;
+    public IReadOnlyCollection<string> NamedDestinationNames => NamedDestinationsLazy().Value.Keys;
 
     /// <summary>Resolves a named destination, or null when the name is not defined or leads nowhere.</summary>
     public PdfDestination? GetNamedDestination(string name)
@@ -186,11 +186,11 @@ public sealed partial class PdfDocument
             {
                 case PdfString s:
                     name = s.GetText();
-                    value = _namedDestinations.Value.GetValueOrDefault(name);
+                    value = NamedDestinationsLazy().Value.GetValueOrDefault(name);
                     continue;
                 case PdfName n:
                     name = n.Value;
-                    value = _namedDestinations.Value.GetValueOrDefault(n.Value);
+                    value = NamedDestinationsLazy().Value.GetValueOrDefault(n.Value);
                     continue;
                 case PdfDictionary d:
                     value = d.GetRaw("D");

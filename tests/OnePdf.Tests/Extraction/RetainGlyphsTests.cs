@@ -22,10 +22,37 @@ public class RetainGlyphsTests
         for (int i = 0; i < a.Count; i++)
         {
             Assert.Equal(a[i].Text, b[i].Text);
-            Assert.Equal(a[i].Words.Select(w => (w.Text, w.Bounds)), b[i].Words.Select(w => (w.Text, w.Bounds)));
+            Assert.Equal(a[i].Words.Select(w => (w.Text, w.Bounds, w.IsVisible)), b[i].Words.Select(w => (w.Text, w.Bounds, w.IsVisible)));
+            Assert.Equal(
+                a[i].Blocks.SelectMany(x => x.Lines).Select(l => (l.Text, l.Bounds, l.Direction, l.IsVertical, string.Join(',', l.CellStarts))),
+                b[i].Blocks.SelectMany(x => x.Lines).Select(l => (l.Text, l.Bounds, l.Direction, l.IsVertical, string.Join(',', l.CellStarts))));
             Assert.NotEmpty(a[i].Glyphs);
             Assert.Empty(b[i].Glyphs);
             Assert.All(b[i].Words, w => Assert.Empty(w.GlyphIndices));
+        }
+    }
+
+    [Fact]
+    public void WordsOfAPageWithoutGlyphsAreMadeOnceAndSharedByConcurrentReaders()
+    {
+        using PdfDocument doc = PdfDocument.Open(TestData.Generated("lo-report"));
+        PdfPageText page = doc.ExtractText(new PdfTextOptions { RetainGlyphs = false })[0];
+        PdfTextLine[] lines = page.Blocks.SelectMany(b => b.Lines).ToArray();
+        Assert.NotEmpty(lines);
+        IReadOnlyList<PdfTextWord>[][] seen = new IReadOnlyList<PdfTextWord>[8][];
+        Parallel.For(0, seen.Length, new ParallelOptions { MaxDegreeOfParallelism = 8 }, t => seen[t] = lines.Select(l => l.Words).ToArray());
+        for (int t = 1; t < seen.Length; t++)
+        {
+            for (int i = 0; i < lines.Length; i++)
+            {
+                Assert.Same(seen[0][i], seen[t][i]);
+            }
+        }
+
+        // A word's text is the slice of the line's text it stands for.
+        foreach (PdfTextLine l in lines)
+        {
+            Assert.Equal(l.Text.Replace('\t', ' '), string.Join(' ', l.Words.Select(w => w.Text)));
         }
     }
 

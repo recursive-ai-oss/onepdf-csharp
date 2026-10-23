@@ -121,9 +121,9 @@ public sealed class PdfOptionalContentGroup
 public sealed partial class PdfDocument
 {
     /// <summary>The files of the <c>EmbeddedFiles</c> name tree, in tree order. Content is not read.</summary>
-    public IReadOnlyList<PdfEmbeddedFile> EmbeddedFiles => _embeddedFiles.Value;
+    public IReadOnlyList<PdfEmbeddedFile> EmbeddedFiles => EmbeddedFilesLazy().Value;
 
-    private Lazy<IReadOnlyList<PdfEmbeddedFile>> _embeddedFiles = null!;
+    private Lazy<IReadOnlyList<PdfEmbeddedFile>>? _embeddedFiles;
 
     private List<PdfEmbeddedFile> LoadEmbeddedFiles()
     {
@@ -166,9 +166,9 @@ public sealed partial class PdfDocument
     /// Document-level scripts as text: the <c>JavaScript</c> name tree and a JavaScript open action. They are data and are
     /// never executed.
     /// </summary>
-    public IReadOnlyList<PdfJavaScript> JavaScript => _javaScript.Value;
+    public IReadOnlyList<PdfJavaScript> JavaScript => JavaScriptLazy().Value;
 
-    private Lazy<IReadOnlyList<PdfJavaScript>> _javaScript = null!;
+    private Lazy<IReadOnlyList<PdfJavaScript>>? _javaScript;
 
     private List<PdfJavaScript> LoadJavaScript()
     {
@@ -191,9 +191,9 @@ public sealed partial class PdfDocument
     }
 
     /// <summary>The optional content groups of <c>/OCProperties</c> with their default visibility; empty when the document has none.</summary>
-    public IReadOnlyList<PdfOptionalContentGroup> OptionalContentGroups => _ocgs.Value;
+    public IReadOnlyList<PdfOptionalContentGroup> OptionalContentGroups => OptionalContentLazy().Value;
 
-    private Lazy<IReadOnlyList<PdfOptionalContentGroup>> _ocgs = null!;
+    private Lazy<IReadOnlyList<PdfOptionalContentGroup>>? _ocgs;
 
     private List<PdfOptionalContentGroup> LoadOptionalContent()
     {

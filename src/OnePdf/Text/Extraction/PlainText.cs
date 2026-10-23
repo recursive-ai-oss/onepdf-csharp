@@ -195,8 +195,6 @@ internal static class PlainText
         return sb.ToString();
     }
 
-    private static readonly Comparison<KeyIdx> ByKey = static (a, b) => a.Key.CompareTo(b.Key);
-
     private static void LayoutClass(PdfTextGlyph[] g, int[] idx, int offset, int n, int k, StringBuilder sb)
     {
         using LayoutWork w = new();
@@ -232,7 +230,7 @@ internal static class PlainText
             order[i] = new KeyIdx { Key = baseOf[i], Idx = i };
         }
 
-        order.AsSpan(0, lineCount).Sort(ByKey);
+        IntroSort.Sort<KeyIdx, ByKeyOrder>(order.AsSpan(0, lineCount));
         int nd = 0;
         for (int i = 1; i < lineCount; i++)
         {

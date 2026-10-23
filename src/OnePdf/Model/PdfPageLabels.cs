@@ -132,9 +132,9 @@ public sealed class PdfPageLabels
 public sealed partial class PdfDocument
 {
     /// <summary>The page labels, or null when the document defines none.</summary>
-    public PdfPageLabels? PageLabels => _pageLabels.Value;
+    public PdfPageLabels? PageLabels => PageLabelsLazy().Value;
 
-    private Lazy<PdfPageLabels?> _pageLabels = null!;
+    private Lazy<PdfPageLabels?>? _pageLabels;
 
     private PdfPageLabels? LoadPageLabels()
     {

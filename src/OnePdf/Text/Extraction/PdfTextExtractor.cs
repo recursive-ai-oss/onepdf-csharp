@@ -154,8 +154,8 @@ public sealed class PdfTextExtractor
         {
             try
             {
-                List<PdfTextBlock> found = TextLayout.RunAll(g, count, ct);
-                return PdfPageText.WithoutGlyphs(page.PageIndex, page.Width, page.Height, found.ToArray(), [], o);
+                List<PdfTextBlock> found = TextLayout.RunAll(g, count, false, ct);
+                return PdfPageText.WithoutGlyphs(page.PageIndex, page.Width, page.Height, found.ToArray(), [], o, wordsAlreadyClear: true);
             }
             finally
             {

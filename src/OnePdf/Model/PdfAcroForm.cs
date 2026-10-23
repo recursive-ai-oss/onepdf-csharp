@@ -303,9 +303,9 @@ public sealed class PdfAcroForm
 public sealed partial class PdfDocument
 {
     /// <summary>The interactive form, or null when the catalog has no <c>/AcroForm</c>.</summary>
-    public PdfAcroForm? Form => _form.Value;
+    public PdfAcroForm? Form => FormLazy().Value;
 
-    private Lazy<PdfAcroForm?> _form = null!;
+    private Lazy<PdfAcroForm?>? _form;
 
     private PdfAcroForm? LoadForm()
     {
