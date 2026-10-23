@@ -137,7 +137,7 @@ public class ParallelExtractionTests
         for (int i = 0; i < doc.Length; i++)
         {
             Assert.Equal(whole[i].GetText(PdfTextMode.ReadingOrder), each[i].GetText(PdfTextMode.ReadingOrder));
-            Assert.Equal(whole[i].Glyphs.Count, each[i].Glyphs.Count);
+            Assert.Equal(whole[i].ReadGlyphs().Count, each[i].Glyphs.Count);
         }
     }
 }

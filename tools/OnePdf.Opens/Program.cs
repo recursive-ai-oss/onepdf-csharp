@@ -243,7 +243,7 @@ internal static class Program
                     }
 
                     int chars = 0;
-                    foreach (var t in doc.ExtractText(new PdfTextOptions { RetainGlyphs = !dropGlyphs }))
+                    foreach (var t in doc.ExtractText(new PdfTextOptions { RetainGlyphs = dropGlyphs ? false : null }))
                     {
                         chars += t.Text.Length;
                     }
@@ -299,6 +299,11 @@ internal static class Program
     /// <summary>Waits while a benchmark process is running (checked at most every 10 s).</summary>
     private static void Gate()
     {
+        if (Environment.GetEnvironmentVariable("ONEPDF_NO_PAUSE") == "1")
+        {
+            return;
+        }
+
         while (true)
         {
             lock (GateLock)

@@ -72,7 +72,7 @@ public class TextBenchmarks
     [Pending("text")]
     public long OnePdf() => Ops.OnePdfText(_path, _degree);
 
-    /// <summary>Information row: the same extraction with the glyphs kept in the result (the option's default), as an application that reads them would run it.</summary>
+    /// <summary>Information row: the same extraction with the glyphs kept in the result (the single-page default), as an application that reads them would run it.</summary>
     [Benchmark]
     [Pending("text")]
     public long OnePdfKeepingGlyphs() => Ops.OnePdfText(_path, _degree, null, retainGlyphs: true);

@@ -74,7 +74,7 @@ geometry otherwise). Use `PdfTextMode.ContentOrder` for the nearest equivalent o
 | `ContentOrderTextExtractor.GetText(page)` | `pageText.GetText(PdfTextMode.ContentOrder)` |
 | `page.GetWords()` | `pageText.Words` (each `PdfTextWord` has `Text` and `Bounds`) |
 | `word.Text`, `word.BoundingBox` | `word.Text`, `word.Bounds` (`PdfRectangle`: `Left`, `Bottom`, `Right`, `Top`) |
-| `page.Letters` | `pageText.Glyphs` (`PdfTextGlyph`) |
+| `page.Letters` | `pageText.Glyphs` (`PdfTextGlyph`) from `page.ExtractText()`; whole-document `doc.ExtractText()` drops glyphs to bound memory, so pass `RetainGlyphs = true` or call `pageText.ReadGlyphs()` |
 | `letter.Value` | `glyph.Text` |
 | `letter.Location` / `StartBaseLine` | `glyph.Origin` / `glyph.Matrix` |
 | `letter.GlyphRectangle` | `glyph.Bounds` (axis-aligned) or `glyph.Quad` (rotated) |
@@ -105,7 +105,7 @@ foreach (OnePdf.Text.PdfPageText page in doc.ExtractText())    // pages in paral
 ```
 
 `doc.ExtractText()` does every page in parallel and also flags headers and footers by their repetition across pages; the
-degree is `PdfTextOptions.MaxDegreeOfParallelism` (default min(4, cores)).
+degree is `PdfTextOptions.MaxDegreeOfParallelism` (default min(4, cores)). To keep a long document within memory it does not keep each page's glyph list (`PdfTextOptions.RetainGlyphs`); every plain-text mode, words, lines and blocks are still there, and `pageText.ReadGlyphs()` reads the glyphs of a page on request.
 
 Things that behave differently and can change your output:
 

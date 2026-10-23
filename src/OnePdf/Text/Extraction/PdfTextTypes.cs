@@ -70,13 +70,18 @@ public sealed class PdfTextOptions
     public bool DetectHeadersAndFooters { get; set; } = true;
 
     /// <summary>
-    /// Keep the glyphs in the result: <see cref="PdfPageText.Glyphs"/>, <see cref="PdfTextWord.GlyphIndices"/> and the glyph part of the JSON form. Default true.
-    /// Glyphs are by far the largest part of a result (about 136 bytes each, a million for a 300-page book). With false the
-    /// page keeps its blocks, lines, words and boxes, the glyph list is empty, the word glyph indices are empty, and only the plain
-    /// text of <see cref="Mode"/> is available (<see cref="PdfPageText.GetText"/> with another mode, other than reading order, throws <see cref="InvalidOperationException"/>).
-    /// Use it when only text, words, lines and positions are wanted.
+    /// Keep the glyphs in the result: <see cref="PdfPageText.Glyphs"/>, <see cref="PdfTextWord.GlyphIndices"/> and the glyph part of the JSON form.
+    /// Null (the default) means true for a single page (<see cref="PdfPage.ExtractText"/>, <see cref="PdfTextExtractor.ExtractPage"/>,
+    /// <see cref="PdfTextExtractor.Analyze(PdfPageGlyphs, PdfTextOptions?, CancellationToken)"/>) and false for whole-document
+    /// extraction (<see cref="PdfDocument.ExtractText"/>, <see cref="PdfTextExtractor.ExtractDocument"/>).
+    /// Glyphs are by far the largest part of a result (about 136 bytes each, a million for a 300-page book), so a long document
+    /// would not fit in memory with all of them kept. Without glyphs a page keeps its blocks, lines, words and boxes; the glyph list and
+    /// the word glyph indices are empty; the text of every <see cref="PdfTextMode"/> stays available, because a page of a document result
+    /// recomputes the modes it did not build from its source on first use (the document must still be open; a page analyzed from
+    /// a bare glyph list with false cannot, and <see cref="PdfPageText.GetText"/> throws <see cref="InvalidOperationException"/> for other modes).
+    /// <see cref="PdfPageText.ReadGlyphs"/> returns the glyph list of a page on request. Set true to keep every page's glyphs.
     /// </summary>
-    public bool RetainGlyphs { get; set; } = true;
+    public bool? RetainGlyphs { get; set; }
 
     /// <summary>Pages processed at once by whole-document extraction. 0 (the default) means min(4, processor count); 1 is sequential.</summary>
     public int MaxDegreeOfParallelism { get; set; }
@@ -325,15 +330,46 @@ public sealed class PdfPageText
         }
 
         // The reading-order text is built from the blocks alone, so it stays available after the glyphs are gone.
+        // The other modes need the glyphs: read the page again from its source (the result is deterministic).
         if (_glyphsDropped && mode != PdfTextMode.ReadingOrder)
         {
-            throw new InvalidOperationException("The glyphs of this page were not retained; only the text of the mode in the options is available.");
+            if (_reload is null)
+            {
+                throw new InvalidOperationException("The glyphs of this page were not retained and it has no source to read them from again; only the text of the mode in the options is available.");
+            }
+
+            return cache[i] = _reload.ExtractPageWith(PageIndex, true, default).GetText(mode);
         }
 
         return cache[i] = PlainText.Build(this, mode, _options);
     }
 
     private bool _glyphsDropped;
+    private PdfTextExtractor? _reload;
+
+    internal void SetReload(PdfTextExtractor extractor) => _reload = extractor;
+
+    /// <summary>
+    /// The glyphs of this page. When they were kept (<see cref="PdfTextOptions.RetainGlyphs"/>) this is <see cref="Glyphs"/>; otherwise the page is
+    /// read again from its document, which must still be open. The indices in <see cref="PdfTextWord.GlyphIndices"/> of a page extracted with
+    /// glyphs refer to this list; a page extracted without glyphs has no word indices.
+    /// </summary>
+    /// <param name="cancellationToken">Cancels the re-read.</param>
+    /// <exception cref="InvalidOperationException">The glyphs were dropped and the page has no source (it came from <see cref="PdfTextExtractor.Analyze(PdfPageGlyphs, PdfTextOptions?, CancellationToken)"/>).</exception>
+    public IReadOnlyList<PdfTextGlyph> ReadGlyphs(CancellationToken cancellationToken = default)
+    {
+        if (!_glyphsDropped)
+        {
+            return Glyphs;
+        }
+
+        if (_reload is null)
+        {
+            throw new InvalidOperationException("The glyphs of this page were not retained and it has no source to read them from again.");
+        }
+
+        return _reload.ExtractPageWith(PageIndex, true, cancellationToken).Glyphs;
+    }
 
     /// <summary>
     /// Lets go of the glyphs (<see cref="PdfTextOptions.RetainGlyphs"/> false) once the page is analyzed. The text of the options' mode is

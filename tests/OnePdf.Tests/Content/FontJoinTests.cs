@@ -152,7 +152,7 @@ public class FontJoinTests
     {
         byte[] data = TestPdf.Build("BT /F1 12 Tf 20 150 Td (Hello World) Tj 0 -20 Td (second line) Tj ET", Helv);
         using PdfDocument doc = TestPdf.Open(data);
-        IReadOnlyList<PdfPageText> pages = doc.ExtractText();
+        IReadOnlyList<PdfPageText> pages = doc.ExtractText(new PdfTextOptions { RetainGlyphs = true });
         Assert.Single(pages);
         Assert.Equal("Hello World\n\nsecond line", pages[0].Text.Trim());
         Assert.Equal(pages[0].Text, doc.Pages[0].ExtractText().Text);
