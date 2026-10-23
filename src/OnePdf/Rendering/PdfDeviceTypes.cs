@@ -24,6 +24,7 @@ namespace OnePdf;
 /// <param name="FillOverprint">The <c>/op</c> (non-stroking overprint) flag.</param>
 /// <param name="StrokeOverprint">The <c>/OP</c> (stroking overprint) flag.</param>
 /// <param name="OverprintMode">The <c>/OPM</c> value, 0 or 1.</param>
+/// <remarks>The <see cref="TextKnockout"/> flag is an init-only property so the constructor stays as it was.</remarks>
 public readonly record struct PdfGraphicsState(
     PdfMatrix Ctm,
     PdfColor FillColor,
@@ -43,7 +44,15 @@ public readonly record struct PdfGraphicsState(
     bool AlphaIsShape,
     bool FillOverprint,
     bool StrokeOverprint,
-    int OverprintMode);
+    int OverprintMode)
+{
+    /// <summary>
+    /// The ExtGState <c>/TK</c> text knockout flag (ISO 32000-2 9.3.8), true by default. When true, the glyphs of one text
+    /// object knock each other out where they overlap; when false each glyph composites over the earlier ones. Saved and
+    /// restored with <c>q</c>/<c>Q</c> like the rest of the state.
+    /// </summary>
+    public bool TextKnockout { get; init; } = true;
+}
 
 /// <summary>Which page box selects the output area.</summary>
 public enum PdfPageBox

@@ -20,6 +20,7 @@ public sealed class PdfDisplayList : IPdfDevice
         EndPage,
         Fill,
         Stroke,
+        FillStroke,
         Clip,
         TextClip,
         PopClip,
@@ -153,6 +154,7 @@ public sealed class PdfDisplayList : IPdfDevice
                     break;
                 case Kind.Fill:
                 case Kind.Stroke:
+                case Kind.FillStroke:
                 case Kind.Clip:
                     {
                         if (cull && !Overlaps(in it, in clip))
@@ -175,6 +177,10 @@ public sealed class PdfDisplayList : IPdfDevice
                         else if (it.Kind == Kind.Stroke)
                         {
                             device.StrokePath(in path, in state);
+                        }
+                        else if (it.Kind == Kind.FillStroke)
+                        {
+                            device.FillStrokePath(in path, it.EvenOdd, in state);
                         }
                         else
                         {
@@ -458,7 +464,15 @@ public sealed class PdfDisplayList : IPdfDevice
         AddPathItem(Kind.Fill, path, evenOdd, state, 0);
 
     /// <inheritdoc/>
-    public void StrokePath(in PdfPath path, in PdfGraphicsState state)
+    public void StrokePath(in PdfPath path, in PdfGraphicsState state) =>
+        AddPathItem(Kind.Stroke, path, false, state, StrokePad(state));
+
+    /// <inheritdoc/>
+    /// <remarks>Recorded as one item; its box is the stroke's, which contains the fill.</remarks>
+    public void FillStrokePath(in PdfPath path, bool evenOdd, in PdfGraphicsState state) =>
+        AddPathItem(Kind.FillStroke, path, evenOdd, state, StrokePad(state));
+
+    private static double StrokePad(in PdfGraphicsState state)
     {
         double scale = DeviceScale(state.Ctm);
         double half = Math.Max(state.LineWidth * scale, 1) / 2;
@@ -468,7 +482,7 @@ public sealed class PdfDisplayList : IPdfDevice
             pad = Math.Max(pad, half * 1.5);
         }
 
-        AddPathItem(Kind.Stroke, path, false, state, pad);
+        return pad;
     }
 
     /// <inheritdoc/>

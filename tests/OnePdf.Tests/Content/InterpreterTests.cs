@@ -24,7 +24,7 @@ public class InterpreterTests
         Assert.Contains("page box=0 0 200 200 name=CropBox rotate=0 unit=1 scale=1 size=200 200 base=[1 0 0 -1 0 200]", t);
         Assert.Contains("gs ctm=[1 0 0 -1 0 200] fill=rgb(1 0 0) stroke=gray(0)", t);
         Assert.Contains("fill nonzero M 10 10 L 60 10 L 60 60 L 10 60 Z", t);
-        Assert.StartsWith("onepdf-display-list 4\n", t);
+        Assert.StartsWith("onepdf-display-list 5\n", t);
     }
 
     [Fact]
@@ -40,9 +40,11 @@ public class InterpreterTests
     {
         string content = "0 0 m 10 0 l S  0 0 m 10 0 l 10 10 l s  0 0 10 10 re f  0 0 10 10 re F  0 0 10 10 re f*  0 0 10 10 re B  0 0 10 10 re B*  0 0 10 10 re b  0 0 10 10 re b*  0 0 10 10 re n";
         string t = T(content);
-        Assert.Equal(7, TestPdf.Lines(t, "fill").Length);
-        Assert.Equal(2 + 4, TestPdf.Lines(t, "stroke").Length);
-        Assert.Equal(3, TestPdf.Lines(t, "fill").Count(l => l.StartsWith("fill evenodd", StringComparison.Ordinal)));
+        Assert.Equal(3, TestPdf.Lines(t, "fill").Length);
+        Assert.Equal(4, TestPdf.Lines(t, "fillstroke").Length);
+        Assert.Equal(2, TestPdf.Lines(t, "stroke").Length);
+        Assert.Equal(1, TestPdf.Lines(t, "fill").Count(l => l.StartsWith("fill evenodd", StringComparison.Ordinal)));
+        Assert.Equal(2, TestPdf.Lines(t, "fillstroke").Count(l => l.StartsWith("fillstroke evenodd", StringComparison.Ordinal)));
         // s closes the subpath; S does not.
         string[] strokes = TestPdf.Lines(t, "stroke");
         Assert.DoesNotContain("Z", strokes[0]);

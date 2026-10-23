@@ -1,6 +1,6 @@
 # Writing
 
-OnePDF reads read-only by default. A document opened with `PdfOpenOptions.AllowEditing = true` can be changed and saved, in full or as an incremental update.
+Documents open read-only by default. A document opened with `PdfOpenOptions.AllowEditing = true` can be changed and saved, in full or as an incremental update.
 
 ```csharp
 using var doc = PdfDocument.Open("in.pdf", new PdfOpenOptions { AllowEditing = true });

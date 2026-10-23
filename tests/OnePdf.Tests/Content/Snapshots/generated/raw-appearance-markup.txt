@@ -1,5 +1,5 @@
 # page 1
-onepdf-display-list 4
+onepdf-display-list 5
 page box=0 0 500 780 name=CropBox rotate=0 unit=1 scale=1 size=500 780 base=[1 0 0 -1 0 780]
   gs ctm=[1 0 0 -1 0 780] fill=gray(0) stroke=gray(0) lw=1 cap=0 join=0 miter=10 dash=[] phase=0 flat=1 ri=RelativeColorimetric fa=1 sa=1 bm=Normal sm=0 ais=0 op=000
   text font=/F1 size=14 mode=0 tc=0 tw=0 th=1 rise=0 tm=[1 0 0 1 40 700] vert=0 adv=145.516 0 codes=4d61726b65642075702074657874206c696e65206f6e65 glyphs=[77@0,0,0.833:g48:u4d 97@11.662,0,0.556:g68:u61 114@19.446,0,0.333:g85:u72 107@24.108,0,0.5:g78:u6b 101@31.108,0,0.556:g72:u65 100@38.892,0,0.556:g71:u64 32@46.676,0,0.278:g3:u20 117@50.568,0,0.556:g88:u75 112@58.352,0,0.556:g83:u70 32@66.136,0,0.278:g3:u20 116@70.028,0,0.278:g87:u74 101@73.92,0,0.556:g72:u65 120@81.704,0,0.5:g91:u78 116@88.704,0,0.278:g87:u74 32@92.596,0,0.278:g3:u20 108@96.488,0,0.222:g79:u6c 105@99.596,0,0.222:g76:u69 110@102.704,0,0.556:g81:u6e 101@110.488,0,0.556:g72:u65 32@118.272,0,0.278:g3:u20 111@122.164,0,0.556:g82:u6f 110@129.948,0,0.556:g81:u6e 101@137.732,0,0.556:g72:u65]
@@ -9,8 +9,7 @@ page box=0 0 500 780 name=CropBox rotate=0 unit=1 scale=1 size=500 780 base=[1 0
   begin-annot /Square rect=38.5 558.5 141.5 621.5 flags=4
     clip nonzero M 38.5 558.5 L 141.5 558.5 L 141.5 621.5 L 38.5 621.5 Z
       gs ctm=[1 0 0 -1 0 780] fill=rgb(1 1 0.6) stroke=rgb(1 0 0) lw=3 cap=0 join=0 miter=10 dash=[] phase=0 flat=1 ri=RelativeColorimetric fa=0.6 sa=0.6 bm=Normal sm=0 ais=0 op=000
-      fill nonzero M 41.5 561.5 L 138.5 561.5 L 138.5 618.5 L 41.5 618.5 Z
-      stroke M 41.5 561.5 L 138.5 561.5 L 138.5 618.5 L 41.5 618.5 Z
+      fillstroke nonzero M 41.5 561.5 L 138.5 561.5 L 138.5 618.5 L 41.5 618.5 Z
     pop-clip
   end-annot
   begin-annot /Circle rect=159 559 261 621 flags=4
@@ -26,8 +25,7 @@ page box=0 0 500 780 name=CropBox rotate=0 unit=1 scale=1 size=500 780 base=[1 0
       gs ctm=[1 0 0 -1 0 780] fill=rgb(0 0 1) stroke=rgb(0 0 1) lw=2 cap=0 join=0 miter=10 dash=[] phase=0 flat=1 ri=RelativeColorimetric fa=1 sa=1 bm=Normal sm=0 ais=0 op=000
       stroke M 50 510 L 290 530
       stroke M 59.8578 516.8423 L 50 510 L 60.8544 504.8837
-      fill nonzero M 280.1422 523.1577 L 290 530 L 279.1456 535.1163 Z
-      stroke M 280.1422 523.1577 L 290 530 L 279.1456 535.1163 Z
+      fillstroke nonzero M 280.1422 523.1577 L 290 530 L 279.1456 535.1163 Z
     pop-clip
   end-annot
   begin-annot /Line rect=315.5 455.5 444.5 560 flags=4
@@ -36,18 +34,15 @@ page box=0 0 500 780 name=CropBox rotate=0 unit=1 scale=1 size=500 780 base=[1 0
       gs ctm=[1 0 0 -1 0 780] fill=rgb(1 0.8 1) stroke=rgb(0.5 0 0.5) lw=1 cap=0 join=0 miter=10 dash=[] phase=0 flat=1 ri=RelativeColorimetric fa=1 sa=1 bm=Normal sm=0 ais=0 op=000
       stroke M 330 490 L 330 465 M 430 490 L 430 465
       stroke M 330 470 L 430 470
-      fill nonzero M 333 470 C 333 471.6569 331.6569 473 330 473 C 328.3431 473 327 471.6569 327 470 C 327 468.3431 328.3431 467 330 467 C 331.6569 467 333 468.3431 333 470 Z
-      stroke M 333 470 C 333 471.6569 331.6569 473 330 473 C 328.3431 473 327 471.6569 327 470 C 327 468.3431 328.3431 467 330 467 C 331.6569 467 333 468.3431 333 470 Z
-      fill nonzero M 427 467 L 427 473 L 433 473 L 433 467 Z
-      stroke M 427 467 L 427 473 L 433 473 L 433 467 Z
+      fillstroke nonzero M 333 470 C 333 471.6569 331.6569 473 330 473 C 328.3431 473 327 471.6569 327 470 C 327 468.3431 328.3431 467 330 467 C 331.6569 467 333 468.3431 333 470 Z
+      fillstroke nonzero M 427 467 L 427 473 L 433 473 L 433 467 Z
     pop-clip
   end-annot
   begin-annot /Polygon rect=40 400 140 470 flags=4
     gs ctm=[1 0 0 -1 0 780] fill=gray(0) stroke=gray(0) lw=1 cap=0 join=0 miter=10 dash=[] phase=0 flat=1 ri=RelativeColorimetric fa=1 sa=1 bm=Normal sm=0 ais=0 op=000
     clip nonzero M 40 400 L 140 400 L 140 470 L 40 470 Z
       gs ctm=[1 0 0 -1 0 780] fill=rgb(0.8 1 0.8) stroke=rgb(0 0 0) lw=1 cap=0 join=0 miter=10 dash=[] phase=0 flat=1 ri=RelativeColorimetric fa=1 sa=1 bm=Normal sm=0 ais=0 op=000
-      fill nonzero M 50 410 L 130 410 L 90 460 Z
-      stroke M 50 410 L 130 410 L 90 460 Z
+      fillstroke nonzero M 50 410 L 130 410 L 90 460 Z
     pop-clip
   end-annot
   begin-annot /PolyLine rect=160 400 300 470 flags=4
@@ -117,8 +112,7 @@ page box=0 0 500 780 name=CropBox rotate=0 unit=1 scale=1 size=500 780 base=[1 0
     gs ctm=[1 0 0 -1 320 440] fill=gray(0) stroke=gray(0) lw=1 cap=0 join=0 miter=10 dash=[] phase=0 flat=1 ri=RelativeColorimetric fa=1 sa=1 bm=Normal sm=0 ais=0 op=000
     clip nonzero M 0 0 L 20 0 L 20 20 L 0 20 Z
       gs ctm=[1 0 0 -1 320 440] fill=rgb(1 0.9 0.2) stroke=gray(0) lw=1 cap=1 join=1 miter=10 dash=[] phase=0 flat=1 ri=RelativeColorimetric fa=1 sa=1 bm=Normal sm=0 ais=0 op=000
-      fill nonzero M 2 1 L 2 19 L 18 19 L 18 6 L 13 1 Z
-      stroke M 2 1 L 2 19 L 18 19 L 18 6 L 13 1 Z
+      fillstroke nonzero M 2 1 L 2 19 L 18 19 L 18 6 L 13 1 Z
       stroke M 13 1 L 13 6 L 18 6
       stroke M 5 15 L 15 15 M 5 12 L 15 12 M 5 9 L 15 9 M 5 6 L 10 6
     pop-clip
@@ -127,8 +121,7 @@ page box=0 0 500 780 name=CropBox rotate=0 unit=1 scale=1 size=500 780 base=[1 0
     gs ctm=[1 0 0 -1 360 440] fill=gray(0) stroke=gray(0) lw=1 cap=0 join=0 miter=10 dash=[] phase=0 flat=1 ri=RelativeColorimetric fa=1 sa=1 bm=Normal sm=0 ais=0 op=000
     clip nonzero M 0 0 L 20 0 L 20 20 L 0 20 Z
       gs ctm=[1 0 0 -1 360 440] fill=rgb(0.6 0.9 1) stroke=gray(0) lw=1 cap=1 join=1 miter=10 dash=[] phase=0 flat=1 ri=RelativeColorimetric fa=1 sa=1 bm=Normal sm=0 ais=0 op=000
-      fill nonzero M 2 5 L 2 18 L 18 18 L 18 5 L 11 5 L 6 1 L 7 5 Z
-      stroke M 2 5 L 2 18 L 18 18 L 18 5 L 11 5 L 6 1 L 7 5 Z
+      fillstroke nonzero M 2 5 L 2 18 L 18 18 L 18 5 L 11 5 L 6 1 L 7 5 Z
       stroke M 5 14 L 15 14 M 5 11 L 15 11 M 5 8 L 11 8
     pop-clip
   end-annot
@@ -136,8 +129,7 @@ page box=0 0 500 780 name=CropBox rotate=0 unit=1 scale=1 size=500 780 base=[1 0
     gs ctm=[1 0 0 -1 400 440] fill=gray(0) stroke=gray(0) lw=1 cap=0 join=0 miter=10 dash=[] phase=0 flat=1 ri=RelativeColorimetric fa=1 sa=1 bm=Normal sm=0 ais=0 op=000
     clip nonzero M 0 0 L 20 0 L 20 20 L 0 20 Z
       gs ctm=[1 0 0 -1 400 440] fill=rgb(0.7 1 0.7) stroke=gray(0) lw=1 cap=1 join=1 miter=10 dash=[] phase=0 flat=1 ri=RelativeColorimetric fa=1 sa=1 bm=Normal sm=0 ais=0 op=000
-      fill nonzero M 18.5 10 C 18.5 14.6944 14.6944 18.5 10 18.5 C 5.3056 18.5 1.5 14.6944 1.5 10 C 1.5 5.3056 5.3056 1.5 10 1.5 C 14.6944 1.5 18.5 5.3056 18.5 10 Z
-      stroke M 18.5 10 C 18.5 14.6944 14.6944 18.5 10 18.5 C 5.3056 18.5 1.5 14.6944 1.5 10 C 1.5 5.3056 5.3056 1.5 10 1.5 C 14.6944 1.5 18.5 5.3056 18.5 10 Z
+      fillstroke nonzero M 18.5 10 C 18.5 14.6944 14.6944 18.5 10 18.5 C 5.3056 18.5 1.5 14.6944 1.5 10 C 1.5 5.3056 5.3056 1.5 10 1.5 C 14.6944 1.5 18.5 5.3056 18.5 10 Z
       gs ctm=[1 0 0 -1 400 440] fill=rgb(0.7 1 0.7) stroke=gray(0) lw=1.6 cap=1 join=1 miter=10 dash=[] phase=0 flat=1 ri=RelativeColorimetric fa=1 sa=1 bm=Normal sm=0 ais=0 op=000
       stroke M 7 13.5 C 7 17 13 17 13 13.5 C 13 11 10 10.5 10 8
       gs ctm=[1 0 0 -1 400 440] fill=gray(0) stroke=gray(0) lw=1.6 cap=1 join=1 miter=10 dash=[] phase=0 flat=1 ri=RelativeColorimetric fa=1 sa=1 bm=Normal sm=0 ais=0 op=000

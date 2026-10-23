@@ -2,7 +2,9 @@ namespace OnePdf.FontPrograms;
 
 /// <summary>
 /// Reads TrueType outlines from <c>glyf</c>/<c>loca</c>: simple glyphs, composites (flattened with an explicit stack, depth and size
-/// bounded) and the on/off-curve quadratic point convention. Unhinted. Returns font units.
+/// bounded) and the on/off-curve quadratic point convention. Unhinted, except for fonts whose composites need their programs
+/// (see <see cref="TrueTypeHinter"/> and <c>docs/pdf-fonts.md</c>): then the glyph and composite instructions run at one pixel per
+/// font unit. Returns font units.
 /// </summary>
 internal sealed class TrueTypeGlyphs
 {
@@ -14,9 +16,16 @@ internal sealed class TrueTypeGlyphs
     private readonly ReadOnlyMemory<byte> _loca;
     private readonly bool _longLoca;
     private readonly int _numGlyphs;
+    private readonly TrueTypeHinter? _hinter;
+    private readonly ReadOnlyMemory<byte> _hmtx;
+    private readonly int _numHMetrics;
+    private string? _hintFailure;
 
-    public TrueTypeGlyphs(ReadOnlyMemory<byte> glyf, ReadOnlyMemory<byte> loca, bool longLoca, int numGlyphs)
+    public TrueTypeGlyphs(ReadOnlyMemory<byte> glyf, ReadOnlyMemory<byte> loca, bool longLoca, int numGlyphs, TrueTypeHinter? hinter = null, ReadOnlyMemory<byte> hmtx = default, int numHMetrics = 0)
     {
+        _hinter = hinter;
+        _hmtx = hmtx;
+        _numHMetrics = Math.Min(numHMetrics, hmtx.Length / 4);
         _glyf = glyf;
         _loca = loca;
         _longLoca = longLoca;
@@ -29,16 +38,57 @@ internal sealed class TrueTypeGlyphs
         }
     }
 
-    /// <summary>Loads and converts one glyph. Out-of-range ids and empty glyphs give <see cref="GlyphOutline.Empty"/>.</summary>
+    /// <summary>The reason the font's programs failed on the first glyph where they did (that glyph was drawn from its plain outline), or null.</summary>
+    public string? HintFailure => Volatile.Read(ref _hintFailure);
+
+    /// <summary>
+    /// Loads and converts one glyph. Out-of-range ids and empty glyphs give <see cref="GlyphOutline.Empty"/>. When the font runs its
+    /// programs and any of them fails for this glyph, the plain outline is returned and <see cref="HintFailure"/> set.
+    /// </summary>
     public GlyphOutline Load(int glyphId)
     {
+        if (_hinter is not null)
+        {
+            var budget = new TrueTypeHinter.HintBudget();
+            var hinted = new PointBuffer();
+            bool found = Append(hinted, glyphId, budget);
+            if (budget.Failure is null)
+            {
+                return found ? hinted.ToOutline() : GlyphOutline.Empty;
+            }
+
+            Interlocked.CompareExchange(ref _hintFailure, budget.Failure, null);
+        }
+
         var pts = new PointBuffer();
-        if (!Append(pts, glyphId))
+        if (!Append(pts, glyphId, null))
         {
             return GlyphOutline.Empty;
         }
 
         return pts.ToOutline();
+    }
+
+    // Advance and left side bearing of a glyph from hmtx (OpenType 'hmtx': glyphs past numberOfHMetrics share the last advance).
+    private void Metrics(int glyphId, out int advance, out int lsb, out bool known)
+    {
+        advance = 0;
+        lsb = 0;
+        known = false;
+        if (_numHMetrics == 0)
+        {
+            return;
+        }
+
+        ReadOnlySpan<byte> h = _hmtx.Span;
+        int i = Math.Min(glyphId, _numHMetrics - 1);
+        advance = Be.U16(h, 4 * i);
+        long lsbAt = glyphId < _numHMetrics ? (4L * glyphId) + 2 : (4L * _numHMetrics) + (2L * (glyphId - _numHMetrics));
+        if (lsbAt + 2 <= h.Length)
+        {
+            lsb = Be.I16(h, (int)lsbAt);
+            known = true;
+        }
     }
 
     private bool TryGetData(int glyphId, out ReadOnlySpan<byte> data)
@@ -84,6 +134,8 @@ internal sealed class TrueTypeGlyphs
         public int Pos;
         public bool More;
         public int StartPoint;
+        public int InsPos;
+        public int InsLen;
         public ushort Flags;
         public int Arg1;
         public int Arg2;
@@ -92,7 +144,7 @@ internal sealed class TrueTypeGlyphs
 
     // Flattens the glyph and every component into one point list. Each composite gets a frame; a finished child is transformed in place
     // (matrix, then offset) so nested composites need no recursion.
-    private bool Append(PointBuffer pts, int rootId)
+    private bool Append(PointBuffer pts, int rootId, TrueTypeHinter.HintBudget? budget)
     {
         if (!TryGetData(rootId, out ReadOnlySpan<byte> root))
         {
@@ -101,7 +153,7 @@ internal sealed class TrueTypeGlyphs
 
         var stack = new List<Frame>(4);
         int components = 0;
-        if (!BeginGlyph(pts, stack, rootId, root, default))
+        if (!BeginGlyph(pts, stack, rootId, root, default, budget))
         {
             return true;
         }
@@ -113,6 +165,11 @@ internal sealed class TrueTypeGlyphs
             if (!f.More)
             {
                 stack.RemoveAt(top);
+                if (budget is not null && f.InsLen > 0 && TryGetData(f.GlyphId, out ReadOnlySpan<byte> own))
+                {
+                    HintComposite(pts, f, own, budget);
+                }
+
                 if (top > 0)
                 {
                     // The composite is complete: place it in its parent.
@@ -187,6 +244,17 @@ internal sealed class TrueTypeGlyphs
 
             f.Pos = p;
             f.More = (flags & 0x20) != 0;
+            if (!f.More && (flags & 0x100) != 0 && p + 2 <= data.Length)
+            {
+                // WE_HAVE_INSTRUCTIONS: the composite's own program follows its last component (OpenType 'glyf').
+                int n = Be.U16(data, p);
+                if (p + 2 + n <= data.Length)
+                {
+                    f.InsPos = p + 2;
+                    f.InsLen = n;
+                }
+            }
+
             stack[top] = f;
 
             var comp = new Frame { GlyphId = child, Flags = flags, Arg1 = a1, Arg2 = a2, A = a, B = b, C = c, D = d, StartPoint = pts.Count };
@@ -200,7 +268,7 @@ internal sealed class TrueTypeGlyphs
                 throw new FontProgramException("Composite glyphs are nested too deeply.");
             }
 
-            if (!BeginGlyph(pts, stack, child, childData, comp))
+            if (!BeginGlyph(pts, stack, child, childData, comp, budget))
             {
                 // Simple glyph: already appended, place it now. The parent frame is the top of the stack.
                 Place(pts, comp, f.StartPoint);
@@ -211,12 +279,17 @@ internal sealed class TrueTypeGlyphs
     }
 
     // Returns true when the glyph is a composite and a frame was pushed; a simple glyph is appended to the points and false returned.
-    private static bool BeginGlyph(PointBuffer pts, List<Frame> stack, int glyphId, ReadOnlySpan<byte> data, Frame placement)
+    private bool BeginGlyph(PointBuffer pts, List<Frame> stack, int glyphId, ReadOnlySpan<byte> data, Frame placement, TrueTypeHinter.HintBudget? budget)
     {
         short contours = Be.I16(data, 0);
         if (contours >= 0)
         {
             ReadSimple(pts, data, contours);
+            if (budget is not null)
+            {
+                HintSimple(pts, glyphId, data, contours, budget);
+            }
+
             return false;
         }
 
@@ -382,6 +455,67 @@ internal sealed class TrueTypeGlyphs
         pts.Count = basePoint + count;
     }
 
+    // Runs a simple glyph's own program on its points, before the glyph is placed in a composite.
+    private void HintSimple(PointBuffer pts, int glyphId, ReadOnlySpan<byte> d, int contours, TrueTypeHinter.HintBudget budget)
+    {
+        if (contours == 0 || budget.Failure is not null)
+        {
+            return;
+        }
+
+        int insPos = 10 + (2 * contours);
+        int insLen = Be.U16(d, insPos);
+        if (insLen == 0 || insPos + 2 + insLen > d.Length)
+        {
+            return;
+        }
+
+        int total = pts.Count;
+        int first = total - (Be.U16(d, 10 + (2 * (contours - 1))) + 1);
+        var ends = new int[contours];
+        for (int i = 0; i < contours; i++)
+        {
+            ends[i] = Be.U16(d, 10 + (2 * i));
+        }
+
+        PhantomPoints(glyphId, d, out float left, out float right);
+        if (!_hinter!.TryHint(pts.X, pts.Y, pts.OnCurve, first, total - first, ends, d.Slice(insPos + 2, insLen), left, right, budget))
+        {
+            budget.Failure ??= "a glyph program did not run";
+        }
+    }
+
+    // A composite's program runs on the placed points of all its components.
+    private void HintComposite(PointBuffer pts, in Frame f, ReadOnlySpan<byte> d, TrueTypeHinter.HintBudget budget)
+    {
+        if (budget.Failure is not null)
+        {
+            return;
+        }
+
+        int first = f.StartPoint;
+        int count = pts.Count - first;
+        if (count <= 0 || f.InsPos + f.InsLen > d.Length)
+        {
+            return;
+        }
+
+        int[] ends = pts.EndsFrom(first);
+        PhantomPoints(f.GlyphId, d, out float left, out float right);
+        if (!_hinter!.TryHint(pts.X, pts.Y, pts.OnCurve, first, count, ends, d.Slice(f.InsPos, f.InsLen), left, right, budget))
+        {
+            budget.Failure ??= "a composite glyph program did not run";
+        }
+    }
+
+    private void PhantomPoints(int glyphId, ReadOnlySpan<byte> d, out float left, out float right)
+    {
+        Metrics(glyphId, out int advance, out int lsb, out bool known);
+        int xMin = Be.I16(d, 2);
+        left = known ? xMin - lsb : 0;
+        right = left + advance;
+    }
+
     private sealed class PointBuffer
     {
         private int[] _ends = new int[8];
@@ -408,6 +542,24 @@ internal sealed class TrueTypeGlyphs
                 OnCurve.AsSpan(0, Count).CopyTo(on);
                 OnCurve = on;
             }
+        }
+
+        // Contour end points (relative to <first>) of the contours that start at or after point <first>.
+        public int[] EndsFrom(int first)
+        {
+            int n = 0;
+            for (int i = ContourCount - 1; i >= 0 && _ends[i] >= first; i--)
+            {
+                n++;
+            }
+
+            var r = new int[n];
+            for (int i = 0; i < n; i++)
+            {
+                r[i] = _ends[ContourCount - n + i] - first;
+            }
+
+            return r;
         }
 
         public void AddContourEnd(int endPoint)

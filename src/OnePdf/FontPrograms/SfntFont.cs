@@ -19,17 +19,21 @@ internal sealed class SfntFont : FontProgram
     private readonly ReadOnlyMemory<byte> _hmtx;
     private readonly int _numHMetrics;
     private readonly TrueTypeGlyphs? _glyf;
+    private readonly string? _setupFailure;
     private readonly CffFont? _cff;
     private readonly List<CmapSubtable> _cmaps;
     private readonly double[] _matrix;
     private readonly Lazy<PostNames?> _post;
 
-    private SfntFont(Dictionary<uint, ReadOnlyMemory<byte>> tables)
+    private SfntFont(Dictionary<uint, ReadOnlyMemory<byte>> tables, GlyphPrograms programs)
     {
         _tables = tables;
         int upem = 1000;
         int locaFormat = -1;
         double[]? bbox = null;
+        ReadOnlyMemory<byte> glyfTable = default;
+        ReadOnlyMemory<byte> locaTable = default;
+        bool longLoca = false;
         if (tables.TryGetValue(Be.Tag("head"), out ReadOnlyMemory<byte> headM) && headM.Length >= 54)
         {
             ReadOnlySpan<byte> head = headM.Span;
@@ -74,7 +78,9 @@ internal sealed class SfntFont : FontProgram
             int fromLoca = Math.Max(0, (loca.Length / (locaFormat != 0 ? 4 : 2)) - 1);
             GlyphCount = maxpGlyphs >= 0 ? Math.Min(maxpGlyphs, Math.Max(fromLoca, 0)) : fromLoca;
             GlyphCount = Math.Min(GlyphCount, FontLimits.MaxGlyphs);
-            _glyf = new TrueTypeGlyphs(glyf, loca, locaFormat != 0, GlyphCount);
+            glyfTable = glyf;
+            locaTable = loca;
+            longLoca = locaFormat != 0;
         }
 
         if (tables.TryGetValue(Be.Tag("hmtx"), out _hmtx))
@@ -92,9 +98,32 @@ internal sealed class SfntFont : FontProgram
             _numHMetrics = n;
         }
 
+        if (_cff is null)
+        {
+            TrueTypeHinter? hinter = null;
+            if (programs != GlyphPrograms.Never && (programs == GlyphPrograms.Always || TrickyFonts.IsTricky(tables)) && tables.TryGetValue(Be.Tag("maxp"), out ReadOnlyMemory<byte> maxpTable))
+            {
+                tables.TryGetValue(Be.Tag("fpgm"), out ReadOnlyMemory<byte> fpgm);
+                tables.TryGetValue(Be.Tag("prep"), out ReadOnlyMemory<byte> prep);
+                tables.TryGetValue(Be.Tag("cvt "), out ReadOnlyMemory<byte> cvt);
+
+                // One pixel per font unit: the programs place components exactly and rounding to the grid moves nothing by more than a unit.
+                hinter = TrueTypeHinter.Create(upem, upem, TrickyFonts.NativeMode, fpgm, prep, cvt, maxpTable, out _setupFailure);
+            }
+
+            _glyf = new TrueTypeGlyphs(glyfTable, locaTable, longLoca, GlyphCount, hinter, _hmtx, _numHMetrics);
+            RunsGlyphPrograms = hinter is not null;
+        }
+
         _cmaps = tables.TryGetValue(Be.Tag("cmap"), out ReadOnlyMemory<byte> cmap) ? CmapSubtable.ReadAll(cmap) : [];
         _post = new Lazy<PostNames?>(() => tables.TryGetValue(Be.Tag("post"), out ReadOnlyMemory<byte> p) ? PostNames.Read(p, GlyphCount) : null, LazyThreadSafetyMode.ExecutionAndPublication);
     }
+
+    /// <summary>True for a TrueType font recognised as one whose composite glyphs need their instructions (see <see cref="TrickyFonts"/>) and whose programs ran at load.</summary>
+    public bool RunsGlyphPrograms { get; }
+
+    /// <summary>Why the glyph programs of a recognised font could not run (at load, or for the first glyph where they failed), or null. Glyphs affected use their plain outline.</summary>
+    public string? GlyphProgramFailure => _glyf?.HintFailure ?? _setupFailure;
 
     /// <summary>Units per em from <c>head</c> (1000 when <c>head</c> is missing or out of range).</summary>
     public int UnitsPerEm { get; }
@@ -217,7 +246,10 @@ internal sealed class SfntFont : FontProgram
 
     /// <summary>Parses the face <paramref name="faceIndex"/> of a font file: a plain sfnt, or a TrueType collection.</summary>
     /// <exception cref="FontProgramException">The data is not an sfnt, or lacks outlines.</exception>
-    public static SfntFont Parse(ReadOnlyMemory<byte> data, int faceIndex)
+    public static SfntFont Parse(ReadOnlyMemory<byte> data, int faceIndex) => Parse(data, faceIndex, GlyphPrograms.Detect);
+
+    /// <summary>As <see cref="Parse(ReadOnlyMemory{byte}, int)"/>, with the policy for running the font's own glyph programs (tests and fuzzing force it either way).</summary>
+    internal static SfntFont Parse(ReadOnlyMemory<byte> data, int faceIndex, GlyphPrograms programs)
     {
         ReadOnlySpan<byte> d = data.Span;
         if (d.Length < 12)
@@ -246,7 +278,7 @@ internal sealed class SfntFont : FontProgram
             throw new FontProgramException("The font file holds a single face.");
         }
 
-        return new SfntFont(ReadDirectory(data, offset));
+        return new SfntFont(ReadDirectory(data, offset), programs);
     }
 
     /// <summary>Number of faces in the file: the collection count, or 1.</summary>

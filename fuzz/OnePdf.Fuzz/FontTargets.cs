@@ -5,7 +5,8 @@ using OnePdf.FontPrograms;
 namespace OnePdf.Fuzz;
 
 /// <summary>
-/// Font program target: the first byte picks how the rest is read (any recognized font program, or one parser forced), then the
+/// Font program target: the first byte picks how the rest is read (any recognized font program, or one parser forced; mode 5 is a
+/// TrueType font with its own glyph programs switched on, which normally only a few CJK fonts have), then the
 /// parser and every glyph run. Only <see cref="FontProgramException"/> may escape the parser, and glyph calls must not throw
 /// anything else either; nothing may hang or allocate without bound.
 /// </summary>
@@ -18,7 +19,7 @@ internal static class FontProgramTarget
             return;
         }
 
-        int mode = data[0] % 5;
+        int mode = data[0] % 6;
         byte[] body = data[1..].ToArray();
         FontProgram font;
         try
@@ -28,6 +29,7 @@ internal static class FontProgramTarget
                 1 => Type1Font.Parse(body),
                 2 => new CffFont(body),
                 3 => SfntFont.Parse(body, 0),
+                5 => SfntFont.Parse(body, 0, GlyphPrograms.Always),
                 _ => FontProgramLoader.Open(body),
             };
         }

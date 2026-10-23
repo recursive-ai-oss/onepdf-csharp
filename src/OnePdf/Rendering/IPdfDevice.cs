@@ -24,6 +24,18 @@ public interface IPdfDevice
     /// <summary>Strokes a path with the line parameters and <see cref="PdfGraphicsState.StrokeColor"/>.</summary>
     void StrokePath(in PdfPath path, in PdfGraphicsState state);
 
+    /// <summary>
+    /// Fills and then strokes the same path as one knockout group, as the <c>B</c>, <c>B*</c>, <c>b</c> and <c>b*</c> operators
+    /// do (ISO 32000-2 11.7.4.4): a translucent stroke must not composite over its own fill, the two are combined first and
+    /// the result composites once. The path is already closed for <c>b</c> and <c>b*</c>. The default implementation calls
+    /// <see cref="FillPath"/> and then <see cref="StrokePath"/>, which is what devices saw before this call existed.
+    /// </summary>
+    void FillStrokePath(in PdfPath path, bool evenOdd, in PdfGraphicsState state)
+    {
+        FillPath(in path, evenOdd, in state);
+        StrokePath(in path, in state);
+    }
+
     /// <summary>Intersects the clip with a path. Undone by the matching <see cref="PopClip"/>.</summary>
     void PushClip(in PdfPath path, bool evenOdd, in PdfGraphicsState state);
 
@@ -108,6 +120,13 @@ public abstract class PdfDevice : IPdfDevice
     /// <inheritdoc/>
     public virtual void StrokePath(in PdfPath path, in PdfGraphicsState state)
     {
+    }
+
+    /// <inheritdoc/>
+    public virtual void FillStrokePath(in PdfPath path, bool evenOdd, in PdfGraphicsState state)
+    {
+        FillPath(in path, evenOdd, in state);
+        StrokePath(in path, in state);
     }
 
     /// <inheritdoc/>

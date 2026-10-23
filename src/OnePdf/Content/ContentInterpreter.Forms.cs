@@ -85,6 +85,10 @@ internal sealed partial class ContentInterpreter
                 case "AIS":
                     _g.Ais = d.GetBool("AIS");
                     break;
+                case "TK":
+                    // ISO 32000-2 9.3.8: the text knockout flag, default true when the key is absent from the whole state.
+                    _g.TextKnockout = d.Get("TK") is not PdfBoolean { Value: false };
+                    break;
                 case "BM":
                     _g.Blend = BlendModeName(d.Get("BM"));
                     break;
@@ -92,7 +96,7 @@ internal sealed partial class ContentInterpreter
                     ApplySoftMask(d.Get("SMask"));
                     break;
                 default:
-                    // TK, SA, SM, TR, TR2, HT, BG, UCR and their variants affect only halftone/transfer or advisory behavior.
+                    // SA, SM, TR, TR2, HT, BG, UCR and their variants affect only halftone/transfer or advisory behavior.
                     break;
             }
         }
