@@ -9,7 +9,11 @@ namespace OnePdf;
 public sealed partial class PdfDocument
 {
     // What earlier imports from one source copied, so a second import reuses the shared objects (see PageImporter).
-    internal ConditionalWeakTable<PdfDocument, PageImporter> Importers { get; } = new();
+    // Made on first use: most documents are only read, and opening one should not pay for this.
+    private ConditionalWeakTable<PdfDocument, PageImporter>? _importers;
+
+    internal ConditionalWeakTable<PdfDocument, PageImporter> Importers =>
+        _importers ?? Interlocked.CompareExchange(ref _importers, new(), null) ?? _importers;
 
     internal PdfResolver RootResolver => _resolvers[0];
 
