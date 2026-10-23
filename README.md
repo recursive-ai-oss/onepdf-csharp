@@ -37,6 +37,9 @@ are read through safe, bounds-checked code with size limits on by default.
 - **Page operations.** Delete, reorder, rotate, duplicate and insert pages; import pages from other documents, merge documents and
   split one into parts, with bookmarks, links, form fields and tagged structure carried along
   ([page operations](https://github.com/recursive-ai-oss/onepdf-csharp/blob/main/docs/page-operations.md)).
+- **Forms.** Fill text, choice, check box and radio fields with validation, store their appearances, reset them, and flatten
+  fields and annotations into the page
+  ([forms](https://github.com/recursive-ai-oss/onepdf-csharp/blob/main/docs/forms.md)).
 - **Concurrent.** Objects parse lazily into a byte-budgeted cache with single-flight parsing; any number of threads can read pages
   of one document at once.
 
@@ -193,8 +196,8 @@ local system fonts. The code is safe C# with no `unsafe`, `Unsafe.*` or `MemoryM
 
 ## What it does not do
 
-- **Editing is at the object level.** Saving, incremental updates and encryption on write are supported; form filling, signing,
-  redaction and adding page content are not in this version.
+- **No signing, redaction or new page content yet.** Saving, incremental updates, encryption on write, page operations and
+  form filling and flattening are supported; field scripts are never run, so calculated fields are not recomputed.
 - **It does not render pixels.** OnePDF resolves a page into drawing calls; a 2D engine paints them. Rasterizing is planned as a
   separate package, `RecursiveAI.OneImage.Pdf`, built on [OneImage](https://github.com/recursive-ai-oss/oneimage-csharp); it is
   not available yet. It will implement OnePDF's device and register PDF as an image format. OnePDF has no imaging dependency.
