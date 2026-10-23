@@ -54,7 +54,12 @@ public class DataSetTests
     {
         try
         {
-            return PdfDocument.Open(file, new PdfOpenOptions { Password = TruthPassword(file) });
+            PdfDocument doc = PdfDocument.Open(file, new PdfOpenOptions { Password = TruthPassword(file) });
+
+            // Snapshots must not depend on the fonts installed on the machine (glyph ids differ between hosts): files that do
+            // not embed the standard 14 get the package's bundled faces.
+            doc.FontProvider = OnePdf.Fonts.FontsPackage.Provider;
+            return doc;
         }
         catch (PdfException)
         {
