@@ -1,5 +1,5 @@
 # page 1
-onepdf-display-list 5
+onepdf-display-list 6
 page box=0 0 612 396 name=CropBox rotate=0 unit=1 scale=1 size=612 396 base=[1 0 0 -1 0 396]
   gs ctm=[100 0 0 -100 72 224] fill=calrgb(0 0 0) stroke=gray(0) lw=1 cap=0 join=0 miter=10 dash=[] phase=0 flat=1 ri=Perceptual fa=1 sa=1 bm=Normal sm=0 ais=0 op=000
   image /Im1 bytes=1466 fnv=110cdfdad6f6c041 data=encoded:72x72 dict=<</BitsPerComponent 8 /ColorSpace 5 0 R /Filter /DCTDecode /Height 72 /Length 1466 /Subtype /Image /Type /XObject /Width 72>>

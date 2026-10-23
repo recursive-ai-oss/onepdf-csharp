@@ -104,16 +104,10 @@ public sealed class PdfSignature
     public IReadOnlyList<long>? ByteRange { get; }
 
     /// <summary>
-    /// The raw <c>/Contents</c> bytes (the CMS or time-stamp token, followed by zero padding). Read from the file between the
-    /// byte ranges when they are valid, so encryption of the document does not matter.
+    /// The raw <c>/Contents</c> bytes (the CMS or time-stamp token, followed by zero padding). The reader never decrypts this
+    /// string, as ISO 32000-2 7.6.2 requires, so it is the same in encrypted and plain files.
     /// </summary>
-    public ReadOnlyMemory<byte> Contents
-    {
-        get
-        {
-            return _range.Value.HoleContents ?? RawContents;
-        }
-    }
+    public ReadOnlyMemory<byte> Contents => RawContents;
 
     internal ReadOnlyMemory<byte> RawContents { get; }
 

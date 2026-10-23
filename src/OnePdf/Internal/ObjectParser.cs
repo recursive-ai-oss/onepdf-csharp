@@ -11,6 +11,9 @@ internal sealed class ObjectParser
         public PdfArray? Array;
         public PdfDictionary? Dict;
         public string? Key;
+
+        // The undecrypted bytes of a /Contents string, kept in case the dictionary turns out to be a signature.
+        public byte[]? RawContents;
     }
 
     private readonly Lexer _lx;
@@ -84,7 +87,7 @@ internal sealed class ObjectParser
                             _diag?.Warn("Dictionary key without a value dropped.", _objNum, t.Start);
                         }
 
-                        value = _stack[--depth].Dict;
+                        value = RestoreSignatureContents(ref _stack[--depth]);
                         break;
                     }
 
@@ -97,6 +100,11 @@ internal sealed class ObjectParser
                     value = Count(new PdfReal(t.Real), 24);
                     break;
                 case TokenKind.String:
+                    if (_decrypting is not null && depth > 0 && _stack[depth - 1].Dict is not null && _stack[depth - 1].Key == "Contents")
+                    {
+                        _stack[depth - 1].RawContents = t.Bytes;
+                    }
+
                     value = Count(new PdfString(_decrypting is null ? t.Bytes! : _decrypting.DecryptStringBytes(t.Bytes!, _objNum, _generation)), 32 + t.Bytes!.Length);
                     break;
                 case TokenKind.Name:
@@ -154,7 +162,7 @@ internal sealed class ObjectParser
         while (depth > 0)
         {
             ref Frame f = ref _stack[--depth];
-            PdfObject done = (PdfObject?)f.Array ?? f.Dict!;
+            PdfObject done = f.Array is not null ? f.Array : RestoreSignatureContents(ref f);
             if (depth == 0)
             {
                 result = done;
@@ -166,6 +174,23 @@ internal sealed class ObjectParser
         }
 
         return result;
+    }
+
+    /// <summary>
+    /// ISO 32000-2 7.6.2: strings in a signature dictionary's /Contents are not encrypted. Whether a dictionary is one is only
+    /// known once it is complete (/Type and /ByteRange may follow /Contents), so the string was decrypted on the way in
+    /// and is put back as stored here.
+    /// </summary>
+    private static PdfDictionary RestoreSignatureContents(ref Frame f)
+    {
+        PdfDictionary d = f.Dict!;
+        if (f.RawContents is not null && d.GetRaw("Contents") is PdfString
+            && (d.ContainsKey("ByteRange") || (d.GetRaw("Type") is PdfName { Value: "Sig" or "DocTimeStamp" })))
+        {
+            d.Set("Contents", new PdfString(f.RawContents));
+        }
+
+        return d;
     }
 
     private void Push(ref int depth, Frame f, long at)

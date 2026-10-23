@@ -10,7 +10,9 @@ namespace OnePdf;
 internal sealed class PdfDisplayListTextWriter(TextWriter output) : IPdfDevice
 {
     /// <summary>The version of the text format. Bump it with any change to the output.</summary>
-    public const int FormatVersion = 5;
+    public const int FormatVersion = 6;
+
+    private const string HexDigits = "0123456789abcdef";
 
     /// <summary>First token of the header line.</summary>
     public const string Magic = "onepdf-display-list";
@@ -849,6 +851,19 @@ internal sealed class PdfDisplayListTextWriter(TextWriter output) : IPdfDevice
         Dict(sb, mask.Backdrop, 0);
         sb.Append(" tr=");
         Dict(sb, mask.Transfer, 0);
+        sb.Append(" trtable=");
+        if (mask.TransferTable is { Length: 256 } table)
+        {
+            foreach (byte v in table)
+            {
+                sb.Append(HexDigits[v >> 4]).Append(HexDigits[v & 15]);
+            }
+        }
+        else
+        {
+            sb.Append("none");
+        }
+
         Line(sb.ToString());
         _indent++;
     }
