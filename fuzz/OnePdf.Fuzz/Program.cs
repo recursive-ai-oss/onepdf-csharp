@@ -43,6 +43,7 @@ internal static class Program
         ["appearance"] = AppearanceTarget.Run,
         ["shading"] = ShadingTarget.Run,
         ["extraction"] = ExtractionTarget.Run,
+        ["save"] = SaveTarget.Run,
     };
 
     private static int Main(string[] args)

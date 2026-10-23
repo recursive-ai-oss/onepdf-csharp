@@ -1,0 +1,77 @@
+namespace OnePdf;
+
+/// <summary>Which cross-reference form a saved file uses.</summary>
+public enum PdfXrefFormat
+{
+    /// <summary>Follow the document: a cross-reference stream when its newest revision has one, otherwise a classic table.</summary>
+    Auto = 0,
+
+    /// <summary>A classic <c>xref</c> table (ISO 32000-2 7.5.4). Objects are not packed into object streams.</summary>
+    Table = 1,
+
+    /// <summary>A cross-reference stream (7.5.8), and unless <see cref="PdfSaveOptions.UseObjectStreams"/> is false, object streams (7.5.7). Needs PDF 1.5.</summary>
+    Stream = 2,
+}
+
+/// <summary>What a full save does about the document's encryption.</summary>
+public enum PdfEncryptionAction
+{
+    /// <summary>Keep what the document has: the same key and passwords, every string and stream re-encrypted under the new object numbers. A plain document stays plain.</summary>
+    Keep = 0,
+
+    /// <summary>Write the document without encryption.</summary>
+    Remove = 1,
+
+    /// <summary>Encrypt with the new settings in <see cref="PdfSaveOptions.NewEncryption"/>, replacing any existing encryption.</summary>
+    Set = 2,
+}
+
+/// <summary>New standard-security-handler encryption for a saved file (ISO 32000-2 7.6.4).</summary>
+public sealed class PdfEncryptionOptions
+{
+    /// <summary>The user password. Default empty: the file opens without a password.</summary>
+    public string UserPassword { get; init; } = string.Empty;
+
+    /// <summary>The owner password. Null or empty means the user password is used for both.</summary>
+    public string? OwnerPassword { get; init; }
+
+    /// <summary>The permission flags to record (reported to readers; OnePDF never enforces them). Default <see cref="PdfPermissions.All"/>.</summary>
+    public PdfPermissions Permissions { get; init; } = PdfPermissions.All;
+
+    /// <summary>
+    /// <see cref="PdfCipher.Aes256"/> (revision 6, PDF 2.0; the default) or <see cref="PdfCipher.Aes128"/> (revision 4, PDF 1.6).
+    /// RC4 is not offered for new encryption.
+    /// </summary>
+    public PdfCipher Cipher { get; init; } = PdfCipher.Aes256;
+
+    /// <summary>False leaves the XMP metadata stream unencrypted so tools can read it without a password. Default true.</summary>
+    public bool EncryptMetadata { get; init; } = true;
+}
+
+/// <summary>Options of <see cref="PdfDocument.Save(Stream, PdfSaveOptions?, CancellationToken)"/> and <see cref="PdfDocument.SaveIncremental(Stream, PdfSaveOptions?, CancellationToken)"/>.</summary>
+public sealed class PdfSaveOptions
+{
+    /// <summary>The cross-reference form. Default <see cref="PdfXrefFormat.Auto"/>. An incremental save always continues the form of the file's newest revision.</summary>
+    public PdfXrefFormat XrefFormat { get; init; }
+
+    /// <summary>With a cross-reference stream, pack every non-stream object into object streams. Default true. Ignored for tables and for incremental saves.</summary>
+    public bool UseObjectStreams { get; init; } = true;
+
+    /// <summary>
+    /// Flate-compress streams that have no filter (not metadata). A stream that does not get smaller is written as it was.
+    /// Default false, so a save changes as little as possible.
+    /// </summary>
+    public bool CompressStreams { get; init; }
+
+    /// <summary>
+    /// The lowest PDF version to write, such as <c>1.7</c>. A full save writes the highest of this, the document's version and
+    /// what its features need (1.5 for cross-reference streams, 1.6 for AES-128, 2.0 for AES-256). An incremental save keeps the header.
+    /// </summary>
+    public string? MinimumVersion { get; init; }
+
+    /// <summary>What a full save does about encryption. Default <see cref="PdfEncryptionAction.Keep"/>. An incremental save only supports Keep.</summary>
+    public PdfEncryptionAction Encryption { get; init; }
+
+    /// <summary>The settings for <see cref="PdfEncryptionAction.Set"/>.</summary>
+    public PdfEncryptionOptions? NewEncryption { get; init; }
+}

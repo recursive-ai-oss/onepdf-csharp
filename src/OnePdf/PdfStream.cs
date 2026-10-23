@@ -14,12 +14,18 @@ public sealed class PdfStream : PdfObject
     private readonly long _dataOffset;
     private StreamRange? _range;
 
+    // Data set by the caller (or of a stream that was created in memory): stored form, never encrypted, never read from the file.
+    private byte[]? _memory;
+
     internal PdfStream(PdfDictionary dictionary, PdfResolver resolver, long dataOffset)
     {
         Dictionary = dictionary;
         _resolver = resolver;
         _dataOffset = dataOffset;
     }
+
+    /// <summary>True when the stored bytes were set in memory rather than read from the file.</summary>
+    internal bool HasMemoryData => _memory is not null;
 
     /// <summary>The stream dictionary.</summary>
     public PdfDictionary Dictionary { get; }
@@ -98,6 +104,11 @@ public sealed class PdfStream : PdfObject
     /// <exception cref="PdfLimitException">The stream is larger than <see cref="PdfLimits.MaxDecodedStreamBytes"/>.</exception>
     public ReadOnlyMemory<byte> GetRawBytes()
     {
+        if (_memory is not null)
+        {
+            return _memory;
+        }
+
         PdfDocument doc = _resolver.Doc;
         if (IsExternal)
         {
@@ -133,7 +144,7 @@ public sealed class PdfStream : PdfObject
     internal ReadOnlyMemory<byte> GetDecodedBytesSized(long expectedSize, CancellationToken cancellationToken)
     {
         PdfDocument doc = _resolver.Doc;
-        if (Reference is { } r && !IsExternal)
+        if (Reference is { } r && !IsExternal && _memory is null)
         {
             long key = ObjectKeys.Decoded(_resolver.View, r.Number);
             var state = (this, cancellationToken, expectedSize);
@@ -147,16 +158,24 @@ public sealed class PdfStream : PdfObject
         return DecodeCore(cancellationToken, expectedSize);
     }
 
+    /// <summary>The stored (still filtered) bytes with the document's encryption removed.</summary>
+    internal ReadOnlyMemory<byte> GetStoredBytes(IReadOnlyList<string> filters)
+    {
+        ReadOnlyMemory<byte> raw = GetRawBytes();
+        if (raw.Length > 0 && _memory is null && Reference is { } self && !IsExternal)
+        {
+            raw = _resolver.Doc.DecryptStreamData(this, raw, self, filters);
+        }
+
+        return raw;
+    }
+
     /// <summary>Decodes without consulting the cache (used where the caller keeps its own copy).</summary>
     internal ReadOnlyMemory<byte> DecodeCore(CancellationToken ct, long expectedSize = 0)
     {
         PdfDocument doc = _resolver.Doc;
-        ReadOnlyMemory<byte> raw = GetRawBytes();
         IReadOnlyList<string> filters = FilterNames;
-        if (raw.Length > 0 && Reference is { } self && !IsExternal)
-        {
-            raw = doc.DecryptStreamData(this, raw, self, filters);
-        }
+        ReadOnlyMemory<byte> raw = GetStoredBytes(filters);
 
         if (filters.Count == 0)
         {
@@ -206,4 +225,39 @@ public sealed class PdfStream : PdfObject
         return r.Data;
     }
 
+    /// <summary>
+    /// Replaces the stored bytes with <paramref name="stored"/> exactly as given (a copy is kept). The caller keeps <c>/Filter</c> and
+    /// <c>/DecodeParms</c> in step with them; <c>/Length</c> is set. Encryption is applied when the document is saved.
+    /// </summary>
+    /// <exception cref="InvalidOperationException">The document was not opened with <see cref="PdfOpenOptions.AllowEditing"/>, or the stream is from an earlier revision.</exception>
+    public void SetStoredBytes(ReadOnlySpan<byte> stored)
+    {
+        EditSupport.EnsureEditable(_resolver);
+        _memory = stored.ToArray();
+        _range = null;
+        Dictionary.RemoveEntry("F");
+        Dictionary.SetEntry("Length", new PdfInteger(_memory.Length));
+        EditSupport.MarkDirty(_resolver, OwnerPlusOne - 1);
+    }
+
+    /// <summary>
+    /// Replaces the stream's content with <paramref name="data"/>, unfiltered, or Flate-compressed when <paramref name="compress"/> is
+    /// true; <c>/Filter</c> and <c>/DecodeParms</c> are rewritten to match.
+    /// </summary>
+    /// <exception cref="InvalidOperationException">See <see cref="SetStoredBytes"/>.</exception>
+    public void SetData(ReadOnlySpan<byte> data, bool compress = false)
+    {
+        EditSupport.EnsureEditable(_resolver);
+        Dictionary.RemoveEntry("DecodeParms");
+        if (compress && data.Length > 0)
+        {
+            Dictionary.SetEntry("Filter", new PdfName("FlateDecode"));
+            SetStoredBytes(Writing.FlateWriter.Compress(data));
+        }
+        else
+        {
+            Dictionary.RemoveEntry("Filter");
+            SetStoredBytes(data);
+        }
+    }
 }

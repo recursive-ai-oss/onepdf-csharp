@@ -21,6 +21,8 @@
 
   <ItemGroup>
     <PackageReference Include="xunit.v3" />
+    <!-- Test-only: a second reader that must still open what the writer produces. -->
+    <PackageReference Include="PdfPig" />
     <!-- Test-only: backs the JPEG decoder adapter that exercises the image decoder registry. -->
     <PackageReference Include="RecursiveAI.OneImage" />
   </ItemGroup>
@@ -35,6 +37,7 @@
     <Compile Include="../../fuzz/OnePdf.Fuzz/ImageTarget.cs" Link="Images/ImageTarget.cs" />
     <Compile Include="../../fuzz/OnePdf.Fuzz/ContentTarget.cs" Link="Content/ContentTarget.cs" />
     <Compile Include="../../fuzz/OnePdf.Fuzz/ShadingTarget.cs" Link="Shading/ShadingTarget.cs" />
+    <Compile Include="../../fuzz/OnePdf.Fuzz/SaveTarget.cs" Link="Writing/SaveTarget.cs" />
     <Compile Include="../../fuzz/OnePdf.Fuzz/ExtractionTarget.cs" Link="Extraction/ExtractionTarget.cs" />
   </ItemGroup>
 

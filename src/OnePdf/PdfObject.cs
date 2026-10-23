@@ -23,6 +23,10 @@ public abstract class PdfObject
     /// <summary>The object stream's object number when this object was stored in one, otherwise -1.</summary>
     public int ContainerObjectNumber { get; internal set; } = -1;
 
+    // The number of the indirect object this object is stored inside, plus one (zero: none, or not tracked). Only filled in
+    // for documents opened for editing, where a change to a nested object must mark its owner for saving.
+    internal int OwnerPlusOne;
+
     internal static PdfObject? Unwrap(PdfObject? o, PdfResolver? resolver)
     {
         if (o is PdfReference r)
@@ -48,7 +52,8 @@ public sealed class PdfNull : PdfObject
 /// <summary>A boolean.</summary>
 public sealed class PdfBoolean : PdfObject
 {
-    internal PdfBoolean(bool value) => Value = value;
+    /// <summary>Creates the object.</summary>
+    public PdfBoolean(bool value) => Value = value;
 
     /// <summary>The value.</summary>
     public bool Value { get; }
@@ -57,7 +62,8 @@ public sealed class PdfBoolean : PdfObject
 /// <summary>An integer. Values beyond the 64-bit range are read as <see cref="PdfReal"/>.</summary>
 public sealed class PdfInteger : PdfObject
 {
-    internal PdfInteger(long value) => Value = value;
+    /// <summary>Creates the object.</summary>
+    public PdfInteger(long value) => Value = value;
 
     /// <summary>The value.</summary>
     public long Value { get; }
@@ -66,7 +72,8 @@ public sealed class PdfInteger : PdfObject
 /// <summary>A real number.</summary>
 public sealed class PdfReal : PdfObject
 {
-    internal PdfReal(double value) => Value = value;
+    /// <summary>Creates the object.</summary>
+    public PdfReal(double value) => Value = value;
 
     /// <summary>The value.</summary>
     public double Value { get; }
@@ -75,7 +82,37 @@ public sealed class PdfReal : PdfObject
 /// <summary>A string: literal or hexadecimal in the file, always raw bytes here.</summary>
 public sealed class PdfString : PdfObject
 {
-    internal PdfString(byte[] bytes) => Bytes = bytes;
+    /// <summary>Creates the object.</summary>
+    public PdfString(byte[] bytes) => Bytes = bytes ?? throw new ArgumentNullException(nameof(bytes));
+
+    /// <summary>
+    /// Encodes <paramref name="text"/> as a PDF text string (ISO 32000-2 7.9.2.2): PDFDocEncoding when every character has a code
+    /// there that equals Latin-1 (printable ASCII and U+00A1 to U+00FF except U+00AD), otherwise UTF-16BE with a byte-order mark.
+    /// </summary>
+    public static PdfString FromText(string text)
+    {
+        ArgumentNullException.ThrowIfNull(text);
+        bool simple = true;
+        foreach (char c in text)
+        {
+            if (!(c is >= ' ' and <= '~' or '\n' or '\r' or '\t' || (c >= '\u00A1' && c <= '\u00FF' && c != '\u00AD')))
+            {
+                simple = false;
+                break;
+            }
+        }
+
+        if (simple)
+        {
+            return new PdfString(Encoding.Latin1.GetBytes(text));
+        }
+
+        byte[] utf16 = new byte[2 + (text.Length * 2)];
+        utf16[0] = 0xFE;
+        utf16[1] = 0xFF;
+        Encoding.BigEndianUnicode.GetBytes(text, 0, text.Length, utf16, 2);
+        return new PdfString(utf16);
+    }
 
     /// <summary>The string's bytes after escape and hexadecimal decoding. Do not modify.</summary>
     public ReadOnlyMemory<byte> Bytes { get; }
@@ -157,7 +194,8 @@ public sealed class PdfString : PdfObject
 /// <summary>A name object, with <c>#xx</c> escapes decoded. Bytes that are not valid UTF-8 are read as Latin-1.</summary>
 public sealed class PdfName : PdfObject
 {
-    internal PdfName(string value) => Value = value;
+    /// <summary>Creates the object.</summary>
+    public PdfName(string value) => Value = value;
 
     /// <summary>The name without the leading slash.</summary>
     public string Value { get; }
@@ -169,7 +207,8 @@ public sealed class PdfName : PdfObject
 /// <summary>An indirect reference (<c>n g R</c>). Use <see cref="PdfDocument.Resolve(PdfObject?)"/> or the resolving getters of containers to follow it.</summary>
 public sealed class PdfReference : PdfObject
 {
-    internal PdfReference(int number, int generation)
+    /// <summary>Creates a reference to object <paramref name="number"/> of <paramref name="generation"/>.</summary>
+    public PdfReference(int number, int generation)
     {
         Number = number;
         Generation = generation;

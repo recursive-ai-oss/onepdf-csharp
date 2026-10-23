@@ -58,6 +58,11 @@ public sealed partial class PdfDocument
             return PdfNull.Instance; // cross-reference data is still being read
         }
 
+        if (_pinned is { } pins && view == 0)
+        {
+            return ResolvePinned(pins, number);
+        }
+
         return (PdfObject)Cache.GetOrLoad(ObjectKeys.Object(view, number), (this, number, view), static s => s.Item1.LoadObject(s.number, s.view));
     }
 

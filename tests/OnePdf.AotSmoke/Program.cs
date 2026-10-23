@@ -202,6 +202,43 @@ if (generated is null || !Encoding.Latin1.GetString(generated.Content.Span).Cont
     return 1;
 }
 
+// Writing: edit, save in full (both forms, new AES-256), save incrementally, reopen.
+using PdfDocument editable = PdfDocument.Open(Encoding.ASCII.GetBytes(pdf5), new PdfOpenOptions { AllowEditing = true });
+editable.SetInfo("Title", "Smoke é");
+editable.Catalog.SetEntry("Extra", editable.AddObject(new PdfArray()));
+foreach (PdfSaveOptions so in new[]
+{
+    new PdfSaveOptions { XrefFormat = PdfXrefFormat.Table },
+    new PdfSaveOptions { XrefFormat = PdfXrefFormat.Stream, CompressStreams = true },
+    new PdfSaveOptions { Encryption = PdfEncryptionAction.Set, NewEncryption = new PdfEncryptionOptions { UserPassword = "u" } },
+})
+{
+    using var saved = new System.IO.MemoryStream();
+    editable.Save(saved, so);
+    using PdfDocument back = PdfDocument.Open(saved.ToArray(), new PdfOpenOptions { Password = "u" });
+    if (back.Info.Title != "Smoke é" || back.PageCount != 1)
+    {
+        Console.Error.WriteLine("a saved document did not read back");
+        return 1;
+    }
+}
+
+// The source above was repaired on open, so the incremental update goes on top of a file the writer made.
+using var clean = new System.IO.MemoryStream();
+editable.Save(clean);
+using PdfDocument second = PdfDocument.Open(clean.ToArray(), new PdfOpenOptions { AllowEditing = true });
+second.SetInfo("Subject", "again");
+using var update = new System.IO.MemoryStream();
+second.SaveIncremental(update);
+using (PdfDocument updated = PdfDocument.Open(update.ToArray()))
+{
+    if (updated.Revisions.Count != 2 || updated.Info.Title != "Smoke é")
+    {
+        Console.Error.WriteLine("an incremental save did not read back");
+        return 1;
+    }
+}
+
 Console.WriteLine("ok");
 return 0;
 
