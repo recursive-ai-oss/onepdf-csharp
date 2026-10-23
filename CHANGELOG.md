@@ -8,6 +8,10 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 - `PdfSoftMaskInfo.TransferTable`: the soft mask's `/TR` transfer function (ISO 32000-2 11.6.5.2) evaluated by OnePDF into 256 bytes (entry `i` is the output for `i / 255`, rounded half up and clamped), null for no `/TR` or `/Identity`. Function types 0, 2, 3 and 4 are supported; an unusable function is ignored with a warning. The display-list text format is version 6: `begin-softmask` gains `trtable=`.
 
+### Changed
+
+- Documented that viewers disagree on whether `/NeedAppearances` regenerates check box, radio button and push button art, and pinned OnePDF's behaviour (stored art is kept) with a test. No behaviour change.
+
 ### Fixed
 
 - Encrypted files: the `/Contents` string of a signature dictionary (`/Type /Sig` or `/DocTimeStamp`, or any dictionary with `/ByteRange`) is no longer decrypted on read (ISO 32000-2 7.6.2), so the raw bytes, `PdfSignature.Contents` and a full save of a signed encrypted file all carry the stored signature.

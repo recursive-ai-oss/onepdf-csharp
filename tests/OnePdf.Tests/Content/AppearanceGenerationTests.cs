@@ -171,6 +171,35 @@ public class AppearanceGenerationTests
     }
 
     [Fact]
+    public void NeedAppearancesKeepsStoredArtOfCheckBoxesRadioButtonsAndPushButtons()
+    {
+        // Viewers differ here: some rebuild button art from /MK, others keep the stored appearance. OnePDF keeps it, so a
+        // stored mark that /MK /CA could not reproduce (a bare diagonal stroke instead of a check) is what gets drawn.
+        byte[] data = TestPdf.Build(
+            string.Empty,
+            "/Annots [6 0 R 7 0 R 8 0 R] /Resources << >>",
+            b =>
+            {
+                b.Obj(5, "<< /Fields [6 0 R 7 0 R 8 0 R] /DA (/Helv 0 Tf 0 g) /NeedAppearances true >>");
+                const string W = "/Type /Annot /Subtype /Widget /F 4 /FT /Btn ";
+                b.Obj(6, $"<< {W} /T (cb) /AS /Yes /V /Yes /Rect [10 10 50 50] /MK << /CA (4) /BC [0] /BG [1 1 0.8] >> /AP << /N << /Yes 20 0 R /Off 21 0 R >> >> >>");
+                b.Obj(7, $"<< {W} /Ff 32768 /T (rb) /AS /On /V /On /Rect [60 10 100 50] /MK << /CA (l) /BC [0] /BG [1 1 0.8] >> /AP << /N << /On 20 0 R /Off 21 0 R >> >> >>");
+                b.Obj(8, $"<< {W} /Ff 65536 /T (pb) /Rect [110 10 190 50] /MK << /CA (CAPTION) /BC [0] /BG [0.6 0.9 1] >> /DA (/Helv 12 Tf 0 g) /AP << /N 20 0 R >> >>");
+                b.Stream(20, "/Type /XObject /Subtype /Form /BBox [0 0 40 40]", Encoding.ASCII.GetBytes("1 0 0 RG 3 w 5 5 m 35 35 l S"));
+                b.Stream(21, "/Type /XObject /Subtype /Form /BBox [0 0 40 40]", []);
+            },
+            objects: 30,
+            catalogEntries: "/AcroForm 5 0 R");
+        using PdfDocument doc = PdfDocument.Open(data);
+        var list = new PdfDisplayList();
+        doc.Pages[0].Interpret(list);
+        string text = list.ToText();
+        Assert.False(HasDiagnostic(doc, PdfSeverity.Info, "generated appearance"), string.Join("\n", doc.Diagnostics.Select(d => d.Message)));
+        Assert.DoesNotContain("CAPTION", text, StringComparison.Ordinal);
+        Assert.Equal(3, TestPdf.Lines(text, "stroke").Length);
+    }
+
+    [Fact]
     public void EverySimpleMarkupSubtypeIsDrawnInsideThePage()
     {
         foreach (string file in new[] { "raw-appearance-markup.pdf", "raw-appearance-markup-needap.pdf" })

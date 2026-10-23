@@ -8,6 +8,7 @@ When an annotation has no usable normal appearance, `page.Interpret` builds one 
 - The annotation is visible by its flags, in the selected annotation mode, and not hidden by optional content.
 - Its normal appearance is missing: no `/AP`, no `/N`, or a state dictionary with no stream for the current `/AS`. Links are never generated.
 - Widgets also when the form sets `/NeedAppearances true` (12.7.3): every text and choice field is rebuilt from its value, replacing a stored appearance; check boxes, radio buttons and push buttons keep a stored appearance for their state and are generated only when there is none, because their stored art (icons, custom marks) cannot be rebuilt from the dictionary.
+- Button art under `/NeedAppearances` is a place where viewers differ. ISO 32000-2 12.7.3 says a viewer may construct appearances for all widgets; in a black-box comparison with stored art that `/MK` could not reproduce (a red square with a cross for `/CA (4)`, a triangle for `/CA (l)`, a pink frame for a push button caption), one viewer redrew all three button kinds from `/MK`, another drew the stored art exactly as with the flag off, and the third could not be observed. OnePDF keeps the stored art; a button without a stored appearance for its state is still generated.
 - Text extraction does not interpret annotation appearances and is unaffected.
 - Every generated appearance records an Info diagnostic `Drew a generated appearance (...)`; problems record Warning or Info diagnostics and never throw.
 
