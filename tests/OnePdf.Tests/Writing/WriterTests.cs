@@ -336,6 +336,17 @@ public class WriterTests
     }
 
     [Fact]
+    public void AddObjectNeverHandsOutObjectZero()
+    {
+        // A mutated test file whose cross-reference data lists no object above 0 (found by the save fuzz target). It opens but has no
+        // catalog, so it is kept here rather than among the files every other test expects to read.
+        byte[] broken = Convert.FromBase64String("JVBERi0xLjcKJeLjz9MKMSYgMCAOYmoKPDwgL1R5cGUgL0NhdGFsb2cgL1BhZ2VzIDIgMCBSID4+L1KUnIvfpM7P3zEwIDE5MCA2MF0gL1ZlcnRpnZqM36TOz+kxMCA5MCA1MCAxOTAgMjBdIF1MRSBbXSAvUCAzIDAgUiA+PgplbmRvYmoKeHJlZgowIDYKMDAwMDAwMDAwMCA2NTUzJSBmIAowMDAwMDAwMDE1IDAwMDAwIG4gCjAwMDAwMDAwNjQgMDAwMDAgbiAKMDAwMDAwMDEyMSAwMDAwMCBuIAowMDAwMDAwMjE0IDAwMDAwIG5wZSAvQW5ub3QgL1N1YnR5cGUgL0wKdHJhaWxlcgo8PCAvU2l6ZSA2IC9Sb290IDEgMCBSID4+CnN0YXJ0eHJlZgo0NTkKJSVFT0YK");
+        using PdfDocument doc = Edit(broken);
+        Assert.True(doc.AddObject(new PdfDictionary()).Number >= 1);
+        OnePdf.Fuzz.SaveTarget.Run(broken);
+    }
+
+    [Fact]
     public void IncrementalSaveKeepsOffsetsRelativeToTheHeaderWhenJunkComesFirst()
     {
         byte[] original = File.ReadAllBytes(WriterSupport.Generated("raw-broken-junk-before-header.pdf"));
