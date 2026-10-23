@@ -11,5 +11,8 @@
     <!-- Compared against as compiled packages in the benchmarks and the extraction-quality tool; black boxes. -->
     <PackageVersion Include="PdfPig" Version="0.1.16" />
     <PackageVersion Include="Docnet.Core" Version="2.6.0" />
+    <PackageVersion Include="PDFsharp" Version="6.2.4" />
+    <!-- PDFsharp pulls in an old, flagged copy of this package; the comparison tool pins a patched one. -->
+    <PackageVersion Include="System.Security.Cryptography.Pkcs" Version="10.0.13" />
   </ItemGroup>
 </Project>
