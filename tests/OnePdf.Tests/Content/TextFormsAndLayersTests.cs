@@ -413,11 +413,11 @@ public class TextFormsAndLayersTests
     }
 
     [Fact]
-    public void AnnotationWithoutAppearanceDrawsNothingAndRecordsADiagnostic()
+    public void AnnotationWithoutAppearanceDrawsNothingWhenGenerationIsOffAndRecordsADiagnostic()
     {
         byte[] data = AnnotPdf(string.Empty);
         using PdfDocument doc = TestPdf.Open(data);
-        string t = TestPdf.Record(doc).ToText();
+        string t = TestPdf.Record(doc, 0, new PdfInterpretOptions { GenerateAppearances = false }).ToText();
         Assert.DoesNotContain("begin-annot", t);
         Assert.Contains(doc.Diagnostics, d => d.Message.Contains("no normal appearance"));
     }

@@ -21,7 +21,15 @@ public sealed record PdfLimits
         MaxType4Operations = long.MaxValue,
         MaxImagePixels = long.MaxValue,
         MaxMetadataBytes = int.MaxValue,
+        MaxAppearanceText = 1 << 24,
+        MaxAppearanceItems = 1 << 24,
     };
+
+    /// <summary>Most characters of a field value or annotation text that a generated appearance shows; the rest is cut off with a diagnostic. Default 65,536.</summary>
+    public int MaxAppearanceText { get; init; } = 1 << 16;
+
+    /// <summary>Most items (quadrilaterals, vertices, ink points, list box rows, comb cells) that a generated appearance draws; the rest is left out with a diagnostic. Default 65,536.</summary>
+    public int MaxAppearanceItems { get; init; } = 1 << 16;
 
     /// <summary>Largest decoded stream in bytes. Default 256 MiB.</summary>
     public long MaxDecodedStreamBytes { get; init; } = 256L << 20;

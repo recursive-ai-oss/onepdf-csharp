@@ -213,6 +213,13 @@ public sealed record PdfInterpretOptions
     public PdfAnnotationMode Annotations { get; init; } = PdfAnnotationMode.View;
 
     /// <summary>
+    /// Draw a synthesised appearance (see <see cref="PdfAnnotation.GenerateAppearance"/>) for an annotation that has no usable normal
+    /// appearance stream, and for form widgets when the form sets <c>/NeedAppearances true</c>. Each use is recorded as an Info
+    /// diagnostic. Set false to get the behaviour of version 1.0: such annotations draw nothing. Default true.
+    /// </summary>
+    public bool GenerateAppearances { get; init; } = true;
+
+    /// <summary>
     /// Overrides the visibility of an optional content group: given the group dictionary, return true or false to force it,
     /// or null to use the document's default configuration. Default null.
     /// </summary>

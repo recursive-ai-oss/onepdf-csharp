@@ -75,6 +75,14 @@ internal static class Seeds
 
                 break;
 
+            case "appearance":
+                for (byte k = 0; k < 21; k++)
+                {
+                    PutData("entries", "/Rect [10 10 150 50] /C [1 0 0] /IC [0 1 0] /BS << /W 2 /S /D /D [3 2] >> /MK << /BG [0.9] /BC [0] /CA (4) /R 90 >> /MaxLen 8 /Q 1 /TI 1 /I [0] /LE [/OpenArrow /Circle] /CA 0.5 /RD [1 1 1 1] /CL [5 5 40 40] /LL 10 /DA (/Cour 9 Tf 1 0 0 rg)"u8, [k]);
+                }
+
+                break;
+
             case "filters":
                 {
                     byte[] text = Encoding.ASCII.GetBytes(string.Concat(Enumerable.Repeat("BT /F1 12 Tf 72 700 Td (Hello, world) Tj ET\n", 20)));
