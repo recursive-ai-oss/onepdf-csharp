@@ -160,7 +160,16 @@ public sealed partial class PdfDocument
             throw new PdfLimitException("The font file is larger than 256 MiB.");
         }
 
-        var font = new EmbeddedCreatedFont(this, fontData.ToArray(), options ?? new PdfEmbedFontOptions());
+        EmbeddedCreatedFont font;
+        try
+        {
+            font = new EmbeddedCreatedFont(this, fontData.ToArray(), options ?? new PdfEmbedFontOptions());
+        }
+        catch (FontPrograms.FontProgramException ex)
+        {
+            throw new PdfFormatException("The font data is damaged: " + ex.Message, ex);
+        }
+
         CreationState.For(this).Embedded.Add(font);
         return font;
     }

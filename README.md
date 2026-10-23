@@ -40,6 +40,9 @@ are read through safe, bounds-checked code with size limits on by default.
 - **Forms.** Fill text, choice, check box and radio fields with validation, store their appearances, reset them, and flatten
   fields and annotations into the page
   ([forms](https://github.com/recursive-ai-oss/onepdf-csharp/blob/main/docs/forms.md)).
+- **Content creation.** Draw text, paths, images and reusable forms onto new or existing pages (over or under what is there),
+  with the 14 standard fonts or TrueType/OpenType fonts embedded as subsets with `ToUnicode` maps, and stamp or watermark pages
+  ([content creation](https://github.com/recursive-ai-oss/onepdf-csharp/blob/main/docs/content-creation.md)).
 - **Concurrent.** Objects parse lazily into a byte-budgeted cache with single-flight parsing; any number of threads can read pages
   of one document at once.
 

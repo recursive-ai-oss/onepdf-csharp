@@ -19,6 +19,7 @@ internal static class CffSubsetter
     private const int MaxDictEntries = 512;
     private const int MaxFontDicts = FontLimits.MaxFontDicts;
     private const int ScanBudgetPerGlyph = 200_000;
+    private const long ScanBudgetTotal = 40_000_000;
 
     private readonly record struct DictEntry(int Op, int RawStart, int RawLength, double First, double Second);
 
@@ -148,11 +149,12 @@ internal static class CffSubsetter
 
         var usedGlobal = new bool[gsubrs.Count];
         bool keepAll = false;
+        long total = ScanBudgetTotal;
         foreach (int g in order)
         {
             ReadOnlySpan<byte> cs = charStrings.Get(d, g);
             int fd = fdOfGlyph[g];
-            if (!keepAll && !ScanGlyph(d, cs, gsubrs, localSubrs[fd], usedGlobal, usedLocal[fd]))
+            if (!keepAll && !ScanGlyph(d, cs, gsubrs, localSubrs[fd], usedGlobal, usedLocal[fd], ref total))
             {
                 keepAll = true;
             }
@@ -463,7 +465,7 @@ internal static class CffSubsetter
     private static int Bias(int count) => count < 1240 ? 107 : count < 33900 ? 1131 : 32768;
 
     // Follows the glyph's charstring through call(g)subr, marking the subroutines it reaches. Returns false when it cannot be followed.
-    private static bool ScanGlyph(ReadOnlySpan<byte> file, ReadOnlySpan<byte> glyph, CffIndex gsubrs, CffIndex? lsubrs, bool[] usedGlobal, bool[] usedLocal)
+    private static bool ScanGlyph(ReadOnlySpan<byte> file, ReadOnlySpan<byte> glyph, CffIndex gsubrs, CffIndex? lsubrs, bool[] usedGlobal, bool[] usedLocal, ref long total)
     {
         var stack = new double[96];
         int sp = 0;
@@ -479,7 +481,7 @@ internal static class CffSubsetter
         int curIndex = -1;
         while (true)
         {
-            if (--budget < 0)
+            if (--budget < 0 || --total < 0)
             {
                 return false;
             }

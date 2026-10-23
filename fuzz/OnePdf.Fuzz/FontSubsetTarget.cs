@@ -62,9 +62,10 @@ internal static class FontSubsetTarget
                 if (fonts.GetDictionary(key)?.Get("DescendantFonts") is PdfArray { Count: 1 } d && d[0] is PdfDictionary cid && cid.GetDictionary("FontDescriptor") is { } desc)
                 {
                     byte[] program = (desc.GetStream("FontFile2") ?? desc.GetStream("FontFile3"))?.GetDecodedBytes().ToArray() ?? throw new InvalidOperationException("The saved font has no font file.");
-                    if ((flags & 1) == 0)
+                    bool isSubset = cid.GetName("BaseFont") is { Length: > 7 } baseName && baseName[6] == '+';
+                    try
                     {
-                        // A subset we wrote must read back with every glyph loadable.
+                        // What we wrote must read back; a font embedded whole is the input's own bytes and may be damaged.
                         FontProgram parsed = FontProgramLoader.Open(program);
                         for (int g = 0; g < Math.Min(parsed.GlyphCount, 64); g++)
                         {
@@ -77,6 +78,9 @@ internal static class FontSubsetTarget
                                 // A glyph the input font already had broken (bad point matching) is copied as it was.
                             }
                         }
+                    }
+                    catch (FontProgramException) when (!isSubset)
+                    {
                     }
                 }
             }

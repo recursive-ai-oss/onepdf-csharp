@@ -234,6 +234,12 @@ internal sealed class EmbeddedCreatedFont : PdfCreatedFont
     {
         _data = copy;
         _faceIndex = options.FaceIndex;
+        // The sfnt version (OpenType spec, "Organization of an OpenType Font"): 1.0, 'true' (Apple), 'OTTO' (CFF) or a collection.
+        if (_data.Length < 12 || System.Buffers.Binary.BinaryPrimitives.ReadUInt32BigEndian(_data) is not (0x00010000 or 0x74727565 or 0x4F54544F or 0x74746366))
+        {
+            throw new PdfFormatException("The data is not a TrueType or OpenType font (unknown sfnt version).");
+        }
+
         try
         {
             _font = SfntFont.Parse(_data, options.FaceIndex, GlyphPrograms.Never);
