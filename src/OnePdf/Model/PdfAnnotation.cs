@@ -174,6 +174,31 @@ public sealed class PdfAnnotation
         return null;
     }
 
+    /// <summary>
+    /// Synthesises a normal appearance for this annotation from its own data (ISO 32000-2 12.5.5, 12.7.4.3, 12.5.6), ignoring any
+    /// stored one. Supported: widgets (text, choice, check box, radio button, push button; signature fields get none) and the
+    /// Square, Circle, Line, Polygon, PolyLine, Ink, Highlight, Underline, StrikeOut, Squiggly, FreeText and Text annotations.
+    /// Returns null for other subtypes or when the geometry is unusable. The result lives in memory only; the document is not
+    /// changed. Problems (unencodable characters, missing fonts, cut-off input) are recorded in <see cref="PdfDocument.Diagnostics"/>.
+    /// </summary>
+    /// <param name="cancellationToken">Cancels the work.</param>
+    public PdfGeneratedAppearance? GenerateAppearance(CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        int obj = Dictionary.Reference?.Number ?? -1;
+        return Appearance.AppearanceGenerator.Generate(_doc, this, (sev, msg) =>
+        {
+            if (sev == PdfSeverity.Info)
+            {
+                _doc.ReportInfo(msg, obj, -1);
+            }
+            else
+            {
+                _doc.ReportWarning(msg, obj, -1);
+            }
+        });
+    }
+
     /// <summary>For a file attachment annotation, the attached file; otherwise null. Its content is read only on request.</summary>
     public PdfEmbeddedFile? AttachedFile =>
         Subtype == "FileAttachment" && Dictionary.Get("FS") is PdfDictionary fs ? new PdfEmbeddedFile(_doc, fs, null, Page.Index) : null;

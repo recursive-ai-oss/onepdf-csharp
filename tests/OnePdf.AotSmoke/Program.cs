@@ -183,6 +183,25 @@ if (!doc2.Pages[0].ExtractText().Text.Contains("Hi", StringComparison.Ordinal) |
     }
 }
 
+// Appearance generation: a text field and a highlight with no stored appearance are synthesised and drawn.
+string pdf5 =
+    "%PDF-1.4\n1 0 obj\n<< /Type /Catalog /Pages 2 0 R /AcroForm << /Fields [4 0 R] >> >>\nendobj\n" +
+    "2 0 obj\n<< /Type /Pages /Kids [3 0 R] /Count 1 >>\nendobj\n" +
+    "3 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 200 100] /Annots [4 0 R 5 0 R] >>\nendobj\n" +
+    "4 0 obj\n<< /Type /Annot /Subtype /Widget /FT /Tx /T (a) /V (Hello) /DA (/Helv 12 Tf 0 g) /Rect [10 10 150 40] /MK << /BC [0] >> >>\nendobj\n" +
+    "5 0 obj\n<< /Type /Annot /Subtype /Highlight /Rect [10 60 100 80] /QuadPoints [10 80 100 80 10 60 100 60] /C [1 1 0] >>\nendobj\n" +
+    "trailer\n<< /Root 1 0 R >>\n";
+using PdfDocument doc5 = PdfDocument.Open(Encoding.ASCII.GetBytes(pdf5));
+var list5 = new PdfDisplayList();
+doc5.Pages[0].Interpret(list5);
+PdfGeneratedAppearance? generated = doc5.Pages[0].Annotations[0].GenerateAppearance();
+if (generated is null || !Encoding.Latin1.GetString(generated.Content.Span).Contains("(Hello) Tj", StringComparison.Ordinal)
+    || list5.ToText().Split("begin-annot").Length != 3)
+{
+    Console.Error.WriteLine("appearance generation did not produce the expected drawing");
+    return 1;
+}
+
 Console.WriteLine("ok");
 return 0;
 

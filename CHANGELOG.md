@@ -2,6 +2,19 @@
 
 All notable changes are listed here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and versions follow [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Added
+
+- Appearance generation. An annotation with no usable normal appearance, and every text or choice field of a form that sets `/NeedAppearances true`, is now drawn from its own data instead of being skipped: widgets (text, multi-line, comb, password, combo box, list box, check box, radio button, push button, with `/MK` and `/BS` borders and rotation) and the Square, Circle, Line, Polygon, PolyLine, Ink, Highlight, Underline, StrikeOut, Squiggly, FreeText and Text annotations. See `docs/appearance-generation.md`.
+- `PdfAnnotation.GenerateAppearance()` returns the synthesised appearance as data (`PdfGeneratedAppearance`: form dictionary, content bytes, rectangle) without touching the document.
+- `PdfInterpretOptions.GenerateAppearances` (default true); set it to false for the 1.0 behaviour. Each generated appearance is recorded as an Info diagnostic.
+- `PdfLimits.MaxAppearanceText` and `PdfLimits.MaxAppearanceItems` bound the text and the item counts of a generated appearance.
+
+### Changed
+
+- Pages whose annotations lacked an appearance now interpret to more content than before; pages with stored appearances (and no `/NeedAppearances`) are unchanged. Text extraction is unchanged.
+
 ## [1.0.1] - 2026-10-23
 
 ### Fixed
