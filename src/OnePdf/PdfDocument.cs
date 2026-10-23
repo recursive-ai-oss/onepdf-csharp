@@ -34,7 +34,7 @@ public sealed partial class PdfDocument : IDisposable
         if (options.AllowEditing)
         {
             _pinned = new System.Collections.Concurrent.ConcurrentDictionary<int, PdfObject>();
-            _nextObjectNumber = ObjectCount;
+            _nextObjectNumber = Math.Max(1, ObjectCount); // object 0 is the free-list head, never an object
         }
     }
 

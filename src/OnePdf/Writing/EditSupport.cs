@@ -46,12 +46,8 @@ internal static class EditSupport
 
         if (value is PdfStream stream)
         {
-            if (target is null)
-            {
-                throw new ArgumentException("A stream is an indirect object: add it to a document with AddObject before storing it in another object.", nameof(value));
-            }
-
-            return target.Doc.AddObject(stream);
+            // A stream always knows its document (CreateStream), so it can be added even when the container does not belong to one yet.
+            return (target ?? own!).Doc.AddObject(stream);
         }
 
         if (target is not null)

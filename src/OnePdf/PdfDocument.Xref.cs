@@ -220,31 +220,42 @@ public sealed partial class PdfDocument
     }
 
     // startxref offsets count from the file start, but files with junk before the header are often written relative to the header.
+    // A candidate that points exactly at the section wins over one that has white space before it: with junk before the header
+    // the two readings can both land near a section, and only the exact one is certain.
     private long LocateSection(long offset)
     {
         Span<long> candidates = [offset + _bias, offset, offset + _headerOffset];
-        for (int i = 0; i < candidates.Length; i++)
+        for (int pass = 0; pass < 2; pass++)
         {
-            long c = candidates[i];
-            if (c < 0 || c >= _source.Length || (i > 0 && (c == candidates[0] || (i == 2 && c == candidates[1]))))
+            for (int i = 0; i < candidates.Length; i++)
             {
-                continue;
-            }
-
-            if (LooksLikeSection(c))
-            {
-                if (c != offset + _bias)
+                long c = candidates[i];
+                if (c < 0 || c >= _source.Length || (i > 0 && (c == candidates[0] || (i == 2 && c == candidates[1]))))
                 {
-                    _bias = c - offset;
-                    _diag.Info($"Offsets are relative to {(_bias == 0 ? "the start of the file" : $"the header at {_bias}")}.", offset: c);
+                    continue;
                 }
 
-                return c;
+                if ((pass == 1 || !Lexer.IsWhite(ByteAtSource(c))) && LooksLikeSection(c))
+                {
+                    if (c != offset + _bias)
+                    {
+                        _bias = c - offset;
+                        _diag.Info($"Offsets are relative to {(_bias == 0 ? "the start of the file" : $"the header at {_bias}")}.", offset: c);
+                    }
+
+                    return c;
+                }
             }
         }
 
         _xrefFailure = $"There is no cross-reference section at offset {offset}.";
         return -1;
+    }
+
+    private byte ByteAtSource(long position)
+    {
+        Span<byte> one = stackalloc byte[1];
+        return _source.Read(position, one) == 1 ? one[0] : (byte)0;
     }
 
     private bool LooksLikeSection(long pos)

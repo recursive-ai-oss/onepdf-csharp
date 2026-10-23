@@ -37,6 +37,7 @@
     <Compile Include="../../fuzz/OnePdf.Fuzz/ImageTarget.cs" Link="Images/ImageTarget.cs" />
     <Compile Include="../../fuzz/OnePdf.Fuzz/ContentTarget.cs" Link="Content/ContentTarget.cs" />
     <Compile Include="../../fuzz/OnePdf.Fuzz/ShadingTarget.cs" Link="Shading/ShadingTarget.cs" />
+    <Compile Include="../../fuzz/OnePdf.Fuzz/SaveTarget.cs" Link="Writing/SaveTarget.cs" />
     <Compile Include="../../fuzz/OnePdf.Fuzz/ExtractionTarget.cs" Link="Extraction/ExtractionTarget.cs" />
   </ItemGroup>
 

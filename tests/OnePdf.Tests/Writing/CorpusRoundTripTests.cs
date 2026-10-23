@@ -60,6 +60,55 @@ public class CorpusRoundTripTests
         }
     }
 
+    [Fact]
+    public void ObjectStreamsMakeTheCorpusSmaller()
+    {
+        long source = 0;
+        long table = 0;
+        long stream = 0;
+        long streamNoPack = 0;
+        int files = 0;
+        foreach (string file in WriterSupport.AllPdfs())
+        {
+            PdfDocument doc;
+            try
+            {
+                doc = PdfDocument.Open(file, new PdfOpenOptions { Password = WriterSupport.PasswordFor(file) });
+            }
+            catch (PdfException)
+            {
+                continue;
+            }
+
+            using (doc)
+            {
+                try
+                {
+                    long t = WriterSupport.Save(doc, new PdfSaveOptions { XrefFormat = PdfXrefFormat.Table }).Length;
+                    long s = WriterSupport.Save(doc, new PdfSaveOptions { XrefFormat = PdfXrefFormat.Stream }).Length;
+                    long n = WriterSupport.Save(doc, new PdfSaveOptions { XrefFormat = PdfXrefFormat.Stream, UseObjectStreams = false }).Length;
+                    source += new FileInfo(file).Length;
+                    table += t;
+                    stream += s;
+                    streamNoPack += n;
+                    files++;
+                }
+                catch (PdfException)
+                {
+                }
+            }
+        }
+
+        string report = $"{files} files: sources {source} bytes; classic table {table}; xref stream without object streams {streamNoPack}; xref stream with object streams {stream} ({100.0 * stream / table:F1}% of the table form)";
+        TestContext.Current.SendDiagnosticMessage(report);
+        if (Environment.GetEnvironmentVariable("ONEPDF_WRITER_REPORT") is { Length: > 0 } path)
+        {
+            File.WriteAllText(path, report + "\n");
+        }
+
+        Assert.True(stream < table, report);
+    }
+
     private static void AssertSame(string expected, string actual, string what)
     {
         if (expected == actual)

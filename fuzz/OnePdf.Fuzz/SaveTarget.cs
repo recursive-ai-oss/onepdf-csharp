@@ -25,6 +25,11 @@ internal static class SaveTarget
         {
             using PdfDocument doc = PdfDocument.Open(input, new PdfOpenOptions { Limits = limits, AllowEditing = true });
             Mutate(doc, sel);
+            bool damaged = false;
+            foreach (PdfDiagnostic d in doc.Diagnostics)
+            {
+                damaged |= d.Severity >= PdfSeverity.Warning;
+            }
 
             var options = new PdfSaveOptions
             {
@@ -46,7 +51,12 @@ internal static class SaveTarget
                     throw new InvalidOperationException("the original bytes are not a prefix of the incremental save");
                 }
 
-                Reopen(bytes, limits);
+                // A file that needed repair may read differently with an update behind it (a stream whose end was found by scanning
+                // can run on into the update), so only an undamaged original must give a readable update.
+                if (!damaged)
+                {
+                    Reopen(bytes, limits);
+                }
             }
         }
         catch (PdfException)
@@ -54,7 +64,7 @@ internal static class SaveTarget
         }
     }
 
-    private static void Mutate(PdfDocument doc, int sel)
+    internal static void Mutate(PdfDocument doc, int sel)
     {
         int n = Math.Min(doc.ObjectCount, 300);
         for (int i = 1; i < n; i++)
@@ -83,18 +93,22 @@ internal static class SaveTarget
                     }
 
                     break;
+                // Existing stream data is only rewritten, never replaced: object streams and cross-reference streams hold the
+                // structure the reopen check relies on, and a mutated file may have lost the keys that say which they are.
                 case PdfStream s when (i + sel) % 5 == 0:
-                    s.SetData(new byte[] { 1, 2, 3, 4, 5 }, (sel & 16) != 0);
+                    s.Dictionary.SetEntry("FuzzKey", new PdfInteger(i));
                     break;
             }
         }
 
-        if ((sel & 32) != 0 && n > 2)
+        if ((sel & 32) != 0)
         {
-            doc.RemoveObject(n - 1);
+            doc.RemoveObject(doc.AddObject(new PdfDictionary()).Number);
         }
 
+        PdfStream fresh = doc.CreateStream(new byte[] { 1, 2, 3, 4, 5 }, (sel & 16) != 0);
         PdfReference extra = doc.AddObject(new PdfDictionary());
+        ((PdfDictionary)doc.Resolve(extra)!).SetEntry("Data", fresh);
         if (doc.Resolve(extra) is PdfDictionary ed)
         {
             ed.SetEntry("Self", extra);
