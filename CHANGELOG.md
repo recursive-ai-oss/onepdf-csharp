@@ -13,6 +13,12 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 - Pages across documents: `PdfDocument.ImportPages` copies pages with their whole dependency graph (resources, fonts, images, annotations with appearances; inherited `/Resources`, `/MediaBox`, `/CropBox` and `/Rotate` written into the page), each shared object once. Bookmarks, named destinations used by links, form fields (clashing names renamed), optional content, page labels and the structure tree of tagged files come along (`PdfImportOptions`). `PdfDocument.Merge` joins documents; `PdfDocument.Split` cuts one into several (`PdfPageRange`, or a number of pages per part). See `docs/page-operations.md`.
 - `docs/migrating-from-pdfsharp.md`, a guide for moving from PDFsharp.
 - The `save` fuzz target also runs page operations, merge and split.
+- `PdfImageDecodeRequest.TargetWidth` and `TargetHeight`: the size in device pixels the image covers on the page (the unit square under the CTM and output transform, rounded up, never above the image's own size), or 0 when unknown. A JPEG 2000 decoder can use it to decode at a reduced resolution. `PdfImage.TargetWidth`/`TargetHeight` expose the same values to devices. Decoding outside a page leaves them 0; existing decoders can ignore them.
+- A decoder may return fewer pixels than the dictionary declares. OnePDF passes the reduced size through (`PdfImageData.Width`/`Height`) without resampling; placement is unchanged because the image fills the unit square. No warning is recorded when a target size was given and the result is not larger than declared.
+
+### Fixed
+
+- TrueType instructions (fonts whose composites need their programs): ISECT now uses exact 128-bit arithmetic instead of treating a discriminant of -1 as degenerate. A glyph program that fails on its own now leaves only its own component unhinted; the whole glyph is drawn from its plain outline only when the shared per-glyph instruction budget is spent.
 
 ## [1.2.0] - 2026-10-23
 
