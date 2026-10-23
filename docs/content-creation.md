@@ -64,4 +64,4 @@ The same calls give the same bytes: content numbers are fixed-precision, subset 
 
 ## Not covered
 
-Text shaping and complex scripts; Type 1 and bare CFF font files as input; variable-font instances; vertical writing; emoji and colour fonts (only outlines are embedded); a general page layout engine, tables or images fitted to boxes; generating tagged structure or PDF/A; compressing content streams (use `PdfSaveOptions.CompressStreams`).
+Text shaping and complex scripts; Type 1 and bare CFF font files as input; variable-font instances; vertical writing; emoji and colour fonts (only outlines are embedded); a general page layout engine, tables or images fitted to boxes; generating tagged structure; compressing content streams (use `PdfSaveOptions.CompressStreams`). To save a created document as PDF/A, see [PDF/A](https://github.com/recursive-ai-oss/onepdf-csharp/blob/main/docs/pdfa.md).

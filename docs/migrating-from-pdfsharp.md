@@ -5,12 +5,12 @@ operations. It is based on PDFsharp's public documentation (docs.pdfsharp.net, v
 those for details of its behavior. OnePDF's API is smaller in some places and larger in others, so this is a map, not a drop-in
 replacement.
 
-## What OnePDF does not do (yet)
+## What OnePDF does differently
 
 PDFsharp is first of all a library for *creating* PDF files: you draw with `XGraphics`, use `XFont`, `XImage` and MigraDoc. OnePDF
-reads, extracts, interprets into a device and edits the page structure of existing files; **it has no drawing API for making new
-content** (adding text, images or shapes to a page is on the roadmap, not in this version). If your program mostly draws, keep
-PDFsharp for that and use OnePDF for the parts below, or wait for content creation.
+reads, extracts, interprets into a device and edits existing files. It also draws text, images and shapes onto new or existing
+pages ([content creation](https://github.com/recursive-ai-oss/onepdf-csharp/blob/main/docs/content-creation.md)), but it has no
+layout engine like MigraDoc and no text shaping. If your program relies on MigraDoc layout, keep PDFsharp for that part.
 
 ## The differences that matter first
 
@@ -159,8 +159,8 @@ unless you ask for encryption.
 ## Forms
 
 PDFsharp's documentation describes limited AcroForm support. OnePDF reads field values and kinds (`doc.Form`, `FindField`), merges
-and renames fields when pages are imported, and draws fields with missing appearances (`PdfAnnotation.GenerateAppearance`). It does
-not yet fill fields.
+and renames fields when pages are imported, and draws fields with missing appearances (`PdfAnnotation.GenerateAppearance`). It also fills, resets and flattens fields with typed
+validation ([forms](https://github.com/recursive-ai-oss/onepdf-csharp/blob/main/docs/forms.md)).
 
 ## Beyond what PDFsharp does
 
