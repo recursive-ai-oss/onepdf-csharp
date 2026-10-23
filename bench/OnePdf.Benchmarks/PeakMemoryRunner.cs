@@ -6,7 +6,7 @@ namespace OnePdf.Benchmarks;
 /// <summary>
 /// <c>rss check</c> opens every input with both libraries. <c>rss &lt;engine&gt; &lt;row&gt; &lt;input&gt; [degree]</c>: runs one row once in this process and prints the result and wall time, so
 /// <c>/usr/bin/time -v</c> around it gives the peak resident set. Engines: onepdf, pdfpig, pdfium, mutool. Rows: open, metadata,
-/// text, words, interpret, encrypted-open, encrypted-text. Exit code 3 means the row is not available yet.
+/// text, text-glyphs (text with the glyphs kept in the result), words, interpret, encrypted-open, encrypted-text. Exit code 3 means the row is not available yet.
 /// </summary>
 internal static class PeakMemoryRunner
 {
@@ -59,6 +59,7 @@ internal static class PeakMemoryRunner
             case ("onepdf", "metadata"): result = Ops.OnePdfMetadata(path); break;
             case ("onepdf", "interpret"): result = Ops.OnePdfInterpret(path); break;
             case ("onepdf", "text" or "encrypted-text") when OnePdfTextSeam.Available: result = Ops.OnePdfText(path, degree, pw); break;
+            case ("onepdf", "text-glyphs") when OnePdfTextSeam.Available: result = Ops.OnePdfText(path, degree, pw, retainGlyphs: true); break;
             case ("onepdf", "words") when OnePdfTextSeam.Available: result = Ops.OnePdfWords(path, degree, pw); break;
             case ("pdfpig", "open" or "encrypted-open"): result = Ops.PdfPigOpen(path, pw); break;
             case ("pdfpig", "metadata"): result = Ops.PdfPigMetadata(path); break;

@@ -29,7 +29,7 @@ Gate rows (`--anyCategories gate`): open + page count (`OpenBenchmarks`: small, 
 
 Information rows (`--anyCategories info`): `InterpretBenchmarks` (one page into a display list: vector-heavy and text-heavy), `OtherEnginesTextBenchmarks` (PDFium through Docnet.Core; `mutool draw -F txt` including process start, skipped when `mutool` is not on PATH).
 
-OnePDF text and words rows run against the whole-document extraction call (`TextSeam.cs`); `Pending` still guards the rows that need `mutool`.
+OnePDF text and words rows run against the whole-document extraction call (`TextSeam.cs`) with `RetainGlyphs = false`, since plain text and word boxes do not need the glyph list; an information row (`OnePdfKeepingGlyphs`, and `rss ... text-glyphs`) runs the same extraction with the glyphs kept, which is the option's default; `Pending` still guards the rows that need `mutool`.
 
 `ExtractionLayoutBenchmarks` times the layout pipeline alone on synthetic two-column pages of about 3,400 glyphs (one page, a 300-page document through `ExtractDocument` at degree 1 and the default degree, the JSON writer). It needs no input files. It is not a gate row; it guards the allocation and speed of the layout code.
 

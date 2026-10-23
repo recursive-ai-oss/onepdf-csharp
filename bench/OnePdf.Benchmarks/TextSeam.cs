@@ -15,10 +15,10 @@ internal static class OnePdfTextSeam
     /// <summary>True: the benchmarks run against the real extraction API.</summary>
     public static bool Available => true;
 
-    public static long ExtractText(PdfDocument document, int degree)
+    public static long ExtractText(PdfDocument document, int degree, bool retainGlyphs = false)
     {
         long total = 0;
-        foreach (OnePdf.Text.PdfPageText page in document.ExtractText(new OnePdf.Text.PdfTextOptions { MaxDegreeOfParallelism = degree, RetainGlyphs = false }))
+        foreach (OnePdf.Text.PdfPageText page in document.ExtractText(new OnePdf.Text.PdfTextOptions { MaxDegreeOfParallelism = degree, RetainGlyphs = retainGlyphs }))
         {
             total += page.Text.Length;
         }
