@@ -1,0 +1,2 @@
+# Test data and sources are compared byte for byte (PDF files, snapshots, truth text), so no checkout may convert line endings.
+* -text
