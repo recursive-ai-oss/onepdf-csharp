@@ -120,6 +120,6 @@ These need the font programs, colour management or XMP schema validation that On
 
 ## Limits and known gaps
 
-- Standard fonts are subset to every glyph their encoding can reach (about 220 per face, 25 to 35 KB per face), not to the glyphs the pages show, because finding those would mean reading all content. Liberation is licensed under the SIL Open Font License; the license restricts distributing *modified fonts* under the Reserved Font Names, while embedding a subset in a document is ordinary font embedding, and the subset keeps the face name behind its subset tag.
+- Standard fonts are subset to every glyph their encoding can reach (about 220 per face; a test file with four faces went from 834 KB to 112 KB), not to the glyphs the pages show, because finding those would mean reading all content. Liberation is licensed under the SIL Open Font License, whose FAQ (entry 1.12) allows embedding OFL fonts in a document "either in full or a subset"; the subset keeps the face name behind its subset tag.
 - A font from a provider other than the Fonts package must be a TrueType-flavoured font with a Unicode `cmap`, and its `fsType` must allow embedding; otherwise the font stays unembedded and is reported.
 - `PreparePdfA` and PDF/A saves read the whole document (every reachable object and content stream). Time and memory grow with the file; `PdfLimits` apply.
