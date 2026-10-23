@@ -74,6 +74,8 @@ internal static class ExtractionTarget
 
         ReadOnlySpan<byte> rest = data.Slice(1);
 
+        // Another option bit, kept out of Decode so the recorded golden output of the seeds stays as it is.
+        o.RetainGlyphs = (data[0] & 16) == 0;
         PdfPageText page = PdfTextExtractor.Analyze(new PdfPageGlyphs(0, 600, 800, glyphs), o);
         foreach (PdfTextWord w in page.Words)
         {
@@ -86,8 +88,16 @@ internal static class ExtractionTarget
             }
         }
 
-        _ = page.GetText(PdfTextMode.ContentOrder);
-        _ = page.GetText(PdfTextMode.Layout);
+        if (o.RetainGlyphs)
+        {
+            _ = page.GetText(PdfTextMode.ContentOrder);
+            _ = page.GetText(PdfTextMode.Layout);
+        }
+        else if (page.Glyphs.Count != 0)
+        {
+            throw new InvalidOperationException("glyphs kept although not requested");
+        }
+
         _ = page.GetText(PdfTextMode.ReadingOrder);
         PdfTextExtractor.FlagHeadersAndFooters([page, page]);
         using JsonDocument d = JsonDocument.Parse(PdfExtractionJson.ToJson([page]));

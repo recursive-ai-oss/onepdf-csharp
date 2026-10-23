@@ -562,7 +562,9 @@ internal sealed class ContentLexer
         }
 
         // Decode escapes (ISO 32000-2 7.3.4.2); an end-of-line inside the string reads as a single LF.
-        var outp = new List<byte>(end - start);
+        // An escaped string is never longer than its source, so one buffer of that size holds the result.
+        byte[] outp = new byte[end - start];
+        int n = 0;
         for (int i = start; i < end; i++)
         {
             byte b = s[i];
@@ -577,11 +579,11 @@ internal sealed class ContentLexer
                 byte e = s[i];
                 switch (e)
                 {
-                    case (byte)'n': outp.Add(10); break;
-                    case (byte)'r': outp.Add(13); break;
-                    case (byte)'t': outp.Add(9); break;
-                    case (byte)'b': outp.Add(8); break;
-                    case (byte)'f': outp.Add(12); break;
+                    case (byte)'n': outp[n++] = 10; break;
+                    case (byte)'r': outp[n++] = 13; break;
+                    case (byte)'t': outp[n++] = 9; break;
+                    case (byte)'b': outp[n++] = 8; break;
+                    case (byte)'f': outp[n++] = 12; break;
                     case 13:
                         if (i + 1 < end && s[i + 1] == 10)
                         {
@@ -600,12 +602,12 @@ internal sealed class ContentLexer
                                 v = (v * 8) + (s[i] - '0');
                             }
 
-                            outp.Add((byte)(v & 0xFF));
+                            outp[n++] = (byte)(v & 0xFF);
                             break;
                         }
 
                     default:
-                        outp.Add(e);
+                        outp[n++] = e;
                         break;
                 }
             }
@@ -616,20 +618,23 @@ internal sealed class ContentLexer
                     i++;
                 }
 
-                outp.Add(10);
+                outp[n++] = 10;
             }
             else
             {
-                outp.Add(b);
+                outp[n++] = b;
             }
         }
 
-        return outp.ToArray();
+        return new ReadOnlyMemory<byte>(outp, 0, n);
     }
 
     private ReadOnlyMemory<byte> ReadHexString(ReadOnlySpan<byte> s)
     {
-        var outp = new List<byte>();
+        int close = s[_pos..].IndexOf((byte)'>');
+        int limit = close < 0 ? s.Length - _pos : close;
+        byte[] outp = new byte[(limit / 2) + 1];
+        int n = 0;
         int hi = -1;
         while (_pos < s.Length)
         {
@@ -651,17 +656,17 @@ internal sealed class ContentLexer
             }
             else
             {
-                outp.Add((byte)((hi << 4) | h));
+                outp[n++] = (byte)((hi << 4) | h);
                 hi = -1;
             }
         }
 
         if (hi >= 0)
         {
-            outp.Add((byte)(hi << 4));
+            outp[n++] = (byte)(hi << 4);
         }
 
-        return outp.ToArray();
+        return new ReadOnlyMemory<byte>(outp, 0, n);
     }
 
     // ---- arrays and composites ----

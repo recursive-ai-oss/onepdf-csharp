@@ -99,10 +99,10 @@ internal static class Ops
         return list.ItemCount;
     }
 
-    public static long OnePdfText(string path, int degree, string? password = null)
+    public static long OnePdfText(string path, int degree, string? password = null, bool retainGlyphs = false)
     {
         using var doc = PdfDocument.Open(path, new PdfOpenOptions { Password = password });
-        return OnePdfTextSeam.ExtractText(doc, degree);
+        return OnePdfTextSeam.ExtractText(doc, degree, retainGlyphs);
     }
 
     public static long OnePdfWords(string path, int degree, string? password = null)

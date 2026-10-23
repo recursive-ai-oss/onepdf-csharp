@@ -324,6 +324,9 @@ internal static class TextLayout
     /// <summary>Lays out every glyph of <paramref name="g"/>.</summary>
     internal static List<PdfTextBlock> RunAll(PdfTextGlyph[] g, CancellationToken ct) => RunCore(g, default, true, g.Length, ct);
 
+    /// <summary>Lays out the first <paramref name="count"/> glyphs of <paramref name="g"/>, which may be longer.</summary>
+    internal static List<PdfTextBlock> RunAll(PdfTextGlyph[] g, int count, CancellationToken ct) => RunCore(g, default, true, count, ct);
+
     private static List<PdfTextBlock> RunCore(PdfTextGlyph[] g, ReadOnlySpan<int> subset, bool all, int count, CancellationToken ct)
     {
         List<PdfTextBlock> result = [];

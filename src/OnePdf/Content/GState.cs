@@ -47,6 +47,41 @@ internal sealed class GState
         g.ClipCount = 0;
         return g;
     }
+
+    /// <summary>Makes this object a copy of <paramref name="o"/> as <see cref="Clone"/> would (clip count zero); lets the interpreter reuse state objects across q/Q pairs.</summary>
+    public void CopyFrom(GState o)
+    {
+        Ctm = o.Ctm;
+        FillCs = o.FillCs;
+        StrokeCs = o.StrokeCs;
+        Fill = o.Fill;
+        Stroke = o.Stroke;
+        LineWidth = o.LineWidth;
+        LineCap = o.LineCap;
+        LineJoin = o.LineJoin;
+        MiterLimit = o.MiterLimit;
+        Dash = o.Dash;
+        DashPhase = o.DashPhase;
+        Flatness = o.Flatness;
+        Intent = o.Intent;
+        FillAlpha = o.FillAlpha;
+        StrokeAlpha = o.StrokeAlpha;
+        Blend = o.Blend;
+        SoftMask = o.SoftMask;
+        Ais = o.Ais;
+        FillOverprint = o.FillOverprint;
+        StrokeOverprint = o.StrokeOverprint;
+        OverprintMode = o.OverprintMode;
+        CharSpace = o.CharSpace;
+        WordSpace = o.WordSpace;
+        HorizScale = o.HorizScale;
+        Leading = o.Leading;
+        RenderMode = o.RenderMode;
+        Rise = o.Rise;
+        FontSize = o.FontSize;
+        Font = o.Font;
+        ClipCount = 0;
+    }
 }
 
 internal sealed class FontInfo(string name, PdfDictionary? dictionary, PdfFont font)

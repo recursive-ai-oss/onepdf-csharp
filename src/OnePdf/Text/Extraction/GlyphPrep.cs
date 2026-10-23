@@ -6,92 +6,149 @@ namespace OnePdf.Text;
 /// <summary>Per-glyph clean-up before layout: exclusions, <c>/ActualText</c>, ligatures, duplicates.</summary>
 internal static class GlyphPrep
 {
-    internal static PdfTextGlyph[] Prepare(PdfPageGlyphs page, PdfTextOptions o, CancellationToken ct)
+    /// <summary>Characters below this are never changed by <see cref="Decompose"/>, <see cref="FoldCompatibility"/> or <see cref="Sanitize"/>; a test holds the three to it.</summary>
+    internal const char PlainBelow = '\u2E80';
+
+    /// <summary>
+    /// Prepares the glyphs of a page. With <paramref name="pooled"/> the result array is rented from the shared pool and may be longer than
+    /// <paramref name="count"/>; the caller returns it. Otherwise it has exactly <paramref name="count"/> elements.
+    /// </summary>
+    internal static PdfTextGlyph[] Prepare(PdfPageGlyphs page, PdfTextOptions o, bool pooled, out int count, CancellationToken ct)
     {
-        IReadOnlyList<PdfTextGlyph> src = page.Glyphs;
-        int n = src.Count;
-        PdfTextGlyph[] work = new PdfTextGlyph[n];
-        int kept = 0;
-        int curSpan = 0;
-        bool replacing = false;
-        bool first = false;
-
-        for (int i = 0; i < n; i++)
+        ReadOnlySpan<PdfTextGlyph> src;
+        PdfTextGlyph[] work;
+        int n;
+        if (pooled && page.TakePooled(out PdfTextGlyph[]? owned, out n))
         {
-            if ((i & 1023) == 0)
+            // The page's own pooled buffer is compacted in place: kept glyphs only ever move to a lower index.
+            work = owned;
+            src = owned.AsSpan(0, n);
+        }
+        else
+        {
+            src = page.Span;
+            if (src.IsEmpty && page.Glyphs.Count > 0)
             {
-                ct.ThrowIfCancellationRequested();
+                src = page.Glyphs is PdfTextGlyph[] arr ? arr : [.. page.Glyphs];
             }
 
-            PdfTextGlyph g = src[i];
-            if (!IsFinite(g.Matrix) || !double.IsFinite(g.Advance) || !double.IsFinite(g.Ascent) || !double.IsFinite(g.Descent))
-            {
-                continue;
-            }
-
-            if (!o.IncludeClippedAndOffPage)
-            {
-                if (g.IsClipped)
-                {
-                    continue;
-                }
-
-                PdfRectangle b = g.Bounds;
-                double cx = (b.Left + b.Right) / 2, cy = (b.Bottom + b.Top) / 2;
-                if (cx < -LayoutParameters.OffPageMargin || cy < -LayoutParameters.OffPageMargin ||
-                    cx > page.Width + LayoutParameters.OffPageMargin || cy > page.Height + LayoutParameters.OffPageMargin)
-                {
-                    continue;
-                }
-            }
-
-            string text = g.Text ?? "";
-            if (g.ActualTextSpan != 0)
-            {
-                if (g.ActualTextSpan != curSpan)
-                {
-                    curSpan = g.ActualTextSpan;
-                    replacing = g.ActualText is not null;
-                    first = true;
-                }
-
-                if (replacing)
-                {
-                    text = first ? g.ActualText! : "";
-                    first = false;
-                }
-            }
-            else
-            {
-                curSpan = 0;
-                replacing = false;
-            }
-
-            if (o.DecomposeLigatures)
-            {
-                text = Decompose(text);
-            }
-
-            if (o.FoldCompatibilityForms)
-            {
-                text = FoldCompatibility(text);
-            }
-
-            text = Sanitize(text);
-            work[kept++] = ReferenceEquals(text, g.Text) ? g : g.WithText(text);
+            n = src.Length;
+            work = pooled ? ArrayPool<PdfTextGlyph>.Shared.Rent(n) : new PdfTextGlyph[n];
         }
 
-        if (o.CollapseDuplicates && kept > 1)
+        // The duplicate search wants each kept glyph's x, y and size; they are taken here, while the glyph is in hand.
+        bool collapse = o.CollapseDuplicates && n > 1;
+        double[]? ex = collapse ? ArrayPool<double>.Shared.Rent(n) : null;
+        double[]? ef = collapse ? ArrayPool<double>.Shared.Rent(n) : null;
+        double[]? es = collapse ? ArrayPool<double>.Shared.Rent(n) : null;
+        int kept = 0;
+        try
         {
-            kept = CollapseDuplicates(work, kept);
+            int curSpan = 0;
+            bool replacing = false;
+            bool first = false;
+
+            for (int i = 0; i < n; i++)
+            {
+                if ((i & 1023) == 0)
+                {
+                    ct.ThrowIfCancellationRequested();
+                }
+
+                ref readonly PdfTextGlyph g = ref src[i];
+                if (!IsFinite(g.Matrix) || !double.IsFinite(g.Advance) || !double.IsFinite(g.Ascent) || !double.IsFinite(g.Descent))
+                {
+                    continue;
+                }
+
+                if (!o.IncludeClippedAndOffPage)
+                {
+                    if (g.IsClipped)
+                    {
+                        continue;
+                    }
+
+                    g.Corners(out double ax, out double ay, out double bx, out double by, out double cx, out double cy, out double dx, out double dy);
+                    double cxm = (Math.Min(Math.Min(ax, bx), Math.Min(cx, dx)) + Math.Max(Math.Max(ax, bx), Math.Max(cx, dx))) / 2;
+                    double cym = (Math.Min(Math.Min(ay, by), Math.Min(cy, dy)) + Math.Max(Math.Max(ay, by), Math.Max(cy, dy))) / 2;
+                    if (cxm < -LayoutParameters.OffPageMargin || cym < -LayoutParameters.OffPageMargin ||
+                        cxm > page.Width + LayoutParameters.OffPageMargin || cym > page.Height + LayoutParameters.OffPageMargin)
+                    {
+                        continue;
+                    }
+                }
+
+                string text = g.Text ?? "";
+                if (g.ActualTextSpan != 0)
+                {
+                    if (g.ActualTextSpan != curSpan)
+                    {
+                        curSpan = g.ActualTextSpan;
+                        replacing = g.ActualText is not null;
+                        first = true;
+                    }
+
+                    if (replacing)
+                    {
+                        text = first ? g.ActualText! : "";
+                        first = false;
+                    }
+                }
+                else
+                {
+                    curSpan = 0;
+                    replacing = false;
+                }
+
+                // A single character below U+2E80 is untouched by ligature decomposition, compatibility folding and surrogate repair
+                // (all three only act on U+2E80 and above); most text is that, so it skips the three scans.
+                if (!(text.Length == 1 && text[0] < PlainBelow))
+                {
+                    if (o.DecomposeLigatures)
+                    {
+                        text = Decompose(text);
+                    }
+
+                    if (o.FoldCompatibilityForms)
+                    {
+                        text = FoldCompatibility(text);
+                    }
+
+                    text = Sanitize(text);
+                }
+
+                if (collapse)
+                {
+                    ex![kept] = g.Matrix.E;
+                    ef![kept] = g.Matrix.F;
+                    es![kept] = g.Size;
+                }
+
+                work[kept++] = ReferenceEquals(text, g.Text) ? g : g.WithText(text);
+            }
+
+            if (collapse && kept > 1)
+            {
+                kept = CollapseCore(work, kept, ex!, ef!, es!);
+            }
+        }
+        finally
+        {
+            if (collapse)
+            {
+                ArrayPool<double>.Shared.Return(ex!);
+                ArrayPool<double>.Shared.Return(ef!);
+                ArrayPool<double>.Shared.Return(es!);
+            }
         }
 
         // The result is exactly sized; the common case (nothing dropped) hands the working array over without a copy.
-        if (kept != n)
+        if (kept != n && !pooled)
         {
             Array.Resize(ref work, kept);
         }
 
+        count = kept;
         return work;
     }
 
@@ -237,83 +294,69 @@ internal static class GlyphPrep
         }
     }
 
-    /// <summary>A glyph origin with the stream position it came from; the working set of the duplicate search.</summary>
-    private struct Origin
-    {
-        internal double E, F, Size;
-        internal int Idx;
-    }
-
     /// <summary>
     /// Drops a glyph drawn again at almost the same place by a later operator (fake bold, drop shadow), compacting <paramref name="g"/> in place.
     /// Returns the new count. Candidates are visited by origin x, ties by position in the stream; that is a total order, so any correct sort gives
     /// the same visiting order.
     /// </summary>
-    private static int CollapseDuplicates(PdfTextGlyph[] g, int n)
+    internal static int CollapseDuplicates(PdfTextGlyph[] g, int n)
     {
-        double[] keys = ArrayPool<double>.Shared.Rent(n);
-        int[] order = ArrayPool<int>.Shared.Rent(n);
-        Origin[] o = ArrayPool<Origin>.Shared.Rent(n);
+        double[] x = new double[n], f = new double[n], s = new double[n];
+        for (int i = 0; i < n; i++)
+        {
+            x[i] = g[i].Matrix.E;
+            f[i] = g[i].Matrix.F;
+            s[i] = g[i].Size;
+        }
+
+        return CollapseCore(g, n, x, f, s);
+    }
+
+    /// <summary>The duplicate search over glyphs whose x, y (origin) and size are already in <paramref name="ex"/>, <paramref name="ef"/>, <paramref name="es"/>.</summary>
+    private static int CollapseCore(PdfTextGlyph[] g, int n, double[] ex, double[] ef, double[] es)
+    {
+        ulong[] k0 = ArrayPool<ulong>.Shared.Rent(n);
+        ulong[] k1 = ArrayPool<ulong>.Shared.Rent(n);
+        int[] i0 = ArrayPool<int>.Shared.Rent(n);
+        int[] i1 = ArrayPool<int>.Shared.Rent(n);
         bool[] drop = ArrayPool<bool>.Shared.Rent(n);
         try
         {
             for (int i = 0; i < n; i++)
             {
-                keys[i] = g[i].Matrix.E;
-                order[i] = i;
+                k0[i] = SortableBits(ex[i]);
+                i0[i] = i;
                 drop[i] = false;
             }
 
-            // Sort by x with the primitive sort (no delegate per comparison), then put equal x in stream order.
-            Array.Sort(keys, order, 0, n);
-            for (int s = 0; s < n;)
-            {
-                int e = s + 1;
-                while (e < n && keys[e] == keys[s])
-                {
-                    e++;
-                }
-
-                if (e - s > 1)
-                {
-                    Array.Sort(order, s, e - s);
-                }
-
-                s = e;
-            }
-
-            for (int p = 0; p < n; p++)
-            {
-                ref readonly PdfTextGlyph src = ref g[order[p]];
-                o[p] = new Origin { E = keys[p], F = src.Matrix.F, Size = src.Size, Idx = order[p] };
-            }
+            int[] order = SortByX(k0, i0, k1, i1, n, out _);
 
             bool any = false;
             for (int p = 0; p < n; p++)
             {
-                int i = o[p].Idx;
-                double size = o[p].Size;
+                int i = order[p];
+                double size = es[i];
                 double tol = LayoutParameters.DuplicateOffsetEm * size;
                 for (int q = p + 1, steps = 0; q < n && steps < 32; q++, steps++)
                 {
-                    if (o[q].E - o[p].E > tol)
+                    int j = order[q];
+                    if (ex[j] - ex[i] > tol)
                     {
                         break;
                     }
 
                     // Cheapest test first; all of them must hold.
-                    if (Math.Abs(o[q].F - o[p].F) > tol)
+                    if (Math.Abs(ef[j] - ef[i]) > tol)
                     {
                         continue;
                     }
 
-                    int j = o[q].Idx;
                     if (g[i].Text.Length == 0 || g[i].Text != g[j].Text || g[i].IsVertical != g[j].IsVertical)
                     {
                         continue;
                     }
 
-                    if (Math.Abs(o[q].Size - size) > 0.05 * size)
+                    if (Math.Abs(es[j] - size) > 0.05 * size)
                     {
                         continue;
                     }
@@ -342,10 +385,116 @@ internal static class GlyphPrep
         }
         finally
         {
-            ArrayPool<double>.Shared.Return(keys);
-            ArrayPool<int>.Shared.Return(order);
-            ArrayPool<Origin>.Shared.Return(o);
+            ArrayPool<ulong>.Shared.Return(k0);
+            ArrayPool<ulong>.Shared.Return(k1);
+            ArrayPool<int>.Shared.Return(i0);
+            ArrayPool<int>.Shared.Return(i1);
             ArrayPool<bool>.Shared.Return(drop);
         }
+    }
+
+    /// <summary>A key whose unsigned order is the numeric order of a finite double (−0 and +0 equal).</summary>
+    private static ulong SortableBits(double v)
+    {
+        long bits = BitConverter.DoubleToInt64Bits(v + 0.0);
+        return bits < 0 ? ~(ulong)bits : (ulong)bits | 0x8000_0000_0000_0000UL;
+    }
+
+    /// <summary>
+    /// Orders indices by key, equal keys by index: three stable radix passes over the top 33 bits (about 1e-4 of a point at page
+    /// coordinates), then an insertion pass that settles the few elements whose top bits agree. Returns the array holding the order.
+    /// </summary>
+    private static int[] SortByX(ulong[] k0, int[] i0, ulong[] k1, int[] i1, int n, out ulong[] keys)
+    {
+        Span<int> count = stackalloc int[2048];
+        ulong[] ks = k0, kd = k1;
+        int[] ids = i0, idd = i1;
+        for (int shift = 31; shift < 64; shift += 11)
+        {
+            count.Clear();
+            for (int i = 0; i < n; i++)
+            {
+                count[(int)((ks[i] >> shift) & 2047)]++;
+            }
+
+            if (count[(int)((ks[0] >> shift) & 2047)] == n)
+            {
+                continue; // every key shares this digit
+            }
+
+            int sum = 0;
+            for (int b = 0; b < 2048; b++)
+            {
+                int c = count[b];
+                count[b] = sum;
+                sum += c;
+            }
+
+            for (int i = 0; i < n; i++)
+            {
+                int d = (int)((ks[i] >> shift) & 2047);
+                int at = count[d]++;
+                kd[at] = ks[i];
+                idd[at] = ids[i];
+            }
+
+            (ks, kd) = (kd, ks);
+            (ids, idd) = (idd, ids);
+        }
+
+        // Within a group that agrees on the top bits the order is not settled yet. Most groups hold one or two elements; a large group
+        // (many glyphs at almost the same x) is sorted properly so hostile input cannot make this quadratic.
+        for (int s = 0; s < n;)
+        {
+            ulong top = ks[s] >> 31;
+            int e = s + 1;
+            while (e < n && (ks[e] >> 31) == top)
+            {
+                e++;
+            }
+
+            if (e - s > 24)
+            {
+                Array.Sort(ks, ids, s, e - s);
+                for (int a = s; a < e;)
+                {
+                    int z = a + 1;
+                    while (z < e && ks[z] == ks[a])
+                    {
+                        z++;
+                    }
+
+                    if (z - a > 1)
+                    {
+                        Array.Sort(ids, a, z - a);
+                    }
+
+                    a = z;
+                }
+            }
+            else
+            {
+                for (int i = s + 1; i < e; i++)
+                {
+                    ulong key = ks[i];
+                    int id = ids[i];
+                    int j = i - 1;
+                    while (j >= s && (ks[j] > key || (ks[j] == key && ids[j] > id)))
+                    {
+                        ks[j + 1] = ks[j];
+                        ids[j + 1] = ids[j];
+                        j--;
+                    }
+
+                    ks[j + 1] = key;
+                    ids[j + 1] = id;
+                }
+            }
+
+            s = e;
+        }
+
+        keys = ks;
+        return ids;
     }
 }

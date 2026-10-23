@@ -1,3 +1,4 @@
+using System.Buffers;
 using System.Runtime.ExceptionServices;
 using System.Text;
 
@@ -64,8 +65,20 @@ public sealed class PdfTextExtractor
             throw new ArgumentOutOfRangeException(nameof(pageIndex));
         }
 
+        return ExtractPageCore(pageIndex, cancellationToken);
+    }
+
+    private PdfPageText ExtractPageCore(int pageIndex, CancellationToken cancellationToken)
+    {
         StructureOrder? structure = Structure(cancellationToken);
-        return AnalyzeCore(_source.GetPage(pageIndex, cancellationToken), _options, structure?.ForPage(pageIndex), structure is not null, cancellationToken);
+        PdfPageText result = AnalyzeCore(_source.GetPage(pageIndex, cancellationToken), _options, structure?.ForPage(pageIndex), structure is not null, cancellationToken);
+        if (!_options.RetainGlyphs)
+        {
+            // Glyphs are the bulk of a result; letting go of them page by page keeps a long document's heap small.
+            result.DropGlyphs();
+        }
+
+        return result;
     }
 
     /// <summary>Extracts every page, in parallel (see <see cref="PdfTextOptions.MaxDegreeOfParallelism"/>), and flags headers and footers by their repetition.</summary>
@@ -80,14 +93,14 @@ public sealed class PdfTextExtractor
         {
             for (int i = 0; i < n; i++)
             {
-                pages[i] = ExtractPage(i, cancellationToken);
+                pages[i] = ExtractPageCore(i, cancellationToken);
             }
         }
         else
         {
             try
             {
-                Parallel.For(0, n, new ParallelOptions { MaxDegreeOfParallelism = dop, CancellationToken = cancellationToken }, i => pages[i] = ExtractPage(i, cancellationToken));
+                Parallel.For(0, n, new ParallelOptions { MaxDegreeOfParallelism = dop, CancellationToken = cancellationToken }, i => pages[i] = ExtractPageCore(i, cancellationToken));
             }
             catch (AggregateException ae) when (ae.InnerExceptions.Count > 0)
             {
@@ -123,7 +136,33 @@ public sealed class PdfTextExtractor
 
     internal static PdfPageText AnalyzeCore(PdfPageGlyphs page, PdfTextOptions o, PageStructure? structure, bool tagged, CancellationToken ct)
     {
-        PdfTextGlyph[] g = GlyphPrep.Prepare(page, o, ct);
+        // Without retained glyphs and with reading-order text, nothing needs the glyph array once the blocks exist: it comes from the
+        // pool and goes back to it, instead of becoming a large object per page.
+        bool pooled = !o.RetainGlyphs && o.Mode == PdfTextMode.ReadingOrder && !(tagged && o.UseStructureTree);
+        PdfTextGlyph[] g;
+        int count;
+        try
+        {
+            g = GlyphPrep.Prepare(page, o, pooled, out count, ct);
+        }
+        finally
+        {
+            page.Release();
+        }
+
+        if (pooled)
+        {
+            try
+            {
+                List<PdfTextBlock> found = TextLayout.RunAll(g, count, ct);
+                return PdfPageText.WithoutGlyphs(page.PageIndex, page.Width, page.Height, found.ToArray(), [], o);
+            }
+            finally
+            {
+                ArrayPool<PdfTextGlyph>.Shared.Return(g, clearArray: true);
+            }
+        }
+
         List<PdfDiagnostic> diag = [];
         List<PdfTextBlock>? blocks = null;
         bool used = false;

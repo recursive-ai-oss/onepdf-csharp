@@ -123,20 +123,21 @@ internal sealed class CMap
     /// <summary>True when the map (or a parent) maps codes to Unicode.</summary>
     public bool HasUnicodeMappings => UnicodeEntryCount > 0 || (UseCMap?.HasUnicodeMappings ?? false);
 
-    /// <summary>All codespace ranges, this map's first, then the parents'.</summary>
-    public IEnumerable<CodespaceRange> CodespaceRanges
+    private CodespaceRange[]? _allCodespace;
+
+    /// <summary>All codespace ranges, this map's first, then the parents'. Built on first use and cached (the parent link is set while the map is being built, before any lookup).</summary>
+    public CodespaceRange[] CodespaceRanges => _allCodespace ??= BuildAllCodespace();
+
+    private CodespaceRange[] BuildAllCodespace()
     {
-        get
+        List<CodespaceRange> all = [];
+        CMap? m = this;
+        for (int depth = 0; m is not null && depth < MaxParentDepth; depth++, m = m.UseCMap)
         {
-            CMap? m = this;
-            for (int depth = 0; m is not null && depth < MaxParentDepth; depth++, m = m.UseCMap)
-            {
-                foreach (CodespaceRange r in m._codespace)
-                {
-                    yield return r;
-                }
-            }
+            all.AddRange(m._codespace);
         }
+
+        return all.ToArray();
     }
 
     /// <summary>

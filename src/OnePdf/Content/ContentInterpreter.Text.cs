@@ -204,6 +204,25 @@ internal sealed partial class ContentInterpreter
     private void SelectFont(string name, double size)
     {
         _g.FontSize = size;
+
+        // Content selects the same few fonts over and over; remember the answer per resource dictionary so the lookups through the
+        // resolver happen once per name.
+        Dictionary<string, FontInfo>? byName = null;
+        if (_res is not null)
+        {
+            if (!_fontsByResources.TryGetValue(_res, out byName))
+            {
+                byName = [];
+                _fontsByResources[_res] = byName;
+            }
+
+            if (byName.TryGetValue(name, out FontInfo? known))
+            {
+                _g.Font = known;
+                return;
+            }
+        }
+
         PdfDictionary? fonts = _res?.GetDictionary("Font");
         PdfObject? raw = fonts?.GetRaw(name);
         PdfDictionary? dict = fonts?.GetDictionary(name);
@@ -213,7 +232,12 @@ internal sealed partial class ContentInterpreter
             Report(PdfSeverity.Warning, "Font /" + name + " is not in the resources; a default font is used.");
         }
 
-        _g.Font = GetFont(name, dict, raw as PdfReference);
+        FontInfo chosen = GetFont(name, dict, raw as PdfReference);
+        _g.Font = chosen;
+        if (dict is not null && byName is not null)
+        {
+            byName[name] = chosen;
+        }
     }
 
     private FontInfo GetFont(string name, PdfDictionary? dict, PdfReference? reference)
@@ -311,6 +335,7 @@ internal sealed partial class ContentInterpreter
         PdfFont font = fi.Font;
         bool vertical = font.WMode == 1;
         bool type3 = font.IsType3;
+        bool keepFontGlyphs = type3 && _options.GlyphOutlines;
         bool outlines = _options.GlyphOutlines && !type3 && _g.RenderMode != 3 && _hidden == 0;
         double fs = _g.FontSize, tc = _g.CharSpace, tw = _g.WordSpace, th = _g.HorizScale;
         double x = 0, y = 0;
@@ -362,7 +387,11 @@ internal sealed partial class ContentInterpreter
                 x += ((w * fs) + spacing) * th;
             }
 
-            _fontGlyphs[count] = g;
+            if (keepFontGlyphs)
+            {
+                _fontGlyphs[count] = g; // only Type 3 glyph procedures read these back
+            }
+
             count++;
             pos = next;
             if (count == MaxGlyphsPerRun || pos >= s.Length)

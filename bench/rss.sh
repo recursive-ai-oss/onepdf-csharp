@@ -37,4 +37,5 @@ for e in onepdf pdfpig; do
   done
 done
 for f in vector-page text-page; do run onepdf interpret $f 1; done
+for d in 1 default; do run onepdf text-glyphs born-300 $d; done   # information: glyphs kept in the result
 for e in pdfium mutool; do for f in born-300 scan-ocr cjk; do run $e text $f 1; done; done
