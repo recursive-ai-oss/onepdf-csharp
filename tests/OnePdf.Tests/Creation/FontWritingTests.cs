@@ -241,4 +241,81 @@ public class FontWritingTests
 
         Assert.True(drawn >= parsed.GlyphCount - 3, $"{drawn} of {parsed.GlyphCount}");
     }
+
+    private static byte[] Seed(byte[] head, byte[] font) => [.. head, .. font];
+
+    [Fact]
+    public void MutatedFontsOnlyThrowTypedErrors()
+    {
+        var seeds = new List<byte[]>
+        {
+            Seed([0, 1, 2, 3, 4, 5, 6, 7, 8], SyntheticFont.Build()),
+            Seed([1, 8, 7, 6, 5, 4, 3, 2, 1], SyntheticFont.Build()),
+        };
+        byte[]? lib = CreationSupport.Font("LiberationMono-Regular.ttf");
+        if (lib is not null)
+        {
+            seeds.Add(Seed([0, 10, 20, 30, 40, 50, 60, 70, 80], lib));
+        }
+
+        var rnd = new Random(39);
+        var sw = System.Diagnostics.Stopwatch.StartNew();
+        int runs = 0;
+        while (sw.ElapsedMilliseconds < 5000)
+        {
+            byte[] input = [.. seeds[rnd.Next(seeds.Count)]];
+            int edits = 1 + rnd.Next(6);
+            for (int e = 0; e < edits; e++)
+            {
+                int at = rnd.Next(input.Length);
+                // Bias toward the table directory and the small tables at the front of the font.
+                if (rnd.Next(2) == 0)
+                {
+                    at = 9 + rnd.Next(Math.Min(input.Length - 9, 400));
+                }
+
+                switch (rnd.Next(3))
+                {
+                    case 0: input[at] = (byte)rnd.Next(256); break;
+                    case 1: input[at] ^= (byte)(1 << rnd.Next(8)); break;
+                    default: input[at] = rnd.Next(2) == 0 ? (byte)0xFF : (byte)0; break;
+                }
+            }
+
+            OnePdf.Fuzz.FontSubsetTarget.Run(input);
+            runs++;
+        }
+
+        Assert.True(runs > 20, "runs: " + runs);
+    }
+
+    [Fact]
+    public void NameKeyedCffBecomesACidKeyedSubset()
+    {
+        string? path = Fonts.FontEnv.SystemFonts(".otf").FirstOrDefault(p => p.EndsWith("NimbusMonoPS-Regular.otf", StringComparison.Ordinal));
+        if (path is null)
+        {
+            Assert.Skip("NimbusMonoPS-Regular.otf is not installed.");
+        }
+
+        byte[] font = File.ReadAllBytes(path!);
+        const string text = "Hello, World! 123 {}[]";
+        byte[] pdf = DrawAndSave(font, text, new PdfEmbedFontOptions { IgnoreEmbeddingRestrictions = true });
+        Assert.Equal(text, CreationSupport.Normalize(CreationSupport.AllText(pdf)));
+        using PdfDocument back = PdfDocument.Open(pdf);
+        PdfDictionary fonts = back.Pages[0].Resources.GetDictionary("Font")!;
+        PdfDictionary type0 = fonts.GetDictionary(fonts.Keys.First())!;
+        PdfDictionary cid = (PdfDictionary)((PdfArray)type0.Get("DescendantFonts")!)[0]!;
+        byte[] cff = cid.GetDictionary("FontDescriptor")!.GetStream("FontFile3")!.GetDecodedBytes().ToArray();
+        var parsed = new CffFont(cff);
+        Assert.True(parsed.IsCidKeyed);
+        var original = SfntFont.Parse(font, 0);
+        // The glyph drawn for 'H' has the original outline.
+        int origGid = original.FindUnicodeCmap()!.Lookup('H');
+        GlyphOutline want = original.GetOutline(origGid);
+        GlyphOutline got = parsed.GetOutline(1); // first glyph used
+        Assert.Equal(want.Verbs, got.Verbs);
+        Assert.Equal(want.Coords, got.Coords);
+        Assert.True(cff.Length < font.Length / 3, $"{cff.Length} of {font.Length}");
+    }
 }

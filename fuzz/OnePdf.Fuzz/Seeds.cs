@@ -170,6 +170,29 @@ internal static class Seeds
                     break;
                 }
 
+            case "fontsubset":
+                // Option byte, eight picks, then the font: the generated test fonts' shape comes from the cut-out PDF fonts and any system fonts.
+                foreach (byte[] font in ExtractFromPdfs(pdfs, FontFiles))
+                {
+                    PutData("pdffont", font, [0, 1, 2, 3, 4, 5, 6, 7, 8]);
+                    PutData("pdffont-whole", font, [1, 9, 8, 7, 6, 5, 4, 3, 2]);
+                }
+
+                if (fontDir is not null && Directory.Exists(fontDir))
+                {
+                    foreach (string f in Directory.EnumerateFiles(fontDir, "*.*", SearchOption.AllDirectories)
+                                 .Where(static f => f.EndsWith(".ttf", StringComparison.OrdinalIgnoreCase) || f.EndsWith(".otf", StringComparison.OrdinalIgnoreCase))
+                                 .Order(StringComparer.Ordinal).Take(6))
+                    {
+                        if (new FileInfo(f).Length <= 260_000)
+                        {
+                            PutData("sysfont", File.ReadAllBytes(f), [0, 10, 20, 30, 40, 50, 60, 70, 80]);
+                        }
+                    }
+                }
+
+                break;
+
             case "fontprogram":
                 foreach (byte[] font in ExtractFromPdfs(pdfs, FontFiles))
                 {
