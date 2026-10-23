@@ -205,10 +205,14 @@ internal static class FontSupport
                 }
 
                 FontProgram p = ParseSubstitute(sub);
-                if (SharedPrograms.Count < MaxSharedPrograms)
+                // Full: start over rather than stop caching, so a machine with many installed fonts (each looked up once)
+                // cannot lock the bundled substitutes out of the cache.
+                if (SharedPrograms.Count >= MaxSharedPrograms)
                 {
-                    SharedPrograms[sub.CacheKey] = p;
+                    SharedPrograms.Clear();
                 }
+
+                SharedPrograms[sub.CacheKey] = p;
 
                 return p;
             }
