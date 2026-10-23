@@ -10,6 +10,26 @@ public sealed partial class PdfDocument
     private ConcurrentDictionary<int, PdfObject>? _pinned;
     private readonly HashSet<int> _dirty = [];
     private int _nextObjectNumber;
+    private int _maxReferenced;
+
+    /// <summary>
+    /// Notes that an object read so far points at object <paramref name="number"/>. New objects never take a number that is pointed
+    /// at but not defined: a dangling reference would otherwise start to resolve to whatever was added under that number.
+    /// </summary>
+    internal void NoteReference(int number)
+    {
+        int seen = Volatile.Read(ref _maxReferenced);
+        while (number > seen)
+        {
+            int was = Interlocked.CompareExchange(ref _maxReferenced, number, seen);
+            if (was == seen)
+            {
+                break;
+            }
+
+            seen = was;
+        }
+    }
 
     /// <summary>
     /// True when the document was opened with <see cref="PdfOpenOptions.AllowEditing"/>. Only then can objects be changed.
@@ -103,6 +123,17 @@ public sealed partial class PdfDocument
         int n;
         lock (_dirty)
         {
+            if (_nextObjectNumber >= Limits.MaxObjects)
+            {
+                throw new PdfLimitException($"The document would have more than {Limits.MaxObjects} objects.");
+            }
+
+            int referenced = Volatile.Read(ref _maxReferenced);
+            if (referenced < Limits.MaxObjects && _nextObjectNumber <= referenced)
+            {
+                _nextObjectNumber = referenced + 1;
+            }
+
             if (_nextObjectNumber >= Limits.MaxObjects)
             {
                 throw new PdfLimitException($"The document would have more than {Limits.MaxObjects} objects.");

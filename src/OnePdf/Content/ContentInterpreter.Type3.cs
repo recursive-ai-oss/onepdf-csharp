@@ -154,7 +154,15 @@ internal sealed partial class ContentInterpreter
             _compat = 0;
             _noColor = false;
             _inCharProc = true;
-            Execute(new ContentLexer(data, _limits.MaxNestingDepth));
+            _tapSuspended++;
+            try
+            {
+                Execute(new ContentLexer(data, _limits.MaxNestingDepth));
+            }
+            finally
+            {
+                _tapSuspended--;
+            }
         }
         finally
         {

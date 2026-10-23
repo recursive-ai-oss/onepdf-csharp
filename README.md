@@ -203,6 +203,19 @@ catch (PdfFormatException e) { Console.WriteLine(e.Message); }
   first 16 MiB, nesting 256, 2^23 objects, 2^24 operators per page, 2^28 image pixels). `PdfLimits.Unrestricted` turns them off.
   Wall-clock limits are yours: pass a `CancellationToken`.
 
+## Redaction
+
+`doc.Redact(regions, options)` removes the glyphs, paths, image samples, annotations and form values under given areas by
+rewriting the content, so extraction and a byte search of the saved file find nothing of them. Pages it cannot read completely
+fail the call and leave the document unchanged. What is and is not covered is in
+[redaction](https://github.com/recursive-ai-oss/onepdf-csharp/blob/main/docs/redaction.md).
+
+```csharp
+using PdfDocument doc = PdfDocument.Open("in.pdf", new PdfOpenOptions { AllowEditing = true });
+doc.Redact([new PdfRedactionRegion(0, new PdfRectangle(72, 600, 300, 620))], new PdfRedactionOptions { Overlay = new PdfRedactionOverlay() });
+doc.Save("out.pdf");
+```
+
 ## Security
 
 **OnePDF never runs code or touches the network.** JavaScript, actions and URIs in a document are data that you can read, never
@@ -212,7 +225,7 @@ local system fonts. The code is safe C# with no `unsafe`, `Unsafe.*` or `MemoryM
 
 ## What it does not do
 
-- **No redaction yet**, no PDF/A validator or converter (existing files are checked and refused, never rewritten into conformance), and no long-term validation data (`/DSS`, PAdES B-LT/B-LTA) when signing. Field scripts are never run, so calculated fields are not recomputed. New text is laid out
+- No PDF/A validator or converter (existing files are checked and refused, never rewritten into conformance), and no long-term validation data (`/DSS`, PAdES B-LT/B-LTA) when signing. Field scripts are never run, so calculated fields are not recomputed. New text is laid out
   without a shaping engine, so complex scripts (Arabic, Indic and similar) are not shaped.
 - **It does not render pixels.** OnePDF resolves a page into drawing calls; a 2D engine paints them. Rasterizing is planned as a
   separate package, `RecursiveAI.OneImage.Pdf`, built on [OneImage](https://github.com/recursive-ai-oss/oneimage-csharp); it is
