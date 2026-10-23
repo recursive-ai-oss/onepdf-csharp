@@ -4,6 +4,11 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ## [1.6.0] - 2026-10-23
 
+### Highlights
+
+- True redaction: text, paths, images, annotations and metadata under given areas are removed from the file, not covered.
+- Reading order on multi-column pages: the reading-order error on the real-world multi-column category drops from 16.8 % to 7.6 % (PdfPig, best of its pipelines: 16.8 %); overall from 15.2 % to 14.0 %.
+
 ### Added
 
 - True redaction. `PdfDocument.Redact` removes glyphs, vector paths, shadings and image samples inside given areas by rewriting page, form and annotation-appearance content (remaining glyphs keep their places), blanks and re-encodes images as Flate, removes or redacts annotations and form values under the areas, strips alternate text and structure text of the removed content, and clears metadata (Info, XMP, outline titles) that matches given terms. `ApplyRedactAnnotations` applies the `/Redact` annotations in a file. A page that cannot be read completely fails the call with `PdfRedactionException` and leaves the document unchanged. A `redact` fuzz target covers it. See `docs/redaction.md`.
