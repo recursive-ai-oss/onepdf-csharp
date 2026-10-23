@@ -45,4 +45,4 @@ Peak memory, one fresh process per row under `/usr/bin/time -v`:
 
     bench/rss.sh $SCRATCH/rss.csv         # also: dotnet OnePdf.Benchmarks.dll rss <engine> <row> <input> [1|default]
 
-The `rss` figure includes the .NET runtime baseline (the same for every engine) and is one cold run per row. Record `uptime` and the SDK and runtime versions beside any numbers; they are local measurements on a shared machine.
+The `rss` figure includes the .NET runtime baseline (the same for every engine) and is one cold run per row. Record `uptime` (load) and the SDK and runtime versions beside any numbers, and run on an otherwise idle machine: timings taken while other heavy jobs run are not comparable.
