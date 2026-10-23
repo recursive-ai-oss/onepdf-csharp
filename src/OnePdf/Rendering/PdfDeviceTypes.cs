@@ -239,10 +239,10 @@ public readonly struct PdfImage
     public bool IsInline => Stream is null;
 
     /// <summary>
-    /// The data as stored, still encoded (filters not applied): the inline bytes, or the XObject's raw bytes. Empty when
-    /// the stream is external or damaged.
+    /// The data as stored, still encoded (filters not applied): the inline bytes, or the XObject's bytes with the document's
+    /// encryption removed. Empty when the stream is external or damaged.
     /// </summary>
-    public ReadOnlyMemory<byte> GetEncodedData() => Stream is null ? InlineData : Stream.GetRawBytes();
+    public ReadOnlyMemory<byte> GetEncodedData() => Stream is null ? InlineData : Stream.GetStoredBytes(Stream.FilterNames);
 
     /// <summary>
     /// The finished image: samples in a final colour space with every PDF rule applied (<c>/Decode</c>, masks, colour keys,

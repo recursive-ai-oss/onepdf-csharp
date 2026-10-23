@@ -16,9 +16,114 @@ public sealed class PdfDictionary : PdfObject
     private PdfObject[] _vals = [];
     private int _n;
     private Dictionary<string, int>? _index;
-    private readonly PdfResolver? _resolver;
+    private PdfResolver? _resolver;
 
     internal PdfDictionary(PdfResolver? resolver) => _resolver = resolver;
+
+    /// <summary>
+    /// Creates an empty dictionary that belongs to no document yet. References stored in it do not resolve (getters return
+    /// null for them) until it is added to a document, directly with <see cref="PdfDocument.AddObject"/> or by being set into
+    /// an object that already is.
+    /// </summary>
+    public PdfDictionary()
+    {
+    }
+
+    internal PdfResolver? Resolver
+    {
+        get => _resolver;
+        set => _resolver = value;
+    }
+
+    internal int RawCount => _n;
+
+    internal void SetLengthInternal(long length) => Set("Length", new PdfInteger(length));
+
+    /// <summary>Removes an entry without the checks of <see cref="RemoveEntry"/> (for dictionaries the writer builds itself).</summary>
+    internal void Remove(string key)
+    {
+        int at = IndexOfKey(key);
+        if (at < 0)
+        {
+            return;
+        }
+
+        for (int i = at; i < _n - 1; i++)
+        {
+            _keys[i] = _keys[i + 1];
+            _vals[i] = _vals[i + 1];
+        }
+
+        _n--;
+        _index = null;
+        if (_n > IndexThreshold)
+        {
+            _index = new Dictionary<string, int>(_n * 2, StringComparer.Ordinal);
+            for (int i = 0; i < _n; i++)
+            {
+                _index[_keys[i]] = i;
+            }
+        }
+    }
+
+    internal string KeyAt(int i) => _keys[i];
+
+    internal PdfObject ValueAt(int i) => _vals[i];
+
+    /// <summary>
+    /// Sets <paramref name="key"/> to <paramref name="value"/>, replacing an existing entry in place; null (or the null object)
+    /// removes the entry. An object that is already an indirect object of a document is stored as a reference to it; a stream
+    /// that is not yet part of a document is added to this dictionary's document and stored as a reference.
+    /// </summary>
+    /// <exception cref="InvalidOperationException">The dictionary was read from a document that was not opened with <see cref="PdfOpenOptions.AllowEditing"/>, or from an earlier revision.</exception>
+    /// <exception cref="ArgumentException">The value belongs to another document, or is a stream that cannot be added.</exception>
+    public void SetEntry(string key, PdfObject? value)
+    {
+        ArgumentNullException.ThrowIfNull(key);
+        EditSupport.EnsureEditable(_resolver);
+        if (value is null or PdfNull)
+        {
+            RemoveEntry(key);
+            return;
+        }
+
+        value = EditSupport.Prepare(value, _resolver, OwnerPlusOne - 1);
+        Set(key, value);
+        EditSupport.MarkDirty(_resolver, OwnerPlusOne - 1);
+    }
+
+    /// <summary>Removes <paramref name="key"/>; returns false when it was not there. See <see cref="SetEntry"/> for the exceptions.</summary>
+    public bool RemoveEntry(string key)
+    {
+        ArgumentNullException.ThrowIfNull(key);
+        EditSupport.EnsureEditable(_resolver);
+        int at = IndexOfKey(key);
+        if (at < 0)
+        {
+            return false;
+        }
+
+        for (int i = at; i < _n - 1; i++)
+        {
+            _keys[i] = _keys[i + 1];
+            _vals[i] = _vals[i + 1];
+        }
+
+        _n--;
+        _keys[_n] = null!;
+        _vals[_n] = null!;
+        if (_index is not null)
+        {
+            _index.Clear();
+            for (int i = 0; i < _n; i++)
+            {
+                _index[_keys[i]] = i;
+            }
+        }
+
+        EditSupport.MarkDirty(_resolver, OwnerPlusOne - 1);
+        return true;
+    }
 
     /// <summary>Number of entries.</summary>
     public int Count => _n;
@@ -168,9 +273,58 @@ public sealed class PdfDictionary : PdfObject
 public sealed class PdfArray : PdfObject
 {
     private readonly List<PdfObject> _items = [];
-    private readonly PdfResolver? _resolver;
+    private PdfResolver? _resolver;
 
     internal PdfArray(PdfResolver? resolver) => _resolver = resolver;
+
+    /// <summary>Creates an empty array that belongs to no document yet (see <see cref="PdfDictionary()"/>).</summary>
+    public PdfArray()
+    {
+    }
+
+    internal PdfResolver? Resolver
+    {
+        get => _resolver;
+        set => _resolver = value;
+    }
+
+    /// <summary>Appends <paramref name="value"/>; a null becomes the null object. Indirect objects are stored as references, as in <see cref="PdfDictionary.SetEntry"/>, which also lists the exceptions.</summary>
+    public void Append(PdfObject? value) => Insert(_items.Count, value);
+
+    /// <summary>Inserts <paramref name="value"/> before <paramref name="index"/> (0 to <see cref="Count"/>). See <see cref="Append"/>.</summary>
+    public void Insert(int index, PdfObject? value)
+    {
+        EditSupport.EnsureEditable(_resolver);
+        ArgumentOutOfRangeException.ThrowIfGreaterThan((uint)index, (uint)_items.Count);
+        _items.Insert(index, EditSupport.Prepare(value ?? PdfNull.Instance, _resolver, OwnerPlusOne - 1));
+        EditSupport.MarkDirty(_resolver, OwnerPlusOne - 1);
+    }
+
+    /// <summary>Replaces the element at <paramref name="index"/>. See <see cref="Append"/>.</summary>
+    public void SetItem(int index, PdfObject? value)
+    {
+        EditSupport.EnsureEditable(_resolver);
+        ArgumentOutOfRangeException.ThrowIfGreaterThanOrEqual((uint)index, (uint)_items.Count);
+        _items[index] = EditSupport.Prepare(value ?? PdfNull.Instance, _resolver, OwnerPlusOne - 1);
+        EditSupport.MarkDirty(_resolver, OwnerPlusOne - 1);
+    }
+
+    /// <summary>Removes the element at <paramref name="index"/>.</summary>
+    public void RemoveAt(int index)
+    {
+        EditSupport.EnsureEditable(_resolver);
+        ArgumentOutOfRangeException.ThrowIfGreaterThanOrEqual((uint)index, (uint)_items.Count);
+        _items.RemoveAt(index);
+        EditSupport.MarkDirty(_resolver, OwnerPlusOne - 1);
+    }
+
+    /// <summary>Removes every element.</summary>
+    public void Clear()
+    {
+        EditSupport.EnsureEditable(_resolver);
+        _items.Clear();
+        EditSupport.MarkDirty(_resolver, OwnerPlusOne - 1);
+    }
 
     /// <summary>Number of elements.</summary>
     public int Count => _items.Count;

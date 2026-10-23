@@ -90,6 +90,14 @@ public sealed record PdfOpenOptions
 
     /// <summary>For stream sources: leave the stream open when the document is disposed. Default false.</summary>
     public bool LeaveOpen { get; init; }
+
+    /// <summary>
+    /// Opens the document for changing: its objects can then be modified, added and removed, and saved with
+    /// <see cref="PdfDocument.Save(Stream, PdfSaveOptions?, CancellationToken)"/> or <see cref="PdfDocument.SaveIncremental(Stream, PdfSaveOptions?, CancellationToken)"/>.
+    /// Every object that is read stays in memory for the life of the document, so the object cache budget no longer bounds memory.
+    /// Default false: a document opened without it is read-only and thread-safe as always (it can still be saved unchanged).
+    /// </summary>
+    public bool AllowEditing { get; init; }
 }
 
 /// <summary>How serious a <see cref="PdfDiagnostic"/> is.</summary>
