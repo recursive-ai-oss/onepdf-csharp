@@ -12,6 +12,7 @@
   </Folder>
   <Folder Name="/tools/">
     <Project Path="tools/OnePdf.Quality/OnePdf.Quality.csproj" />
+    <Project Path="tools/OnePdf.Opens/OnePdf.Opens.csproj" />
   </Folder>
   <Folder Name="/fuzz/">
     <Project Path="fuzz/OnePdf.Fuzz/OnePdf.Fuzz.csproj" />

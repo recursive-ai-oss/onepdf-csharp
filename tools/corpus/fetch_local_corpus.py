@@ -13,7 +13,7 @@ Layout under CACHE_DIR:
 Pins live in local-corpus.lock.json next to this script. A SafeDocs entry with a null
 sha256 is trusted on first download: the hash is computed and written back to the lock,
 and every later fetch must match it. The zips are deleted after extraction.
-Requires: python3, curl, git.
+Requires: python3, curl, and git (or tar, which takes the pinned veraPDF commit as a tarball).
 """
 import hashlib, json, os, shutil, subprocess, sys, time, zipfile
 
@@ -101,12 +101,22 @@ def main():
 
     vp = lock["verapdf"]
     vdir = os.path.join(root, "verapdf-corpus")
-    if not os.path.isdir(os.path.join(vdir, ".git")):
-        run("git", "clone", "--quiet", vp["url"], vdir)
-    head = subprocess.run(["git", "-C", vdir, "rev-parse", "HEAD"], capture_output=True, text=True, check=True).stdout.strip()
-    if head != vp["commit"]:
-        run("git", "-C", vdir, "fetch", "--quiet", "origin", vp["commit"])
-        run("git", "-C", vdir, "checkout", "--quiet", vp["commit"])
+    if shutil.which("git"):
+        if not os.path.isdir(os.path.join(vdir, ".git")):
+            run("git", "clone", "--quiet", vp["url"], vdir)
+        head = subprocess.run(["git", "-C", vdir, "rev-parse", "HEAD"], capture_output=True, text=True, check=True).stdout.strip()
+        if head != vp["commit"]:
+            run("git", "-C", vdir, "fetch", "--quiet", "origin", vp["commit"])
+            run("git", "-C", vdir, "checkout", "--quiet", vp["commit"])
+    elif not os.path.exists(os.path.join(vdir, ".commit")):
+        # No git on this machine: take the pinned commit as a tarball instead.
+        os.makedirs(vdir, exist_ok=True)
+        tgz = os.path.join(root, "verapdf.tar.gz")
+        run("curl", "-fsSL", "--retry", "5", "-o", tgz, vp["url"].removesuffix(".git") + "/archive/" + vp["commit"] + ".tar.gz")
+        run("tar", "-xzf", tgz, "-C", vdir, "--strip-components=1")
+        os.remove(tgz)
+        with open(os.path.join(vdir, ".commit"), "w") as f:
+            f.write(vp["commit"] + "\n")
 
     for e in lock["govdocs1"]:
         fetch_zip(e, "govdocs1", root, lock, cap)
