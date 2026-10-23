@@ -44,6 +44,12 @@ internal sealed class ByteRangeInfo
             return;
         }
 
+        if (sig.IndirectValues)
+        {
+            Fail(PdfByteRangeStatus.Malformed, "/Contents or /ByteRange is an indirect object; ISO 32000-2 12.8.1 requires direct values, so the signature is not trusted.");
+            return;
+        }
+
         IReadOnlyList<long> r = sig.ByteRange;
         if (r.Count != 4)
         {

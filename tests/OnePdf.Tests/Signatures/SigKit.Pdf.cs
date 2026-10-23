@@ -28,6 +28,24 @@ internal static class SignedPdf
         public string ExtraFieldEntries { get; init; } = string.Empty;
 
         public bool TextFields { get; init; } = true;
+
+        /// <summary>Write the page's font as its own object 11 (otherwise it is inline in the resources).</summary>
+        public bool FontObject { get; init; }
+
+        /// <summary>
+        /// Write a second, unreferenced definition of object 7 (an unused "prepared" content stream) that is not in the cross-reference
+        /// table, for the xref-switching attack.
+        /// </summary>
+        public bool PreparedContent { get; init; }
+
+        /// <summary>Extra objects (number to body) written into the signed revision, for prepared and hidden objects.</summary>
+        public IReadOnlyDictionary<int, string> ExtraObjects { get; init; } = new Dictionary<int, string>();
+
+        /// <summary>Hold the byte range in its own object 12 and refer to it, instead of a direct array.</summary>
+        public bool IndirectByteRange { get; init; }
+
+        /// <summary>Hold the contents string in its own object 13 and refer to it, instead of a direct string.</summary>
+        public bool IndirectContents { get; init; }
     }
 
     /// <summary>
@@ -51,14 +69,26 @@ internal static class SignedPdf
         Obj(1, $"<< /Type /Catalog /Pages 2 0 R /AcroForm 5 0 R{perms} >>");
         Obj(2, "<< /Type /Pages /Kids [3 0 R] /Count 1 >>");
         string annots = o.TextFields ? "4 0 R 8 0 R 9 0 R 10 0 R" : "4 0 R";
-        Obj(3, $"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 300 300] /Contents 7 0 R /Resources << /Font << /F1 << /Type /Font /Subtype /Type1 /BaseFont /Helvetica >> >> >> /Annots [{annots}] >>");
+        Obj(3, $"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 300 300] /Contents 7 0 R /Resources << /Font << /F1 {(o.FontObject ? "11 0 R" : "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>")} >> >> /Annots [{annots}] >>");
         Obj(4, $"<< /Type /Annot /Subtype /Widget /FT /Sig /T (Sig1) /Rect [10 10 100 50] /P 3 0 R /F 132 /V 6 0 R {o.ExtraFieldEntries} >>");
         string fields = o.TextFields ? "4 0 R 8 0 R 9 0 R 10 0 R" : "4 0 R";
         Obj(5, $"<< /Fields [{fields}] /SigFlags 3 /DA (/Helv 0 Tf 0 g) /DR << /Font << /Helv << /Type /Font /Subtype /Type1 /BaseFont /Helvetica >> >> >> >>");
         string reference = o.CertifyLevel is { } lvl
             ? $"/Reference [ << /Type /SigRef /TransformMethod /DocMDP /TransformParams << /Type /TransformParams /P {lvl} /V /1.2 >> >> ]"
             : string.Empty;
-        Obj(6, $"<< /Type /Sig /Filter /Adobe.PPKLite /SubFilter /{o.SubFilter} /ByteRange {RangePlaceholder} /Contents <{new string('0', ContentsBytes * 2)}> /Name (Rita RSA) /Reason (Testing) /Location (Lab) /ContactInfo (rita@example.test) /M (D:20260101120000Z) {reference} {o.ExtraSigEntries} >>");
+        string rangeValue = o.IndirectByteRange ? "12 0 R" : RangePlaceholder;
+        string contentsValue = o.IndirectContents ? "13 0 R" : $"<{new string('0', ContentsBytes * 2)}>";
+        if (o.IndirectByteRange)
+        {
+            Obj(12, RangePlaceholder);
+        }
+
+        Obj(6, $"<< /Type /Sig /Filter /Adobe.PPKLite /SubFilter /{o.SubFilter} /ByteRange {rangeValue} /Contents {contentsValue} /Name (Rita RSA) /Reason (Testing) /Location (Lab) /ContactInfo (rita@example.test) /M (D:20260101120000Z) {reference} {o.ExtraSigEntries} >>");
+        if (o.IndirectContents)
+        {
+            Obj(13, $"<{new string('0', ContentsBytes * 2)}>");
+        }
+
         const string content = "BT /F1 12 Tf 20 200 Td (Hello signed) Tj ET";
         Obj(7, $"<< /Length {content.Length} >>\nstream\n{content}\nendstream");
         if (o.TextFields)
@@ -66,6 +96,23 @@ internal static class SignedPdf
             Obj(8, "<< /Type /Annot /Subtype /Widget /FT /Tx /T (Name) /Rect [10 100 100 120] /P 3 0 R /F 4 /V (initial) /DA (/Helv 10 Tf 0 g) >>");
             Obj(9, "<< /Type /Annot /Subtype /Widget /FT /Tx /T (Other) /Rect [10 130 100 150] /P 3 0 R /F 4 /DA (/Helv 10 Tf 0 g) >>");
             Obj(10, "<< /Type /Annot /Subtype /Widget /FT /Sig /T (Sig2) /Rect [110 10 200 50] /P 3 0 R /F 132 >>");
+        }
+
+        foreach ((int n, string body) in o.ExtraObjects)
+        {
+            Obj(n, body);
+        }
+
+        if (o.FontObject)
+        {
+            Obj(11, "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>");
+        }
+
+        if (o.PreparedContent)
+        {
+            // Same object number as the real content, defined again after the table's entries were taken: only a second table can reach it.
+            const string evil = "BT /F1 12 Tf 20 200 Td (Prepared text) Tj ET";
+            sb.Append("7 0 obj\n<< /Length ").Append(evil.Length).Append(" >>\nstream\n").Append(evil).Append("\nendstream\nendobj\n");
         }
 
         int size = offsets.Keys.Max() + 1;
@@ -88,8 +135,7 @@ internal static class SignedPdf
     {
         string text = Encoding.Latin1.GetString(file);
         int rangeAt = text.LastIndexOf(RangePlaceholder, StringComparison.Ordinal);
-        int contentsAt = text.IndexOf("/Contents <", rangeAt, StringComparison.Ordinal) + "/Contents ".Length;
-        int holeStart = contentsAt;
+        int holeStart = text.IndexOf("<" + new string('0', 64), rangeAt, StringComparison.Ordinal);
         int holeEnd = text.IndexOf('>', holeStart) + 1;
         long b = holeStart;
         long c = holeEnd;
@@ -134,7 +180,7 @@ internal static class SignedPdf
     /// Appends an incremental update with these objects (full text of each, "n 0 obj ... endobj" added here). A signature placeholder
     /// among them can be signed afterwards with <see cref="Sign"/>.
     /// </summary>
-    public static byte[] Append(byte[] file, IReadOnlyDictionary<int, string> objects, int size)
+    public static byte[] Append(byte[] file, IReadOnlyDictionary<int, string> objects, int size, int root = 1)
     {
         int prev = LastStartXref(file);
         var sb = new StringBuilder();
@@ -153,7 +199,7 @@ internal static class SignedPdf
             sb.Append(n).Append(" 1\n").Append($"{off:D10} 00000 n \n");
         }
 
-        sb.Append("trailer\n<< /Size ").Append(size).Append(" /Root 1 0 R /Prev ").Append(prev).Append(" >>\nstartxref\n").Append(xref).Append("\n%%EOF\n");
+        sb.Append("trailer\n<< /Size ").Append(size).Append(" /Root ").Append(root).Append(" 0 R /Prev ").Append(prev).Append(" >>\nstartxref\n").Append(xref).Append("\n%%EOF\n");
         return [.. file, .. Encoding.Latin1.GetBytes(sb.ToString())];
     }
 
@@ -178,6 +224,23 @@ internal static class SignedPdf
             [5] = "<< /Fields [4 0 R 8 0 R 9 0 R 10 0 R 13 0 R] /SigFlags 3 /DA (/Helv 0 Tf 0 g) /DR << /Font << /Helv << /Type /Font /Subtype /Type1 /BaseFont /Helvetica >> >> >> >>",
         };
         return Sign(Append(file, objs, 14), digest => CmsKit.Timestamp(digest(HashAlgorithmName.SHA256), HashAlgorithmName.SHA256, time));
+    }
+
+    /// <summary>An update that is only a cross-reference section: it points object numbers at offsets that already hold a definition.</summary>
+    public static byte[] AppendXrefOnly(byte[] file, IReadOnlyDictionary<int, long> entries, int size)
+    {
+        int prev = LastStartXref(file);
+        var sb = new StringBuilder();
+        sb.Append('\n');
+        long xref = file.Length + sb.Length;
+        sb.Append("xref\n");
+        foreach ((int n, long off) in entries.OrderBy(static kv => kv.Key))
+        {
+            sb.Append(n).Append(" 1\n").Append($"{off:D10} 00000 n \n");
+        }
+
+        sb.Append("trailer\n<< /Size ").Append(size).Append(" /Root 1 0 R /Prev ").Append(prev).Append(" >>\nstartxref\n").Append(xref).Append("\n%%EOF\n");
+        return [.. file, .. Encoding.Latin1.GetBytes(sb.ToString())];
     }
 
     public static int LastStartXref(byte[] file)
