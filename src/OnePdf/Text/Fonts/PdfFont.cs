@@ -106,6 +106,7 @@ internal abstract class PdfFont
 
     private readonly System.Collections.Concurrent.ConcurrentDictionary<int, GlyphOutline> _outlines = new();
     private int _outlineWarned;
+    private int _programWarned;
 
     protected PdfFont(PdfDictionary dictionary, FontContext context)
     {
@@ -213,6 +214,10 @@ internal abstract class PdfFont
         try
         {
             o = p.GetOutline(gid);
+            if (p is SfntFont { GlyphProgramFailure: { } why } && Interlocked.Exchange(ref _programWarned, 1) == 0)
+            {
+                Context.Warn($"Font '{Name}': the TrueType instructions that place its composite glyphs could not be run ({why}); the glyph is drawn without them and may look wrong.");
+            }
         }
         catch (FontProgramException ex)
         {

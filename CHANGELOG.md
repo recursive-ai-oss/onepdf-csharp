@@ -2,6 +2,12 @@
 
 All notable changes are listed here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and versions follow [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Fixed
+
+- Composite glyphs of MingLiU, PMingLiU and DFKai-SB fonts (and subsets of them) were drawn with displaced or missing strokes, because their component placement is done by the font's own instructions. For fonts recognised from their names or program-table checksums, the glyph instructions now run (at one pixel per font unit, without grid fitting), in a budgeted interpreter; a failing program falls back to the plain outline with a diagnostic. All other fonts are unchanged and never execute font code. See `docs/pdf-fonts.md`.
+
 ## [1.1.0] - 2026-10-23
 
 ### Added

@@ -174,6 +174,7 @@ internal static class Seeds
                 foreach (byte[] font in ExtractFromPdfs(pdfs, FontFiles))
                 {
                     PutData("pdffont", font, [0]);
+                    PutData("pdffont5", font, [5]);
                 }
 
                 if (fontDir is not null && Directory.Exists(fontDir))
@@ -185,6 +186,7 @@ internal static class Seeds
                         if (new FileInfo(f).Length <= 400_000)
                         {
                             PutData("sysfont", File.ReadAllBytes(f), [0]);
+                            PutData("sysfont5", File.ReadAllBytes(f), [5]);
                         }
                     }
                 }
