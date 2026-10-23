@@ -2,7 +2,7 @@
 
 All notable changes are listed here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and versions follow [Semantic Versioning](https://semver.org/).
 
-## [Unreleased]
+## [1.6.0] - 2026-10-23
 
 ### Added
 
@@ -15,6 +15,7 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ### Fixed
 
+- Editable documents: a new object never takes the number of a reference that points at an undefined object, so a dangling reference no longer starts to resolve to unrelated content added later.
 - Encrypted files: the `/Contents` string of a signature dictionary (`/Type /Sig` or `/DocTimeStamp`, or any dictionary with `/ByteRange`) is no longer decrypted on read (ISO 32000-2 7.6.2), so the raw bytes, `PdfSignature.Contents` and a full save of a signed encrypted file all carry the stored signature.
 - CFF subsets (CID-keyed) write the leading ROS operands of the Top DICT in their shortest integer form, which strict readers need to recognise the Top DICT as CID-keyed (veraPDF warned "The Top DICT does not begin with ROS operator").
 - The TrueType subsetter can write a (3,1) format 4 `cmap`, and PDF/A production now subsets the Liberation faces it embeds for standard fonts (the four-font test file went from 834 KB to 112 KB) instead of embedding them whole.
@@ -129,6 +130,7 @@ First release. Two packages, `RecursiveAI.OnePdf` (the library, `net10.0`, no de
 - Limits on by default (`PdfLimits`) and fuzzed parsers, filters and font readers; no `unsafe` code. OnePDF never runs code or touches the network.
 - `RecursiveAI.OnePdf.Fonts`: Liberation and Noto substitute outlines under the SIL Open Font License 1.1, registered with `FontsPackage.Register()`.
 
+[1.6.0]: https://github.com/recursive-ai-oss/onepdf-csharp/releases/tag/v1.6.0
 [1.5.0]: https://github.com/recursive-ai-oss/onepdf-csharp/releases/tag/v1.5.0
 [1.4.0]: https://github.com/recursive-ai-oss/onepdf-csharp/releases/tag/v1.4.0
 [1.3.0]: https://github.com/recursive-ai-oss/onepdf-csharp/releases/tag/v1.3.0
