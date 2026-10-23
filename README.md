@@ -191,7 +191,7 @@ local system fonts. The code is safe C# with no `unsafe`, `Unsafe.*` or `MemoryM
   separate package, `RecursiveAI.OneImage.Pdf`, built on [OneImage](https://github.com/recursive-ai-oss/oneimage-csharp); it is
   not available yet. It will implement OnePDF's device and register PDF as an image format. OnePDF has no imaging dependency.
 - **No OCR.** Scanned pages without a text layer give no text.
-- **Missing annotation appearance streams draw nothing** and record a diagnostic; they are not generated.
+- **Missing annotation appearances are generated** for form fields and simple markup only (see [appearance generation](https://github.com/recursive-ai-oss/onepdf-csharp/blob/main/docs/appearance-generation.md)); other annotation types without one draw nothing and record a diagnostic.
 - **Public-key encryption and signatures** are not supported yet. Encrypted files need the standard handler and the BCL's AES, which
   browser WebAssembly lacks (those files fail with a typed error there).
 - Permissions are reported, not enforced.
