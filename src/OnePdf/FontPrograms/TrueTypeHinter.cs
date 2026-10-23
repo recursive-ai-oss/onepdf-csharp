@@ -18,6 +18,12 @@ internal sealed class HintAbortException : Exception
 /// budgets: instructions per program and per glyph, stack depth, call depth, loop counts, storage, CVT, twilight points and
 /// functions. Any violation aborts the program; the caller then uses the glyph's plain outline.
 /// </summary>
+/// <remarks>
+/// Shared with OneImage.Text (its <c>TrueTypeHinter</c>) and kept in step with it: a bug fixed in one is fixed in the other.
+/// The instruction semantics, the Int128 ISECT arithmetic, the overflow-safe <c>Abs</c>, the persistent twilight zone and the
+/// shared 2^20 per-glyph budget are the same code. What differs here: the namespace, the native (version 35) mode, the phantom
+/// points passed to <c>TryHint</c>, the pixel-per-unit size range, and a failure message kept for diagnostics.
+/// </remarks>
 internal sealed class TrueTypeHinter
 {
     private const int MaxInstructions = 1 << 20;
@@ -208,8 +214,14 @@ internal sealed class TrueTypeHinter
     /// </remarks>
     public bool TryHint(float[] x, float[] y, bool[] onCurve, int first, int count, ReadOnlySpan<int> contourEnds, ReadOnlySpan<byte> instructions, float phantomLeft, float phantomRight, HintBudget budget)
     {
-        if (instructions.Length == 0 || count <= 0 || count > MaxPoints || !_defaultsStored || budget.Steps <= 0)
+        if (instructions.Length == 0 || count <= 0 || count > MaxPoints || !_defaultsStored)
         {
+            return false;
+        }
+
+        if (budget.Steps <= 0)
+        {
+            budget.Exhausted = true;
             return false;
         }
 
@@ -262,6 +274,11 @@ internal sealed class TrueTypeHinter
         {
             budget.Steps -= Math.Max(1, ctx.Steps);
             budget.Failure ??= ex.Message;
+            if (budget.Steps <= 0)
+            {
+                budget.Exhausted = true;
+            }
+
             return false;
         }
 
@@ -294,6 +311,9 @@ internal sealed class TrueTypeHinter
 
         /// <summary>Why the first program that failed gave up, or null.</summary>
         public string? Failure;
+
+        /// <summary>True once the total ran out: the glyph is then drawn entirely from its plain outline. A program that fails on its own leaves only its component unhinted.</summary>
+        public bool Exhausted;
     }
 
     // ---- fixed point helpers ----
@@ -320,8 +340,8 @@ internal sealed class TrueTypeHinter
         long t = (long)a * b;
         long d = c;
         bool neg = (t < 0) != (d < 0);
-        t = t < 0 ? -t : t;
-        d = d < 0 ? -d : d;
+        t = Abs(t);
+        d = Abs(d);
         long r = (t + (d / 2)) / d;
         r = neg ? -r : r;
         return (int)Math.Clamp(r, int.MinValue, int.MaxValue);
@@ -337,15 +357,17 @@ internal sealed class TrueTypeHinter
         long t = (long)a * b;
         long d = c;
         bool neg = (t < 0) != (d < 0);
-        t = t < 0 ? -t : t;
-        d = d < 0 ? -d : d;
+        t = Abs(t);
+        d = Abs(d);
         long r = t / d;
         r = neg ? -r : r;
         return (int)Math.Clamp(r, int.MinValue, int.MaxValue);
     }
 
-    // Math.Abs throws on int.MinValue, which font code can put on the stack.
+    // Math.Abs throws on the most negative value, and font code can put that value on the stack or into a distance.
     private static int Abs(int v) => v < 0 ? unchecked(-v) : v;
+
+    private static long Abs(long v) => v < 0 ? unchecked(-v) : v;
 
     private static int FloorDiv(int a, int b) => (int)Math.Floor((double)a / b);
 
@@ -1975,19 +1997,20 @@ internal sealed class TrueTypeHinter
             Pt(_zp1, a1);
             Pt(_zp0, b0);
             Pt(_zp0, b1);
-            long dbx = _zp0.CurX[b1] - _zp0.CurX[b0];
-            long dby = _zp0.CurY[b1] - _zp0.CurY[b0];
-            long dax = _zp1.CurX[a1] - _zp1.CurX[a0];
-            long day = _zp1.CurY[a1] - _zp1.CurY[a0];
-            long dx = _zp0.CurX[b0] - _zp1.CurX[a0];
-            long dy = _zp0.CurY[b0] - _zp1.CurY[a0];
+            // Int128 throughout: coordinates are font-controlled, so products and the -1 divisor case must not overflow.
+            Int128 dbx = (long)_zp0.CurX[b1] - _zp0.CurX[b0];
+            Int128 dby = (long)_zp0.CurY[b1] - _zp0.CurY[b0];
+            Int128 dax = (long)_zp1.CurX[a1] - _zp1.CurX[a0];
+            Int128 day = (long)_zp1.CurY[a1] - _zp1.CurY[a0];
+            Int128 dx = (long)_zp0.CurX[b0] - _zp1.CurX[a0];
+            Int128 dy = (long)_zp0.CurY[b0] - _zp1.CurY[a0];
             _zp2.Tags[p] |= TouchX | TouchY;
-            long discriminant = (dax * -dby) - (day * -dbx);
-            if (discriminant != 0 && discriminant != -1)
+            Int128 discriminant = (dax * -dby) - (day * -dbx);
+            if (discriminant != 0)
             {
-                long val = (dx * -dby) - (dy * -dbx);
-                _zp2.CurX[p] = (int)(_zp1.CurX[a0] + (val * dax / discriminant));
-                _zp2.CurY[p] = (int)(_zp1.CurY[a0] + (val * day / discriminant));
+                Int128 val = (dx * -dby) - (dy * -dbx);
+                _zp2.CurX[p] = unchecked((int)(_zp1.CurX[a0] + (val * dax / discriminant)));
+                _zp2.CurY[p] = unchecked((int)(_zp1.CurY[a0] + (val * day / discriminant)));
             }
             else
             {

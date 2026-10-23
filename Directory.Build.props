@@ -43,7 +43,7 @@
     <Copyright>Copyright (c) Recursive AI, LLC</Copyright>
     <PackageLicenseExpression>MIT OR Apache-2.0</PackageLicenseExpression>
     <!-- The one place the package version lives. -->
-    <Version>1.2.0</Version>
+    <Version>1.3.0</Version>
     <RepositoryType>git</RepositoryType>
     <RepositoryUrl>https://github.com/recursive-ai-oss/onepdf-csharp</RepositoryUrl>
     <PackageProjectUrl>$(RepositoryUrl)</PackageProjectUrl>
