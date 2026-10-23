@@ -14,7 +14,7 @@ public class RetainGlyphsTests
     public void WithoutGlyphsTheTextAndWordsAreTheSame(string name, PdfTextMode mode, int degree)
     {
         using PdfDocument doc = PdfDocument.Open(TestData.Generated(name));
-        var keep = new PdfTextOptions { Mode = mode, MaxDegreeOfParallelism = degree };
+        var keep = new PdfTextOptions { Mode = mode, MaxDegreeOfParallelism = degree, RetainGlyphs = true };
         var drop = new PdfTextOptions { Mode = mode, MaxDegreeOfParallelism = degree, RetainGlyphs = false };
         IReadOnlyList<PdfPageText> a = doc.ExtractText(keep);
         IReadOnlyList<PdfPageText> b = doc.ExtractText(drop);
@@ -57,20 +57,37 @@ public class RetainGlyphsTests
     }
 
     [Fact]
-    public void WithoutGlyphsOnlyTheOptionsModeAndReadingOrderAreAvailable()
+    public void AllThreeModesWorkOnADefaultDocumentResult()
     {
         using PdfDocument doc = PdfDocument.Open(TestData.Generated("lo-report"));
-        PdfPageText page = doc.ExtractText(new PdfTextOptions { Mode = PdfTextMode.Layout, RetainGlyphs = false })[0];
-        Assert.NotEmpty(page.Text);
-        Assert.NotEmpty(page.GetText(PdfTextMode.ReadingOrder));
-        Assert.Throws<InvalidOperationException>(() => page.GetText(PdfTextMode.ContentOrder));
+        IReadOnlyList<PdfPageText> dflt = doc.ExtractText();
+        IReadOnlyList<PdfPageText> kept = doc.ExtractText(new PdfTextOptions { RetainGlyphs = true });
+        Assert.Empty(dflt[0].Glyphs);
+        foreach (PdfTextMode mode in new[] { PdfTextMode.ReadingOrder, PdfTextMode.ContentOrder, PdfTextMode.Layout })
+        {
+            for (int i = 0; i < kept.Count; i++)
+            {
+                Assert.Equal(kept[i].GetText(mode), dflt[i].GetText(mode));
+            }
+        }
+
+        Assert.Equal(kept[0].Glyphs.Count, dflt[0].ReadGlyphs().Count);
+        Assert.NotEmpty(doc.Pages[0].ExtractText().Glyphs);
+    }
+
+    [Fact]
+    public void AResultAnalyzedFromBareGlyphsCannotRecomputeOtherModes()
+    {
+        var g = new PdfPageGlyphs(0, 600, 800, []);
+        PdfPageText page = PdfTextExtractor.Analyze(g, new PdfTextOptions { RetainGlyphs = false });
+        Assert.Equal("", page.Text);
     }
 
     [Fact]
     public void HeadersAndFootersStillExcludedWithoutGlyphs()
     {
         using PdfDocument doc = PdfDocument.Open(TestData.Generated("lo-report"));
-        var keep = new PdfTextOptions { ExcludeHeadersAndFooters = true };
+        var keep = new PdfTextOptions { ExcludeHeadersAndFooters = true, RetainGlyphs = true };
         var drop = new PdfTextOptions { ExcludeHeadersAndFooters = true, RetainGlyphs = false };
         Assert.Equal(doc.ExtractText(keep).Select(p => p.Text), doc.ExtractText(drop).Select(p => p.Text));
     }

@@ -99,7 +99,7 @@ internal static class Ops
         return list.ItemCount;
     }
 
-    public static long OnePdfText(string path, int degree, string? password = null, bool retainGlyphs = false)
+    public static long OnePdfText(string path, int degree, string? password = null, bool? retainGlyphs = null)
     {
         using var doc = PdfDocument.Open(path, new PdfOpenOptions { Password = password });
         return OnePdfTextSeam.ExtractText(doc, degree, retainGlyphs);

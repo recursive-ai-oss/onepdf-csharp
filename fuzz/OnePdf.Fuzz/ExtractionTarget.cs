@@ -88,7 +88,7 @@ internal static class ExtractionTarget
             }
         }
 
-        if (o.RetainGlyphs)
+        if (o.RetainGlyphs == true)
         {
             _ = page.GetText(PdfTextMode.ContentOrder);
             _ = page.GetText(PdfTextMode.Layout);

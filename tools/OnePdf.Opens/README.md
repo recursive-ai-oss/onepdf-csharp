@@ -18,7 +18,7 @@ table and counted separately. Child limit: 8 GiB managed heap, `--timeout` secon
 **sweep** is the crash/hang check: open, `ExtractText` for the whole document, then every page interpreted into a `PdfDisplayList`
 and replayed. It writes `sweep.csv` and `sweep-summary.md`. A finding is an unexpected exception, a crash, a hang (no progress for
 60 s), a page or the text pass over 10 s, or a peak RSS over 1 GiB. Typed `PdfException`s are expected on broken files and only counted.
-Images are interpreted without a registered decoder. `--drop-glyphs` runs the text pass with `RetainGlyphs = false`; `ONEPDF_SWEEP_PHASES=text|interpret` limits a child run to one phase (diagnosis).
+Images are interpreted without a registered decoder. `--drop-glyphs` forces `RetainGlyphs = false` (already the whole-document default); `ONEPDF_SWEEP_PHASES=text|interpret` limits a child run to one phase (diagnosis).
 
-Both modes pause while a BenchmarkDotNet process is running. Local corpora come from `tools/corpus/fetch_local_corpus.py` and
+Both modes pause while a BenchmarkDotNet process is running (`ONEPDF_NO_PAUSE=1` skips the wait, for memory-only checks). Local corpora come from `tools/corpus/fetch_local_corpus.py` and
 `tools/corpus/fetch_realworld.py`.

@@ -65,17 +65,21 @@ public sealed class PdfTextExtractor
             throw new ArgumentOutOfRangeException(nameof(pageIndex));
         }
 
-        return ExtractPageCore(pageIndex, cancellationToken);
+        return ExtractPageCore(pageIndex, _options.RetainGlyphs ?? true, cancellationToken);
     }
 
-    private PdfPageText ExtractPageCore(int pageIndex, CancellationToken cancellationToken)
+    internal PdfPageText ExtractPageWith(int pageIndex, bool keepGlyphs, CancellationToken cancellationToken) =>
+        ExtractPageCore(pageIndex, keepGlyphs, cancellationToken);
+
+    private PdfPageText ExtractPageCore(int pageIndex, bool keepGlyphs, CancellationToken cancellationToken)
     {
         StructureOrder? structure = Structure(cancellationToken);
-        PdfPageText result = AnalyzeCore(_source.GetPage(pageIndex, cancellationToken), _options, structure?.ForPage(pageIndex), structure is not null, cancellationToken);
-        if (!_options.RetainGlyphs)
+        PdfPageText result = AnalyzeCore(_source.GetPage(pageIndex, cancellationToken), _options, structure?.ForPage(pageIndex), structure is not null, keepGlyphs, cancellationToken);
+        if (!keepGlyphs)
         {
             // Glyphs are the bulk of a result; letting go of them page by page keeps a long document's heap small.
             result.DropGlyphs();
+            result.SetReload(this);
         }
 
         return result;
@@ -88,19 +92,20 @@ public sealed class PdfTextExtractor
         int n = _source.PageCount;
         PdfPageText[] pages = new PdfPageText[n];
         int dop = _options.MaxDegreeOfParallelism > 0 ? _options.MaxDegreeOfParallelism : Math.Min(4, Environment.ProcessorCount);
+        bool keep = _options.RetainGlyphs ?? false;
         _ = Structure(cancellationToken); // read the tree once, before the pages run
         if (dop <= 1 || n <= 1)
         {
             for (int i = 0; i < n; i++)
             {
-                pages[i] = ExtractPageCore(i, cancellationToken);
+                pages[i] = ExtractPageCore(i, keep, cancellationToken);
             }
         }
         else
         {
             try
             {
-                Parallel.For(0, n, new ParallelOptions { MaxDegreeOfParallelism = dop, CancellationToken = cancellationToken }, i => pages[i] = ExtractPageCore(i, cancellationToken));
+                Parallel.For(0, n, new ParallelOptions { MaxDegreeOfParallelism = dop, CancellationToken = cancellationToken }, i => pages[i] = ExtractPageCore(i, keep, cancellationToken));
             }
             catch (AggregateException ae) when (ae.InnerExceptions.Count > 0)
             {
@@ -123,7 +128,7 @@ public sealed class PdfTextExtractor
     public static PdfPageText Analyze(PdfPageGlyphs page, PdfTextOptions? options = null, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(page);
-        return AnalyzeCore(page, options ?? new PdfTextOptions(), null, false, cancellationToken);
+        return AnalyzeCore(page, options ?? new PdfTextOptions(), null, false, options?.RetainGlyphs ?? true, cancellationToken);
     }
 
     /// <summary>Flags headers and footers across a set of analyzed pages by their repetition (the step <see cref="ExtractDocument"/> performs).</summary>
@@ -134,11 +139,14 @@ public sealed class PdfTextExtractor
         Furniture.Flag(pages);
     }
 
-    internal static PdfPageText AnalyzeCore(PdfPageGlyphs page, PdfTextOptions o, PageStructure? structure, bool tagged, CancellationToken ct)
+    internal static PdfPageText AnalyzeCore(PdfPageGlyphs page, PdfTextOptions o, PageStructure? structure, bool tagged, CancellationToken ct) =>
+        AnalyzeCore(page, o, structure, tagged, o.RetainGlyphs ?? true, ct);
+
+    internal static PdfPageText AnalyzeCore(PdfPageGlyphs page, PdfTextOptions o, PageStructure? structure, bool tagged, bool keepGlyphs, CancellationToken ct)
     {
         // Without retained glyphs and with reading-order text, nothing needs the glyph array once the blocks exist: it comes from the
         // pool and goes back to it, instead of becoming a large object per page.
-        bool pooled = !o.RetainGlyphs && o.Mode == PdfTextMode.ReadingOrder && !(tagged && o.UseStructureTree);
+        bool pooled = !keepGlyphs && o.Mode == PdfTextMode.ReadingOrder && !(tagged && o.UseStructureTree);
         PdfTextGlyph[] g;
         int count;
         try
