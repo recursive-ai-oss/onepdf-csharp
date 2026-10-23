@@ -8,7 +8,7 @@ One executable (`fuzz/OnePdf.Fuzz`) holds one target per input surface. SharpFuz
 | `document` | a PDF file | open, xref reading and repair, every object and stream, revisions |
 | `model` | a PDF file | the typed layer: pages, annotations, outlines, labels, metadata, embedded files, form |
 | `content` | a PDF file, or a bare content stream placed in a page with resources of every kind | interpreter into the display list, replay |
-| `appearance` | a selector byte (annotation subtype or field type), then dictionary entries | generated widget and markup appearances, drawn through the interpreter |
+| `appearance` | a selector byte (annotation subtype or field type), then dictionary entries | generated widget and markup appearances, drawn through the interpreter; then fill, flatten, save and reopen |
 | `filters` | 6 parameter bytes, then an encoded stream | Flate, LZW, ASCIIHex, ASCII85, RunLength, predictors |
 | `ccitt` | 6 parameter bytes, then an encoded stream | CCITTFaxDecode |
 | `security` | encryption-dictionary values, a document ID, a password | standard security handler R2–R6 |

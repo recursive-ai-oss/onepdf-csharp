@@ -2,6 +2,14 @@
 
 All notable changes are listed here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and versions follow [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Added
+
+- Form filling. `PdfFormField.SetValue`, `SetValues`, `SetChecked` and `Reset`, and `PdfAcroForm.SetValue`, `SetValues`, `SetChecked`, `ResetAll` and `GenerateMissingAppearances`, for documents opened with `AllowEditing`: text (with `/MaxLen`), combo and list boxes (export or display values, multi-select), check boxes and radio groups. `/V` and `/AS` are updated, generated normal appearances are stored in `/AP`, and `/NeedAppearances` is cleared once every widget has one. Refused values throw `PdfFormValueException` (an `ArgumentException`) with a `PdfFormValueError` reason; `PdfFillOptions` controls read-only fields, truncation and appearance generation. Scripts never run. See `docs/forms.md`.
+- Flattening. `PdfDocument.Flatten(PdfFlattenOptions?)` bakes widget appearances (and optionally other annotations) into page content as Form XObjects, removes the annotations and fields, and drops an empty `/AcroForm`; it returns a `PdfFlattenResult`.
+- The `appearance` fuzz target also fills, flattens, saves and reopens.
+
 ## [1.2.0] - 2026-10-23
 
 ### Added
