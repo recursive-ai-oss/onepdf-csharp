@@ -172,6 +172,16 @@ internal static class FontSupport
         return primary;
     }
 
+    private static readonly object SharedProgramsGate = new();
+
+    private static FontProgram ParseSubstitute(PdfSubstituteFont sub)
+    {
+        ReadOnlyMemory<byte> data = sub.Data;
+        return FontProgramLoader.Sniff(data.Span) is FontProgramKind.TrueType or FontProgramKind.OpenTypeCff
+            ? SfntFont.Parse(data, sub.FaceIndex)
+            : FontProgramLoader.Open(data);
+    }
+
     private static FontProgram? OpenSubstitute(FontContext ctx, PdfSubstituteFont sub)
     {
         try
@@ -181,16 +191,27 @@ internal static class FontSupport
                 return shared;
             }
 
-            ReadOnlyMemory<byte> data = sub.Data;
-            FontProgram p = FontProgramLoader.Sniff(data.Span) is FontProgramKind.TrueType or FontProgramKind.OpenTypeCff
-                ? SfntFont.Parse(data, sub.FaceIndex)
-                : FontProgramLoader.Open(data);
-            if (sub.CacheKey is not null && SharedPrograms.Count < MaxSharedPrograms)
+            if (sub.CacheKey is null)
             {
-                SharedPrograms.TryAdd(sub.CacheKey, p);
+                return ParseSubstitute(sub);
             }
 
-            return p;
+            // Single flight: threads that miss together queue here, and all but the first find the program the first one parsed.
+            lock (SharedProgramsGate)
+            {
+                if (SharedPrograms.TryGetValue(sub.CacheKey, out shared))
+                {
+                    return shared;
+                }
+
+                FontProgram p = ParseSubstitute(sub);
+                if (SharedPrograms.Count < MaxSharedPrograms)
+                {
+                    SharedPrograms[sub.CacheKey] = p;
+                }
+
+                return p;
+            }
         }
         catch (FontProgramException ex)
         {
