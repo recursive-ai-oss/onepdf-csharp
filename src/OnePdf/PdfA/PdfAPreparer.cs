@@ -1,8 +1,10 @@
 using System.Buffers.Binary;
 using System.Linq;
+using System.Security.Cryptography;
 using System.Text;
 using OnePdf.FontData;
 using OnePdf.FontPrograms;
+using OnePdf.FontWriting;
 using OnePdf.Forms;
 
 namespace OnePdf.PdfA;
@@ -121,18 +123,104 @@ internal static class PdfAPreparer
             }
         }
 
-        var streams = new Dictionary<string, PdfReference>(StringComparer.Ordinal);
+        var faces = new Dictionary<string, SubstituteFace>(StringComparer.Ordinal);
         foreach (int n in numbers)
         {
             ct.ThrowIfCancellationRequested();
             if (doc.ResolveChain(n, 0) is PdfDictionary font && font.GetName("Subtype") == "Type1" && !font.ContainsKey("FontDescriptor"))
             {
-                TryEmbed(doc, font, streams);
+                TryEmbed(doc, font, faces);
             }
+        }
+
+        foreach (SubstituteFace face in faces.Values)
+        {
+            face.Finish();
         }
     }
 
-    private static void TryEmbed(PdfDocument doc, PdfDictionary font, Dictionary<string, PdfReference> streams)
+    /// <summary>
+    /// One substitute face shared by every standard font dictionary that uses it. The codes each dictionary needs are collected first;
+    /// <see cref="Finish"/> then writes one subset holding all of them, so every user shows the same file and the same tagged name.
+    /// </summary>
+    private sealed class SubstituteFace(byte[] bytes, SfntFont program, PdfStream file)
+    {
+        public SfntFont Program { get; } = program;
+
+        public PdfReference? FileReference { get; set; }
+
+        public PdfStream File { get; } = file;
+
+        /// <summary>Unicode value to source glyph for every code of every dictionary that uses the face.</summary>
+        public SortedDictionary<int, int> Map { get; } = [];
+
+        public List<(PdfDictionary Font, PdfDictionary Descriptor, string Name)> Users { get; } = [];
+
+        public void Finish()
+        {
+            byte[] data = bytes;
+            string tag = string.Empty;
+            try
+            {
+                // Glyphs in Unicode order, each once; the subsetter adds composite components itself.
+                var glyphs = new List<int>();
+                var seen = new HashSet<int>();
+                foreach (int g in Map.Values)
+                {
+                    if (seen.Add(g))
+                    {
+                        glyphs.Add(g);
+                    }
+                }
+
+                var pairs = new List<(int Unicode, int Glyph)>(Map.Count);
+                foreach ((int u, int g) in Map)
+                {
+                    pairs.Add((u, g));
+                }
+
+                data = TrueTypeSubsetter.Subset(Program, glyphs, pairs);
+                tag = SubsetTag(bytes, glyphs);
+            }
+            catch (FontProgramException)
+            {
+                // A face that cannot be subset is embedded whole under its own name.
+                data = bytes;
+            }
+
+            File.SetData(data, compress: true);
+            File.Dictionary.SetEntry("Length1", new PdfInteger(data.Length));
+            foreach ((PdfDictionary font, PdfDictionary descriptor, string name) in Users)
+            {
+                // ISO 32000-2 9.6.4: a subset's name starts with a six-letter tag and a plus sign.
+                string full = tag.Length > 0 ? tag + "+" + name : name;
+                font.SetEntry("BaseFont", new PdfName(full));
+                descriptor.SetEntry("FontName", new PdfName(full));
+            }
+        }
+
+        // Six capital letters from a hash of the font and the glyphs, so the same inputs always give the same name.
+        private static string SubsetTag(byte[] source, List<int> glyphs)
+        {
+            using var sha = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
+            sha.AppendData(SHA256.HashData(source));
+            foreach (int g in glyphs)
+            {
+                sha.AppendData(BitConverter.GetBytes(g));
+            }
+
+            byte[] h = sha.GetHashAndReset();
+            var chars = new char[6];
+            for (int i = 0; i < 6; i++)
+            {
+                chars[i] = (char)('A' + (h[i] % 26));
+            }
+
+            return new string(chars);
+        }
+    }
+
+    private static void TryEmbed(PdfDocument doc, PdfDictionary font, Dictionary<string, SubstituteFace> faces)
     {
         string? standard = Core14.Resolve(font.GetName("BaseFont") ?? string.Empty);
         if (standard is null or "Symbol" or "ZapfDingbats")
@@ -240,6 +328,7 @@ internal static class PdfAPreparer
         StandardFontMetrics metrics = Core14.Get(standard);
         int first = -1, last = -1;
         int[] widths = new int[256];
+        var unicodeToGlyph = new Dictionary<int, int>();
         for (int c = 0; c < 256; c++)
         {
             string? name = names[c];
@@ -258,6 +347,7 @@ internal static class PdfAPreparer
             int fromProgram = (int)Math.Round(adv * 1000.0 / program.UnitsPerEm);
             int width = metrics.GetWidth(name) is { } afm && Math.Abs(afm - fromProgram) <= 1 ? afm : fromProgram;
             widths[c] = width;
+            unicodeToGlyph[r.Value] = gid;
             if (first < 0)
             {
                 first = c;
@@ -277,13 +367,19 @@ internal static class PdfAPreparer
             widthArray.Append(new PdfInteger(widths[c]));
         }
 
-        if (!streams.TryGetValue(sub.Name, out PdfReference? fileRef))
+        if (!faces.TryGetValue(sub.Name, out SubstituteFace? face))
         {
-            PdfStream file = doc.CreateStream(bytes, compress: true);
-            file.Dictionary.SetEntry("Length1", new PdfInteger(bytes.Length));
-            fileRef = doc.AddObject(file);
-            streams[sub.Name] = fileRef;
+            PdfStream file = doc.CreateStream([], compress: true);
+            faces[sub.Name] = face = new SubstituteFace(bytes, program, file);
+            face.FileReference = doc.AddObject(file);
         }
+
+        foreach ((int u, int g) in unicodeToGlyph)
+        {
+            face.Map[u] = g;
+        }
+
+        PdfReference fileRef = face.FileReference!;
 
         string psName = PostScriptName(program, sub.Name);
         ReadOnlyMemory<byte> hhea = program.GetTable("hhea");
@@ -374,6 +470,7 @@ internal static class PdfAPreparer
 
         font.SetEntry("Subtype", new PdfName("TrueType"));
         font.SetEntry("BaseFont", new PdfName(psName));
+        face.Users.Add((font, fd, psName));
         font.SetEntry("Encoding", newEncoding is PdfDictionary nd && nd.Reference is null && enc is PdfDictionary ? enc : newEncoding);
         font.SetEntry("FirstChar", new PdfInteger(first));
         font.SetEntry("LastChar", new PdfInteger(last));

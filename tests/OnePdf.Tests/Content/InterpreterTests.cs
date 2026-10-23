@@ -24,7 +24,7 @@ public class InterpreterTests
         Assert.Contains("page box=0 0 200 200 name=CropBox rotate=0 unit=1 scale=1 size=200 200 base=[1 0 0 -1 0 200]", t);
         Assert.Contains("gs ctm=[1 0 0 -1 0 200] fill=rgb(1 0 0) stroke=gray(0)", t);
         Assert.Contains("fill nonzero M 10 10 L 60 10 L 60 60 L 10 60 Z", t);
-        Assert.StartsWith("onepdf-display-list 5\n", t);
+        Assert.StartsWith("onepdf-display-list 6\n", t);
     }
 
     [Fact]

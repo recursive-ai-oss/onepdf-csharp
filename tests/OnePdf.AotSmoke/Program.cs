@@ -128,7 +128,7 @@ if (img is not { IsDecoded: true } || img.Samples.Length != 8 || img.Samples.Spa
     return 1;
 }
 
-if (!text.StartsWith("onepdf-display-list 5", StringComparison.Ordinal) || !text.Contains("fill nonzero M 10 10", StringComparison.Ordinal)
+if (!text.StartsWith("onepdf-display-list 6", StringComparison.Ordinal) || !text.Contains("fill nonzero M 10 10", StringComparison.Ordinal)
     || !text.Contains("codes=4869", StringComparison.Ordinal) || !text.Contains("clip nonzero", StringComparison.Ordinal))
 {
     Console.Error.WriteLine("interpretation did not produce the expected display list");

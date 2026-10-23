@@ -45,6 +45,25 @@ public class FontWritingTests
     }
 
     [Fact]
+    public void SubsetCanCarryAWindowsUnicodeCmap()
+    {
+        var original = SfntFont.Parse(SyntheticFont.Build(), 0);
+        // Glyph 4 is a composite of 3, 1 and 2; the map names 4 twice and a code point beyond the BMP, which is skipped.
+        byte[] subset = TrueTypeSubsetter.Subset(original, [4, 1], [(0x41, 1), (0x42, 4), (0x43, 4), (0x2022, 4), (0x1F600, 1)]);
+        var sub = SfntFont.Parse(subset, 0);
+        CmapSubtable cmap = Assert.IsAssignableFrom<CmapSubtable>(sub.FindCmap(3, 1));
+        Assert.Equal(2, cmap.Lookup(0x41)); // glyph 1 is the second kept glyph (4 was requested first)
+        Assert.Equal(1, cmap.Lookup(0x42));
+        Assert.Equal(1, cmap.Lookup(0x43));
+        Assert.Equal(1, cmap.Lookup(0x2022));
+        Assert.Equal(0, cmap.Lookup(0x44));
+        Assert.Equal(0, cmap.Lookup(0x1F600));
+        Assert.Equal(0xB1B0AFBAu, SfntWriter.Checksum(subset));
+        // Without a map there is still no cmap.
+        Assert.Null(SfntFont.Parse(TrueTypeSubsetter.Subset(original, [4, 1]), 0).FindCmap(3, 1));
+    }
+
+    [Fact]
     public void SubsetIsAValidSfnt()
     {
         byte[] subset = TrueTypeSubsetter.Subset(SfntFont.Parse(SyntheticFont.Build(), 0), [1, 3]);

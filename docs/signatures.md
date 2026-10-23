@@ -183,7 +183,7 @@ appearance keeps it unless `Appearance` is given.
 The placeholder is `ContentsReserve` bytes (default: an estimate from the certificates, key size and, for a time-stamp, 8 KiB; 12 KiB for a
 document time-stamp), written as twice as many hex digits and patched in place after the byte range is known. If the CMS does not fit,
 `ContentsTooSmall` carries `RequiredBytes`; `PdfSigningResult.ContentsUsed` tells what an earlier signature of the same kind took. The
-`/Contents` string of a signature dictionary is never encrypted (ISO 32000-2 7.6.2); the rest of the update is encrypted like the document.
+`/Contents` string of a signature dictionary is never encrypted (ISO 32000-2 7.6.2), and the reader does not decrypt it: the string of a dictionary with `/Type /Sig` or `/DocTimeStamp`, or one holding `/ByteRange`, is returned as stored. The rest of the update is encrypted like the document.
 
 ### Not done in signing
 

@@ -338,7 +338,17 @@ public readonly record struct PdfGroupInfo(PdfBounds Bounds, bool Isolated, bool
 /// <param name="Bounds">The mask group's bounding box in the call's user space.</param>
 /// <param name="Backdrop">The <c>/BC</c> array of a luminosity mask, or null.</param>
 /// <param name="Transfer">The <c>/TR</c> function (a function dictionary or stream), or null for identity.</param>
-public readonly record struct PdfSoftMaskInfo(int Id, bool Luminosity, PdfBounds Bounds, PdfArray? Backdrop, PdfObject? Transfer);
+public readonly record struct PdfSoftMaskInfo(int Id, bool Luminosity, PdfBounds Bounds, PdfArray? Backdrop, PdfObject? Transfer)
+{
+    /// <summary>
+    /// The <c>/TR</c> transfer function (ISO 32000-2 11.6.5.2, Table 144) evaluated by OnePDF as a 256-entry table: entry <c>i</c> is the output
+    /// byte for the mask value <c>i / 255</c>, rounded half up and clamped to 0..255. A device applies it to each mask value (luminosity or
+    /// alpha as a byte) before using the mask. Null when <c>/TR</c> is absent or <c>/Identity</c>, and also when the function cannot be
+    /// used (the interpreter then records a warning diagnostic and treats the mask as untransferred). Function types 0, 2, 3 and 4 are
+    /// supported; a function with several inputs or no outputs is unusable, and extra outputs are ignored.
+    /// </summary>
+    public byte[]? TransferTable { get; init; }
+}
 
 /// <summary>An annotation whose appearance is about to be drawn.</summary>
 /// <param name="Annotation">The annotation dictionary.</param>

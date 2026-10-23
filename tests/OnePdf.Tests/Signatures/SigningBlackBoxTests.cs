@@ -223,6 +223,47 @@ public class SigningBlackBoxTests
     }
 
     [Fact]
+    public void EncryptedFilesKeepSignatureContentsAsStoredThroughReadAndFullSave()
+    {
+        foreach (PdfCipher cipher in new[] { PdfCipher.Aes256, PdfCipher.Aes128 })
+        {
+            byte[] encrypted;
+            using (PdfDocument source = Editable(UnsignedPdf()))
+            using (var ms = new MemoryStream())
+            {
+                source.Save(ms, new PdfSaveOptions
+                {
+                    Encryption = PdfEncryptionAction.Set,
+                    NewEncryption = new PdfEncryptionOptions { UserPassword = "user", OwnerPassword = "owner", Cipher = cipher },
+                });
+                encrypted = ms.ToArray();
+            }
+
+            byte[] signed = SignToBytes(Editable(encrypted, "user"), Credential(TestPki.Shared.RsaSigner));
+            byte[] fromFile;
+            using (PdfDocument check = PdfDocument.Open(signed, new PdfOpenOptions { Password = "user" }))
+            {
+                PdfSignature sig = Assert.Single(check.GetSignatures());
+                long a = sig.ByteRange![1], c = sig.ByteRange[2];
+                fromFile = Convert.FromHexString(Encoding.ASCII.GetString(signed, (int)a + 1, (int)(c - a - 2)));
+                Assert.True(sig.Contents.Span.SequenceEqual(fromFile));
+                Assert.True(check.VerifySignatures(Trust).AllValid);
+            }
+
+            byte[] saved;
+            using (PdfDocument doc = PdfDocument.Open(signed, new PdfOpenOptions { Password = "user", AllowEditing = true }))
+            using (var ms = new MemoryStream())
+            {
+                doc.Save(ms);
+                saved = ms.ToArray();
+            }
+
+            using PdfDocument again = PdfDocument.Open(saved, new PdfOpenOptions { Password = "user" });
+            Assert.True(again.GetSignatures()[0].Contents.Span.SequenceEqual(fromFile), cipher.ToString());
+        }
+    }
+
+    [Fact]
     public void SignsFilesWithCrossReferenceAndObjectStreams()
     {
         byte[] stream;

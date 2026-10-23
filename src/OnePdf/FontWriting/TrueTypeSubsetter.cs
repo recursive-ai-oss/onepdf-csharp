@@ -7,7 +7,9 @@ namespace OnePdf.FontWriting;
 /// Writes a TrueType subset (OpenType spec, "glyf", "loca", "hmtx", "head"): the requested glyphs and the components of any composite
 /// among them are renumbered compactly, so glyph <c>i + 1</c> of the output is requested glyph <c>i</c>, glyph 0 is the original
 /// <c>.notdef</c>, and components follow. Kept tables are head, hhea, maxp, hmtx, loca, glyf and the hinting tables cvt, fpgm and
-/// prep (PDF 32000-2 9.9, "Embedded font programs", lists exactly these for a TrueType subset); the rest is dropped.
+/// prep (PDF 32000-2 9.9, "Embedded font programs", lists exactly these for a TrueType subset); the rest is dropped. A caller that
+/// embeds the subset in a simple font with a non-symbolic encoding also asks for a (3,1) cmap (9.6.5.4), which maps the Unicode values
+/// it names to the renumbered glyphs.
 /// </summary>
 /// <remarks>
 /// The input is untrusted. Every offset is checked against its table, a <c>loca</c> that is not monotonic or runs past <c>glyf</c> is an
@@ -19,7 +21,14 @@ internal static class TrueTypeSubsetter
     private const int HeadLength = 54;
     private const int HheaLength = 36;
 
-    public static byte[] Subset(SfntFont font, IReadOnlyList<int> glyphs)
+    /// <summary>Writes the subset.</summary>
+    /// <param name="font">The source font.</param>
+    /// <param name="glyphs">The glyphs to keep, as glyph ids of <paramref name="font"/>.</param>
+    /// <param name="unicodeMap">
+    /// Optional (Unicode value, source glyph id) pairs for a (3,1) cmap, format 4. Values above U+FFFF are skipped; every glyph named
+    /// must be in <paramref name="glyphs"/>. With null the output has no cmap, which is right for a CID-keyed (Type 0) use.
+    /// </param>
+    public static byte[] Subset(SfntFont font, IReadOnlyList<int> glyphs, IReadOnlyList<(int Unicode, int Glyph)>? unicodeMap = null)
     {
         ReadOnlyMemory<byte> head = font.GetTable("head");
         ReadOnlyMemory<byte> hhea = font.GetTable("hhea");
@@ -185,6 +194,11 @@ internal static class TrueTypeSubsetter
             [Be.Tag("loca")] = locaOut,
             [Be.Tag("glyf")] = glyfOut.ToArray(),
         };
+        if (unicodeMap is not null)
+        {
+            tables[Be.Tag("cmap")] = BuildCmap31(unicodeMap, newOf);
+        }
+
         foreach (string optional in (string[])["cvt ", "fpgm", "prep"])
         {
             ReadOnlyMemory<byte> t = font.GetTable(optional);
@@ -195,6 +209,82 @@ internal static class TrueTypeSubsetter
         }
 
         return SfntWriter.Assemble(0x00010000, tables, Be.Tag("head"));
+    }
+
+    // OpenType "cmap": one encoding record, platform 3 (Windows) encoding 1 (Unicode BMP), format 4 (segment mapping to delta values).
+    // Consecutive code points that map to consecutive glyphs share a segment, so idRangeOffset is always 0.
+    private static byte[] BuildCmap31(IReadOnlyList<(int Unicode, int Glyph)> map, Dictionary<int, int> newOf)
+    {
+        var sorted = new SortedDictionary<int, int>();
+        foreach ((int unicode, int glyph) in map)
+        {
+            if (unicode is < 0 or > 0xFFFE)
+            {
+                continue;
+            }
+
+            if (!newOf.TryGetValue(glyph, out int mapped))
+            {
+                throw new FontProgramException("A cmap entry names a glyph that is not in the subset.");
+            }
+
+            sorted[unicode] = mapped;
+        }
+
+        var starts = new List<int>();
+        var ends = new List<int>();
+        var deltas = new List<int>();
+        foreach ((int unicode, int glyph) in sorted)
+        {
+            int last = ends.Count - 1;
+            if (last >= 0 && ends[last] == unicode - 1 && (((deltas[last] + ends[last]) & 0xFFFF) + 1 & 0xFFFF) == glyph)
+            {
+                ends[last] = unicode;
+                continue;
+            }
+
+            starts.Add(unicode);
+            ends.Add(unicode);
+            deltas.Add((glyph - unicode) & 0xFFFF);
+        }
+
+        starts.Add(0xFFFF);
+        ends.Add(0xFFFF);
+        deltas.Add(1);
+        int segCount = starts.Count;
+        int subtableLength = 16 + (8 * segCount);
+        if (subtableLength > 0xFFFF)
+        {
+            throw new FontProgramException("The cmap would be too large.");
+        }
+
+        int entrySelector = 0;
+        while ((2 << entrySelector) <= segCount)
+        {
+            entrySelector++;
+        }
+
+        int searchRange = 2 * (1 << entrySelector);
+        var t = new byte[12 + subtableLength];
+        BinaryPrimitives.WriteUInt16BigEndian(t.AsSpan(2), 1); // numTables
+        BinaryPrimitives.WriteUInt16BigEndian(t.AsSpan(4), 3); // platformID
+        BinaryPrimitives.WriteUInt16BigEndian(t.AsSpan(6), 1); // encodingID
+        BinaryPrimitives.WriteUInt32BigEndian(t.AsSpan(8), 12);
+        Span<byte> s = t.AsSpan(12);
+        BinaryPrimitives.WriteUInt16BigEndian(s, 4);
+        BinaryPrimitives.WriteUInt16BigEndian(s[2..], (ushort)subtableLength);
+        BinaryPrimitives.WriteUInt16BigEndian(s[6..], (ushort)(2 * segCount));
+        BinaryPrimitives.WriteUInt16BigEndian(s[8..], (ushort)searchRange);
+        BinaryPrimitives.WriteUInt16BigEndian(s[10..], (ushort)entrySelector);
+        BinaryPrimitives.WriteUInt16BigEndian(s[12..], (ushort)((2 * segCount) - searchRange));
+        for (int i = 0; i < segCount; i++)
+        {
+            BinaryPrimitives.WriteUInt16BigEndian(s[(14 + (2 * i))..], (ushort)ends[i]);
+            BinaryPrimitives.WriteUInt16BigEndian(s[(16 + (2 * segCount) + (2 * i))..], (ushort)starts[i]);
+            BinaryPrimitives.WriteUInt16BigEndian(s[(16 + (4 * segCount) + (2 * i))..], (ushort)deltas[i]);
+        }
+
+        return t;
     }
 
     private static ReadOnlySpan<byte> GlyphBytes(ReadOnlySpan<byte> glyf, uint[] offsets, int gid) =>

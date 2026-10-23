@@ -2,6 +2,18 @@
 
 All notable changes are listed here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and versions follow [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Added
+
+- `PdfSoftMaskInfo.TransferTable`: the soft mask's `/TR` transfer function (ISO 32000-2 11.6.5.2) evaluated by OnePDF into 256 bytes (entry `i` is the output for `i / 255`, rounded half up and clamped), null for no `/TR` or `/Identity`. Function types 0, 2, 3 and 4 are supported; an unusable function is ignored with a warning. The display-list text format is version 6: `begin-softmask` gains `trtable=`.
+
+### Fixed
+
+- Encrypted files: the `/Contents` string of a signature dictionary (`/Type /Sig` or `/DocTimeStamp`, or any dictionary with `/ByteRange`) is no longer decrypted on read (ISO 32000-2 7.6.2), so the raw bytes, `PdfSignature.Contents` and a full save of a signed encrypted file all carry the stored signature.
+- CFF subsets (CID-keyed) write the leading ROS operands of the Top DICT in their shortest integer form, which strict readers need to recognise the Top DICT as CID-keyed (veraPDF warned "The Top DICT does not begin with ROS operator").
+- The TrueType subsetter can write a (3,1) format 4 `cmap`, and PDF/A production now subsets the Liberation faces it embeds for standard fonts (the four-font test file went from 834 KB to 112 KB) instead of embedding them whole.
+
 ## [1.5.0] - 2026-10-23
 
 ### Added
