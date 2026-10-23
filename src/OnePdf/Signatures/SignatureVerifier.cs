@@ -240,6 +240,7 @@ internal static class SignatureVerifier
         public PdfCheckStatus Integrity = PdfCheckStatus.Invalid;
         public PdfCheckStatus Signature = PdfCheckStatus.Invalid;
         public X509Certificate2? Cert;
+        public byte[] CertDer = [];
         public string? DigestName;
         public string? SigName;
         public bool Weak;
@@ -273,7 +274,8 @@ internal static class SignatureVerifier
             warnings.Add("The signature uses SHA-1, which is weak.");
         }
 
-        o.Cert = pool.Find(si);
+        o.Cert = pool.Find(si, out byte[] certDer);
+        o.CertDer = certDer;
         if (o.Cert is null)
         {
             warnings.Add("The signer's certificate is not in the signature or the extra certificates.");
@@ -448,7 +450,7 @@ internal static class SignatureVerifier
                 }
             }
         }
-        catch (CryptographicException e)
+        catch (Exception e) when (e is CryptographicException or ArgumentException)
         {
             warnings.Add("The signature could not be verified: " + e.Message);
         }
@@ -465,7 +467,7 @@ internal static class SignatureVerifier
         }
 
         // The signing-certificate attribute binds the signature to one certificate (RFC 5035).
-        if (!CheckSigningCertificate(si, o.Cert, warnings))
+        if (!CheckSigningCertificate(si, o.CertDer, warnings))
         {
             o.Signature = PdfCheckStatus.Invalid;
         }
@@ -480,7 +482,7 @@ internal static class SignatureVerifier
                 }
             }
         }
-        catch (CryptographicException)
+        catch (Exception e) when (e is CryptographicException or ArgumentException)
         {
             warnings.Add("The signer certificate's extensions could not be read.");
         }
@@ -489,7 +491,7 @@ internal static class SignatureVerifier
     }
 
     // Returns false when an ESS signing-certificate attribute exists and does not match the certificate.
-    private static bool CheckSigningCertificate(CmsSignerInfo si, X509Certificate2 cert, List<string> warnings)
+    private static bool CheckSigningCertificate(CmsSignerInfo si, byte[] certDer, List<string> warnings)
     {
         foreach ((string oid, bool v2) in new[] { (Oids.SigningCertificateV2, true), (Oids.SigningCertificate, false) })
         {
@@ -533,7 +535,7 @@ internal static class SignatureVerifier
                 return false;
             }
 
-            if (!parts[at].Content.Span.SequenceEqual(HashBytes(alg, cert.RawData)))
+            if (!parts[at].Content.Span.SequenceEqual(HashBytes(alg, certDer)))
             {
                 warnings.Add("The signing-certificate attribute names a different certificate than the one that signed.");
                 return false;
@@ -709,7 +711,7 @@ internal static class SignatureVerifier
 
         SignerOutcome o = CheckSigner(sd, sd.Signers[0], name => HashBytes(name, content), tokenPool, w);
         r.Signature = o.Integrity == PdfCheckStatus.Valid ? o.Signature : PdfCheckStatus.Invalid;
-        r.Certificate = o.Cert is null ? null : X509CertificateLoader.LoadCertificate(o.Cert.RawData);
+        r.Certificate = o.Cert is null ? null : X509CertificateLoader.LoadCertificate(o.CertDer);
         if (o.Cert is not null)
         {
             bool timestamping = false;
@@ -726,7 +728,7 @@ internal static class SignatureVerifier
                     }
                 }
             }
-            catch (CryptographicException)
+            catch (Exception e) when (e is CryptographicException or ArgumentException)
             {
                 w.Add("The time-stamp authority's certificate extensions could not be read.");
             }
@@ -803,7 +805,14 @@ internal static class SignatureVerifier
             policy.TrustMode = X509ChainTrustMode.CustomRootTrust;
             foreach (X509Certificate2 a in options.TrustAnchors)
             {
-                policy.CustomTrustStore.Add(a);
+                if (CertPool.IsUsable(a))
+                {
+                    policy.CustomTrustStore.Add(a);
+                }
+                else
+                {
+                    warnings.Add("A trust anchor is damaged and was ignored.");
+                }
             }
 
             if (options.UseSystemTrustStore && options.TrustAnchors.Count == 0)
@@ -846,7 +855,7 @@ internal static class SignatureVerifier
                 result.Elements.Add(new PdfChainElement(X509CertificateLoader.LoadCertificate(el.Certificate.RawData), problems));
             }
         }
-        catch (CryptographicException e)
+        catch (Exception e) when (e is CryptographicException or ArgumentException)
         {
             // A certificate that loads but cannot be read further (for example an unreadable validity period).
             warnings.Add("The certificate chain could not be built: " + e.Message);
@@ -894,7 +903,18 @@ internal static class SignatureVerifier
             _warn = warnings;
             for (int i = 0; i < Math.Min(extras.Count, CmsSignedData.MaxCertificates); i++)
             {
-                AddDer(extras[i].RawData);
+                byte[] raw;
+                try
+                {
+                    raw = extras[i].RawData;
+                }
+                catch (Exception e) when (e is CryptographicException or ArgumentException)
+                {
+                    _warn.Add("An extra certificate could not be read and was ignored.");
+                    continue;
+                }
+
+                AddDer(raw);
             }
         }
 
@@ -919,16 +939,18 @@ internal static class SignatureVerifier
             AddDer(e.Der);
         }
 
-        public X509Certificate2? Find(CmsSignerInfo si)
+        public X509Certificate2? Find(CmsSignerInfo si, out byte[] der)
         {
             foreach (Entry e in Entries)
             {
                 if (e.Identity.Matches(si))
                 {
+                    der = e.Der;
                     return e.Cert;
                 }
             }
 
+            der = [];
             return null;
         }
 
@@ -952,15 +974,58 @@ internal static class SignatureVerifier
                 }
             }
 
+            X509Certificate2? cert = null;
             try
             {
-                X509Certificate2 cert = X509CertificateLoader.LoadCertificate(der);
+                cert = X509CertificateLoader.LoadCertificate(der);
+                if (!IsUsable(cert))
+                {
+                    cert.Dispose();
+                    _warn.Add("A certificate in the signature is damaged and was ignored.");
+                    return;
+                }
+
                 _ = CertificateIdentity.TryParse(der, out CertificateIdentity id);
                 Entries.Add(new Entry(cert, der, id));
             }
-            catch (CryptographicException)
+            catch (Exception e) when (e is CryptographicException or ArgumentException)
             {
+                cert?.Dispose();
                 _warn.Add("A certificate in the signature could not be parsed and was ignored.");
+            }
+        }
+
+        /// <summary>
+        /// Some platforms (macOS) accept certificate bytes and parse them only when a property is read, so every property the
+        /// verifier uses is read once here; a certificate that fails is left out instead of failing a later check.
+        /// </summary>
+        internal static bool IsUsable(X509Certificate2 cert)
+        {
+            try
+            {
+                _ = cert.RawData;
+                _ = cert.NotBefore;
+                _ = cert.NotAfter;
+                _ = cert.SubjectName.RawData;
+                _ = cert.IssuerName.RawData;
+                _ = cert.PublicKey.Oid.Value;
+                foreach (X509Extension ext in cert.Extensions)
+                {
+                    _ = ext.RawData;
+                }
+
+                // Decoding the key is where a damaged SubjectPublicKeyInfo shows on some platforms.
+                using RSA? rsa = cert.GetRSAPublicKey();
+                if (rsa is null)
+                {
+                    using ECDsa? ec = cert.GetECDsaPublicKey();
+                }
+
+                return true;
+            }
+            catch (Exception e) when (e is CryptographicException or ArgumentException)
+            {
+                return false;
             }
         }
 

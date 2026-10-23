@@ -2,7 +2,7 @@
 
 All notable changes are listed here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and versions follow [Semantic Versioning](https://semver.org/).
 
-## [Unreleased]
+## [1.4.0] - 2026-10-23
 
 ### Added
 
@@ -27,6 +27,10 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
   - Time-stamps only through a `PdfTimestampCallback` that receives the RFC 3161 request and returns a response or token; OnePDF opens no connection. The token's status, imprint and nonce are checked before it is embedded.
   - Visible signatures get an appearance built with the content builder (name, date, reason, location, optional image). Failures throw `PdfSigningException` with a `PdfSigningError` reason and write nothing. Our own DER writer builds the CMS; no `System.Security.Cryptography.Pkcs`.
   - `PdfSigningResult` reports the reserved and used `/Contents` size. See `docs/signatures.md`.
+
+### Fixed
+
+- Signature verification no longer throws on a damaged embedded certificate on macOS, where the platform accepts certificate bytes and fails only when a property is read. Every certificate from the file, the extra certificates and the trust anchors is read once on load; one that fails is left out with a warning (the signer then counts as missing). Signing checks the credential's certificates the same way and reports `PdfSigningException` instead of a platform exception.
 
 ## [1.3.0] - 2026-10-23
 
@@ -98,6 +102,7 @@ First release. Two packages, `RecursiveAI.OnePdf` (the library, `net10.0`, no de
 - Limits on by default (`PdfLimits`) and fuzzed parsers, filters and font readers; no `unsafe` code. OnePDF never runs code or touches the network.
 - `RecursiveAI.OnePdf.Fonts`: Liberation and Noto substitute outlines under the SIL Open Font License 1.1, registered with `FontsPackage.Register()`.
 
+[1.4.0]: https://github.com/recursive-ai-oss/onepdf-csharp/releases/tag/v1.4.0
 [1.3.0]: https://github.com/recursive-ai-oss/onepdf-csharp/releases/tag/v1.3.0
 [1.2.0]: https://github.com/recursive-ai-oss/onepdf-csharp/releases/tag/v1.2.0
 [1.1.0]: https://github.com/recursive-ai-oss/onepdf-csharp/releases/tag/v1.1.0
