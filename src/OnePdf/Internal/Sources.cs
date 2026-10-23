@@ -81,25 +81,58 @@ internal sealed class MemorySource : IPdfSource
 internal sealed class FileSource : IPdfSource
 {
     private readonly Microsoft.Win32.SafeHandles.SafeFileHandle _handle;
-    private readonly string _path;
     private readonly long _length;
     private readonly DateTime _lastWriteUtc;
     private const long MtimeCheckMilliseconds = 100;
+
+    // A file this small is read whole at open: parsing then runs over memory with one read instead of a dozen small positional ones.
+    private const int SnapshotLimit = 64 * 1024;
+    private readonly byte[]? _snapshot;
     private long _lastMtimeCheck;
 
     public FileSource(string path)
     {
-        _path = Path.GetFullPath(path);
-        _handle = File.OpenHandle(_path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete, FileOptions.RandomAccess);
+        _handle = File.OpenHandle(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete, FileOptions.RandomAccess);
         _length = RandomAccess.GetLength(_handle);
-        _lastWriteUtc = File.GetLastWriteTimeUtc(_path);
+        _lastWriteUtc = File.GetLastWriteTimeUtc(_handle);
         _lastMtimeCheck = Environment.TickCount64;
+        if (_length is > 0 and <= SnapshotLimit)
+        {
+            // A snapshot has its own array (not a pooled one): streams and slices handed to callers stay valid after the document is disposed.
+            byte[] all = new byte[_length];
+            int total = 0;
+            while (total < all.Length)
+            {
+                int n = RandomAccess.Read(_handle, all.AsSpan(total), total);
+                if (n <= 0)
+                {
+                    break;
+                }
+
+                total += n;
+            }
+
+            // A file that shrank while it was read falls back to positional reads, which report the change.
+            _snapshot = total == all.Length ? all : null;
+        }
     }
 
     public long Length => _length;
 
     public int Read(long position, Span<byte> destination)
     {
+        if (_snapshot is { } snap)
+        {
+            if (position < 0 || position >= snap.Length)
+            {
+                return 0;
+            }
+
+            int count = Math.Min(snap.Length - (int)position, destination.Length);
+            snap.AsSpan((int)position, count).CopyTo(destination);
+            return count;
+        }
+
         int total = 0;
         while (total < destination.Length)
         {
@@ -117,6 +150,11 @@ internal sealed class FileSource : IPdfSource
 
     public async ValueTask<int> ReadAsync(long position, Memory<byte> destination, CancellationToken cancellationToken)
     {
+        if (_snapshot is not null)
+        {
+            return Read(position, destination.Span);
+        }
+
         int total = 0;
         while (total < destination.Length)
         {
@@ -134,19 +172,20 @@ internal sealed class FileSource : IPdfSource
 
     public bool TryGetMemory(out ReadOnlyMemory<byte> memory)
     {
-        memory = default;
-        return false;
+        memory = _snapshot;
+        return _snapshot is not null;
     }
 
     public void EnsureUnchanged()
     {
-        // A length change is caught on every call (one cheap query on the open handle). The modification time needs a
-        // path lookup, so it is re-read at most every MtimeCheckMilliseconds: a same-size rewrite is noticed within that time.
+        // A length change is caught on every call (one cheap query on the open handle). The modification time is
+        // re-read at most every MtimeCheckMilliseconds: a same-size rewrite is noticed within that time. Both are read from the
+        // open handle, so a file replaced by renaming another over it is not a change: this handle still shows the file that was opened.
         bool changed = RandomAccess.GetLength(_handle) != _length;
         long now = Environment.TickCount64;
         if (!changed && now - Volatile.Read(ref _lastMtimeCheck) >= MtimeCheckMilliseconds)
         {
-            changed = File.GetLastWriteTimeUtc(_path) != _lastWriteUtc;
+            changed = File.GetLastWriteTimeUtc(_handle) != _lastWriteUtc;
             Volatile.Write(ref _lastMtimeCheck, now);
         }
 

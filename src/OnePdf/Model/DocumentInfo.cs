@@ -79,6 +79,21 @@ public sealed class XmpMetadata
     private static readonly XNamespace Xmp = "http://ns.adobe.com/xap/1.0/";
     private static readonly XNamespace PdfNs = "http://ns.adobe.com/pdf/1.3/";
 
+    // Names are looked up once, not rebuilt (a namespace + local-name concatenation and a table lookup) for every query.
+    private static readonly XName RdfDescription = Rdf + "Description";
+    private static readonly XName RdfLi = Rdf + "li";
+    private static readonly XName DcTitle = Dc + "title";
+    private static readonly XName DcDescription = Dc + "description";
+    private static readonly XName DcCreator = Dc + "creator";
+    private static readonly XName DcSubject = Dc + "subject";
+    private static readonly XName XmpCreatorTool = Xmp + "CreatorTool";
+    private static readonly XName XmpCreateDate = Xmp + "CreateDate";
+    private static readonly XName XmpModifyDate = Xmp + "ModifyDate";
+    private static readonly XName XmpMetadataDate = Xmp + "MetadataDate";
+    private static readonly XName PdfProducer = PdfNs + "Producer";
+    private static readonly XName PdfKeywords = PdfNs + "Keywords";
+    private static readonly XName XmlLang = XNamespace.Xml + "lang";
+
     internal XmpMetadata(ReadOnlyMemory<byte> raw)
     {
         RawBytes = raw;
@@ -108,17 +123,17 @@ public sealed class XmpMetadata
         }
 
         IsWellFormed = true;
-        var descriptions = new List<XElement>(doc.Descendants(Rdf + "Description"));
-        Title = Alt(descriptions, Dc + "title");
-        Description = Alt(descriptions, Dc + "description");
-        Creators = Items(descriptions, Dc + "creator");
-        Subjects = Items(descriptions, Dc + "subject");
-        CreatorTool = Simple(descriptions, Xmp + "CreatorTool");
-        Producer = Simple(descriptions, PdfNs + "Producer");
-        Keywords = Simple(descriptions, PdfNs + "Keywords");
-        CreateDate = Date(Simple(descriptions, Xmp + "CreateDate"));
-        ModifyDate = Date(Simple(descriptions, Xmp + "ModifyDate"));
-        MetadataDate = Date(Simple(descriptions, Xmp + "MetadataDate"));
+        var descriptions = new List<XElement>(doc.Descendants(RdfDescription));
+        Title = Alt(descriptions, DcTitle);
+        Description = Alt(descriptions, DcDescription);
+        Creators = Items(descriptions, DcCreator);
+        Subjects = Items(descriptions, DcSubject);
+        CreatorTool = Simple(descriptions, XmpCreatorTool);
+        Producer = Simple(descriptions, PdfProducer);
+        Keywords = Simple(descriptions, PdfKeywords);
+        CreateDate = Date(Simple(descriptions, XmpCreateDate));
+        ModifyDate = Date(Simple(descriptions, XmpModifyDate));
+        MetadataDate = Date(Simple(descriptions, XmpMetadataDate));
     }
 
     /// <summary>The packet exactly as stored (decoded stream bytes). Do not modify.</summary>
@@ -176,7 +191,7 @@ public sealed class XmpMetadata
         return null;
     }
 
-    private static string? FirstItem(XElement e) => e.Descendants(Rdf + "li").FirstOrDefault()?.Value;
+    private static string? FirstItem(XElement e) => e.Descendants(RdfLi).FirstOrDefault()?.Value;
 
     private static string? Alt(List<XElement> descs, XName name)
     {
@@ -187,8 +202,8 @@ public sealed class XmpMetadata
                 continue;
             }
 
-            var items = e.Descendants(Rdf + "li").ToList();
-            XElement? pick = items.FirstOrDefault(static i => (string?)i.Attribute(XNamespace.Xml + "lang") == "x-default") ?? items.FirstOrDefault();
+            var items = e.Descendants(RdfLi).ToList();
+            XElement? pick = items.FirstOrDefault(static i => (string?)i.Attribute(XmlLang) == "x-default") ?? items.FirstOrDefault();
             return pick?.Value ?? (!e.HasElements ? e.Value : null);
         }
 
@@ -201,7 +216,7 @@ public sealed class XmpMetadata
         {
             if (d.Element(name) is { } e)
             {
-                return [.. e.Descendants(Rdf + "li").Select(static i => i.Value)];
+                return [.. e.Descendants(RdfLi).Select(static i => i.Value)];
             }
         }
 
@@ -215,17 +230,17 @@ public sealed class XmpMetadata
 public sealed partial class PdfDocument
 {
     /// <summary>The document information dictionary; never null (an empty one when the file has none).</summary>
-    public DocumentInfo Info => _info.Value;
+    public DocumentInfo Info => InfoLazy().Value;
 
-    private Lazy<DocumentInfo> _info = null!;
+    private Lazy<DocumentInfo>? _info;
 
     /// <summary>
     /// The catalog's XMP metadata, or null when there is none, when it is larger than <see cref="PdfLimits.MaxMetadataBytes"/>
     /// (a diagnostic is recorded) or when its stream cannot be read.
     /// </summary>
-    public XmpMetadata? Xmp => _xmp.Value;
+    public XmpMetadata? Xmp => XmpLazy().Value;
 
-    private Lazy<XmpMetadata?> _xmp = null!;
+    private Lazy<XmpMetadata?>? _xmp;
 
     private XmpMetadata? LoadXmp()
     {

@@ -91,6 +91,9 @@ internal sealed class LayoutWork : IDisposable
 
     internal int Generation;
 
+    /// <summary>False when the words of the result will not keep their glyph indices, so they need not be collected.</summary>
+    internal bool KeepWordGlyphs = true;
+
     internal int[] Aux1 = [];
     internal int[] Aux2 = [];
     internal int[] Aux3 = [];
@@ -128,16 +131,6 @@ internal static class TextLayout
     private static readonly double[] Dx = [1, 0, -1, 0];
     private static readonly double[] Dy = [0, 1, 0, -1];
 
-    // Static comparisons: no delegate or closure is allocated per sort. The sort is the same introsort whatever the element type, so the
-    // order of equal keys is what sorting the plain indices with the same comparison gave.
-    private static readonly Comparison<KeyIdx> ByKey = static (a, b) => a.Key.CompareTo(b.Key);
-
-    private static readonly Comparison<Key2Idx> ByKey2 = static (a, b) =>
-    {
-        int c = a.A.CompareTo(b.A);
-        return c != 0 ? c : a.B.CompareTo(b.B);
-    };
-
     internal static int Quantize(in PdfTextGlyph g)
     {
         double dx, dy;
@@ -168,32 +161,40 @@ internal static class TextLayout
     {
         double ux = Dx[k], uy = Dy[k];
         double nx = uy, ny = -ux;
-        PdfQuad q = g.Quad;
-        double x0 = double.MaxValue, x1 = double.MinValue, y0 = double.MaxValue, y1 = double.MinValue;
-        for (int i = 0; i < 4; i++)
-        {
-            double px = i == 0 ? q.X0 : i == 1 ? q.X1 : i == 2 ? q.X2 : q.X3;
-            double py = i == 0 ? q.Y0 : i == 1 ? q.Y1 : i == 2 ? q.Y2 : q.Y3;
-            double fx = ux * px + uy * py;
-            double fy = nx * px + ny * py;
-            x0 = Math.Min(x0, fx);
-            x1 = Math.Max(x1, fx);
-            y0 = Math.Min(y0, fy);
-            y1 = Math.Max(y1, fy);
-        }
+        g.Corners(out double ax, out double ay, out double bx, out double by, out double cx, out double cy, out double dx, out double dy);
+        double f0 = ux * ax + uy * ay, g0 = nx * ax + ny * ay;
+        double f1 = ux * bx + uy * by, g1 = nx * bx + ny * by;
+        double f2 = ux * cx + uy * cy, g2 = nx * cx + ny * cy;
+        double f3 = ux * dx + uy * dy, g3 = nx * dx + ny * dy;
+        double x0 = Math.Min(Math.Min(f0, f1), Math.Min(f2, f3));
+        double x1 = Math.Max(Math.Max(f0, f1), Math.Max(f2, f3));
+        double y0 = Math.Min(Math.Min(g0, g1), Math.Min(g2, g3));
+        double y1 = Math.Max(Math.Max(g0, g1), Math.Max(g2, g3));
 
         string t = g.Text ?? "";
-        bool space = t.Length > 0;
-        for (int i = 0; i < t.Length; i++)
+        bool space;
+        int first;
+        if (t.Length == 1 && !char.IsSurrogate(t[0]))
         {
-            if (!char.IsWhiteSpace(t[i]))
+            // The common case: one BMP character.
+            first = t[0];
+            space = char.IsWhiteSpace(t[0]);
+        }
+        else
+        {
+            space = t.Length > 0;
+            for (int i = 0; i < t.Length; i++)
             {
-                space = false;
-                break;
+                if (!char.IsWhiteSpace(t[i]))
+                {
+                    space = false;
+                    break;
+                }
             }
+
+            first = t.Length > 0 ? char.ConvertToUtf32(t, 0) : 0;
         }
 
-        int first = t.Length > 0 ? char.ConvertToUtf32(t, 0) : 0;
         return new Item
         {
             G = index,
@@ -319,15 +320,15 @@ internal static class TextLayout
     }
 
     /// <summary>Lays out the glyphs of <paramref name="subset"/> (indices into <paramref name="g"/>) and returns blocks in reading order.</summary>
-    internal static List<PdfTextBlock> Run(PdfTextGlyph[] g, ReadOnlySpan<int> subset, CancellationToken ct) => RunCore(g, subset, false, subset.Length, ct);
+    internal static List<PdfTextBlock> Run(PdfTextGlyph[] g, ReadOnlySpan<int> subset, CancellationToken ct) => RunCore(g, subset, false, subset.Length, true, ct);
 
     /// <summary>Lays out every glyph of <paramref name="g"/>.</summary>
-    internal static List<PdfTextBlock> RunAll(PdfTextGlyph[] g, CancellationToken ct) => RunCore(g, default, true, g.Length, ct);
+    internal static List<PdfTextBlock> RunAll(PdfTextGlyph[] g, CancellationToken ct) => RunCore(g, default, true, g.Length, true, ct);
 
     /// <summary>Lays out the first <paramref name="count"/> glyphs of <paramref name="g"/>, which may be longer.</summary>
-    internal static List<PdfTextBlock> RunAll(PdfTextGlyph[] g, int count, CancellationToken ct) => RunCore(g, default, true, count, ct);
+    internal static List<PdfTextBlock> RunAll(PdfTextGlyph[] g, int count, bool keepWordGlyphs, CancellationToken ct) => RunCore(g, default, true, count, keepWordGlyphs, ct);
 
-    private static List<PdfTextBlock> RunCore(PdfTextGlyph[] g, ReadOnlySpan<int> subset, bool all, int count, CancellationToken ct)
+    private static List<PdfTextBlock> RunCore(PdfTextGlyph[] g, ReadOnlySpan<int> subset, bool all, int count, bool keepWordGlyphs, CancellationToken ct)
     {
         List<PdfTextBlock> result = [];
         if (count == 0)
@@ -348,7 +349,7 @@ internal static class TextLayout
             }
 
             ct.ThrowIfCancellationRequested();
-            LayoutClass(g, grouped, start[k], cnt, k, result, ct);
+            LayoutClass(g, grouped, start[k], cnt, k, result, keepWordGlyphs, ct);
         }
 
         return result;
@@ -365,9 +366,9 @@ internal static class TextLayout
         return items;
     }
 
-    private static void LayoutClass(PdfTextGlyph[] g, int[] idx, int offset, int n, int k, List<PdfTextBlock> output, CancellationToken ct)
+    private static void LayoutClass(PdfTextGlyph[] g, int[] idx, int offset, int n, int k, List<PdfTextBlock> output, bool keepWordGlyphs, CancellationToken ct)
     {
-        using LayoutWork w = new();
+        using LayoutWork w = new() { KeepWordGlyphs = keepWordGlyphs };
         Item[] items = MakeItems(w, g, idx, offset, n, k);
         int lineCount = ClusterLines(w, items, n);
         w.InitLines(lineCount);
@@ -406,7 +407,7 @@ internal static class TextLayout
             ord[i] = new Key2Idx { A = items[i].Base, B = items[i].X0, Idx = i };
         }
 
-        ord.AsSpan(0, n).Sort(ByKey2);
+        IntroSort.SortNearlyOrdered<Key2Idx, ByKey2Order>(ord.AsSpan(0, n), w.Keys2.Rent(n));
 
         // Clusters are consecutive runs of the sorted order: cluster c is ord[cs[c] .. cs[c + 1]).
         int[] cs = w.Ints.Rent(n + 1);
@@ -559,7 +560,19 @@ internal static class TextLayout
             return 0;
         }
 
-        v.Sort();
+        // A run of bit-identical values (one font size, one baseline) is its own sorted order; skip the sort.
+        long first = BitConverter.DoubleToInt64Bits(v[0]);
+        int i = 1;
+        while (i < v.Length && BitConverter.DoubleToInt64Bits(v[i]) == first)
+        {
+            i++;
+        }
+
+        if (i < v.Length)
+        {
+            v.Sort();
+        }
+
         return (v[(v.Length - 1) / 2] + v[v.Length / 2]) / 2;
     }
 
@@ -592,6 +605,7 @@ internal static class TextLayout
         }
 
         KeyIdx[] ks = w.Keys.Rent(maxLen);
+        KeyIdx[] scratch = w.Keys.Rent(maxLen);
         for (int l = 0; l < lineCount; l++)
         {
             int s = lineStart[l], len = lineStart[l + 1] - s;
@@ -606,7 +620,7 @@ internal static class TextLayout
                 ks[q] = new KeyIdx { Key = items[i].X0, Idx = i };
             }
 
-            ks.AsSpan(0, len).Sort(ByKey);
+            IntroSort.SortNearlyOrdered<KeyIdx, ByKeyOrder>(ks.AsSpan(0, len), scratch);
             for (int q = 0; q < len; q++)
             {
                 sorted[s + q] = ks[q].Idx;
@@ -854,7 +868,7 @@ internal static class TextLayout
             ks[i] = new KeyIdx { Key = xAxis ? f[id].X0 : f[id].Top, Idx = id };
         }
 
-        ks.AsSpan(0, len).Sort(ByKey);
+        IntroSort.Sort<KeyIdx, ByKeyOrder>(ks.AsSpan(0, len));
         int groups = 1;
         gb[0] = 0;
         double curEnd = xAxis ? f[ks[0].Idx].X1 : f[ks[0].Idx].Bot;
@@ -985,7 +999,7 @@ internal static class TextLayout
             ks[i] = new KeyIdx { Key = top[lines[i]], Idx = lines[i] };
         }
 
-        ks.AsSpan(0, nl).Sort(ByKey);
+        IntroSort.Sort<KeyIdx, ByKeyOrder>(ks.AsSpan(0, nl));
         int run = 0;
         bool prevMulti = count[ks[0].Idx] > 1;
         for (int i = 0; i < nl; i++)
@@ -1073,7 +1087,7 @@ internal static class TextLayout
             ks[r] = new KeyIdx { Key = f[firstFrag[r]].Base, Idx = r };
         }
 
-        ks.AsSpan(0, nl).Sort(ByKey);
+        IntroSort.Sort<KeyIdx, ByKeyOrder>(ks.AsSpan(0, nl));
 
         int[] off = w.Ints.Rent(nl + 1);
         int[] cur = w.Ints.Rent(nl);
@@ -1106,7 +1120,7 @@ internal static class TextLayout
                     ks2[q] = new KeyIdx { Key = f[bk[os + q]].X0, Idx = bk[os + q] };
                 }
 
-                ks2.AsSpan(0, oc).Sort(ByKey);
+                IntroSort.Sort<KeyIdx, ByKeyOrder>(ks2.AsSpan(0, oc));
                 for (int q = 0; q < oc; q++)
                 {
                     bk[os + q] = ks2[q].Idx;
@@ -1221,6 +1235,54 @@ internal static class TextLayout
         });
     }
 
+    /// <summary>The length <see cref="WordText"/> would have, without building it.</summary>
+    private static int WordTextLength(PdfTextGlyph[] g, Item[] items, int[] ids, int start, int len)
+    {
+        if (len == 1)
+        {
+            return g[items[ids[start]].G].Text.Length;
+        }
+
+        int total = 0;
+        for (int k = 0; k < len; k++)
+        {
+            ref Item it = ref items[ids[start + k]];
+            if (!it.Space)
+            {
+                total += g[it.G].Text.Length;
+            }
+        }
+
+        return total;
+    }
+
+    /// <summary>Writes what <see cref="WordText"/> would return into <paramref name="span"/> and returns its length.</summary>
+    private static int WriteWordText(Span<char> span, PdfTextGlyph[] g, Item[] items, int[] ids, int start, int len)
+    {
+        if (len == 1)
+        {
+            string one = g[items[ids[start]].G].Text;
+            one.CopyTo(span);
+            return one.Length;
+        }
+
+        int pos = 0;
+        for (int k = 0; k < len; k++)
+        {
+            ref Item it = ref items[ids[start + k]];
+            if (it.Space)
+            {
+                continue;
+            }
+
+            string t = g[it.G].Text;
+            t.CopyTo(span.Slice(pos));
+            pos += t.Length;
+        }
+
+        return pos;
+    }
+
     private static PdfTextLine? MakeLine(LayoutWork w, PdfTextGlyph[] g, Item[] items, int[] ids, Frag[] f, int[] bk, int off, int nfr, int para)
     {
         int total = 0;
@@ -1276,16 +1338,22 @@ internal static class TextLayout
             Reorder(visual, cellStart, para, out logical, out order, out cellStart);
         }
 
-        PdfTextWord[] outWords = new PdfTextWord[wc];
+        // A result that drops its glyphs keeps each word as a small record; PdfTextLine makes the word objects only if its Words are read.
+        bool lazy = !w.KeepWordGlyphs && !needBidi;
+        PdfTextWord[] outWords = lazy ? [] : new PdfTextWord[wc];
+        PdfTextWordRecord[] records = lazy ? new PdfTextWordRecord[wc] : [];
         int ow = 0;
         int[] cells = w.Ints.Rent(wc + 1);
+        int[] kept = w.Ints.Rent(wc);
         int cellCount = 0;
+        int textPos = 0; // where the next word starts in the line's text (words are separated by one character)
         double ll = double.MaxValue, lb = double.MaxValue, lr = double.MinValue, lt = double.MinValue;
         for (int i = 0; i < wc; i++)
         {
             WordRec rec = needBidi ? wr[order![i]] : wr[i];
-            string text = needBidi ? logical![i] : WordText(g, items, ids, rec.Start, rec.Len);
-            if (text.Length == 0)
+            string? text = needBidi ? logical![i] : null;
+            int textLen = needBidi ? text!.Length : WordTextLength(g, items, ids, rec.Start, rec.Len);
+            if (textLen == 0)
             {
                 continue;
             }
@@ -1299,7 +1367,8 @@ internal static class TextLayout
                 }
             }
 
-            int[] gi = new int[ng];
+            // A result that drops its glyphs anyway never needs the indices.
+            int[] gi = w.KeepWordGlyphs ? new int[ng] : [];
             ng = 0;
             double wl = double.MaxValue, wbm = double.MaxValue, wr2 = double.MinValue, wt = double.MinValue;
             bool vis = false;
@@ -1311,7 +1380,11 @@ internal static class TextLayout
                 }
 
                 int gx = items[ids[rec.Start + k]].G;
-                gi[ng++] = gx;
+                if (w.KeepWordGlyphs)
+                {
+                    gi[ng++] = gx;
+                }
+
                 PdfRectangle b = g[gx].Bounds;
                 wl = Math.Min(wl, b.Left);
                 wbm = Math.Min(wbm, b.Bottom);
@@ -1325,7 +1398,19 @@ internal static class TextLayout
                 cells[cellCount++] = ow;
             }
 
-            outWords[ow++] = new PdfTextWord(text, new PdfRectangle(wl, wbm, wr2, wt), gi, vis);
+            kept[ow] = needBidi ? 0 : i;
+            if (lazy)
+            {
+                records[ow++] = new PdfTextWordRecord(textPos, textLen, new PdfRectangle(wl, wbm, wr2, wt), vis);
+            }
+            else
+            {
+                outWords[ow++] = needBidi
+                    ? new PdfTextWord(text!, new PdfRectangle(wl, wbm, wr2, wt), gi, vis)
+                    : new PdfTextWord(textPos, textLen, new PdfRectangle(wl, wbm, wr2, wt), gi, vis);
+            }
+
+            textPos += textLen + 1;
             ll = Math.Min(ll, wl);
             lb = Math.Min(lb, wbm);
             lr = Math.Max(lr, wr2);
@@ -1339,42 +1424,82 @@ internal static class TextLayout
 
         if (ow != wc)
         {
-            Array.Resize(ref outWords, ow);
+            if (lazy)
+            {
+                Array.Resize(ref records, ow);
+            }
+            else
+            {
+                Array.Resize(ref outWords, ow);
+            }
         }
 
         bool lead = cellCount == 0 || cells[0] != 0;
         int[] cellStarts = new int[cellCount + (lead ? 1 : 0)];
         Array.Copy(cells, 0, cellStarts, lead ? 1 : 0, cellCount);
 
-        int lineLen = ow - 1;
-        foreach (PdfTextWord word in outWords)
+        // Words are separated by a space, and a word that starts a cell by a tab.
+        int lineLen = textPos - 1;
+        string lineText;
+        if (needBidi)
         {
-            lineLen += word.Text.Length;
-        }
-
-        string lineText = string.Create(lineLen, (outWords, cellStarts), static (span, st) =>
-        {
-            int pos = 0, ci = 0;
-            for (int i = 0; i < st.outWords.Length; i++)
+            lineText = string.Create(lineLen, (outWords, cellStarts), static (span, st) =>
             {
-                if (i > 0)
+                int pos = 0, ci = 0;
+                for (int i = 0; i < st.outWords.Length; i++)
                 {
-                    while (ci < st.cellStarts.Length && st.cellStarts[ci] < i)
+                    if (i > 0)
                     {
-                        ci++;
+                        while (ci < st.cellStarts.Length && st.cellStarts[ci] < i)
+                        {
+                            ci++;
+                        }
+
+                        span[pos++] = ci < st.cellStarts.Length && st.cellStarts[ci] == i ? '\t' : ' ';
                     }
 
-                    span[pos++] = ci < st.cellStarts.Length && st.cellStarts[ci] == i ? '\t' : ' ';
+                    string t = st.outWords[i].Text;
+                    t.CopyTo(span.Slice(pos));
+                    pos += t.Length;
                 }
+            });
+        }
+        else
+        {
+            // The words' texts are slices of this string; they are cut out only when someone asks.
+            lineText = string.Create(lineLen, (g, items, ids, wr, kept, count: ow, cellStarts), static (span, st) =>
+            {
+                int pos = 0, ci = 0;
+                for (int i = 0; i < st.count; i++)
+                {
+                    if (i > 0)
+                    {
+                        while (ci < st.cellStarts.Length && st.cellStarts[ci] < i)
+                        {
+                            ci++;
+                        }
 
-                string t = st.outWords[i].Text;
-                t.CopyTo(span.Slice(pos));
-                pos += t.Length;
+                        span[pos++] = ci < st.cellStarts.Length && st.cellStarts[ci] == i ? '\t' : ' ';
+                    }
+
+                    WordRec rec = st.wr[st.kept[i]];
+                    pos += WriteWordText(span.Slice(pos), st.g, st.items, st.ids, rec.Start, rec.Len);
+                }
+            });
+            if (!lazy)
+            {
+                for (int i = 0; i < ow; i++)
+                {
+                    outWords[i].SetLine(lineText);
+                }
             }
-        });
+        }
 
-        return new PdfTextLine(outWords, new PdfRectangle(ll, lb, lr, lt),
-            para == 1 ? PdfTextDirection.RightToLeft : PdfTextDirection.LeftToRight, g[items[ids[wr[0].Start]].G].IsVertical, cellStarts, lineText);
+        PdfTextDirection direction = para == 1 ? PdfTextDirection.RightToLeft : PdfTextDirection.LeftToRight;
+        bool vertical = g[items[ids[wr[0].Start]].G].IsVertical;
+        return lazy
+            ? new PdfTextLine(records, new PdfRectangle(ll, lb, lr, lt), direction, vertical, cellStarts, lineText)
+            : new PdfTextLine(outWords, new PdfRectangle(ll, lb, lr, lt), direction, vertical, cellStarts, lineText);
     }
 
     private static bool MayBeRtl(string t)

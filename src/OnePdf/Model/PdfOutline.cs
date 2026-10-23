@@ -57,9 +57,9 @@ public sealed partial class PdfDocument
     /// <c>/Next</c> links: an item reached twice (a cycle) ends that branch with a diagnostic, nesting beyond
     /// <see cref="PdfLimits.MaxNestingDepth"/> and more than <see cref="PdfLimits.MaxObjects"/> items are cut off. Computed once.
     /// </summary>
-    public IReadOnlyList<PdfOutlineItem> Outline => _outline.Value;
+    public IReadOnlyList<PdfOutlineItem> Outline => OutlineLazy().Value;
 
-    private Lazy<IReadOnlyList<PdfOutlineItem>> _outline = null!;
+    private Lazy<IReadOnlyList<PdfOutlineItem>>? _outline;
 
     private List<PdfOutlineItem> LoadOutline()
     {

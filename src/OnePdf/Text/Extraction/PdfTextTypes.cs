@@ -85,16 +85,33 @@ public sealed class PdfTextOptions
 /// <summary>A word: glyphs that touch or nearly touch in reading direction, without a space between them.</summary>
 public sealed class PdfTextWord
 {
+    private string? _text;
+    private string? _line;
+    private readonly int _start;
+    private readonly int _length;
+
     internal PdfTextWord(string text, PdfRectangle bounds, int[] glyphs, bool isVisible)
     {
-        Text = text;
+        _text = text;
         Bounds = bounds;
         GlyphIndices = glyphs;
         IsVisible = isVisible;
     }
 
+    /// <summary>A word whose text is a slice of its line's text; it is cut out on first use, so a page read only as plain text never allocates it.</summary>
+    internal PdfTextWord(int start, int length, PdfRectangle bounds, int[] glyphs, bool isVisible)
+    {
+        _start = start;
+        _length = length;
+        Bounds = bounds;
+        GlyphIndices = glyphs;
+        IsVisible = isVisible;
+    }
+
+    internal void SetLine(string line) => _line = line;
+
     /// <summary>The word's text in logical order.</summary>
-    public string Text { get; }
+    public string Text => _text ??= _line!.Substring(_start, _length);
 
     /// <summary>The bounding box in page space.</summary>
     public PdfRectangle Bounds { get; }
@@ -106,12 +123,41 @@ public sealed class PdfTextWord
     public bool IsVisible { get; }
 }
 
+/// <summary>A word kept compactly until someone reads it: where its text sits in the line's text, its box and its visibility.</summary>
+internal readonly struct PdfTextWordRecord(int start, int length, PdfRectangle bounds, bool isVisible)
+{
+    internal int Start { get; } = start;
+
+    internal int Length { get; } = length;
+
+    internal PdfRectangle Bounds { get; } = bounds;
+
+    internal bool IsVisible { get; } = isVisible;
+}
+
 /// <summary>A line: words on one baseline, in logical order (for right-to-left text that is right to left on the page).</summary>
 public sealed class PdfTextLine
 {
+    private PdfTextWord[]? _words;
+    private PdfTextWordRecord[]? _records;
+
     internal PdfTextLine(PdfTextWord[] words, PdfRectangle bounds, PdfTextDirection direction, bool isVertical, int[] cellStarts, string text)
     {
-        Words = words;
+        _words = words;
+        Bounds = bounds;
+        Direction = direction;
+        IsVertical = isVertical;
+        CellStarts = cellStarts;
+        Text = text;
+    }
+
+    /// <summary>
+    /// A line whose words are made from <paramref name="records"/> when first read. Plain text needs only the line, so a document extracted without
+    /// its glyphs never allocates a word object it does not use. The words are slices of <paramref name="text"/> with no glyph indices.
+    /// </summary>
+    internal PdfTextLine(PdfTextWordRecord[] records, PdfRectangle bounds, PdfTextDirection direction, bool isVertical, int[] cellStarts, string text)
+    {
+        _records = records;
         Bounds = bounds;
         Direction = direction;
         IsVertical = isVertical;
@@ -120,7 +166,30 @@ public sealed class PdfTextLine
     }
 
     /// <summary>The words in logical order.</summary>
-    public IReadOnlyList<PdfTextWord> Words { get; }
+    public IReadOnlyList<PdfTextWord> Words => _words ?? MakeWords();
+
+    private PdfTextWord[] MakeWords()
+    {
+        PdfTextWordRecord[]? records = Volatile.Read(ref _records);
+        if (records is null)
+        {
+            // Another thread has published the words already (it does so before it drops the records).
+            return _words!;
+        }
+
+        var made = new PdfTextWord[records.Length];
+        for (int i = 0; i < made.Length; i++)
+        {
+            PdfTextWordRecord r = records[i];
+            made[i] = new PdfTextWord(r.Start, r.Length, r.Bounds, [], r.IsVisible);
+            made[i].SetLine(Text);
+        }
+
+        // Whichever thread publishes first wins, so every reader sees the same word objects.
+        PdfTextWord[] words = Interlocked.CompareExchange(ref _words, made, null) ?? made;
+        Volatile.Write(ref _records, null);
+        return words;
+    }
 
     /// <summary>The bounding box in page space.</summary>
     public PdfRectangle Bounds { get; }
@@ -182,11 +251,15 @@ public sealed class PdfPageText
     }
 
     /// <summary>A result whose glyphs were never kept (see <see cref="PdfTextOptions.RetainGlyphs"/>).</summary>
-    internal static PdfPageText WithoutGlyphs(int pageIndex, double width, double height, PdfTextBlock[] blocks, IReadOnlyList<PdfDiagnostic> diagnostics, PdfTextOptions options)
+    internal static PdfPageText WithoutGlyphs(int pageIndex, double width, double height, PdfTextBlock[] blocks, IReadOnlyList<PdfDiagnostic> diagnostics, PdfTextOptions options, bool wordsAlreadyClear = false)
     {
         var page = new PdfPageText(pageIndex, width, height, [], blocks, false, diagnostics, options);
         page._glyphsDropped = true;
-        page.ClearWordGlyphs();
+        if (!wordsAlreadyClear)
+        {
+            page.ClearWordGlyphs();
+        }
+
         return page;
     }
 

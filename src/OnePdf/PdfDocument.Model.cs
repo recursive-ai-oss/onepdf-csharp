@@ -4,13 +4,13 @@ namespace OnePdf;
 
 public sealed partial class PdfDocument
 {
-    private Lazy<PdfPageCollection> _pages = null!;
+    private Lazy<PdfPageCollection>? _pages;
 
     /// <summary>
     /// The pages, zero-based. The page tree is walked once, on first use, iteratively with cycle and limit protection
     /// (a node reached twice or a kid that is not a dictionary is skipped with a diagnostic).
     /// </summary>
-    public PdfPageCollection Pages => _pages.Value;
+    public PdfPageCollection Pages => PagesLazy().Value;
 
     /// <summary>True when the catalog's <c>/MarkInfo</c> says the document is tagged (<c>/Marked true</c>).</summary>
     public bool IsTagged => Catalog.GetDictionary("MarkInfo")?.GetBool("Marked") ?? false;
@@ -21,20 +21,38 @@ public sealed partial class PdfDocument
     /// <summary>The root of the logical structure tree (<c>/StructTreeRoot</c>) as a raw dictionary, or null. Reading order from it is the text extractor's business.</summary>
     public PdfDictionary? StructureTreeRoot => Catalog.GetDictionary("StructTreeRoot");
 
-    private void InitModel()
-    {
-        const LazyThreadSafetyMode mode = LazyThreadSafetyMode.ExecutionAndPublication;
-        _pages = new Lazy<PdfPageCollection>(() => new PdfPageCollection(this, WalkPages(Catalog, "document")), mode);
-        _pageLabels = new Lazy<PdfPageLabels?>(LoadPageLabels, mode);
-        _info = new Lazy<DocumentInfo>(() => new DocumentInfo(Trailer.GetDictionary("Info") ?? new PdfDictionary(null)), mode);
-        _xmp = new Lazy<XmpMetadata?>(LoadXmp, mode);
-        _outline = new Lazy<IReadOnlyList<PdfOutlineItem>>(LoadOutline, mode);
-        _namedDestinations = new Lazy<Dictionary<string, PdfObject>>(LoadNamedDestinations, mode);
-        _embeddedFiles = new Lazy<IReadOnlyList<PdfEmbeddedFile>>(LoadEmbeddedFiles, mode);
-        _javaScript = new Lazy<IReadOnlyList<PdfJavaScript>>(LoadJavaScript, mode);
-        _ocgs = new Lazy<IReadOnlyList<PdfOptionalContentGroup>>(LoadOptionalContent, mode);
-        _form = new Lazy<PdfAcroForm?>(LoadForm, mode);
-    }
+    // The lazies are made when first asked for: most documents are opened for a few of these, and each costs several allocations.
+    private const LazyThreadSafetyMode LazyMode = LazyThreadSafetyMode.ExecutionAndPublication;
+
+    private Lazy<PdfPageCollection> PagesLazy() =>
+        _pages ?? Interlocked.CompareExchange(ref _pages, new Lazy<PdfPageCollection>(() => new PdfPageCollection(this, WalkPages(Catalog, "document")), LazyMode), null) ?? _pages!;
+
+    private Lazy<PdfPageLabels?> PageLabelsLazy() =>
+        _pageLabels ?? Interlocked.CompareExchange(ref _pageLabels, new Lazy<PdfPageLabels?>(LoadPageLabels, LazyMode), null) ?? _pageLabels!;
+
+    private Lazy<DocumentInfo> InfoLazy() =>
+        _info ?? Interlocked.CompareExchange(ref _info, new Lazy<DocumentInfo>(() => new DocumentInfo(Trailer.GetDictionary("Info") ?? new PdfDictionary(null)), LazyMode), null) ?? _info!;
+
+    private Lazy<XmpMetadata?> XmpLazy() =>
+        _xmp ?? Interlocked.CompareExchange(ref _xmp, new Lazy<XmpMetadata?>(LoadXmp, LazyMode), null) ?? _xmp!;
+
+    private Lazy<IReadOnlyList<PdfOutlineItem>> OutlineLazy() =>
+        _outline ?? Interlocked.CompareExchange(ref _outline, new Lazy<IReadOnlyList<PdfOutlineItem>>(LoadOutline, LazyMode), null) ?? _outline!;
+
+    private Lazy<Dictionary<string, PdfObject>> NamedDestinationsLazy() =>
+        _namedDestinations ?? Interlocked.CompareExchange(ref _namedDestinations, new Lazy<Dictionary<string, PdfObject>>(LoadNamedDestinations, LazyMode), null) ?? _namedDestinations!;
+
+    private Lazy<IReadOnlyList<PdfEmbeddedFile>> EmbeddedFilesLazy() =>
+        _embeddedFiles ?? Interlocked.CompareExchange(ref _embeddedFiles, new Lazy<IReadOnlyList<PdfEmbeddedFile>>(LoadEmbeddedFiles, LazyMode), null) ?? _embeddedFiles!;
+
+    private Lazy<IReadOnlyList<PdfJavaScript>> JavaScriptLazy() =>
+        _javaScript ?? Interlocked.CompareExchange(ref _javaScript, new Lazy<IReadOnlyList<PdfJavaScript>>(LoadJavaScript, LazyMode), null) ?? _javaScript!;
+
+    private Lazy<IReadOnlyList<PdfOptionalContentGroup>> OptionalContentLazy() =>
+        _ocgs ?? Interlocked.CompareExchange(ref _ocgs, new Lazy<IReadOnlyList<PdfOptionalContentGroup>>(LoadOptionalContent, LazyMode), null) ?? _ocgs!;
+
+    private Lazy<PdfAcroForm?> FormLazy() =>
+        _form ?? Interlocked.CompareExchange(ref _form, new Lazy<PdfAcroForm?>(LoadForm, LazyMode), null) ?? _form!;
 
     private readonly record struct Inherited(PdfObject? Resources, PdfObject? MediaBox, PdfObject? CropBox, PdfObject? Rotate);
 
@@ -56,9 +74,9 @@ public sealed partial class PdfDocument
     /// </summary>
     private int CountPagesLean()
     {
-        if (_pages.IsValueCreated)
+        if (_pages is { IsValueCreated: true } created)
         {
-            return _pages.Value.Count;
+            return created.Value.Count;
         }
 
         WalkPagesCore(Catalog, "document", countOnly: true, quiet: false, out int count);
