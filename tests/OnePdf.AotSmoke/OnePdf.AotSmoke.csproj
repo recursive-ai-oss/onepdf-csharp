@@ -12,6 +12,9 @@
   <ItemGroup>
     <!-- A tiny TrueType font built in code, shared with the unit tests. -->
     <Compile Include="../OnePdf.Tests/Creation/SyntheticFont.cs" Link="SyntheticFont.cs" />
+    <!-- Builds a signed file with a test CA, signer and time-stamp authority, so the smoke can verify a real signature. -->
+    <Compile Include="../OnePdf.Tests/Signatures/SigKit.cs" Link="Signatures/SigKit.cs" />
+    <Compile Include="../OnePdf.Tests/Signatures/SigKit.Pdf.cs" Link="Signatures/SigKit.Pdf.cs" />
   </ItemGroup>
 
   <ItemGroup>

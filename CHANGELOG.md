@@ -2,6 +2,19 @@
 
 All notable changes are listed here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and versions follow [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Added
+
+- Signature verification, read-only. `PdfDocument.GetSignatures()` lists signature fields and document time-stamps with signer name, reason, location, contact, `/M`, sub-filter, `/ByteRange`, the CMS bytes, the `/DocMDP` certification level and the field lock; `PdfFormField.GetSignature()` returns one field's signature. `PdfSignature.Verify` and `PdfDocument.VerifySignatures` check, with the platform's hashes, RSA (PKCS#1 v1.5 and PSS) and ECDSA and its X.509 chain builder (no `System.Security.Cryptography.Pkcs`):
+  - the byte range (starts at 0, leaves out exactly `/Contents`, no gaps or overlaps, ends at a revision boundary) and which revision it covers;
+  - the digest, the signed attributes and the signature, for `adbe.pkcs7.detached`, `ETSI.CAdES.detached` (with the signing-certificate attribute), `ETSI.RFC3161` document time-stamps, and the legacy `adbe.pkcs7.sha1` (flagged weak); `adbe.x509.rsa_sha1` is reported as unsupported and weak;
+  - an RFC 3161 signature time-stamp, itself verified, and the certificate chain against `TrustAnchors` (or, if asked, the system store) at a validation time chosen from the time-stamp, the signing time or now, or given explicitly;
+  - revocation, which is never fetched: reported as not checked unless a `RevocationCheck` callback answers from data the caller holds;
+  - changes after signing, object by object and classified (form field value, new signature, annotation, page content, validation data, other) against the DocMDP level and FieldMDP locks.
+  The result (`PdfSignatureVerification`) keeps every check separate; `IsValid` is a convenience. See `docs/signatures.md`.
+- A `signature` fuzz target (ASN.1/CMS parsing, certificates, chain building, byte ranges and change analysis).
+
 ## [1.3.0] - 2026-10-23
 
 ### Added

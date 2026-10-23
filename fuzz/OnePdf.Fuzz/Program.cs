@@ -45,6 +45,7 @@ internal static class Program
         ["extraction"] = ExtractionTarget.Run,
         ["save"] = SaveTarget.Run,
         ["fontsubset"] = FontSubsetTarget.Run,
+        ["signature"] = SignatureTarget.Run,
     };
 
     private static int Main(string[] args)

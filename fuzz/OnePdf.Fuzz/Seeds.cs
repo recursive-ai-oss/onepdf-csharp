@@ -140,6 +140,23 @@ internal static class Seeds
 
                 break;
 
+            case "signature":
+                foreach (byte[] seed in SignatureTarget.Seeds())
+                {
+                    PutData("sig", seed);
+                }
+
+                foreach (string f in pdfs)
+                {
+                    byte[] bytes = File.ReadAllBytes(f);
+                    if (bytes.Length <= MaxPdfBytes && bytes.AsSpan().IndexOf("ByteRange"u8) >= 0)
+                    {
+                        PutData("pdf", bytes, [1]);
+                    }
+                }
+
+                break;
+
             case "cmap":
                 PutData("tounicode", Encoding.ASCII.GetBytes(
                     "/CIDInit /ProcSet findresource begin 12 dict begin begincmap /CMapName /Adobe-Identity-UCS def /CMapType 2 def\n" +
