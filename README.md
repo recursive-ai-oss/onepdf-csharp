@@ -34,6 +34,9 @@ are read through safe, bounds-checked code with size limits on by default.
   cross-reference and object streams) or an incremental update that leaves the original bytes untouched; keep, remove or set
   AES encryption
   ([writing](https://github.com/recursive-ai-oss/onepdf-csharp/blob/main/docs/writing.md)).
+- **Page operations.** Delete, reorder, rotate, duplicate and insert pages; import pages from other documents, merge documents and
+  split one into parts, with bookmarks, links, form fields and tagged structure carried along
+  ([page operations](https://github.com/recursive-ai-oss/onepdf-csharp/blob/main/docs/page-operations.md)).
 - **Concurrent.** Objects parse lazily into a byte-budgeted cache with single-flight parsing; any number of threads can read pages
   of one document at once.
 
@@ -45,7 +48,7 @@ dotnet add package RecursiveAI.OnePdf.Fonts   # optional: substitute fonts for t
 ```
 
 The package is `RecursiveAI.OnePdf`; the namespace is `OnePdf` (`using OnePdf;`). Target framework `net10.0`. Moving from PdfPig?
-See the [migration guide](https://github.com/recursive-ai-oss/onepdf-csharp/blob/main/docs/migrating-from-pdfpig.md).
+See the [migration guide](https://github.com/recursive-ai-oss/onepdf-csharp/blob/main/docs/migrating-from-pdfpig.md). Moving from PDFsharp? See [that guide](https://github.com/recursive-ai-oss/onepdf-csharp/blob/main/docs/migrating-from-pdfsharp.md).
 
 ## Quick start
 

@@ -271,6 +271,38 @@ catch (PdfFormValueException e) when (e.Reason == PdfFormValueError.WrongType)
 {
 }
 
+// Page operations: merge two readings of the first document (outline, link and labels travel), then rotate,
+// duplicate, move and delete in the result, split it, and read the saved file back.
+using PdfDocument merged = PdfDocument.Merge([doc, doc]);
+merged.RotatePage(1, 90);
+merged.DuplicatePage(0);
+merged.MovePage(0, 2);
+merged.InsertBlankPage(1, 100, 100);
+merged.RemovePage(1);
+using var mergedBytes = new System.IO.MemoryStream();
+merged.Save(mergedBytes);
+using PdfDocument mergedBack = PdfDocument.Open(mergedBytes.ToArray());
+IReadOnlyList<PdfDocument> parts = PdfDocument.Split(mergedBack, 2);
+int partPages = 0;
+foreach (PdfDocument part in parts)
+{
+    partPages += part.PageCount;
+    part.Dispose();
+}
+
+int mergedLinks = 0;
+foreach (PdfPage mp in mergedBack.Pages)
+{
+    mergedLinks += mp.Links.Count;
+}
+
+if (mergedBack.PageCount != 3 || partPages != 3 || mergedBack.Outline.Count != 2
+    || mergedBack.Pages[1].Rotate != 180 || mergedLinks != 3 || mergedBack.Pages[2].Label != "i")
+{
+    Console.Error.WriteLine($"page operations did not give the expected document: {mergedBack.PageCount} {partPages} {mergedBack.Outline.Count} {mergedBack.Pages[1].Rotate} {mergedLinks} {mergedBack.Pages[2].Label}");
+    return 1;
+}
+
 Console.WriteLine("ok");
 return 0;
 
