@@ -9,7 +9,7 @@ namespace OnePdf.Layout;
 /// </summary>
 public sealed class TextRenderer
 {
-    private readonly Func<ReadOnlyMemory<byte>, PdfEmbedFontOptions?, PdfCreatedFont> _addFont;
+    private readonly Func<PdfFontSource, PdfEmbedFontOptions?, PdfCreatedFont> _addFont;
     private readonly Func<string, PdfCreatedFont> _addStandard;
     private readonly Dictionary<FontEntry, PdfCreatedFont> _embedded = [];
 
@@ -25,7 +25,7 @@ public sealed class TextRenderer
     {
     }
 
-    internal TextRenderer(Func<ReadOnlyMemory<byte>, PdfEmbedFontOptions?, PdfCreatedFont> addFont, Func<string, PdfCreatedFont> addStandard)
+    internal TextRenderer(Func<PdfFontSource, PdfEmbedFontOptions?, PdfCreatedFont> addFont, Func<string, PdfCreatedFont> addStandard)
     {
         _addFont = addFont;
         _addStandard = addStandard;
@@ -66,10 +66,10 @@ public sealed class TextRenderer
             throw new ArgumentOutOfRangeException(nameof(count), "The line range is outside the layout.");
         }
 
-        var links = new List<TextLinkArea>();
+        List<TextLinkArea>? links = null;
         if (count == 0)
         {
-            return links;
+            return Array.Empty<TextLinkArea>();
         }
 
         double origin = layout.Lines[firstLine].Top;
@@ -79,7 +79,7 @@ public sealed class TextRenderer
             for (int l = firstLine; l < firstLine + count; l++)
             {
                 ParagraphLine line = layout.Lines[l];
-                DrawLine(builder, layout.Paragraph, line, x + line.X, top - (line.Top - origin), links);
+                DrawLine(builder, layout.Paragraph, line, x + line.X, top - (line.Top - origin), ref links);
             }
         }
         finally
@@ -87,7 +87,7 @@ public sealed class TextRenderer
             builder.Restore();
         }
 
-        return links;
+        return links ?? (IReadOnlyList<TextLinkArea>)Array.Empty<TextLinkArea>();
     }
 
     private PdfCreatedFont FontFor(FontEntry entry)
@@ -99,25 +99,58 @@ public sealed class TextRenderer
 
         if (!_embedded.TryGetValue(entry, out PdfCreatedFont? font))
         {
-            font = _addFont(entry.Data, new PdfEmbedFontOptions());
+            font = _addFont(entry.Source, new PdfEmbedFontOptions());
             _embedded[entry] = font;
         }
 
         return font;
     }
 
-    private sealed class Piece
+    // One stretch of a line in one format. Its glyphs are Glyphs[GlyphStart .. GlyphEnd) of the renderer's buffer and its text is
+    // para.Text[TextStart .. TextStart + TextLength); the buffers are reused from line to line, so drawing allocates nothing per line.
+    private struct Piece
     {
-        public required int Fmt;
-        public required string Text;
-        public required List<PdfShapedGlyph> Glyphs;
+        public int Fmt;
+        public int GlyphStart;
+        public int GlyphEnd;
+        public int TextStart;
+        public int TextLength;
         public double Width;
         public bool IsHyphen;
+
+        /// <summary>The text of a closing hyphen (which is not part of the paragraph text); null for other pieces.</summary>
+        public string? Literal;
         public int FirstItem;
         public int LastItem;
     }
 
-    private void DrawLine(PdfContentBuilder b, ShapedParagraph para, ParagraphLine line, double x0, double lineTop, List<TextLinkArea> links)
+    private PdfShapedGlyph[] _glyphs = new PdfShapedGlyph[128];
+    private int _glyphCount;
+    private Piece[] _pieces = new Piece[8];
+    private int _pieceCount;
+
+    private void AddGlyph(in PdfShapedGlyph g)
+    {
+        if (_glyphCount == _glyphs.Length)
+        {
+            Array.Resize(ref _glyphs, _glyphs.Length * 2);
+        }
+
+        _glyphs[_glyphCount++] = g;
+    }
+
+    private int AddPiece(in Piece p)
+    {
+        if (_pieceCount == _pieces.Length)
+        {
+            Array.Resize(ref _pieces, _pieces.Length * 2);
+        }
+
+        _pieces[_pieceCount] = p;
+        return _pieceCount++;
+    }
+
+    private void DrawLine(PdfContentBuilder b, ShapedParagraph para, ParagraphLine line, double x0, double lineTop, ref List<TextLinkArea>? links)
     {
         double baseline = lineTop - line.Baseline;
         int count = line.ItemEnd - line.ItemStart;
@@ -128,41 +161,46 @@ public sealed class TextRenderer
             return;
         }
 
-        // Display order of the line's items; a closing hyphen sits at the end of the line in the paragraph's direction.
-        var levels = new byte[total];
-        for (int k = 0; k < count; k++)
+        // Display order of the line's items; a closing hyphen sits at the end of the line in the paragraph's direction. A line whose items
+        // are all at level 0 is already in display order.
+        int[]? order = null;
+        bool allLevelZero = !hyphen;
+        for (int k = 0; allLevelZero && k < count; k++)
         {
-            levels[k] = para.ItemAt(line.ItemStart + k).Level;
+            allLevelZero = para.ItemAt(line.ItemStart + k).Level == 0;
         }
 
-        if (hyphen)
+        if (!allLevelZero)
         {
-            levels[count] = line.Segment.ParaLevel;
+            var levels = new byte[total];
+            for (int k = 0; k < count; k++)
+            {
+                levels[k] = para.ItemAt(line.ItemStart + k).Level;
+            }
+
+            if (hyphen)
+            {
+                levels[count] = line.Segment.ParaLevel;
+            }
+
+            order = TextShaping.GetVisualOrder(levels);
         }
 
-        int[] order = TextShaping.GetVisualOrder(levels);
-
-        var pieces = new List<Piece>();
-        Piece? cur = null;
+        _glyphCount = 0;
+        _pieceCount = 0;
+        int cur = -1;
         int prevLogical = -2;
-        foreach (int logical in order)
+        for (int oi = 0; oi < total; oi++)
         {
+            int logical = order is null ? oi : order[oi];
             if (logical == count)
             {
                 Hyph h = para.HyphenFor(line.ItemEnd - 1);
                 Fmt hf = para.FmtAt(h.Fmt);
-                var hp = new Piece
-                {
-                    Fmt = h.Fmt,
-                    Text = h.Text,
-                    Glyphs = [new PdfShapedGlyph(h.Gid, 0, Thousandths(h.Advance, hf.Size))],
-                    Width = h.Advance,
-                    IsHyphen = true,
-                    FirstItem = -1,
-                    LastItem = -1,
-                };
-                pieces.Add(hp);
-                cur = null;
+                int gs = _glyphCount;
+                AddGlyph(new PdfShapedGlyph(h.Gid, 0, Thousandths(h.Advance, hf.Size)));
+                AddPiece(new Piece { Fmt = h.Fmt, GlyphStart = gs, GlyphEnd = _glyphCount, TextLength = 0, Literal = h.Text, Width = h.Advance, IsHyphen = true, FirstItem = -1, LastItem = -1 });
+                cur = -1;
                 prevLogical = -2;
                 continue;
             }
@@ -170,22 +208,24 @@ public sealed class TextRenderer
             int idx = line.ItemStart + logical;
             Item it = para.ItemAt(idx);
             Fmt f = para.FmtAt(it.Fmt);
-            bool extend = cur is not null && cur.Fmt == it.Fmt
-                && para.ItemAt(cur.LastItem).Level == it.Level && Math.Abs(logical - prevLogical) == 1;
+            bool extend = cur >= 0 && _pieces[cur].Fmt == it.Fmt
+                && para.ItemAt(_pieces[cur].LastItem).Level == it.Level && Math.Abs(logical - prevLogical) == 1;
             if (!extend)
             {
-                cur = new Piece { Fmt = it.Fmt, Text = string.Empty, Glyphs = [], FirstItem = idx, LastItem = idx };
-                pieces.Add(cur);
+                cur = AddPiece(new Piece { Fmt = it.Fmt, GlyphStart = _glyphCount, FirstItem = idx, LastItem = idx });
             }
 
-            cur!.LastItem = idx;
+            _pieces[cur].LastItem = idx;
             prevLogical = logical;
-            cur.Width += AppendItem(para, line, it, f, cur, (idx != line.ItemEnd - 1 || hyphen) ? 1 : 0);
+            double w = AppendItem(para, line, it, f, (idx != line.ItemEnd - 1 || hyphen) ? 1 : 0);
+            _pieces[cur].Width += w;
+            _pieces[cur].GlyphEnd = _glyphCount;
         }
 
         // Logical text of each shaped piece, with cluster indexes relative to it.
-        foreach (Piece p in pieces)
+        for (int pi = 0; pi < _pieceCount; pi++)
         {
+            ref Piece p = ref _pieces[pi];
             if (p.IsHyphen)
             {
                 continue;
@@ -195,19 +235,20 @@ public sealed class TextRenderer
             int hi = Math.Max(p.FirstItem, p.LastItem);
             int textStart = para.ItemAt(lo).Start;
             Item last = para.ItemAt(hi);
-            p.Text = para.Text.Substring(textStart, last.Start + last.Length - textStart);
-            for (int g = 0; g < p.Glyphs.Count; g++)
+            p.TextStart = textStart;
+            p.TextLength = last.Start + last.Length - textStart;
+            for (int g = p.GlyphStart; g < p.GlyphEnd; g++)
             {
-                PdfShapedGlyph gl = p.Glyphs[g];
-                p.Glyphs[g] = gl with { Cluster = gl.Cluster - textStart };
+                _glyphs[g] = _glyphs[g] with { Cluster = _glyphs[g].Cluster - textStart };
             }
         }
 
         double x = x0;
         double lineBottom = baseline - (line.Height - line.Baseline);
         TextStyle? lastColorStyle = null;
-        foreach (Piece p in pieces)
+        for (int pi = 0; pi < _pieceCount; pi++)
         {
+            Piece p = _pieces[pi];
             Fmt f = para.FmtAt(p.Fmt);
             PdfCreatedFont font = FontFor(f.Entry);
             LayoutColor color = f.Style.Color;
@@ -218,13 +259,14 @@ public sealed class TextRenderer
             }
 
             b.SetFont(font, f.Size);
+            var glyphs = new ReadOnlySpan<PdfShapedGlyph>(_glyphs, p.GlyphStart, p.GlyphEnd - p.GlyphStart);
             if (f.IsStandard)
             {
-                DrawStandard(b, para, p, f, x, baseline);
+                DrawStandard(b, para, p, glyphs, f, x, baseline);
             }
             else
             {
-                b.DrawGlyphRun(x, baseline, p.Glyphs.ToArray(), p.Text);
+                b.DrawGlyphRun(x, baseline, glyphs, p.Literal is { } literal ? literal.AsSpan() : para.Text.AsSpan(p.TextStart, p.TextLength));
             }
 
             if (f.Style.Underline || f.Style.Strike)
@@ -248,6 +290,7 @@ public sealed class TextRenderer
 
             if (f.Style.Link is { } target)
             {
+                links ??= [];
                 int n = links.Count;
                 if (n > 0 && links[n - 1].Target == target && Math.Abs(links[n - 1].X + links[n - 1].Width - x) < 1e-6 && Math.Abs(links[n - 1].Y - lineBottom) < 1e-6)
                 {
@@ -265,7 +308,7 @@ public sealed class TextRenderer
     }
 
     // Adds the item's glyphs in display order. The gap after the item (letter spacing, justification) goes onto its last displayed glyph.
-    private static double AppendItem(ShapedParagraph para, ParagraphLine line, Item it, Fmt f, Piece piece, int notLast)
+    private double AppendItem(ShapedParagraph para, ParagraphLine line, Item it, Fmt f, int notLast)
     {
         double extra = it.Spacing;
         if (it.Stretch)
@@ -285,7 +328,7 @@ public sealed class TextRenderer
         if (f.IsStandard)
         {
             double a = para.GlyphAt(it.GlyphStart).Advance + extra;
-            piece.Glyphs.Add(new PdfShapedGlyph(0, it.Start, Thousandths(a, size)));
+            AddGlyph(new PdfShapedGlyph(0, it.Start, Thousandths(a, size)));
             return a;
         }
 
@@ -300,7 +343,7 @@ public sealed class TextRenderer
             }
 
             width += a;
-            piece.Glyphs.Add(new PdfShapedGlyph(g.Gid, it.Start, Thousandths(a, size), Thousandths(g.Dx, size), Thousandths(g.Dy, size)));
+            AddGlyph(new PdfShapedGlyph(g.Gid, it.Start, Thousandths(a, size), Thousandths(g.Dx, size), Thousandths(g.Dy, size)));
         }
 
         return width;
@@ -309,7 +352,7 @@ public sealed class TextRenderer
     private static double Thousandths(double points, double size) => points / size * 1000.0;
 
     // Standard fonts are drawn word by word with the standard font's own text path; positions come from the layout.
-    private static void DrawStandard(PdfContentBuilder b, ShapedParagraph para, Piece p, Fmt f, double x, double baseline)
+    private static void DrawStandard(PdfContentBuilder b, ShapedParagraph para, in Piece p, ReadOnlySpan<PdfShapedGlyph> glyphs, Fmt f, double x, double baseline)
     {
         if (p.IsHyphen)
         {
@@ -344,7 +387,7 @@ public sealed class TextRenderer
                 word.Append(para.Text, it.Start, it.Length);
             }
 
-            pen += p.Glyphs[k].Advance * f.Size / 1000.0;
+            pen += glyphs[k].Advance * f.Size / 1000.0;
         }
 
         if (word.Length > 0)

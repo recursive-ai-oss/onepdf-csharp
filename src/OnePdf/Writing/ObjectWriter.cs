@@ -48,17 +48,17 @@ internal sealed class ObjectWriter
         if (value is PdfStream stream)
         {
             PreparedStream p = PrepareStream(stream);
-            byte[] data = p.Data;
+            ReadOnlyMemory<byte> data = p.Data;
             if (enc is not null && data.Length > 0)
             {
                 string? type = stream.Dictionary.GetName("Type");
-                data = enc.EncryptStream(data, number, generation, type == "Metadata", type == "EmbeddedFile").Data;
+                data = enc.EncryptStream(data.Span, number, generation, type == "Metadata", type == "EmbeddedFile").Data;
             }
 
             p.Dictionary.SetLengthInternal(data.Length);
             WriteValue(sink, p.Dictionary, enc, number, generation);
             sink.Ascii("\nstream\n");
-            sink.Write(data);
+            sink.Write(data.Span);
             sink.Ascii("\nendstream");
         }
         else
@@ -261,7 +261,7 @@ internal sealed class ObjectWriter
         sink.Byte((byte)'>');
     }
 
-    private readonly record struct PreparedStream(PdfDictionary Dictionary, byte[] Data);
+    private readonly record struct PreparedStream(PdfDictionary Dictionary, ReadOnlyMemory<byte> Data);
 
     /// <summary>
     /// The dictionary and the plain stored bytes (decrypted, still filtered) to write for a stream. A <c>Crypt</c> filter is
@@ -270,7 +270,8 @@ internal sealed class ObjectWriter
     private PreparedStream PrepareStream(PdfStream s)
     {
         IReadOnlyList<string> filters = s.FilterNames;
-        byte[] data = s.IsExternal ? [] : s.GetStoredBytes(filters).ToArray();
+        // The stored bytes are only read, so they are not copied unless they get compressed.
+        ReadOnlyMemory<byte> data = s.IsExternal ? default : s.GetStoredBytes(filters);
         var dict = new PdfDictionary(null);
         bool dropCrypt = filters.Count > 0 && filters[0] == "Crypt";
         PdfDictionary src = s.Dictionary;
@@ -295,7 +296,7 @@ internal sealed class ObjectWriter
         string? type = src.GetName("Type");
         if (_options.CompressStreams && unfiltered && !s.IsExternal && data.Length >= 64 && type is not ("Metadata" or "XRef" or "ObjStm"))
         {
-            byte[] packed = FlateWriter.Compress(data);
+            byte[] packed = FlateWriter.Compress(data.Span);
             if (packed.Length < data.Length)
             {
                 data = packed;

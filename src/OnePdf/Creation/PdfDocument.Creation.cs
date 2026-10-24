@@ -177,15 +177,25 @@ public sealed partial class PdfDocument
     public PdfCreatedFont AddFont(ReadOnlyMemory<byte> fontData, PdfEmbedFontOptions? options = null)
     {
         EnsureEditable(0);
-        if (fontData.Length > 1 << 28)
-        {
-            throw new PdfLimitException("The font file is larger than 256 MiB.");
-        }
+        return AddFont(PdfFontSource.Load(fontData, options?.FaceIndex ?? 0), options);
+    }
 
+    /// <summary>
+    /// Adds a font that was read once with <see cref="PdfFontSource.Load"/>; the result is the same as for the bytes, without copying,
+    /// parsing and hashing the file again for every document. <see cref="PdfEmbedFontOptions.FaceIndex"/> is ignored: the source has its face.
+    /// </summary>
+    /// <exception cref="ArgumentNullException"><paramref name="source"/> is null.</exception>
+    /// <exception cref="InvalidOperationException">The document is not editable.</exception>
+    /// <exception cref="PdfFormatException">The font cannot be embedded as asked (a collection that forbids subsetting, no character map).</exception>
+    /// <exception cref="PdfFontEmbeddingException">The font's license flags forbid embedding it.</exception>
+    public PdfCreatedFont AddFont(PdfFontSource source, PdfEmbedFontOptions? options = null)
+    {
+        ArgumentNullException.ThrowIfNull(source);
+        EnsureEditable(0);
         EmbeddedCreatedFont font;
         try
         {
-            font = new EmbeddedCreatedFont(this, fontData.ToArray(), options ?? new PdfEmbedFontOptions());
+            font = new EmbeddedCreatedFont(this, source, options ?? new PdfEmbedFontOptions());
         }
         catch (FontPrograms.FontProgramException ex)
         {

@@ -5,7 +5,7 @@
 #   fuzz/run.sh replay <target> <file>...      # run saved inputs once, without libFuzzer (reproduce a finding)
 #
 # Targets: parser document model pdffont filters security fontprogram cmap type4 ccitt content appearance extraction shading png save redact fontsubset signature pdfa layout   (see fuzz/README.md)
-# `layout` is a separate executable (fuzz/OnePdf.Layout.Fuzz) because the layout package is not part of OnePdf.slnx; it needs the OneFont checkout beside the repository, like the layout package itself.
+# `layout` is a separate executable (fuzz/OnePdf.Layout.Fuzz) because it also loads the layout and OneFont assemblies.
 #
 # Environment (nothing is baked into the script):
 #   ONEPDF_FUZZ_WORK    required: where builds, corpora and findings go. Keep it outside the checkout.

@@ -107,7 +107,7 @@ public sealed partial class PdfDocumentWriter : IDisposable
 
         _output = output;
         _workspace = PdfDocument.CreateEmpty(new PdfOpenOptions { Limits = _options.Limits });
-        _saver = new StreamingSaver(_workspace, new PdfSaveOptions { CompressStreams = _options.CompressStreams }, output, v);
+        _saver = new StreamingSaver(_workspace, new PdfSaveOptions { CompressStreams = _options.CompressStreams }, output, v, _options.XrefFormat != PdfXrefFormat.Table);
     }
 
     /// <summary>The number of pages committed so far.</summary>
@@ -151,6 +151,14 @@ public sealed partial class PdfDocumentWriter : IDisposable
     {
         CheckNotFinished();
         return Hold(() => _workspace.AddFont(fontData, options));
+    }
+
+    /// <summary>Adds a font read once with <see cref="PdfFontSource.Load"/>; see <see cref="PdfDocument.AddFont(PdfFontSource, PdfEmbedFontOptions?)"/>.</summary>
+    public PdfCreatedFont AddFont(PdfFontSource source, PdfEmbedFontOptions? options = null)
+    {
+        ArgumentNullException.ThrowIfNull(source);
+        CheckNotFinished();
+        return Hold(() => _workspace.AddFont(source, options));
     }
 
     /// <summary>Adds a JPEG image, written at once; see <see cref="PdfDocument.AddJpegImage"/>.</summary>
@@ -571,8 +579,9 @@ public sealed partial class PdfDocumentWriter : IDisposable
 
         _held.Clear();
         Flush();
-        _saver.Write(1, catalog);
+        _saver.Write(1, catalog, plain: true);
         _saver.Write(2, pages);
+        WriteObjectStream();
         _saver.Finish(new PdfReference(1, 0), infoRef, _options.DocumentId, _options.XrefFormat != PdfXrefFormat.Table);
         _output.Flush();
         _finished = true;
@@ -587,6 +596,8 @@ public sealed partial class PdfDocumentWriter : IDisposable
         }
 
         _disposed = true;
+        _saver.Release();
+        _saver.Dispose();
         _workspace.Dispose();
         if (!_options.LeaveOpen)
         {
@@ -635,12 +646,33 @@ public sealed partial class PdfDocumentWriter : IDisposable
                 _saver.Write(n, obj);
             }
         }
+
+        // The stream's own number comes from the workspace, which cannot be touched while its dirty set is being walked.
+        if (_saver.ObjectStreamDue)
+        {
+            WriteObjectStream();
+        }
+    }
+
+    private void WriteObjectStream()
+    {
+        if (!_saver.HasPendingObjects)
+        {
+            return;
+        }
+
+        PdfReference r = _workspace.AddObject(new PdfDictionary());
+        _workspace.TakeNewObject(r.Number);
+        _saver.WriteObjectStream(r.Number);
     }
 
     // Allocates an object number for something written later.
     internal PdfReference Reserve(PdfDictionary placeholder)
     {
-        return Hold(() => _workspace.AddObject(placeholder));
+        // Adding an object makes exactly one new dirty number; no need to diff the dirty set as Hold does.
+        PdfReference r = _workspace.AddObject(placeholder);
+        _held.Add(r.Number);
+        return r;
     }
 
     internal void Release(int number) => _held.Remove(number);

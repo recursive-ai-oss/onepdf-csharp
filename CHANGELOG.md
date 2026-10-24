@@ -4,7 +4,12 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ## [Unreleased]
 
+## [1.7.0] - 2026-10-24
+
 ### Added
+
+- `PdfFontSource`: parses a font once and shares it between documents (`PdfDocument.AddFont` and `PdfDocumentWriter.AddFont` overloads), so producing many documents with the same face does not parse and validate it each time.
+- `PdfDocumentWriter` packs dictionaries and arrays into compressed object streams (the catalog stays plain) unless the cross-reference format is a table. A tagged 250-page table went from 8.0 MB to 2.0 MB.
 
 - `PdfDocument.AddPngImage`: a minimal PNG reader for image XObjects. Plain non-interlaced PNGs (gray, RGB, palette, 1 to 16 bits) are passed through with their IDAT data unchanged (`FlateDecode`, `/Predictor 15`); interlaced PNGs and PNGs with alpha are decoded, alpha becoming a soft mask; `tRNS` becomes a colour-key mask where it can, and a matching `iCCP` profile becomes an `ICCBased` colour space. A `png` fuzz target covers it. See `docs/content-creation.md`.
 - `PdfContentBuilder.DrawGlyphRun` and `PdfShapedGlyph`: draw glyphs chosen by a shaping engine, by glyph index with advances, offsets and clusters, from an embedded font. Each cluster maps to text through the font's `/ToUnicode` map, or through `/ActualText` where one glyph cannot carry it (reordered or split clusters, a glyph reused for other text), so extraction returns the logical text.
@@ -14,7 +19,7 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 - `PdfDocumentWriter.BeginStructureElement(parent, type, options)` and `EndStructureElement(element)`: begin a structure element under an explicit parent and end any open element once its own children have ended, so a producer whose content continues on later pages (a table row split over pages) can keep several branches open at once. The earlier overloads are unchanged.
 
-- `OnePdf.Layout` (in `OnePdf.Layout.slnx`, not packed yet): a fluent layout layer. `LayoutDocument.Compose` takes nested delegates for pages, header, content and footer slots, decorators (padding, border, background, rounded corners, size limits, alignment, rotate/scale/translate), columns, rows, layers, lists, tables with spans and repeated header and footer rows, images, canvas, shaped rich text with page numbers and totals, links, bookmarks, tagging and right-to-left documents; `IComponent` for reuse; `Save` streams page by page, `Save(stream, PdfSaveOptions)` adds PDF/A and encryption, `ToPdfDocument` hands the result to the core API. The element objects stay public as the lower layer. See `docs/layout.md` and `docs/migrating-from-questpdf.md`.
+- `RecursiveAI.OnePdf.Layout`, a new package that depends on `RecursiveAI.OnePdf`, `RecursiveAI.OnePdf.Fonts` and `RecursiveAI.OneFont` 1.1.0: a fluent layout layer. `LayoutDocument.Compose` takes nested delegates for pages, header, content and footer slots, decorators (padding, border, background, rounded corners, size limits, alignment, rotate/scale/translate), columns, rows, layers, lists, tables with spans and repeated header and footer rows, images, canvas, shaped rich text with page numbers and totals, links, bookmarks, tagging and right-to-left documents; `IComponent` for reuse; `Save` streams page by page, `Save(stream, PdfSaveOptions)` adds PDF/A and encryption, `ToPdfDocument` hands the result to the core API. The element objects stay public as the lower layer. See `docs/layout.md` and `docs/migrating-from-questpdf.md`.
 - `layout` fuzz target and a set of layout reference documents with page images (`testdata/layout-references`, `tools/OnePdf.Layout.References`).
 
 - PDF/UA-1 (ISO 14289-1): `PdfSaveOptions.PdfUA` (`PdfUAOptions`), `PdfDocument.PreparePdfUA` and `CheckPdfUA`, `PdfUAException` and `PdfUAViolation` (Matterhorn checkpoint and ISO clause per finding). A save repairs `/MarkInfo`, `/Lang` (from `PdfUAOptions.Language`), `DisplayDocTitle`, `/Tabs /S`, link `/Contents` and the XMP identification, and refuses with every violation listed: missing title or language, figures without alternate text, untagged content, skipped heading levels, tables without header cells or with irregular rows, malformed lists, unmapped structure types, links and widgets outside their structure elements, unembedded fonts and encryption that blocks assistive technology. Only for documents that are already tagged; a clean result is not proof of conformance. See `docs/pdfua.md`.
@@ -23,6 +28,7 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ### Changed
 
+- Layout: shaping is done once per text and released after its last line; fonts are parsed once per face; `Table.MeasuredRows` is `int?` (null: every row when a column is automatic, otherwise the first 100 body rows). Producing documents is about twice as fast and allocates about half as much.
 - Layout: page totals ("page X of Y") are shaped and drawn with the embedded font, so documents with totals pass PDF/A-2b and PDF/UA-1 font checks. `Row.Compact` makes a row as wide as its items. `Rotate` and `Scale` throw `PdfLayoutException` when their child would need a page break, instead of dropping the content after it.
 
 ## [1.6.0] - 2026-10-23
@@ -159,6 +165,7 @@ First release. Two packages, `RecursiveAI.OnePdf` (the library, `net10.0`, no de
 - Limits on by default (`PdfLimits`) and fuzzed parsers, filters and font readers; no `unsafe` code. OnePDF never runs code or touches the network.
 - `RecursiveAI.OnePdf.Fonts`: Liberation and Noto substitute outlines under the SIL Open Font License 1.1, registered with `FontsPackage.Register()`.
 
+[1.7.0]: https://github.com/recursive-ai-oss/onepdf-csharp/releases/tag/v1.7.0
 [1.6.0]: https://github.com/recursive-ai-oss/onepdf-csharp/releases/tag/v1.6.0
 [1.5.0]: https://github.com/recursive-ai-oss/onepdf-csharp/releases/tag/v1.5.0
 [1.4.0]: https://github.com/recursive-ai-oss/onepdf-csharp/releases/tag/v1.4.0

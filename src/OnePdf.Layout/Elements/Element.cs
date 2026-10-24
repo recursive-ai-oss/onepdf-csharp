@@ -78,7 +78,8 @@ internal readonly record struct PageInfo(int Index, int Section, int IndexInSect
 /// <summary>Everything an element needs while measuring: the document, fonts, text measurement, the element path for errors and notes.</summary>
 internal sealed class LayoutContext : IDisposable
 {
-    private readonly List<string> _path = [];
+    // Segments such as "Row 14" keep their number apart and are formatted only when a message needs the path.
+    private readonly List<(string Text, int Number)> _path = [];
     private readonly Dictionary<string, PdfCreatedFont> _fonts = new(StringComparer.Ordinal);
     private readonly Dictionary<Image, PdfCreatedImage> _images = [];
     private PdfContentBuilder? _measurer;
@@ -140,13 +141,31 @@ internal sealed class LayoutContext : IDisposable
 
     public List<LayoutDiagnostic> Diagnostics { get; } = [];
 
-    public string PathText => string.Join(" > ", _path);
+    public string PathText
+    {
+        get
+        {
+            var parts = new string[_path.Count];
+            for (int i = 0; i < parts.Length; i++)
+            {
+                (string text, int number) = _path[i];
+                parts[i] = number == NoNumber ? text : text + number.ToString(System.Globalization.CultureInfo.InvariantCulture);
+            }
 
-    public void Push(string segment) => _path.Add(segment);
+            return string.Join(" > ", parts);
+        }
+    }
+
+    private const int NoNumber = int.MinValue;
+
+    public void Push(string segment) => _path.Add((segment, NoNumber));
+
+    /// <summary>Adds a segment made of <paramref name="prefix"/> and a number ("Row ", 14), formatted only if the path is read.</summary>
+    public void Push(string prefix, int number) => _path.Add((prefix, number));
 
     public void Pop() => _path.RemoveAt(_path.Count - 1);
 
-    public void PushItem(int index) => _path.Add(string.Create(System.Globalization.CultureInfo.InvariantCulture, $"Item {index}"));
+    public void PushItem(int index) => _path.Add(("Item ", index));
 
     public void Note(string message) => Diagnostics.Add(new LayoutDiagnostic(PathText, message));
 

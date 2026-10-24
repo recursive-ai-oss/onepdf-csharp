@@ -215,9 +215,11 @@ internal static class TrueTypeSubsetter
     // Consecutive code points that map to consecutive glyphs share a segment, so idRangeOffset is always 0.
     private static byte[] BuildCmap31(IReadOnlyList<(int Unicode, int Glyph)> map, Dictionary<int, int> newOf)
     {
-        var sorted = new SortedDictionary<int, int>();
-        foreach ((int unicode, int glyph) in map)
+        // (code point, subset glyph, position in the input): sorted by code point, and for a repeated code point the later entry wins.
+        var sorted = new List<(int Unicode, int Glyph, int Order)>(map.Count);
+        for (int m = 0; m < map.Count; m++)
         {
+            (int unicode, int glyph) = map[m];
             if (unicode is < 0 or > 0xFFFE)
             {
                 continue;
@@ -228,14 +230,21 @@ internal static class TrueTypeSubsetter
                 throw new FontProgramException("A cmap entry names a glyph that is not in the subset.");
             }
 
-            sorted[unicode] = mapped;
+            sorted.Add((unicode, mapped, m));
         }
 
+        sorted.Sort(static (a, b) => a.Unicode != b.Unicode ? a.Unicode.CompareTo(b.Unicode) : a.Order.CompareTo(b.Order));
         var starts = new List<int>();
         var ends = new List<int>();
         var deltas = new List<int>();
-        foreach ((int unicode, int glyph) in sorted)
+        for (int k = 0; k < sorted.Count; k++)
         {
+            (int unicode, int glyph, _) = sorted[k];
+            if (k + 1 < sorted.Count && sorted[k + 1].Unicode == unicode)
+            {
+                continue; // a later entry for the same code point replaces this one
+            }
+
             int last = ends.Count - 1;
             if (last >= 0 && ends[last] == unicode - 1 && (((deltas[last] + ends[last]) & 0xFFFF) + 1 & 0xFFFF) == glyph)
             {
