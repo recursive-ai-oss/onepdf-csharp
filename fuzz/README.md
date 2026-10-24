@@ -24,7 +24,7 @@ One executable (`fuzz/OnePdf.Fuzz`) holds one target per input surface. SharpFuz
 | `signature` | a mode byte, then a CMS blob or a whole PDF | CMS and ASN.1 parsing, certificates, signature and time-stamp checks, chain building, byte ranges, change analysis |
 | `pdfa` | a PDF (seeded from the test files) | PDF/A check, preparation and save; a file that is written must pass the checker |
 | `extraction` | an options byte, then 10-byte glyph records | text layout, plain-text modes, extraction JSON, bidirectional reordering |
-| `layout` | a flag byte (hostile font, right-to-left, untagged, justified, landscape, debug), a script length, a script that chooses a random element tree, its text and settings, then optionally a font file | `OnePdf.Layout` (separate project `fuzz/OnePdf.Layout.Fuzz`, built with `OnePdf.Layout.slnx`): laying out and saving; a second run must give the same bytes, the file must reopen, and each text token must be extracted once |
+| `layout` | a flag byte (hostile font, right-to-left, untagged, justified, landscape, debug), a script length, a script that chooses a random element tree, its text and settings, then optionally a font file | `OnePdf.Layout` (separate project `fuzz/OnePdf.Layout.Fuzz`, built with `OnePdf.slnx`): laying out and saving; a second run must give the same bytes, the file must reopen, and each text token must be extracted once |
 
 Only the library's typed exceptions (and `OperationCanceledException`) may come out of a target. Any other exception, a hang (`-timeout`) or a memory blow-up (`-rss_limit_mb`) is a finding.
 

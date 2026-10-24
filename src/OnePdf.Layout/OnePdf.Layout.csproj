@@ -1,16 +1,16 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <!-- The OneFont checkout sits beside the repository (or beside the worktrees folder); override with -p:OneFontProject=... -->
-    <OneFontProject Condition="'$(OneFontProject)' == '' and Exists('$(MSBuildThisFileDirectory)../../../onefont/csharp/onefont-csharp/src/OneFont/OneFont.csproj')">$(MSBuildThisFileDirectory)../../../onefont/csharp/onefont-csharp/src/OneFont/OneFont.csproj</OneFontProject>
-    <OneFontProject Condition="'$(OneFontProject)' == '' and Exists('$(MSBuildThisFileDirectory)../../../../../onefont/csharp/onefont-csharp/src/OneFont/OneFont.csproj')">$(MSBuildThisFileDirectory)../../../../../onefont/csharp/onefont-csharp/src/OneFont/OneFont.csproj</OneFontProject>
-    <OneFontProject Condition="'$(OneFontProject)' == ''">$(MSBuildThisFileDirectory)../../../../../../onefont/csharp/onefont-csharp/src/OneFont/OneFont.csproj</OneFontProject>
     <AssemblyName>$(LibName).Layout</AssemblyName>
     <RootNamespace>$(LibName).Layout</RootNamespace>
     <PackageId>$(PackagePrefix)$(LibName).Layout</PackageId>
-    <Description>Element-tree page layout for OnePDF: containers, boxes, images and text laid out over pages.</Description>
-    <!-- Not shipped yet: the package is switched on when the layout API is complete. -->
-    <IsPackable>false</IsPackable>
+    <Description>Fluent page layout for OnePDF: write documents in code with containers, tables, lists, shaped and bidirectional text, images, headers, footers and page numbers, and get a tagged PDF. Built on RecursiveAI.OneFont and RecursiveAI.OnePdf. No dependencies beyond .NET and the OneFont and OnePDF packages.</Description>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageTags>pdf;layout;document-generation;tagged-pdf;nativeaot;trimmable</PackageTags>
+    <IncludeSymbols>true</IncludeSymbols>
+    <SymbolPackageFormat>snupkg</SymbolPackageFormat>
+    <PublishRepositoryUrl>true</PublishRepositoryUrl>
+    <EmbedUntrackedSources>true</EmbedUntrackedSources>
     <IsAotCompatible>true</IsAotCompatible>
     <IsTrimmable>true</IsTrimmable>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
@@ -30,8 +30,16 @@
   <ItemGroup>
     <ProjectReference Include="../OnePdf/OnePdf.csproj" />
     <ProjectReference Include="../OnePdf.Fonts/OnePdf.Fonts.csproj" />
-    <!-- OneFont lives in its own repository next to this one; the path is set once here. -->
-    <ProjectReference Include="$(OneFontProject)" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- The family's shaping package: the one PackageReference a library project here may have. -->
+    <PackageReference Include="RecursiveAI.OneFont" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="../../README.md" Pack="true" PackagePath="/" />
+    <None Include="../../THIRD-PARTY-NOTICES.md" Pack="true" PackagePath="/" />
   </ItemGroup>
 
 </Project>
