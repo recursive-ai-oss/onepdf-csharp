@@ -39,6 +39,7 @@ internal static class Program
         ["security"] = SecurityTarget.Run,
         ["pdffont"] = FontSweep.Target,
         ["image"] = ImageTarget.Run,
+        ["png"] = PngTarget.Run,
         ["content"] = ContentTarget.Run,
         ["appearance"] = AppearanceTarget.Run,
         ["shading"] = ShadingTarget.Run,

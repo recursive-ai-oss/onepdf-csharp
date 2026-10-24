@@ -132,6 +132,15 @@ internal static class Seeds
                 PutData("g4-rows", new byte[] { 0xFF, 0xAA, 0x55, 0x0F, 0xF0 }, [0, 16, 1, 0, 15, 4]);
                 break;
 
+            case "png":
+                foreach (byte[] seed in PngTarget.Seeds())
+                {
+                    PutData("png-fixed", seed, [1]);
+                    PutData("png-raw", seed, [0]);
+                }
+
+                break;
+
             case "shading":
                 foreach (byte[] seed in ShadingTarget.Seeds())
                 {
