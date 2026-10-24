@@ -18,3 +18,4 @@ statement.pdf,3,"A three-page account statement: brought forward in the header, 
 inline-objects.pdf,1,"A paragraph with inline objects: drawn icons, a badge with its own text, pictures at every vertical alignment, a justified and a right-to-left line with objects, and a link on a picture"
 accessible-ua2.pdf,3,"Tagged document saved as PDF/UA-2 (PDF 2.0): title, table of contents, aside, footnote, inline picture, list, table with column and row headers, links, bookmarks"
 colour-glyphs.pdf,1,"Colour glyphs from a COLR version 0 font built in code: layers in palette colours, the foreground layer taking the text colour, light and dark palettes, and a version 1 only glyph drawn as a plain box"
+svg.pdf,1,"SVG pictures as vector content: a chart and an icon with their text, gradients, a clip, use and symbol, strokes, a pattern, markers, an opacity mask and a picture fitted three ways"

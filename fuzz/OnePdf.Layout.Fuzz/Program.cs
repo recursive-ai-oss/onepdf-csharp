@@ -9,7 +9,7 @@ using SharpFuzz;
 
 namespace OnePdf.Layout.Fuzz;
 
-// Fuzz harness for the layout package. One target, `layout`:
+// Fuzz harness for the layout package. Two targets: `svg` (see SvgTarget; selected by ONEPDF_FUZZ_TARGET=svg or `replay svg`) and `layout`:
 //
 //   byte 0       flags: bit 0 a hostile font follows the script, bit 1 right-to-left, bit 2 untagged, bit 3 justified text,
 //                       bit 4 landscape, bit 5 debug overlay
@@ -25,15 +25,24 @@ internal static class Program
 {
     private static int Main(string[] args)
     {
+        bool svg = Environment.GetEnvironmentVariable("ONEPDF_FUZZ_TARGET") == "svg" || (args.Length > 1 && args[0] == "replay" && args[1] == "svg");
         if (args.Length > 1 && args[0] == "replay")
         {
             int failures = 0;
-            foreach (string f in args.Skip(1).Where(a => a != "layout"))
+            foreach (string f in args.Skip(1).Where(a => a is not ("layout" or "svg")))
             {
                 var sw = Stopwatch.StartNew();
                 try
                 {
-                    LayoutTarget.Run(File.ReadAllBytes(f));
+                    if (svg)
+                    {
+                        SvgTarget.Run(File.ReadAllBytes(f));
+                    }
+                    else
+                    {
+                        LayoutTarget.Run(File.ReadAllBytes(f));
+                    }
+
                     Console.WriteLine($"ok {f} ({sw.Elapsed.TotalSeconds:F2}s)");
                 }
 #pragma warning disable CA1031 // Replay reports any escaping exception as a failure.
@@ -48,6 +57,11 @@ internal static class Program
             return failures == 0 ? 0 : 1;
         }
 
+        if (args.Length > 1 && args[0] == "seeds" && svg)
+        {
+            return SvgTarget.Seeds(args[1], args.Length > 2 ? args[2] : string.Empty);
+        }
+
         if (args.Length > 1 && args[0] == "seeds")
         {
             return Seeds.Run(args[1], args.Length > 2 ? args[2] : null);
@@ -56,6 +70,12 @@ internal static class Program
         if (args.Length > 2 && args[0] == "mutate")
         {
             return Seeds.Mutate(double.Parse(args[1], System.Globalization.CultureInfo.InvariantCulture), args.Skip(2));
+        }
+
+        if (svg)
+        {
+            Fuzzer.LibFuzzer.Run(data => SvgTarget.Run(data));
+            return 0;
         }
 
         Fuzzer.LibFuzzer.Run(data => LayoutTarget.Run(data));

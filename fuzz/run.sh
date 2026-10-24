@@ -4,8 +4,8 @@
 #   fuzz/run.sh <target> <seconds> [corpus dir] [extra libFuzzer flags...]
 #   fuzz/run.sh replay <target> <file>...      # run saved inputs once, without libFuzzer (reproduce a finding)
 #
-# Targets: parser document model pdffont filters security fontprogram cmap type4 ccitt content appearance extraction shading png save redact fontsubset signature pdfa layout   (see fuzz/README.md)
-# `layout` is a separate executable (fuzz/OnePdf.Layout.Fuzz) because it also loads the layout and OneFont assemblies.
+# Targets: parser document model pdffont filters security fontprogram cmap type4 ccitt content appearance extraction shading png save redact fontsubset signature pdfa layout svg   (see fuzz/README.md)
+# `layout` and `svg` are separate executables (fuzz/OnePdf.Layout.Fuzz) because it also loads the layout and OneFont assemblies.
 #
 # Environment (nothing is baked into the script):
 #   ONEPDF_FUZZ_WORK    required: where builds, corpora and findings go. Keep it outside the checkout.
@@ -43,13 +43,14 @@ case "$target" in
   fontprogram|fontsubset) maxlen=262144 ;;
   extraction|appearance) maxlen=4096 ;;
   layout) maxlen=262144 ;;
+  svg) maxlen=65536 ;;
   *) echo "unknown target '$target'" >&2; exit 2 ;;
 esac
 
 # The executable, its project and the assemblies to instrument.
 proj=OnePdf.Fuzz
 libs=(OnePdf.dll)
-if [[ "$target" == layout ]]; then
+if [[ "$target" == layout || "$target" == svg ]]; then
   proj=OnePdf.Layout.Fuzz
   libs=(OnePdf.dll OnePdf.Layout.dll OneFont.dll)
 fi
@@ -82,7 +83,9 @@ findings="$work/findings/$target"
 mkdir -p "$corpus" "$findings"
 
 # Seeds come from the uninstrumented build (instrumented code needs libFuzzer's shared memory).
-if [[ "$target" == layout ]]; then
+if [[ "$target" == svg ]]; then
+  ONEPDF_FUZZ_TARGET=svg "$dotnet_bin" "$bin/$proj.dll" seeds "$corpus" "$root/testdata/layout-svg" >/dev/null
+elif [[ "$target" == layout ]]; then
   "$dotnet_bin" "$bin/$proj.dll" seeds "$corpus" "$root/testdata/fonts" >/dev/null
 else
   "$dotnet_bin" "$bin/$proj.dll" seeds "$target" "$corpus" "$root/testdata" "${FUZZ_FONTS:-}" >/dev/null

@@ -373,6 +373,26 @@ if (colourText != "A" + OnePdf.Layout.Tests.ColorFont.Grin + "A" || !content.Con
     return 1;
 }
 
+// SVG: paths, a gradient and a pattern stroke, an opacity mask, a clip and shaped text become vector content and real text.
+const string svgText = "<svg xmlns='http://www.w3.org/2000/svg' width='200' height='100'><title>Chart</title>"
+    + "<defs><linearGradient id='g'><stop offset='0' stop-color='red'/><stop offset='1' stop-color='blue' stop-opacity='.5'/></linearGradient>"
+    + "<pattern id='p' width='8' height='8' patternUnits='userSpaceOnUse'><circle cx='4' cy='4' r='2'/></pattern>"
+    + "<mask id='m'><rect width='200' height='100' fill='white' fill-opacity='.6'/></mask><clipPath id='c'><circle cx='100' cy='50' r='45'/></clipPath></defs>"
+    + "<rect x='10' y='10' width='80' height='60' fill='url(#g)' stroke='url(#g)' stroke-width='6'/>"
+    + "<path d='M100 10 A40 40 0 0 1 180 50' fill='none' stroke='url(#p)' stroke-width='10'/>"
+    + "<g clip-path='url(#c)' mask='url(#m)'><rect x='60' y='40' width='100' height='50' fill='green'/></g>"
+    + "<text x='12' y='90' font-size='14'>Vector words</text></svg>";
+LayoutDocument svgDoc = LayoutDocument.Compose(d => d.Page(p => p.Content().Svg(svgText).Contain()));
+using var svgStream = new MemoryStream();
+svgDoc.Save(svgStream, new PdfDocumentWriterOptions { LeaveOpen = true });
+using PdfDocument svgBack = PdfDocument.Open(svgStream.ToArray());
+string svgBackText = svgBack.Pages[0].ExtractText().Text;
+if (svgBack.Pages.Count != 1 || !svgBackText.Contains("Vector words", StringComparison.Ordinal))
+{
+    Console.WriteLine("FAIL svg: " + svgBackText);
+    return 1;
+}
+
 Console.WriteLine("ok");
 return 0;
 

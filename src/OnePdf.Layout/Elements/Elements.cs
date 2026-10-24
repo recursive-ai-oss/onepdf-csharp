@@ -1,5 +1,6 @@
 using System.Globalization;
 using OnePdf.Layout.Pagination;
+using OnePdf.Layout.Svg;
 
 namespace OnePdf.Layout;
 
@@ -226,11 +227,31 @@ public sealed class Spacer : Element
 /// <summary>What a <see cref="Canvas"/> callback draws on: a builder whose origin is the lower-left corner of the canvas box.</summary>
 public sealed class CanvasSurface
 {
-    internal CanvasSurface(PdfContentBuilder builder, double width, double height)
+    internal CanvasSurface(PdfContentBuilder builder, double width, double height, ISvgHostFactory? host = null)
     {
+        _host = host;
         Builder = builder;
         Width = width;
         Height = height;
+    }
+
+    private readonly ISvgHostFactory? _host;
+
+    /// <summary>
+    /// Draws an SVG picture into a box of the canvas, as vector content and real text. The fonts are the document's, and what is left out or
+    /// approximated is recorded in the document's diagnostics.
+    /// </summary>
+    /// <param name="svg">The picture.</param>
+    /// <param name="x">Left edge of the box, in points from the canvas's left edge.</param>
+    /// <param name="y">Bottom edge of the box, in points up from the canvas's bottom edge.</param>
+    /// <param name="width">Box width in points.</param>
+    /// <param name="height">Box height in points.</param>
+    /// <param name="fit">How the picture fills the box. Default <see cref="ImageFit.Contain"/>.</param>
+    public void DrawSvg(SvgImage svg, double x, double y, double width, double height, ImageFit fit = ImageFit.Contain)
+    {
+        ArgumentNullException.ThrowIfNull(svg);
+        ISvgHost host = _host?.Create() ?? new BuilderSvgHost(Builder, null);
+        svg.DrawWith(Builder, host, x, y, width, height, new SvgDrawOptions { Fit = fit });
     }
 
     /// <summary>The content builder. Coordinates are points, x to the right and y upward from the box's lower-left corner; drawing is clipped to the box.</summary>
@@ -281,7 +302,7 @@ public sealed class Canvas : Element
         b.Rectangle(0, 0, p.Width, p.Height);
         b.Clip();
         b.EndPath();
-        Paint(new CanvasSurface(b, p.Width, p.Height));
+        Paint(new CanvasSurface(b, p.Width, p.Height, new LayoutHostFactory(d.Ctx)));
         b.Restore();
         d.Ctx.Tag.EndContent(tagged);
     }

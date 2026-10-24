@@ -159,7 +159,8 @@ LayoutDocument.Compose(doc => doc.Page(page =>
 - `Layers(l => ...)`: `PrimaryLayer()` sets the size and may span pages; `Layer()` slots (a watermark, a frame) are laid out at its size.
 - `List(l => ...)`: `Bulleted`, `Numbered(style)`, `Bullet`, `Start`, `Suffix`, `MarkerFormat`, marker font, size, colour, width and gap, and `Item()` (or `Item("custom marker")`). Lists nest by putting a `List` inside an item.
 - `Image(bytes | path | PdfCreatedImage)` for JPEG and PNG with `FitWidth` (the default), `FitHeight`, `Contain`, `Cover`, `Stretch`, `Dpi` and `Align`. Give figures `AltText(...)`, or `Artifact()` for decoration.
-- `Canvas(height, surface => ...)` hands you a clipped drawing surface.
+- `Svg(bytes | string | SvgImage)` places an SVG as vector content, with the same fits, `Dpi`, `Align` and `AltText` (the SVG title is the default); see [layout-svg.md](layout-svg.md).
+- `Canvas(height, surface => ...)` hands you a clipped drawing surface; `surface.DrawSvg(svg, x, y, width, height)` draws an SVG into it.
 
 ```csharp
 LayoutDocument.Compose(doc => doc.Page(page =>
