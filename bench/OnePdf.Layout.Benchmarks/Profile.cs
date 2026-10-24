@@ -160,6 +160,13 @@ internal static class Profile
                 Console.WriteLine("writer create+dispose        " + Measure(() => { using var w = new PdfDocumentWriter(new CountingStream()); }) + " B");
                 Console.WriteLine("writer + finish, no pages    " + Measure(() => { using var w = new PdfDocumentWriter(new CountingStream()); w.Finish(); }) + " B");
                 Console.WriteLine("one empty page               " + Measure(() => { using var w = new PdfDocumentWriter(new CountingStream()); w.BeginPage(595, 842).Commit(); w.Finish(); }) + " B");
+                PdfFontSource src = PdfFontSource.Load(Content.FontBytes(Content.FileFor("Liberation Sans", false, false)));
+                PdfShapedGlyph[] gl = new PdfShapedGlyph[60];
+                for (int i = 0; i < gl.Length; i++) { gl[i] = new PdfShapedGlyph(30 + i, i, 500); }
+                string txt = new string('a', 60);
+                Console.WriteLine("one font, 60 glyphs          " + Measure(() => { using var w = new PdfDocumentWriter(new CountingStream()); PdfCreatedFont f = w.AddFont(src); PdfStreamPageBuilder b = w.BeginPage(595, 842); b.SetFont(f, 10); b.DrawGlyphRun(10, 10, gl, txt); b.Commit(); w.Finish(); }) + " B");
+                Console.WriteLine("AddFont only                 " + Measure(() => { using var w = new PdfDocumentWriter(new CountingStream()); PdfCreatedFont f = w.AddFont(src); }) + " B");
+                Console.WriteLine("AddFont+finish no glyphs     " + Measure(() => { using var w = new PdfDocumentWriter(new CountingStream()); PdfCreatedFont f = w.AddFont(src); w.Finish(); }) + " B");
                 Console.WriteLine("invoice                      " + Measure(() => new OnePdfEngine().Render(Workload.Invoice, new CountingStream())) + " B");
                 Console.WriteLine("invoice, untagged            " + Measure(() => { LayoutDocument d = OnePdfEngine.InvoiceDocument(); d.Options.Fonts = OnePdfEngine.Fonts; d.Options.Tagged = false; d.Save(new CountingStream()); }) + " B");
                 Console.WriteLine("invoice, build tree only     " + Measure(() => { _ = OnePdfEngine.InvoiceDocument(); }) + " B");
@@ -200,6 +207,28 @@ internal static class Profile
                 }
 
                 listener.Print(45);
+                break;
+            }
+
+            case "alloc-font":
+            {
+                PdfFontSource src = PdfFontSource.Load(Content.FontBytes(Content.FileFor("Liberation Sans", false, false)));
+                PdfShapedGlyph[] gl = new PdfShapedGlyph[60];
+                for (int i = 0; i < gl.Length; i++) { gl[i] = new PdfShapedGlyph(30 + i, i, 500); }
+                string txt = new string('a', 60);
+                using var listener = new AllocListener();
+                for (int i = 0; i < 1500; i++)
+                {
+                    using var w = new PdfDocumentWriter(new CountingStream());
+                    PdfCreatedFont f = w.AddFont(src);
+                    PdfStreamPageBuilder b = w.BeginPage(595, 842);
+                    b.SetFont(f, 10);
+                    b.DrawGlyphRun(10, 10, gl, txt);
+                    b.Commit();
+                    w.Finish();
+                }
+
+                listener.Print(25);
                 break;
             }
 

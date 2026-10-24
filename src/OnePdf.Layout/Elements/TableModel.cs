@@ -377,8 +377,20 @@ internal static class TableWidths
                     continue;
                 }
 
-                ctx.Push(slot.Top < header ? $"Header Row {slot.Top}" : slot.Top < header + body ? $"Row {slot.Top - header}" : $"Footer Row {slot.Top - header - body}");
-                ctx.Push($"Cell {slot.CellIndex}");
+                if (slot.Top < header)
+                {
+                    ctx.Push("Header Row ", slot.Top);
+                }
+                else if (slot.Top < header + body)
+                {
+                    ctx.Push("Row ", slot.Top - header);
+                }
+                else
+                {
+                    ctx.Push("Footer Row ", slot.Top - header - body);
+                }
+
+                ctx.Push("Cell ", slot.CellIndex);
                 WidthRange w;
                 try
                 {

@@ -234,12 +234,21 @@ public sealed class Table : Element
         return next is null ? FlowFit.Complete(height, node) : FlowFit.Partial(height, node, next);
     }
 
-    private static string RowLabel(TableGrid g, int row) =>
-        row < g.HeaderCount
-            ? "Header Row " + row.ToString(CultureInfo.InvariantCulture)
-            : row < g.HeaderCount + g.BodyCount
-                ? "Row " + (row - g.HeaderCount).ToString(CultureInfo.InvariantCulture)
-                : "Footer Row " + (row - g.HeaderCount - g.BodyCount).ToString(CultureInfo.InvariantCulture);
+    private static void PushRow(LayoutContext ctx, TableGrid g, int row)
+    {
+        if (row < g.HeaderCount)
+        {
+            ctx.Push("Header Row ", row);
+        }
+        else if (row < g.HeaderCount + g.BodyCount)
+        {
+            ctx.Push("Row ", row - g.HeaderCount);
+        }
+        else
+        {
+            ctx.Push("Footer Row ", row - g.HeaderCount - g.BodyCount);
+        }
+    }
 
     private static double SpanWidth(State st, in TableSlot s) => st.ColumnX[s.Col + s.ColSpan] - st.ColumnX[s.Col];
 
@@ -294,7 +303,7 @@ public sealed class Table : Element
         var insets = new CellInsets[n];
         double height = 0;
         bool anyPartial = false;
-        ctx.Push(RowLabel(g, row));
+        PushRow(ctx, g, row);
         try
         {
             for (int i = 0; i < n; i++)
@@ -308,7 +317,7 @@ public sealed class Table : Element
                 insets[i] = g.InsetsOf(slot, rtl);
                 double vertical = insets[i].Top + insets[i].Bottom;
                 double cw = Math.Max(0, SpanWidth(st, slot) - insets[i].Left - insets[i].Right);
-                ctx.Push("Cell " + slot.CellIndex.ToString(CultureInfo.InvariantCulture));
+                ctx.Push("Cell ", slot.CellIndex);
                 try
                 {
                     fits[i] = slot.Cell.Content.Layout(ctx, new Constraint(cw, Math.Max(0, avail - vertical), atTop), inner?[i]);
@@ -408,8 +417,8 @@ public sealed class Table : Element
                 CellInsets ins = insets[s - s0];
                 double vertical = ins.Top + ins.Bottom;
                 double cw = Math.Max(0, SpanWidth(st, slot) - ins.Left - ins.Right);
-                ctx.Push(RowLabel(g, slot.Top));
-                ctx.Push("Cell " + slot.CellIndex.ToString(CultureInfo.InvariantCulture));
+                PushRow(ctx, g, slot.Top);
+                ctx.Push("Cell ", slot.CellIndex);
                 try
                 {
                     FlowFit f = slot.Cell.Content.Layout(ctx, new Constraint(cw, Math.Max(0, avail - vertical), atTop), null);
@@ -459,7 +468,7 @@ public sealed class Table : Element
 
         if (total > avail + 1e-9)
         {
-            ctx.Push(RowLabel(g, first));
+            PushRow(ctx, g, first);
             try
             {
                 return Fail(ctx, atTop, st.Width, avail, "Rows joined by a row span are taller than the space offered; they cannot be split", total);

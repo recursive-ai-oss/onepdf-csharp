@@ -752,6 +752,13 @@ internal sealed class EmbeddedCreatedFont : PdfCreatedFont
         return w;
     }
 
+    // Four upper-case hex digits without a string per number.
+    private static void AppendHex4(StringBuilder sb, int value)
+    {
+        const string Digits = "0123456789ABCDEF";
+        sb.Append(Digits[(value >> 12) & 15]).Append(Digits[(value >> 8) & 15]).Append(Digits[(value >> 4) & 15]).Append(Digits[value & 15]);
+    }
+
     private byte[] BuildToUnicode()
     {
         var entries = new List<(int Code, string Text)>();
@@ -779,10 +786,12 @@ internal sealed class EmbeddedCreatedFont : PdfCreatedFont
             for (int j = 0; j < n; j++)
             {
                 (int code, string glyphText) = entries[i + j];
-                sb.Append('<').Append(code.ToString("X4", CultureInfo.InvariantCulture)).Append("> <");
+                sb.Append('<');
+                AppendHex4(sb, code);
+                sb.Append("> <");
                 foreach (char ch in glyphText)
                 {
-                    sb.Append(((int)ch).ToString("X4", CultureInfo.InvariantCulture));
+                    AppendHex4(sb, ch);
                 }
 
                 sb.Append(">\n");
