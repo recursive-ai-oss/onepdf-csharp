@@ -740,6 +740,116 @@ Write("statement", "A three-page account statement: brought forward in the heade
     });
 }));
 
+Write("inline-objects", "A paragraph with inline objects: drawn icons, a badge with its own text, pictures at every vertical alignment, a justified and a right-to-left line with objects, and a link on a picture", LayoutDocument.Compose(doc =>
+{
+    doc.Title("Inline objects").Language("en");
+    doc.Fonts.Add(arabic, "Noto Arabic");
+    doc.Page(page =>
+    {
+        page.Size(PageSize.A5);
+        page.Margin(28);
+        Action<CanvasSurface> tick = c =>
+        {
+            PdfContentBuilder b = c.Builder;
+            b.SetStrokeRgb(0.1, 0.55, 0.2);
+            b.SetLineWidth(1.6);
+            b.MoveTo(1.5, c.Height * 0.5);
+            b.LineTo(c.Width * 0.4, 1.5);
+            b.LineTo(c.Width - 1.5, c.Height - 1.5);
+            b.Stroke();
+        };
+        Action<CanvasSurface> cross = c =>
+        {
+            PdfContentBuilder b = c.Builder;
+            b.SetStrokeRgb(0.75, 0.1, 0.1);
+            b.SetLineWidth(1.6);
+            b.MoveTo(1.5, 1.5);
+            b.LineTo(c.Width - 1.5, c.Height - 1.5);
+            b.MoveTo(1.5, c.Height - 1.5);
+            b.LineTo(c.Width - 1.5, 1.5);
+            b.Stroke();
+        };
+        Action<CanvasSurface> checkbox = c =>
+        {
+            PdfContentBuilder b = c.Builder;
+            b.SetStrokeRgb(0, 0, 0);
+            b.SetLineWidth(0.8);
+            b.Rectangle(0.5, 0.5, c.Width - 1, c.Height - 1);
+            b.Stroke();
+        };
+        page.Content().Column(col =>
+        {
+            col.Spacing(10);
+            col.Item().Heading(1).Text("Inline objects").FontSize(18).Bold().FontColor(ink);
+            col.Item().Text(t =>
+            {
+                t.FontSize(11);
+                t.Span("Icons drawn with the content builder flow with the words around them: ");
+                t.InlineCanvas(11, 11, tick).AltText("done").AlignTextBottom();
+                t.Span(" done, ");
+                t.InlineCanvas(11, 11, cross).AltText("failed").AlignTextBottom();
+                t.Span(" failed, ");
+                t.InlineCanvas(10, 10, checkbox).Baseline().AltText("unchecked box");
+                t.Span(" to do. A badge ");
+                t.Inline(s => s.Background(LayoutColor.FromHex("#ffe9a8")).Rounded(3).Padding(4, 1).Text("NEW").FontSize(8).Bold()).AltText("new");
+                t.Span(" carries its own text, lined up on the baseline of the line it sits in, and a picture ");
+                t.InlineImage(jpeg, 14, 14).AltText("red square").AlignMiddle();
+                t.Span(" sits at the middle of the text.");
+            });
+            col.Item().Text("Vertical alignment of a 16 by 16 picture, each in its own line of text").FontSize(8).FontColor(Colors.Grey);
+            string[] names = ["baseline", "top", "middle", "bottom", "text top", "text bottom"];
+            for (int a = 0; a < names.Length; a++)
+            {
+                int which = a;
+                col.Item().Background(a % 2 == 0 ? paper : LayoutColor.White).Text(t =>
+                {
+                    t.FontSize(11);
+                    t.Span(names[which] + " ");
+                    InlineDescriptor d = t.InlineImage(jpeg, 16, 16).AltText("picture at " + names[which]);
+                    _ = which switch
+                    {
+                        1 => d.AlignTop(),
+                        2 => d.AlignMiddle(),
+                        3 => d.AlignBottom(),
+                        4 => d.AlignTextTop(),
+                        5 => d.AlignTextBottom(),
+                        _ => d.Baseline(),
+                    };
+                    t.Span(" Hxg and a second word");
+                });
+            }
+
+            col.Item().Text(t =>
+            {
+                t.FontSize(10).Justify().OptimalLineBreaks();
+                t.Span("Justification spreads the extra width over the spaces and leaves objects alone, whether the lines are broken by first fit or by total fit. This paragraph holds a few of them, ");
+                t.Inline(s => s.Border(0.5, Colors.Grey).Padding(3, 0).Text("badge").FontSize(8)).AltText("badge");
+                t.Span(" and ");
+                t.InlineCanvas(9, 9, checkbox).AltText("box");
+                t.Span(" and ");
+                t.InlineImage(jpeg, 12, 12).AltText("picture");
+                t.Span(", in the middle of text that is long enough to need three or four full lines at this width, so the justified lines can show that the objects keep their size.");
+            });
+            col.Item().Text(t =>
+            {
+                t.FontSize(11).FontFamily("Noto Arabic");
+                t.Span("مرحبا ");
+                t.InlineCanvas(11, 11, tick).AltText("done");
+                t.Span(" بالعالم ");
+                t.InlineImage(jpeg, 12, 12).AltText("picture");
+                t.Span(" مرحبا");
+            });
+            col.Item().Text(t =>
+            {
+                t.FontSize(11);
+                t.Span("A picture can be a link: ");
+                t.InlineImage(jpeg, 14, 14).AltText("project page").Hyperlink("https://example.com/").AlignTextBottom();
+                t.Span(" click it.");
+            });
+        });
+    });
+}));
+
 File.WriteAllText(Path.Combine(outDir, "index.csv"), index.ToString());
 return 0;
 

@@ -9,7 +9,8 @@ namespace OnePdf.Layout;
 /// <remarks>
 /// Text is normalised before layout: line ends (<c>\n</c>, <c>\r\n</c>, <c>\r</c>, U+2028, U+2029) separate lines that each form their own bidi
 /// paragraph and are never justified; tabs become spaces; other control characters are dropped; soft hyphens (U+00AD) are removed and remembered
-/// as places where a line may end with a hyphen.
+/// as places where a line may end with a hyphen. An inline object (<see cref="TextSpan.Inline"/>) is one character, U+FFFC; U+FFFC in ordinary
+/// text is dropped.
 /// </remarks>
 public sealed class TextParagraph
 {
@@ -28,6 +29,18 @@ public sealed class TextParagraph
         {
             ArgumentNullException.ThrowIfNull(s);
             ArgumentNullException.ThrowIfNull(s.Text, nameof(spans));
+            if (s.Inline is { } inline)
+            {
+                if (inline is InlineElement)
+                {
+                    throw new ArgumentException("An InlineElement can only be used in a Text element.", nameof(spans));
+                }
+
+                inline.Validate();
+                total++;
+                continue;
+            }
+
             total += s.Text.Length;
         }
 
@@ -113,12 +126,18 @@ internal sealed class NormalizedText
     /// <summary>Indexes in <see cref="Text"/> before which a soft hyphen stood.</summary>
     public IReadOnlyList<int> SoftHyphens => _softHyphens ?? (IReadOnlyList<int>)Array.Empty<int>();
 
+    /// <summary>The inline objects in text order; each stands for one U+FFFC in <see cref="Text"/>. Null when there are none.</summary>
+    public List<InlineObject>? Inlines { get; private set; }
+
+    /// <summary>Index in <see cref="Text"/> of the character of each inline object, parallel to <see cref="Inlines"/>.</summary>
+    public Dictionary<int, int>? InlineAt { get; private set; }
+
     // True when the normalising loop below would copy every character unchanged: no line ends other than the newline, no tabs, soft hyphens or controls.
     private static bool IsClean(string t)
     {
         foreach (char c in t)
         {
-            if (c < ' ' || c == '\u00AD' || c == '\u2028' || c == '\u2029' || (c >= '\u007F' && c <= '\u009F'))
+            if (c < ' ' || c == '\u00AD' || c == '\u2028' || c == '\u2029' || c == '\uFFFC' || (c >= '\u007F' && c <= '\u009F'))
             {
                 if (c != '\n')
                 {
@@ -133,7 +152,7 @@ internal sealed class NormalizedText
     public static NormalizedText Create(TextParagraph p)
     {
         var n = new NormalizedText();
-        if (p.Spans.Count == 1 && p.Spans[0].Text.Length > 0 && IsClean(p.Spans[0].Text))
+        if (p.Spans.Count == 1 && p.Spans[0].Inline is null && p.Spans[0].Text.Length > 0 && IsClean(p.Spans[0].Text))
         {
             // Nothing to rewrite: the paragraph text is the span's text.
             TextStyle only = p.Spans[0].Style ?? p.DefaultStyle;
@@ -150,6 +169,18 @@ internal sealed class NormalizedText
             TextStyle style = span.Style ?? p.DefaultStyle;
             style.Validate();
             int start = sb.Length;
+            if (span.Inline is { } inline)
+            {
+                n.Inlines ??= [];
+                n.InlineAt ??= [];
+                n.InlineAt[start] = n.Inlines.Count;
+                n.Inlines.Add(inline);
+                sb.Append('\uFFFC');
+                n.SpanStarts.Add(start);
+                n.Styles.Add(style);
+                continue;
+            }
+
             string t = span.Text;
             for (int i = 0; i < t.Length; i++)
             {
@@ -169,6 +200,8 @@ internal sealed class NormalizedText
                         break;
                     case '\u00AD':
                         (n._softHyphens ??= []).Add(sb.Length);
+                        break;
+                    case '\uFFFC':
                         break;
                     case '\t':
                         sb.Append(' ');

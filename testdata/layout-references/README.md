@@ -2,8 +2,8 @@
 
 A small set of documents laid out by `OnePdf.Layout`, and a picture of every page, used to notice when a change moves anything on a page.
 
-- `documents/` holds 16 PDFs (one per family of features: boxes, columns, gradients, images, invoice, line breaking, lists, report, right-to-left, mixed scripts, sections, a three-page statement with carried-forward values, table over several pages, table of contents, text styles, transforms) and `index.csv`. They are written by `tools/OnePdf.Layout.Documents` from the fluent API; the output is deterministic.
-- `png/` holds 28 page images at 100 dpi and `manifest.csv` (image, source document, description, generator, renderer, dpi, SHA-256 of image and of document).
+- `documents/` holds 17 PDFs (one per family of features: boxes, columns, gradients, images, inline objects, invoice, line breaking, lists, report, right-to-left, mixed scripts, sections, a three-page statement with carried-forward values, table over several pages, table of contents, text styles, transforms) and `index.csv`. They are written by `tools/OnePdf.Layout.Documents` from the fluent API; the output is deterministic.
+- `png/` holds 29 page images at 100 dpi and `manifest.csv` (image, source document, description, generator, renderer, dpi, SHA-256 of image and of document).
 - The images come from the published `RecursiveAI.OneImage.Pdf` package, used as a black box by `tools/OnePdf.Layout.References`, which knows nothing about the layout package.
 
 Each reference was checked once against a PDFium render (same pages side by side: positions of text, rules, boxes and gradient fills agree on the first 17 pages; the two text-heavy pages differ only by glyph rasterization). The line-breaking page was added later and checked by eye: both columns hold the same text, the right one broken by total fit. The table-of-contents pages were checked by eye too: every number equals the label printed in the footer of the page its heading is on, a long title wraps with its number on the last line, and dots line up within a level.
@@ -22,3 +22,5 @@ A page counts as different when more than 0.05 % of its pixels differ by more th
 The columns page was added later: its text order was checked by eye (column 1, then 2, then 3, the table continuing into the third with its header repeated) and against a Poppler render of the same file, which agrees.
 
 The statement pages were checked by eye: the amounts of each page add up to its subtotal (page 2: 1,083.75), every carried-forward figure equals the next page's brought-forward figure, the last page carries the sum of all rows, and the header month is that of the page's first row.
+
+The inline-objects page was checked by eye and against a Poppler render of the same file, which agrees: each of the six alignments puts the 16-point picture where its rule says (baseline: on the baseline; top: at the top of the line; middle: centred on the text; bottom: at the bottom of the line; text top and text bottom: at the font's ascent and descent), the badge text shares the baseline of the line, objects keep their size in the justified paragraph, and the object between two Arabic words sits between them in display order.

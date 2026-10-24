@@ -288,6 +288,10 @@ public sealed partial class ShapedParagraph
                     asc = strut.Ascent;
                     desc = strut.Descent;
                 }
+                else if (HasInline)
+                {
+                    ApplyInlineExtents(i, lineEnd, ref asc, ref desc);
+                }
 
                 line.Baseline = asc;
                 line.Height = asc + desc;

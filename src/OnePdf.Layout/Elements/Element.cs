@@ -116,7 +116,7 @@ internal sealed class LayoutContext : IDisposable
     private readonly HashSet<object> _noted = [];
 
     /// <summary>Records a note once per element, however often the element is laid out.</summary>
-    public void NoteOnce(Element element, string message)
+    public void NoteOnce(object element, string message)
     {
         if (_noted.Add(element))
         {

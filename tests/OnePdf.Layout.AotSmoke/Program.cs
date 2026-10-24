@@ -43,13 +43,24 @@ LayoutDocument doc = LayoutDocument.Compose(d => d.Page(p =>
         col.Item().Height(30).Background(LayoutGradient.Circle([new LayoutGradientStop(0, PdfGradientColor.Gray(1)), new LayoutGradientStop(0.5, PdfGradientColor.Gray(0.5)), new LayoutGradientStop(1, PdfGradientColor.Gray(0))])).Text("radial");
         col.Item().Rotate(30).Spacer(10, 40);
         col.Item().Canvas(20, s => { s.Builder.Rectangle(0, 0, s.Width, s.Height); s.Builder.Stroke(); });
+        col.Item().Text(t =>
+        {
+            t.Span("inline ");
+            t.InlineCanvas(8, 8, s => { s.Builder.Rectangle(0, 0, s.Width, s.Height); s.Builder.Fill(); }).AltText("smoke box").AlignMiddle();
+            t.Span(" and ");
+            t.Inline(b => b.Padding(2).Text("badge").FontSize(8)).AltText("smoke badge");
+            t.Span(" item");
+        });
     });
 }));
 using var ms = new MemoryStream();
 doc.Save(ms, new PdfDocumentWriterOptions { LeaveOpen = true });
 using PdfDocument back = PdfDocument.Open(ms.ToArray());
 string text = string.Concat(back.ExtractText().Select(t => t.Text));
-if (back.Pages.Count != 1 || !text.Contains("Layout smoke", StringComparison.Ordinal) || !text.Contains("footer", StringComparison.Ordinal))
+if (back.Pages.Count != 1 || !text.Contains("Layout smoke", StringComparison.Ordinal) || !text.Contains("footer", StringComparison.Ordinal)
+    || !text.Contains("smoke box", StringComparison.Ordinal)
+    || !text.Contains("smoke badge", StringComparison.Ordinal)
+    || text.Contains('\uFFFC', StringComparison.Ordinal))
 {
     Console.WriteLine("FAIL: " + text);
     return 1;

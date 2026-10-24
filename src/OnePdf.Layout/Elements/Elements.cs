@@ -598,7 +598,9 @@ public sealed class Text : Element
         var f = (Fragment)p.Data!;
         Tagger tag = d.Ctx.Tag;
         TagScope scope = tag.TextIsDirect ? default : tag.Open(this, p.Continued, p.Continues, "P");
-        bool tagged = tag.BeginContent();
+
+        // A paragraph with inline objects opens its tagged content itself, around each stretch of text between objects.
+        bool tagged = !f.Block.HasInline && tag.BeginContent();
         f.Block.Draw(d, p, f.First, f.Count);
         tag.EndContent(tagged);
         tag.Close(scope);
@@ -618,6 +620,9 @@ internal interface ITextEngine
 internal interface ITextBlock
 {
     int LineCount { get; }
+
+    /// <summary>True when the text holds inline objects, which are drawn between stretches of text and tag their own content.</summary>
+    bool HasInline { get; }
 
     double NaturalWidth { get; }
 

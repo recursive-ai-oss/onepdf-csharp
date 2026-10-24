@@ -65,6 +65,7 @@ internal sealed class SpanFormat
     public string? Language;
     public double? LineHeight;
     public int? ReservedDigits;
+    public InlineDescriptor? Inline;
 
     public bool HasStyle => Families is not null || Size is not null || Color is not null || Weight is not null || Italic is not null
         || Underline is not null || Strike is not null || LetterSpacing is not null || Position is not null || Language is not null || LineHeight is not null;
@@ -231,6 +232,91 @@ public sealed class TextDescriptor : TextFormatDescriptor<TextDescriptor>
     /// <summary>Adds the page count of the current section, in the section's numbering style.</summary>
     public PageNumberDescriptor SectionPages() => AddNumber(3);
 
+    /// <summary>
+    /// Puts a small element tree in the line, as one unbreakable unit that flows with the text: a padded, bordered badge with a short text, a
+    /// picture in a box, a formula built from rows and texts. The delegate fills a slot, which is laid out once (at its widest natural width
+    /// unless <see cref="InlineDescriptor.Width(double)"/> says otherwise) and never splits.
+    /// </summary>
+    /// <param name="compose">Fills the slot with the content.</param>
+    /// <returns>The object's own settings: size, alignment, description, link.</returns>
+    /// <example>
+    /// <code>
+    /// text.Span("Status: ");
+    /// text.Inline(s => s.Background(Colors.LightGrey).Rounded(3).Padding(4, 0).Text("NEW").FontSize(8).Bold()).AlignMiddle();
+    /// </code>
+    /// </example>
+    public InlineDescriptor Inline(Action<Slot> compose)
+    {
+        ArgumentNullException.ThrowIfNull(compose);
+        var slot = new Slot();
+        compose(slot);
+        slot.Seal();
+        return AddInline(new InlineDescriptor(slot.Held ?? new Spacer(), Rebuild));
+    }
+
+    /// <summary>A JPEG or PNG picture of a fixed size in the line (an icon, a logo). Describe it with <see cref="InlineDescriptor.AltText(string)"/> or mark it with <see cref="InlineDescriptor.Artifact"/>.</summary>
+    /// <param name="data">The file's bytes (the signature decides JPEG or PNG).</param>
+    /// <param name="width">Width in points.</param>
+    /// <param name="height">Height in points.</param>
+    /// <exception cref="ArgumentException">The bytes are neither JPEG nor PNG, or a size is not positive.</exception>
+    public InlineDescriptor InlineImage(ReadOnlyMemory<byte> data, double width, double height)
+    {
+        var image = new Image();
+        ReadOnlySpan<byte> s = data.Span;
+        if (s.Length >= 8 && s[0] == 0x89 && s[1] == 0x50 && s[2] == 0x4E && s[3] == 0x47)
+        {
+            image.Png = data;
+        }
+        else if (s.Length >= 3 && s[0] == 0xFF && s[1] == 0xD8)
+        {
+            image.Jpeg = data;
+        }
+        else
+        {
+            throw new ArgumentException("The image is neither a JPEG nor a PNG file.", nameof(data));
+        }
+
+        return AddPicture(image, width, height);
+    }
+
+    /// <summary>A picture already added to the output, of a fixed size in the line.</summary>
+    public InlineDescriptor InlineImage(PdfCreatedImage image, double width, double height) =>
+        AddPicture(new Image { Created = image ?? throw new ArgumentNullException(nameof(image)) }, width, height);
+
+    private InlineDescriptor AddPicture(Image image, double width, double height)
+    {
+        if (!(width > 0) || !(height > 0) || !double.IsFinite(width) || !double.IsFinite(height))
+        {
+            throw new ArgumentException("The size of an inline picture must be positive and finite.");
+        }
+
+        image.Fit = ImageFit.Stretch;
+        return AddInline(new InlineDescriptor(image, Rebuild, true).WithSize(width, height));
+    }
+
+    /// <summary>A box of a fixed size drawn by a callback with the content builder, in the line (a checkbox, a small chart). It is decoration unless it has a description.</summary>
+    /// <param name="width">Width in points.</param>
+    /// <param name="height">Height in points.</param>
+    /// <param name="paint">Draws into the box; coordinates start at its lower-left corner and drawing is clipped to it.</param>
+    public InlineDescriptor InlineCanvas(double width, double height, Action<CanvasSurface> paint)
+    {
+        ArgumentNullException.ThrowIfNull(paint);
+        if (!(width > 0) || !(height > 0) || !double.IsFinite(width) || !double.IsFinite(height))
+        {
+            throw new ArgumentException("The size of an inline canvas must be positive and finite.");
+        }
+
+        return AddInline(new InlineDescriptor(new Canvas { Width = width, Height = height, Paint = paint }, Rebuild, true).WithSize(width, height));
+    }
+
+    private InlineDescriptor AddInline(InlineDescriptor d)
+    {
+        d.Format.Inline = d;
+        _segments.Add((null, d.Format, 4));
+        Rebuild();
+        return d;
+    }
+
     private PageNumberDescriptor AddNumber(int kind)
     {
         var f = new SpanFormat();
@@ -258,6 +344,7 @@ public sealed class TextDescriptor : TextFormatDescriptor<TextDescriptor>
             Language = span.Language ?? d.Language,
             LineHeight = span.LineHeight ?? d.LineHeight,
             ReservedDigits = span.ReservedDigits ?? d.ReservedDigits,
+            Inline = span.Inline,
         };
     }
 
@@ -281,7 +368,18 @@ public sealed class TextDescriptor : TextFormatDescriptor<TextDescriptor>
         bool hasNumbers = false;
         foreach ((string? _, SpanFormat _, int kind) in _segments)
         {
-            hasNumbers |= kind != 0;
+            hasNumbers |= kind is 1 or 2 or 3;
+        }
+
+        if (hasNumbers)
+        {
+            foreach ((string? _, SpanFormat _, int kind) in _segments)
+            {
+                if (kind == 4)
+                {
+                    throw new InvalidOperationException("A text with page numbers is laid out as a row of pieces and cannot hold inline objects.");
+                }
+            }
         }
 
         return hasNumbers ? BuildRow() : BuildText(_segments, 0, _segments.Count);
@@ -311,7 +409,7 @@ public sealed class TextDescriptor : TextFormatDescriptor<TextDescriptor>
         bool plain = !(d.Underline ?? false) && !(d.Strike ?? false) && (d.LetterSpacing ?? 0) == 0 && (d.Families?.Length ?? 0) <= 1;
         for (int i = from; plain && i < to; i++)
         {
-            plain = !segs[i].Format.HasStyle;
+            plain = !segs[i].Format.HasStyle && segs[i].Kind != 4;
         }
 
         if (plain)
@@ -328,7 +426,8 @@ public sealed class TextDescriptor : TextFormatDescriptor<TextDescriptor>
 
         for (int i = from; i < to; i++)
         {
-            t.Spans.Add(new TextSpan(segs[i].Text!, StyleOf(Merge(segs[i].Format))));
+            TextStyle style = StyleOf(Merge(segs[i].Format));
+            t.Spans.Add(segs[i].Kind == 4 ? TextSpan.ForInline(segs[i].Format.Inline!.Create(), style) : new TextSpan(segs[i].Text!, style));
         }
 
         return t;

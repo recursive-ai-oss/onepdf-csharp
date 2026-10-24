@@ -119,6 +119,40 @@ LayoutDocument.Compose(doc => doc.Page(page =>
 
 A page number is shaped like any other text. A paragraph that holds a page number stays on one line (it does not wrap) and is as wide as its content. "Total pages" is not known until the end, so its width is reserved: `ReservedDigits` (default 4) says how many digits to leave room for. In a centred footer that reserve shows as a gap, so use `ReservedDigits(2)` for documents under 100 pages. Details of shaping, fallback fonts, bidirectional text and hyphenation are in [layout-text.md](layout-text.md).
 
+### Inline objects
+
+An icon, a small picture, a badge or a drawn checkbox can sit in a line of text and flow with it. In `Text(t => ...)`, `Inline(slot => ...)` puts a small element tree in the line (the slot takes any content, so a padded, bordered box with its own text works), `InlineImage(bytes, width, height)` a JPEG or PNG of a fixed size, and `InlineCanvas(width, height, surface => ...)` a drawing. Each returns an `InlineDescriptor` for the object's size, alignment, description and link.
+
+```csharp
+LayoutDocument.Compose(doc => doc.Page(page =>
+{
+    page.Content().Text(t =>
+    {
+        t.Span("Build ");
+        t.InlineCanvas(10, 10, s =>
+        {
+            s.Builder.SetFillRgb(0.1, 0.6, 0.2);
+            s.Builder.Ellipse(0, 0, s.Width, s.Height);
+            s.Builder.Fill();
+        }).AltText("passing").AlignTextBottom();
+        t.Span(" passed; the release notes ");
+        t.Inline(s => s.Background(Colors.LightGrey).Padding(3, 1).Text("NEW").FontSize(8).Bold()).AltText("new");
+        t.Span(" and a logo ");
+        t.InlineImage(File.ReadAllBytes("logo.png"), 12, 12).AltText("Company logo").AlignMiddle();
+        t.Span(" flow with the words around them.");
+    });
+})).Save("inline.pdf");
+```
+
+- **Size.** A picture or canvas has the size you give. An `Inline` element takes its content's widest natural width (no wrapping) and the height that gives; `Width`, `Height` and `MaxWidth` override that, and with a `MaxWidth` the content wraps inside it. The element is laid out once and never splits: a page break inside it raises `PdfLayoutException`.
+- **Vertical alignment.** `Baseline(offset)` (the default) puts the object's own baseline on the line's baseline, raised by `offset` points; a picture's baseline is its bottom edge, and an element that contains text takes the baseline of its first line, so a badge's text lines up with the words around it (`InnerBaseline` sets it by hand). `AlignTop` and `AlignBottom` align to the top and bottom of the line box; `AlignMiddle` centres the object on the middle of the text (halfway between the font's ascent and descent); `AlignTextTop` and `AlignTextBottom` put its edges at the font's ascent and descent. The font is that of the text the object is in, and `FontSize` and the other format methods of the descriptor change it for that spot.
+- **Line height.** A line grows to hold an object taller than its text, above the baseline, below it, or (for top and bottom) at the side the alignment names; a line is never shorter than its text would make it. `FixedLineHeight()` keeps the height the text gives, and a taller object sticks out into the lines around it.
+- **Breaking and justification.** An object is one unbreakable unit, as wide as it is, with a line break allowed before and after it (it is U+FFFC, line break class CB in UAX #14), by first fit and by total fit alike. `KeepWithNeighbours()` removes both breaks. Justification widens the spaces and leaves the object alone. An object wider than the line sits alone on a line that overflows, and a note says so. Underlines and strike-throughs of the text around it stop at the object.
+- **Right to left.** The object has the direction of its position (bidi class ON, UAX #9), so between right-to-left words it is placed with them.
+- **Tagging and extraction.** In a tagged document an object with `AltText` is a `Figure` inside the paragraph, between the paragraph's content, with `/Alt`; the text extractor returns the description in its place (an invisible space under `/ActualText`, ISO 32000-2 14.9.4), and never a U+FFFC. `Artifact()` leaves the object out of the tree and out of extraction; a drawn canvas without a description is an artifact. A picture with neither description nor `Artifact()` is reported, as `Image` is. Put an `AltText` on the object (not only inside its content) when extraction should return it.
+- **Links.** `Hyperlink(uri)` and `LinkToAnchor(id)` on the descriptor link the object's box; inside an `Inline` slot, `Hyperlink`, `LinkToAnchor` and `Anchor` work as they do anywhere. The link annotation is tied to a `Link` structure element that holds the figure.
+- **Limits.** One text can hold as many objects as it has characters (the paragraph limit of 16 million); a text with page numbers cannot hold objects. Outside layout, `TextParagraph` takes `TextSpan.ForInline(new InlineBox(width, height) { Paint = ... })`, and `TextRenderer.Draw` draws it; see [layout-text.md](layout-text.md#inline-objects).
+
 ### Rows, columns, layers, lists, images
 
 - `Column(c => ...)` with `Spacing`, `ItemAlignment` and `Item()`; `Row(r => ...)` with `Spacing`, `AlignTop`/`AlignMiddle`/`AlignBottom`, and `ConstantItem(width)`, `RelativeItem(weight)` or `AutoItem()`.
