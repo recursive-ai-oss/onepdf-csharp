@@ -348,6 +348,7 @@ public sealed partial class LayoutDocument
 
             using TargetPage tp = target.BeginPage(size.Width, size.Height);
             ctx.OpenPage = tp;
+            ctx.Values = ctx.Dynamic.Page(fit.Placed as Placed, new PageInfo(firstPage + page, sectionIndex, page, startNumber + page, setup.NumberStyle), Numbering.Format(startNumber + page, setup.NumberStyle));
             if (page == 0 && writeLabel && target.SupportsNavigation)
             {
                 target.AddPageLabelRange(firstPage, Numbering.LabelStyle(setup.NumberStyle), setup.LabelPrefix ?? string.Empty, (int)Math.Min(startNumber, int.MaxValue));

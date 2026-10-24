@@ -140,6 +140,12 @@ internal sealed class LayoutContext : IDisposable
     /// <summary>The state shared by the runs of a document with a table of contents; null without one.</summary>
     public TocState? Toc { get; init; }
 
+    /// <summary>Running totals and markers of the pages drawn so far.</summary>
+    public DynamicState Dynamic { get; } = new();
+
+    /// <summary>What the page being drawn contributed; empty outside drawing.</summary>
+    public PageValues Values { get; set; } = new(0, 0, 1, "1", null, null, null, null, null);
+
     /// <summary>How many lists enclose the element being laid out.</summary>
     public int ListDepth { get; set; }
 

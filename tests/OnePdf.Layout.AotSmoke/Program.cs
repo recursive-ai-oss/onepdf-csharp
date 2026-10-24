@@ -302,6 +302,29 @@ if (columnsBack.Pages.Count != 1)
     return 1;
 }
 
+// Dynamic values: a footer carries forward the sum of the amounts on the pages so far, read back from the last page.
+LayoutDocument carried = LayoutDocument.Compose(d => d.Page(p =>
+{
+    p.Size(200, 120);
+    p.Footer().DynamicText(v => "Carried " + v.Total("amount").ToString("F2", System.Globalization.CultureInfo.InvariantCulture));
+    p.Content().Column(c =>
+    {
+        for (int i = 1; i <= 30; i++)
+        {
+            c.Item().Accumulate("amount", i * 1.5m).Text("Row " + i);
+        }
+    });
+}));
+using var carriedStream = new MemoryStream();
+carried.Save(carriedStream, new PdfDocumentWriterOptions { LeaveOpen = true });
+using PdfDocument carriedBack = PdfDocument.Open(carriedStream.ToArray());
+string carriedText = carriedBack.Pages[carriedBack.Pages.Count - 1].ExtractText().Text;
+if (carriedBack.Pages.Count < 2 || !carriedText.Contains("Carried 697.50", StringComparison.Ordinal))
+{
+    Console.WriteLine("FAIL carried forward: " + carriedText);
+    return 1;
+}
+
 Console.WriteLine("ok");
 return 0;
 
