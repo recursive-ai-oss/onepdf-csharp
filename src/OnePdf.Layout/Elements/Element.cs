@@ -19,6 +19,13 @@ public sealed class LayoutOptions
 
     /// <summary>The fonts text can use. Null, the default, is a shared registry of the Liberation faces and the standard fonts; system fonts are never used unless the registry is told to.</summary>
     public TextFontRegistry? Fonts { get; set; }
+
+    /// <summary>
+    /// Writes a structure tree (tagged PDF, ISO 32000-2 14.7) from the element tree and marks everything that is not content as an artifact.
+    /// Default true. Off, the pages carry no marked content at all. Targets that cannot write a structure tree (a document edited in memory)
+    /// are never tagged, whatever this says.
+    /// </summary>
+    public bool Tagged { get; set; } = true;
 }
 
 /// <summary>The narrowest and widest width of an element's content, in points.</summary>
@@ -50,6 +57,12 @@ internal sealed class Placed(Element element, double x, double y, double width, 
 
     public List<Placed> Children { get; } = [];
 
+    /// <summary>True when this piece continues one drawn on an earlier page (the element was laid out with a resume point).</summary>
+    public bool Continued { get; set; }
+
+    /// <summary>True when the element carries on after this piece, on a later page.</summary>
+    public bool Continues { get; set; }
+
     /// <summary>What the element needs again when it draws (line ranges, resolved borders, image size).</summary>
     public object? Data { get; set; }
 }
@@ -77,6 +90,24 @@ internal sealed class LayoutContext : IDisposable
         Options = options;
         Text = text;
         Rules = new FlowRules(Math.Max(1, options.Orphans), Math.Max(1, options.Widows));
+        Tag = new Tagger(this, target, options.Tagged);
+    }
+
+    /// <summary>Builds the structure tree while pages are drawn.</summary>
+    public Tagger Tag { get; }
+
+    /// <summary>How many artifact elements enclose the element being laid out: images there need no alternate text.</summary>
+    public int LayoutArtifactDepth { get; set; }
+
+    private readonly HashSet<object> _noted = [];
+
+    /// <summary>Records a note once per element, however often the element is laid out.</summary>
+    public void NoteOnce(Element element, string message)
+    {
+        if (_noted.Add(element))
+        {
+            Note(message);
+        }
     }
 
     public ILayoutTarget Target { get; }
@@ -223,7 +254,7 @@ internal sealed class LayoutContext : IDisposable
     }
 
     /// <summary>Adds a link annotation over the box of the element being drawn.</summary>
-    public void AddLink(in DrawContext d, double width, double height, string? uri, string? destination)
+    public void AddLink(in DrawContext d, double width, double height, string? uri, string? destination, PdfStructureElement? element = null, string? description = null)
     {
         if (!(width > 0) || !(height > 0) || !CanNavigate(d))
         {
@@ -233,12 +264,12 @@ internal sealed class LayoutContext : IDisposable
         var area = new PdfRectangle(d.X, d.PdfY(height), d.X + width, d.PdfY(0));
         if (uri is { Length: > 0 })
         {
-            OpenPage!.Stream!.AddLink(area, uri);
+            OpenPage!.Stream!.AddLink(area, uri, element, description ?? uri);
         }
         else if (destination is { Length: > 0 })
         {
             _linkedNames.Add(destination);
-            OpenPage!.Stream!.AddLinkToDestination(area, destination);
+            OpenPage!.Stream!.AddLinkToDestination(area, destination, element, description);
         }
     }
 
@@ -325,6 +356,35 @@ public abstract class Element
     /// <summary>The content direction for this element and everything inside it; inherited when null.</summary>
     public LayoutDirection? Direction { get; set; }
 
+    /// <summary>
+    /// A BCP 47 language tag for this element and everything inside it, such as <c>ar</c> or <c>de-CH</c>; inherited when null. Text uses it for
+    /// language-specific glyph forms and hyphenation, and the structure tree records it (<c>/Lang</c>, ISO 32000-2 14.9.2) wherever it
+    /// differs from the surrounding content. Default none.
+    /// </summary>
+    public string? Language { get; set; }
+
+    /// <summary>
+    /// An alternate description of the element's content for readers that cannot see it (<c>/Alt</c>, ISO 32000-2 14.9.3). On an
+    /// <see cref="Image"/> it describes the picture; on any other element it turns the element, and everything inside it, into one
+    /// <c>Figure</c> with this description. A <see cref="Link"/> uses it as the link's description. Default none.
+    /// </summary>
+    public string? AltText { get; set; }
+
+    /// <summary>
+    /// Marks the element and everything inside it as decoration (an artifact, ISO 32000-2 14.8.2.2): it stays out of the structure tree and
+    /// assistive technology skips it. Default false. A <see cref="Canvas"/> is decoration unless it has <see cref="AltText"/>.
+    /// </summary>
+    public bool Artifact { get; set; }
+
+    /// <summary>True for elements that are decoration unless they are given alternate text.</summary>
+    internal virtual bool ArtifactByDefault => false;
+
+    /// <summary>False where <see cref="AltText"/> means something else (a link's description).</summary>
+    internal virtual bool AltTextIsFigure => true;
+
+    /// <summary>True for elements that are figures even without alternate text (which is then reported).</summary>
+    internal virtual bool FigureByDefault => false;
+
     /// <summary>True when this element, or the chain of transparent wrappers around the real content, asks to stay with what follows it.</summary>
     internal virtual bool EffectiveKeepWithNext => KeepWithNext;
 
@@ -341,12 +401,29 @@ public abstract class Element
             ctx.Direction = d;
         }
 
+        if (Artifact)
+        {
+            ctx.LayoutArtifactDepth++;
+        }
+
         try
         {
-            return LayoutCore(ctx, c, resume);
+            FlowFit fit = LayoutCore(ctx, c, resume);
+            if (fit.Placed is Placed placed && ReferenceEquals(placed.Element, this))
+            {
+                placed.Continued = resume is not null;
+                placed.Continues = fit.Kind == FlowKind.Partial;
+            }
+
+            return fit;
         }
         finally
         {
+            if (Artifact)
+            {
+                ctx.LayoutArtifactDepth--;
+            }
+
             ctx.Direction = saved;
             ctx.Pop();
         }
@@ -388,10 +465,44 @@ public abstract class Element
 
     internal void Draw(in DrawContext d, Placed p)
     {
+        Tagger tag = d.Ctx.Tag;
+        if (!tag.Enabled)
+        {
+            DrawCore(d, p);
+            if (d.Ctx.Options.Debug)
+            {
+                DebugOverlay.Draw(d, p);
+            }
+
+            return;
+        }
+
+        string? savedLanguage = tag.Language;
+        if (Language is { Length: > 0 })
+        {
+            tag.Language = Language;
+        }
+
+        bool artifact = false;
+        TagScope figure = default;
+        if (Artifact || (ArtifactByDefault && AltText is null))
+        {
+            artifact = tag.BeginArtifact(d.B);
+        }
+        else if ((AltText is not null && AltTextIsFigure) || FigureByDefault)
+        {
+            figure = tag.Open(this, p.Continued, p.Continues, "Figure", AltText);
+        }
+
         DrawCore(d, p);
+        tag.EndArtifact(d.B, artifact);
+        tag.Close(figure);
+        tag.Language = savedLanguage;
         if (d.Ctx.Options.Debug)
         {
+            bool began = tag.BeginArtifact(d.B);
             DebugOverlay.Draw(d, p);
+            tag.EndArtifact(d.B, began);
         }
     }
 

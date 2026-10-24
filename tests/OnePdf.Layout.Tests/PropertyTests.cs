@@ -220,7 +220,7 @@ public class PropertyTests
 
     public static int Seeds => 2000;
 
-    private static LayoutDocument Build(int seed, out TreeGen gen)
+    internal static LayoutDocument Build(int seed, out TreeGen gen)
     {
         gen = new TreeGen(seed);
         var doc = new LayoutDocument();

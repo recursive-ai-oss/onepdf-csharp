@@ -68,9 +68,11 @@ public sealed class Table : Element
 
     internal sealed record Resume(State State, int Row, object?[]? Inner, bool[]? Done);
 
-    internal readonly record struct RowGeometry(int Row, double Y, double Height, LayoutColor? Background);
+    /// <summary>A row on one page. <paramref name="Continued"/>: it carries on a row that split on the page before; <paramref name="Continues"/>: it splits again.</summary>
+    internal readonly record struct RowGeometry(int Row, double Y, double Height, LayoutColor? Background, bool Continued = false, bool Continues = false);
 
-    internal readonly record struct CellGeometry(int Slot, double X, double Y, double Width, double Height, Placed? Content);
+    /// <summary>A cell on one page. <paramref name="Skipped"/>: its content finished on an earlier page, so nothing of it is here.</summary>
+    internal readonly record struct CellGeometry(int Slot, double X, double Y, double Width, double Height, Placed? Content, bool Skipped = false, bool Continued = false, bool Continues = false);
 
     /// <summary>What one page shows of a table.</summary>
     internal sealed class Piece(State state)
@@ -350,7 +352,7 @@ public sealed class Table : Element
         var nextInner = anyPartial ? new object?[n] : null;
         var nextDone = anyPartial ? new bool[n] : null;
         LayoutColor? rowFill = RowFill(g, row);
-        b.Piece.Rows.Add(new RowGeometry(row, y, height, rowFill));
+        b.Piece.Rows.Add(new RowGeometry(row, y, height, rowFill, continued, anyPartial));
         for (int i = 0; i < n; i++)
         {
             TableSlot slot = g.Slots[s0 + i];
@@ -365,7 +367,8 @@ public sealed class Table : Element
                 b.Children.Add(content);
             }
 
-            b.Piece.Cells.Add(new CellGeometry(s0 + i, x, y, w, height, content));
+            bool skipped = done is not null && done[i];
+            b.Piece.Cells.Add(new CellGeometry(s0 + i, x, y, w, height, content, skipped, continued && !skipped, fits[i].Kind == FlowKind.Partial));
             if (nextInner is not null)
             {
                 bool wasDone = done is not null && done[i];
@@ -506,6 +509,8 @@ public sealed class Table : Element
         TableGrid g = piece.State.Grid;
         double width = piece.State.Width;
         PdfContentBuilder b = d.B;
+        Tagger tag = d.Ctx.Tag;
+        bool artifact = tag.BeginArtifact(b);
         foreach (RowGeometry rg in piece.Rows)
         {
             if (rg.Background is { } fill)
@@ -524,9 +529,103 @@ public sealed class Table : Element
             }
         }
 
-        DrawChildren(d, p);
+        tag.EndArtifact(b, artifact);
+        DrawContent(d, p, piece);
+        artifact = tag.BeginArtifact(b);
         DrawBorders(d, piece);
+        tag.EndArtifact(b, artifact);
     }
+
+    private static readonly object HeadKey = new();
+
+    private static readonly object BodyKey = new();
+
+    private static readonly object FootKey = new();
+
+    private static readonly object RowKey = new();
+
+    private sealed record CellKey(int Slot);
+
+    // The structure: Table > THead, TBody, TFoot > TR > TH, TD (ISO 32000-2 14.8.4.3.4). Header rows are drawn again on every page the table
+    // spans and footer rows on every page too; only the first occurrence of the header and the last of the footer are structure, the repeats
+    // are artifacts, so a reader that follows the tree meets each row once.
+    private static void DrawContent(in DrawContext d, Placed p, Piece piece)
+    {
+        Tagger tag = d.Ctx.Tag;
+        PdfContentBuilder b = d.B;
+        TableGrid g = piece.State.Grid;
+        TagScope table = tag.Open(p.Element, p.Continued, p.Continues, "Table");
+        List<RowGeometry> rows = piece.Rows;
+        int cell = 0;
+        int i = 0;
+        while (i < rows.Count)
+        {
+            int kind = rows[i].Row < g.HeaderCount ? 0 : rows[i].Row < g.HeaderCount + g.BodyCount ? 1 : 2;
+            int j = i;
+            while (j + 1 < rows.Count && SectionOf(g, rows[j + 1].Row) == kind)
+            {
+                j++;
+            }
+
+            bool real = kind switch { 0 => !p.Continued, 1 => true, _ => !p.Continues };
+            bool artifact = !real && tag.BeginArtifact(b);
+            TagScope section = real
+                ? kind switch
+                {
+                    0 => tag.Open(HeadKey, false, false, "THead"),
+                    1 => tag.Open(BodyKey, p.Continued, p.Continues, "TBody"),
+                    _ => tag.Open(FootKey, false, false, "TFoot"),
+                }
+                : default;
+            for (int k = i; k <= j; k++)
+            {
+                RowGeometry rg = rows[k];
+                TagScope row = tag.Open(RowKey, rg.Continued, rg.Continues, "TR");
+                while (cell < piece.Cells.Count && g.Slots[piece.Cells[cell].Slot].Top == rg.Row)
+                {
+                    CellGeometry cg = piece.Cells[cell++];
+                    if (cg.Skipped)
+                    {
+                        continue;
+                    }
+
+                    TableSlot slot = g.Slots[cg.Slot];
+                    bool header = kind == 0 || slot.Cell.IsHeader;
+                    PdfDictionary? attributes = null;
+                    if (!cg.Continued && tag.Enabled)
+                    {
+                        if (header)
+                        {
+                            attributes = PdfStructureAttributes.TableHeader(kind == 0 ? "Column" : "Row", slot.ColSpan, slot.RowSpan);
+                        }
+                        else if (slot.ColSpan > 1 || slot.RowSpan > 1)
+                        {
+                            attributes = PdfStructureAttributes.Table(slot.ColSpan, slot.RowSpan);
+                        }
+                    }
+
+                    object owner = cg.Continued || cg.Continues ? new CellKey(cg.Slot) : RowKey;
+                    TagScope cellScope = tag.Open(owner, cg.Continued, cg.Continues, header ? "TH" : "TD", null, attributes);
+                    if (cg.Content is { } content)
+                    {
+                        content.Element.Draw(d.At(content.X, content.Y), content);
+                    }
+
+                    tag.Close(cellScope);
+                }
+
+                tag.Close(row);
+            }
+
+            tag.Close(section);
+            tag.EndArtifact(b, artifact);
+            i = j + 1;
+        }
+
+        tag.Close(table);
+    }
+
+    private static int SectionOf(TableGrid g, int row) => row < g.HeaderCount ? 0 : row < g.HeaderCount + g.BodyCount ? 1 : 2;
 
     private static void DrawBorders(in DrawContext d, Piece piece)
     {

@@ -192,6 +192,58 @@ public class StreamingWriterTests
         Assert.Throws<InvalidOperationException>(() => w.BeginPage(100, 100));
     }
 
+    // ---- structure elements with an explicit parent, ended in any order ----
+
+    [Fact]
+    public void ElementsCanKeepSeveralBranchesOpenAcrossPages()
+    {
+        using var ms = new MemoryStream();
+        using (var w = new PdfDocumentWriter(ms, new PdfDocumentWriterOptions { DocumentId = new byte[16], LeaveOpen = true }))
+        {
+            PdfCreatedFont f = w.AddStandardFont("Helvetica");
+            PdfStructureElement doc = w.BeginStructureElement("Document");
+            PdfStructureElement row = w.BeginStructureElement(doc, "TR");
+            PdfStructureElement left = w.BeginStructureElement(row, "TD");
+            PdfStructureElement right = w.BeginStructureElement(row, "TD");
+            Assert.Throws<InvalidOperationException>(() => w.EndStructureElement(row)); // children still open
+            Assert.Throws<ArgumentException>(() => w.BeginStructureElement(new PdfDocumentWriter(new MemoryStream()).BeginStructureElement("X"), "P"));
+
+            for (int page = 0; page < 2; page++)
+            {
+                PdfStreamPageBuilder p = w.BeginPage(100, 100);
+                p.SetFont(f, 10);
+                p.BeginTaggedContent(left);
+                p.DrawText("left " + page, 10, 80);
+                p.EndMarkedContent();
+                p.BeginTaggedContent(right);
+                p.DrawText("right " + page, 10, 60);
+                p.EndMarkedContent();
+                p.Commit();
+                if (page == 0)
+                {
+                    w.EndStructureElement(right); // the right cell ends first although the left one began first
+                    right = w.BeginStructureElement(row, "TD"); // a later sibling begins while the left one is still open
+                }
+            }
+
+            w.EndStructureElement(left);
+            w.EndStructureElement(right);
+            w.EndStructureElement(row);
+            Assert.Throws<InvalidOperationException>(() => w.EndStructureElement(row)); // already ended
+            w.EndStructureElement(doc);
+            w.Finish();
+        }
+
+        using PdfDocument back = PdfDocument.Open(ms.ToArray());
+        Assert.DoesNotContain(back.Diagnostics, x => x.Severity >= PdfSeverity.Warning);
+        PdfDictionary document = back.StructureTreeRoot!.GetDictionary("K")!;
+        PdfDictionary tr = document.GetDictionary("K")!;
+        PdfArray cells = tr.GetArray("K")!;
+        Assert.Equal(3, cells.Count); // in the order they began: left, first right, second right
+        Assert.Equal(2, ((PdfArray)((PdfDictionary)cells[0]!).Get("K")!).Count); // the left cell holds content from both pages
+        Assert.Equal("TD", ((PdfDictionary)cells[2]!).GetName("S"));
+    }
+
     // ---- 10,000 pages in bounded memory ----
 
     [Fact]

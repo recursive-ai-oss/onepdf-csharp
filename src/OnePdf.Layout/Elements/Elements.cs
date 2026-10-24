@@ -264,6 +264,7 @@ public sealed class Canvas : Element
         }
 
         PdfContentBuilder b = d.B;
+        bool tagged = d.Ctx.Tag.BeginContent();
         b.Save();
         b.Translate(d.X, d.PdfY(p.Height));
         b.Rectangle(0, 0, p.Width, p.Height);
@@ -271,7 +272,10 @@ public sealed class Canvas : Element
         b.EndPath();
         Paint(new CanvasSurface(b, p.Width, p.Height));
         b.Restore();
+        d.Ctx.Tag.EndContent(tagged);
     }
+
+    internal override bool ArtifactByDefault => true;
 }
 
 /// <summary>A reusable piece of the tree: compose it from other elements once, use it as one element.</summary>
@@ -324,6 +328,11 @@ public sealed class Image : Element
     internal override FlowFit LayoutCore(LayoutContext ctx, in Constraint c, object? resume)
     {
         PdfCreatedImage img = ctx.ImageFor(this);
+        if (AltText is null && !Artifact && ctx.LayoutArtifactDepth == 0 && ctx.Options.Tagged)
+        {
+            ctx.NoteOnce(this, "The image has no alternate text (AltText); assistive technology cannot describe it. Set AltText, or Artifact for a decorative image.");
+        }
+
         double dpi = Dpi > 0 ? Dpi : 72;
         double nw = img.Width * 72.0 / dpi;
         double nh = img.Height * 72.0 / dpi;
@@ -421,6 +430,7 @@ public sealed class Image : Element
     {
         var data = (Data)p.Data!;
         PdfContentBuilder b = d.B;
+        bool tagged = d.Ctx.Tag.BeginContent();
         if (data.Clip)
         {
             b.Save();
@@ -434,7 +444,11 @@ public sealed class Image : Element
         {
             b.Restore();
         }
+
+        d.Ctx.Tag.EndContent(tagged);
     }
+
+    internal override bool FigureByDefault => true;
 }
 
 /// <summary>
@@ -467,9 +481,6 @@ public sealed class Text : Element
 
     /// <summary>Text colour. Default black.</summary>
     public LayoutColor Color { get; set; }
-
-    /// <summary>A BCP 47 language tag for language-specific glyph forms and hyphenation. Default none.</summary>
-    public string? Language { get; set; }
 
     /// <summary>Line placement. Default <see cref="HorizontalAlignment.Start"/>.</summary>
     public HorizontalAlignment Alignment { get; set; }
@@ -570,8 +581,12 @@ public sealed class Text : Element
     internal override void DrawCore(in DrawContext d, Placed p)
     {
         var f = (Fragment)p.Data!;
-        PdfContentBuilder b = d.B;
+        Tagger tag = d.Ctx.Tag;
+        TagScope scope = tag.TextIsDirect ? default : tag.Open(this, p.Continued, p.Continues, "P");
+        bool tagged = tag.BeginContent();
         f.Block.Draw(d, p, f.First, f.Count);
+        tag.EndContent(tagged);
+        tag.Close(scope);
     }
 }
 

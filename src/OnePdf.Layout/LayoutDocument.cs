@@ -17,8 +17,8 @@ public sealed class LayoutPage
     /// <summary>Space between the page edge and the header, content and footer. Default 36 points on every side.</summary>
     public Insets Margin { get; set; } = Insets.All(36);
 
-    /// <summary>Content direction for this run of pages. Default left to right.</summary>
-    public LayoutDirection Direction { get; set; }
+    /// <summary>Content direction for this run of pages. When null, <see cref="LayoutDocument.Direction"/>.</summary>
+    public LayoutDirection? Direction { get; set; }
 
     /// <summary>Laid out at the top of every page inside the margins. Its height is taken off the content area.</summary>
     public Element? Header { get; set; }
@@ -72,6 +72,25 @@ public sealed class LayoutDocument
     /// <summary>Layout switches.</summary>
     public LayoutOptions Options { get; } = new();
 
+    /// <summary>
+    /// The content direction of every section that does not set its own. <see cref="LayoutDirection.RightToLeft"/> mirrors rows, table columns, list
+    /// markers, start and end alignment, insets and borders, and gives paragraphs a right-to-left base direction. Default left to right.
+    /// </summary>
+    public LayoutDirection Direction { get; set; }
+
+    /// <summary>
+    /// The document title: the information dictionary's <c>Title</c>, and (in <see cref="Save"/>) <c>DisplayDocTitle</c>, so viewers show it instead of
+    /// the file name. Tagged documents should have one. Null writes none.
+    /// </summary>
+    public string? Title { get; set; }
+
+    /// <summary>
+    /// The language of the document, a BCP 47 tag such as <c>en-US</c>: the catalog's <c>/Lang</c> when written by <see cref="Save"/> (set it in the
+    /// writer's options when you render into your own writer) and the language every structure element inherits. Elements override it with
+    /// <see cref="Element.Language"/>. Null for none.
+    /// </summary>
+    public string? Language { get; set; }
+
     /// <summary>Notes recorded by the last <see cref="Render(PdfDocument)"/>: adjustments and rules that could not be honoured.</summary>
     public IReadOnlyList<LayoutDiagnostic> Diagnostics => _diagnostics;
 
@@ -98,6 +117,11 @@ public sealed class LayoutDocument
     public int Render(PdfDocumentWriter writer)
     {
         ArgumentNullException.ThrowIfNull(writer);
+        if (Title is not null)
+        {
+            writer.SetInfo("Title", Title);
+        }
+
         return RenderCore(new WriterTarget(writer), null);
     }
 
@@ -107,6 +131,22 @@ public sealed class LayoutDocument
     public void Save(Stream output, PdfDocumentWriterOptions? options = null)
     {
         ArgumentNullException.ThrowIfNull(output);
+        options ??= new PdfDocumentWriterOptions();
+        if ((Language is not null && options.Language is null) || (Title is not null && !options.DisplayDocumentTitle))
+        {
+            options = new PdfDocumentWriterOptions
+            {
+                CompressStreams = options.CompressStreams,
+                Version = options.Version,
+                XrefFormat = options.XrefFormat,
+                DocumentId = options.DocumentId,
+                Language = options.Language ?? Language,
+                DisplayDocumentTitle = options.DisplayDocumentTitle || Title is not null,
+                LeaveOpen = options.LeaveOpen,
+                Limits = options.Limits,
+            };
+        }
+
         using var writer = new PdfDocumentWriter(output, options);
         Render(writer);
         writer.Finish();
@@ -130,6 +170,11 @@ public sealed class LayoutDocument
     {
         using var ctx = new LayoutContext(target, Options, new ParagraphTextEngine(target, Options.Fonts ?? TextFontRegistry.Shared)) { CountOnly = countOnly };
         _diagnostics = ctx.Diagnostics;
+        if (!countOnly)
+        {
+            ctx.Tag.Start(Language);
+        }
+
         int pageNumber = 0;
         long nextNumber = 1;
         NumberingStyle previousStyle = NumberingStyle.Arabic;
@@ -137,7 +182,7 @@ public sealed class LayoutDocument
         for (int s = 0; s < Pages.Count; s++)
         {
             LayoutPage section = Pages[s];
-            ctx.Direction = section.Direction;
+            ctx.Direction = section.Direction ?? Direction;
             long start = section.StartNumber is { } sn ? Math.Max(1, sn) : nextNumber;
             string prefix = section.LabelPrefix ?? string.Empty;
 
@@ -159,6 +204,7 @@ public sealed class LayoutDocument
         }
 
         target.SetTotal(-1, pageNumber);
+        ctx.Tag.Finish();
         ctx.CheckLinks();
         return pageNumber;
     }
@@ -227,18 +273,19 @@ public sealed class LayoutDocument
             PdfContentBuilder b = tp.Builder;
             var d = new DrawContext(b, ctx, size.Height, 0, 0);
             Placed? background = LayoutFull(ctx, setup.Background, "Background", firstPage + page, size);
+            Tagger tag = ctx.Tag;
             if (background is not null)
             {
-                b.BeginArtifact(PdfArtifactType.Background);
+                bool a = tag.BeginArtifact(b, PdfArtifactType.Background);
                 background.Element.Draw(d, background);
-                b.EndMarkedContent();
+                tag.EndArtifact(b, a);
             }
 
             if (header is not null)
             {
-                b.BeginArtifact(PdfArtifactType.Pagination, PdfArtifactSubtype.Header);
+                bool a = tag.BeginArtifact(b, PdfArtifactType.Pagination, PdfArtifactSubtype.Header);
                 header.Element.Draw(d.At(m.Left, m.Top), header);
-                b.EndMarkedContent();
+                tag.EndArtifact(b, a);
             }
 
             Placed? body = fit.Placed as Placed;
@@ -249,17 +296,17 @@ public sealed class LayoutDocument
 
             if (footer is not null)
             {
-                b.BeginArtifact(PdfArtifactType.Pagination, PdfArtifactSubtype.Footer);
+                bool a = tag.BeginArtifact(b, PdfArtifactType.Pagination, PdfArtifactSubtype.Footer);
                 footer.Element.Draw(d.At(m.Left, size.Height - m.Bottom - footer.Height), footer);
-                b.EndMarkedContent();
+                tag.EndArtifact(b, a);
             }
 
             Placed? foreground = LayoutFull(ctx, setup.Foreground, "Foreground", firstPage + page, size);
             if (foreground is not null)
             {
-                b.BeginArtifact(PdfArtifactType.Pagination, PdfArtifactSubtype.Watermark);
+                bool a = tag.BeginArtifact(b, PdfArtifactType.Pagination, PdfArtifactSubtype.Watermark);
                 foreground.Element.Draw(d, foreground);
-                b.EndMarkedContent();
+                tag.EndArtifact(b, a);
             }
 
             ctx.OpenPage = null;
@@ -287,6 +334,7 @@ public sealed class LayoutDocument
 
         ctx.Push($"Page[{page}]");
         ctx.Push(slot);
+        ctx.LayoutArtifactDepth++;
         try
         {
             FlowFit f = element.Layout(ctx, new Constraint(width, Math.Max(0, maxHeight), true), null);
@@ -299,6 +347,7 @@ public sealed class LayoutDocument
         }
         finally
         {
+            ctx.LayoutArtifactDepth--;
             ctx.Pop();
             ctx.Pop();
         }
@@ -313,6 +362,7 @@ public sealed class LayoutDocument
 
         ctx.Push($"Page[{page}]");
         ctx.Push(slot);
+        ctx.LayoutArtifactDepth++;
         try
         {
             FlowFit f = element.Layout(ctx, new Constraint(size.Width, size.Height, true), null);
@@ -320,6 +370,7 @@ public sealed class LayoutDocument
         }
         finally
         {
+            ctx.LayoutArtifactDepth--;
             ctx.Pop();
             ctx.Pop();
         }
