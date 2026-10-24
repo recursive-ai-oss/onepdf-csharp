@@ -525,9 +525,19 @@ public class StreamingWriterTests
         Assert.Equal("Visit example.com", a.Contents);
 
         // Figure alternate text and table header scope.
-        string raw = System.Text.Encoding.Latin1.GetString(pdf);
-        Assert.Contains("/Scope/Column", raw, StringComparison.Ordinal);
-        Assert.Contains("/Alt", raw, StringComparison.Ordinal);
+        // (The structure elements sit inside compressed object streams, so look at the objects, not at the bytes.)
+        bool scope = false, alt = false;
+        for (int n = 1; n <= d.ObjectCount; n++)
+        {
+            if (d.GetObject(n) is PdfDictionary e)
+            {
+                scope |= e.GetName("Scope") == "Column" || e.GetDictionary("A")?.GetName("Scope") == "Column";
+                alt |= e.GetRaw("Alt") is not null;
+            }
+        }
+
+        Assert.True(scope);
+        Assert.True(alt);
         Assert.Equal("Visit example.com", a.Contents);
         Assert.Equal("Third paragraph on page two continued", CreationSupport.Normalize(d.Pages[1].ExtractText().Text));
     }
