@@ -114,7 +114,7 @@ revenue test and no registration. The font packages are OFL 1.1 and ship their n
 
 Things QuestPDF's public documentation lists that `OnePdf.Layout` does not have yet:
 
-- Shadows, gradients and scale-to-fit, flip, unconstrained and shrink wrappers.
+- Shadows and scale-to-fit, flip, unconstrained and shrink wrappers.
 - Inline flow of arbitrary elements (an inlined layout) and elements embedded in text; hyperlinks inside a text span (put
   `Hyperlink` on the slot that holds the text instead).
 - Multi-column flow, table of contents generation, show-once / skip-once / show-if

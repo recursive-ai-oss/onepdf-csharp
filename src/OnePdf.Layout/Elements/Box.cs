@@ -102,6 +102,12 @@ public sealed class Box : SingleChildElement
     /// <summary>Fill colour behind the child, inside the border. None when null.</summary>
     public LayoutColor? Background { get; set; }
 
+    /// <summary>
+    /// Gradient fill behind the child, inside the border; it replaces <see cref="Background"/> when both are set. None when null. A box that
+    /// splits over pages paints the whole gradient in each piece, scaled to the piece.
+    /// </summary>
+    public LayoutGradient? BackgroundGradient { get; set; }
+
     /// <summary>Opacity 0..1 of what the box paints. Default 1.</summary>
     public double Opacity { get; set; } = 1;
 
@@ -386,7 +392,7 @@ public sealed class Box : SingleChildElement
         var data = (BoxData)p.Data!;
         PdfContentBuilder b = d.B;
         Tagger tag = d.Ctx.Tag;
-        bool hasPaint = Background is not null || data.Top.Width > 0 || data.Right.Width > 0 || data.Bottom.Width > 0 || data.Left.Width > 0;
+        bool hasPaint = Background is not null || BackgroundGradient is not null || data.Top.Width > 0 || data.Right.Width > 0 || data.Bottom.Width > 0 || data.Left.Width > 0;
         bool faded = Opacity < 1 && hasPaint;
         bool artifact = hasPaint && tag.BeginArtifact(b);
         if (faded)
@@ -403,7 +409,24 @@ public sealed class Box : SingleChildElement
         double rTop = data.First ? radius : 0;
         double rBottom = data.Last ? radius : 0;
 
-        if (Background is { } bg)
+        if (BackgroundGradient is { } gradient)
+        {
+            // The rounded or plain rectangle is the clip; the shading then covers it (ISO 32000-2 8.7.4.2, the sh operator).
+            b.Save();
+            if (radius > 0)
+            {
+                RoundedRect(d, x, y, w, h, rTop, rBottom);
+            }
+            else
+            {
+                b.Rectangle(d.X + x, d.PdfY(y + h), w, h);
+            }
+
+            b.Clip();
+            b.PaintGradient(gradient.ToPdf(d.X + x, d.PdfY(y), w, h));
+            b.Restore();
+        }
+        else if (Background is { } bg)
         {
             b.SetFillRgb(bg.R, bg.G, bg.B);
             if (radius > 0)
@@ -429,6 +452,17 @@ public sealed class Box : SingleChildElement
         artifact = hasPaint && tag.BeginArtifact(b);
         DrawBorders(d, data, x, y, w, h, radius, rTop, rBottom);
         tag.EndArtifact(b, artifact);
+    }
+
+    /// <summary>Fills the rectangle (x, y, w, h in the element's frame) with the gradient, scaled to the rectangle.</summary>
+    internal static void FillGradientRect(in DrawContext d, LayoutGradient gradient, double x, double y, double w, double h)
+    {
+        PdfContentBuilder b = d.B;
+        b.Save();
+        b.Rectangle(d.X + x, d.PdfY(y + h), w, h);
+        b.Clip();
+        b.PaintGradient(gradient.ToPdf(d.X + x, d.PdfY(y), w, h));
+        b.Restore();
     }
 
     private static void DrawBorders(in DrawContext d, BoxData data, double x, double y, double w, double h, double radius, double rTop, double rBottom)

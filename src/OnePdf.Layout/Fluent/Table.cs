@@ -116,6 +116,7 @@ public sealed class TableRowDescriptor
     private readonly List<TableCellSlot> _cells = [];
     private bool _keep;
     private LayoutColor? _background;
+    private LayoutGradient? _gradient;
 
     internal TableRowDescriptor()
     {
@@ -132,6 +133,14 @@ public sealed class TableRowDescriptor
     public TableRowDescriptor Background(LayoutColor color)
     {
         _background = color;
+        _gradient = null;
+        return this;
+    }
+
+    /// <summary>Fills the row with a gradient, scaled to the row (to each piece of a row that splits over pages). A cell's own background wins.</summary>
+    public TableRowDescriptor Background(LayoutGradient gradient)
+    {
+        _gradient = gradient ?? throw new ArgumentNullException(nameof(gradient));
         return this;
     }
 
@@ -155,7 +164,7 @@ public sealed class TableRowDescriptor
 
     internal TableRow Build()
     {
-        var row = new TableRow { KeepTogether = _keep, Background = _background };
+        var row = new TableRow { KeepTogether = _keep, Background = _background, BackgroundGradient = _gradient };
         foreach (TableCellSlot c in _cells)
         {
             row.Cells.Add(c.Build());
@@ -180,6 +189,7 @@ public sealed class TableCellSlot : Slot
     private int _rowSpan = 1;
     private Insets? _padding;
     private LayoutColor? _background;
+    private LayoutGradient? _gradient;
     private Border? _top;
     private Border? _bottom;
     private Border? _start;
@@ -218,6 +228,14 @@ public sealed class TableCellSlot : Slot
     public TableCellSlot CellBackground(LayoutColor color)
     {
         _background = color;
+        _gradient = null;
+        return this;
+    }
+
+    /// <summary>Fills the cell with a gradient, scaled to the cell (to each piece of a cell that splits over pages).</summary>
+    public TableCellSlot CellBackground(LayoutGradient gradient)
+    {
+        _gradient = gradient ?? throw new ArgumentNullException(nameof(gradient));
         return this;
     }
 
@@ -280,6 +298,7 @@ public sealed class TableCellSlot : Slot
         RowSpan = _rowSpan,
         Padding = _padding,
         Background = _background,
+        BackgroundGradient = _gradient,
         BorderTop = _top,
         BorderBottom = _bottom,
         BorderStart = _start,
