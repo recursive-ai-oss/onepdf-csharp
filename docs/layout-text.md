@@ -38,6 +38,37 @@ renderer.Draw(builder, first, x: 50, top: 780);
 7. **Align.** `Start`/`End` follow the direction of that bidi paragraph; `Left`/`Right` do not. The first-line indent is on the start side and shrinks the width of the first line. `Justify` adds equal extra width to every stretchable space (U+0020, U+00A0, U+3000) so a justified line is exactly the width (±1e-9); a line with no space stays at the start edge unless `JustifyWithLetterSpacing` spreads the extra between characters.
 8. **Line boxes.** Each item contributes the ascent and descent of its font at its size (`hhea`, or the typographic values when `USE_TYPO_METRICS` is set) plus half the line gap on each side. With `LineHeight` set (em of the style's size) the box is that tall, extra space split above and below; the tallest span decides. Raised or lowered script extends a line only when no `LineHeight` is set. An empty line has the height of the font at its position.
 
+## Knuth–Plass line breaking
+
+By default lines are broken greedily (first fit). A paragraph can opt in to total-fit breaking after Knuth and Plass, "Breaking Paragraphs into Lines" (Software: Practice and Experience 11, 1981): the breaks of the whole paragraph are chosen together, so a loose line is not the price of a tight one three lines later. Greedy stays the default and its output does not change.
+
+```csharp
+using OnePdf.Layout;
+
+LayoutDocument.Compose(doc =>
+{
+    doc.LineBreaking(LineBreakMode.KnuthPlass);              // every text of the document, or
+    doc.Page(p => p.Content().Text(t =>
+    {
+        t.Justify();
+        t.Hyphenator(myHyphenator);
+        t.OptimalLineBreaks(new KnuthPlassOptions { Tolerance = 300 });   // this text only (GreedyLineBreaks() opts out)
+        t.Span(longText);
+    }));
+});
+
+// the paragraph engine directly
+var paragraph = new TextParagraph(text) { Alignment = TextAlignment.Justify, LineBreakMode = LineBreakMode.KnuthPlass };
+```
+
+- **Model.** The paper's boxes are the shaped clusters, its glue the spaces (stretching by half and shrinking by a third of their width) and its penalties the break opportunities: UAX #14 breaks cost nothing, a break after a hyphen in the text costs `ExplicitHyphenPenalty`, and a soft hyphen or `IHyphenator` point costs `HyphenPenalty` and adds the hyphen's width to its line. A line's adjustment ratio is the change its spaces must make over the change they can make; badness is `100·|r|³` up to 10000; demerits are `(LinePenalty + badness)² ± penalty²`, plus `ConsecutiveHyphenDemerits`, `FinalHyphenDemerits` (the last line follows a hyphen) and `AdjacentFitnessDemerits` (neighbouring lines of very different looseness: very loose, loose, decent, tight). The dynamic programme keeps one node per break and looseness class and prunes as the paper does.
+- **Text it applies to.** Justified lines use their spaces; a justified line with no space to stretch is as bad as can be, so single-word lines are avoided. Left, right and centred text counts as ragged: lines cannot shrink, and slack is judged against a quarter of the line width. The last line of a paragraph and lines before a hard line end are free to be short. Lines of different widths (a first-line indent) are handled; mixed fonts and sizes, bidi paragraphs and clusters are used as shaped. Justification then spreads each line's slack evenly over its spaces, as for greedy lines, and a line the breaker squeezed has its spaces narrowed.
+- **Defaults** (`KnuthPlassOptions`, TeX's plain values): `Tolerance` 200, `PreTolerance` 100, `LinePenalty` 10, `HyphenPenalty` 50, `ExplicitHyphenPenalty` 50, `ConsecutiveHyphenDemerits` 10000, `FinalHyphenDemerits` 5000, `AdjacentFitnessDemerits` 10000, `Looseness` 0, `EmergencyStretch` 0.1 of the line width. `Looseness` asks for that many lines more or fewer than the optimum when the paragraph can be set so. With `PreTolerance` 100 a paragraph that sets well without hyphens gets none; a negative value always considers them.
+- **Passes and fallbacks.** Pass 1 has no hyphens and accepts badness up to `PreTolerance` (skipped when the paragraph has no hyphenation points or `PreTolerance` is negative). Pass 2 allows hyphens up to `Tolerance`. Pass 3 repeats it with emergency stretch. Pass 4 accepts any line that is not too full and, when a piece wider than the line leaves no choice, puts that piece alone on an overfull line as greedy does, so a paragraph is always set. Each hard line (separated by a line end) is solved on its own.
+- **Bounds.** Time and memory are proportional to the number of break opportunities times the candidate line starts within one line width. A hard line of more than 500000 clusters, or a search with more than 4096 live candidates (looseness multiplies them), is broken greedily instead and `ShapedParagraph.Warnings` says so. There is no recursion. Pagination is unaffected: a Knuth–Plass paragraph is an ordinary list of lines, so splitting, widows and orphans and keep rules work on it as before. The breaker never looks beyond its paragraph.
+- **Determinism.** Plain double arithmetic in a fixed order; ties go to the earlier break; output is byte-identical between runs.
+- **Cost.** Compared with greedy, `book500` (500 justified pages) allocates about 21 % more and takes between no measurable difference and about 15 % more time (measured locally on a busy machine; see `bench/OnePdf.Layout.Benchmarks/README.md`).
+
 ## Measure, split, content widths
 
 - `ShapedParagraph.MinContentWidth`: the widest piece between break opportunities, counting a hyphen where the piece ends at a hyphenation point. `MaxContentWidth`: the longest line with nothing wrapped, with the first-line indent.
@@ -56,7 +87,7 @@ renderer.Draw(builder, first, x: 50, top: 780);
 
 A paragraph holds at most 2^24 characters. Layout work is linear in the text for any number of lines: the scan for a break stops once the content has passed the width. The shaped paragraph is immutable; `Layout` caches hyphen glyphs, so use one shaped paragraph from one thread at a time. Output is byte-identical between runs (no fused multiply-add, fixed evaluation order).
 
-Not included: vertical writing, Knuth–Plass breaking, colour glyphs, inline elements, tab stops.
+Not included: vertical writing, colour glyphs, inline elements, tab stops.
 
 ## Hyphenation patterns
 

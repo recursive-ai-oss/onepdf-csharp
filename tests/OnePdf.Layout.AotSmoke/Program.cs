@@ -205,6 +205,31 @@ if (!hyphRaw.Contains('­', StringComparison.Ordinal) && !hyphRaw.Contains('-', 
     return 1;
 }
 
+// Knuth-Plass line breaking: one justified paragraph with a hyphenator, broken by total fit, reads back whole.
+const string kpText = "Typesetting a paragraph well means looking at all of it at once, so that a loose line is not the price of a tight one that comes later in the same paragraph.";
+LayoutDocument kp = LayoutDocument.Compose(d => d.Page(p =>
+{
+    p.Size(190, 300);
+    p.Margin(10);
+    p.Content().Text(t =>
+    {
+        t.Language("en-US");
+        t.Justify();
+        t.Hyphenator(OnePdf.Hyphenation.Hyphenators.Auto());
+        t.OptimalLineBreaks(new KnuthPlassOptions { Looseness = 0 });
+        t.Span(kpText);
+    });
+}));
+using var kpStream = new MemoryStream();
+kp.Save(kpStream, new PdfDocumentWriterOptions { LeaveOpen = true });
+using PdfDocument kpBack = PdfDocument.Open(kpStream.ToArray());
+string kpJoined = string.Join(" ", kpBack.ExtractText(new OnePdf.Text.PdfTextOptions { JoinHyphenatedWords = true }).Select(t => t.Text).SelectMany(s => s.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries)));
+if (kpJoined != kpText)
+{
+    Console.WriteLine("FAIL knuth-plass: " + kpJoined);
+    return 1;
+}
+
 Console.WriteLine("ok");
 return 0;
 

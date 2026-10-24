@@ -548,6 +548,61 @@ Write("gradients", "Gradient backgrounds: linear at several angles, radial, many
     });
 }));
 
+Write("line-breaking", "The same justified paragraphs set by first fit (left) and by Knuth-Plass total fit (right), with and without hyphenation", LayoutDocument.Compose(doc =>
+{
+    doc.Title("Line breaking").Language("en");
+    doc.Page(page =>
+    {
+        page.Size(PageSize.A5);
+        page.Margin(28);
+        page.Content().Column(col =>
+        {
+            col.Spacing(8);
+            col.Item().Row(row =>
+            {
+                row.Spacing(18);
+                row.RelativeItem().Text("First fit").FontSize(9).Bold().FontColor(Colors.Grey);
+                row.RelativeItem().Text("Knuth-Plass").FontSize(9).Bold().FontColor(Colors.Grey);
+            });
+            string[] paragraphs =
+            [
+                "Typesetting a paragraph well means looking at all of it at once. A line that is set too loose or too tight is not an accident of one choice but the price of the choices before it, and a program that only ever looks at the line in front of it cannot pay that price in advance.",
+                "An unbreakable word such as incomprehensibilities or electroencephalographically can leave a gap of several spaces behind it, and a greedy breaker has no way to move a word down to share the gap.",
+            ];
+            foreach (bool hyphenate in (bool[])[false, true])
+            {
+                col.Item().Text(hyphenate ? "With hyphenation patterns" : "Without hyphenation").FontSize(8).FontColor(Colors.Grey);
+                foreach (string paragraph in paragraphs)
+                {
+                    col.Item().Row(row =>
+                    {
+                        row.Spacing(18);
+                        foreach (bool optimal in (bool[])[false, true])
+                        {
+                            row.RelativeItem().Text(t =>
+                            {
+                                t.FontSize(9.5).Justify();
+                                if (hyphenate)
+                                {
+                                    t.Language("en-US");
+                                    t.Hyphenator(OnePdf.Hyphenation.Hyphenators.Auto());
+                                }
+
+                                if (optimal)
+                                {
+                                    t.OptimalLineBreaks();
+                                }
+
+                                t.Span(paragraph);
+                            });
+                        }
+                    });
+                }
+            }
+        });
+    });
+}));
+
 File.WriteAllText(Path.Combine(outDir, "index.csv"), index.ToString());
 return 0;
 

@@ -505,6 +505,12 @@ public sealed class Text : Element
     /// <summary>Hyphenation points besides soft hyphens. Default none.</summary>
     public IHyphenator? Hyphenator { get; set; }
 
+    /// <summary>How the lines are broken. Null, the default, takes <see cref="LayoutOptions.LineBreakMode"/> of the document.</summary>
+    public LineBreakMode? LineBreakMode { get; set; }
+
+    /// <summary>The knobs of Knuth-Plass breaking. Null takes <see cref="LayoutOptions.KnuthPlass"/> of the document.</summary>
+    public KnuthPlassOptions? KnuthPlass { get; set; }
+
     /// <summary>Line distance as a multiple of the font size. Default 1.2.</summary>
     public double LineSpacing { get; set; } = 1.2;
 
