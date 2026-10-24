@@ -123,7 +123,21 @@ public sealed record TextStyle
 /// <summary>A piece of paragraph text in one style.</summary>
 /// <param name="Text">The characters. <c>\n</c>, <c>\r\n</c>, U+2028 and U+2029 end a line and start a new bidi paragraph; tabs count as spaces; other control characters are dropped; U+00AD is a soft hyphen.</param>
 /// <param name="Style">The style, or null for the paragraph's <see cref="TextParagraph.DefaultStyle"/>.</param>
-public sealed record TextSpan(string Text, TextStyle? Style = null);
+public sealed record TextSpan(string Text, TextStyle? Style = null)
+{
+    /// <summary>
+    /// When set, the span stands for this object instead of text: <see cref="Text"/> is ignored and the object is laid out as one character in the
+    /// line, in the font of <see cref="Style"/> (which gives the text metrics the object is aligned against). See <see cref="InlineObject"/>.
+    /// </summary>
+    public InlineObject? Inline { get; init; }
+
+    /// <summary>A span that holds an inline object.</summary>
+    /// <param name="inline">The object.</param>
+    /// <param name="style">The style of the text around it, or null for the paragraph's <see cref="TextParagraph.DefaultStyle"/>.</param>
+    /// <exception cref="ArgumentNullException"><paramref name="inline"/> is null.</exception>
+    public static TextSpan ForInline(InlineObject inline, TextStyle? style = null) =>
+        new(string.Empty, style) { Inline = inline ?? throw new ArgumentNullException(nameof(inline)) };
+}
 
 /// <summary>Where a styled run with a <see cref="TextStyle.Link"/> landed, in the coordinates the lines were drawn in (y up).</summary>
 /// <param name="Target">The span's <see cref="TextStyle.Link"/>.</param>

@@ -1,3 +1,5 @@
+using OnePdf.Layout.Pagination;
+
 namespace OnePdf.Layout;
 
 /// <summary>The text engine of the layout: shapes each <see cref="Text"/> element with the paragraph engine, caches the shaping and the layout at the last width, and draws lines through a <see cref="TextRenderer"/>.</summary>
@@ -52,7 +54,7 @@ internal sealed class ParagraphTextEngine : ITextEngine
             LineHeight = text.LineSpacing,
             Language = text.Language,
         };
-        IEnumerable<TextSpan> spans = text.Spans.Count > 0 ? text.Spans : [new TextSpan(text.Content ?? string.Empty)];
+        IEnumerable<TextSpan> spans = text.Spans.Count > 0 ? ResolveInlines(text.Spans, ctx) : [new TextSpan(text.Content ?? string.Empty)];
         var paragraph = new TextParagraph(spans)
         {
             DefaultStyle = style,
@@ -85,6 +87,104 @@ internal sealed class ParagraphTextEngine : ITextEngine
         e.Shaped = shaped;
         e.Block = null;
         return e;
+    }
+
+    // Inline elements are laid out now, so the paragraph knows their sizes; the paragraph engine sees them as sized objects.
+    private static IEnumerable<TextSpan> ResolveInlines(IList<TextSpan> spans, LayoutContext ctx)
+    {
+        List<TextSpan>? resolved = null;
+        for (int i = 0; i < spans.Count; i++)
+        {
+            if (spans[i].Inline is InlineElement element)
+            {
+                resolved ??= [.. spans];
+                resolved[i] = spans[i] with { Inline = Resolve(element, ctx) };
+            }
+        }
+
+        return resolved ?? (IEnumerable<TextSpan>)spans;
+    }
+
+    private static ResolvedInline Resolve(InlineElement ie, LayoutContext ctx)
+    {
+        ie.Validate();
+        Element child = ie.Child;
+        ctx.Push("Inline");
+        if (ie.Artifact)
+        {
+            ctx.LayoutArtifactDepth++;
+        }
+
+        try
+        {
+            double width;
+            double offered;
+            if (ie.Width is { } fixedWidth)
+            {
+                width = fixedWidth;
+                offered = fixedWidth;
+            }
+            else
+            {
+                width = child.MeasureWidths(ctx).Max;
+                if (ie.MaxWidth is { } cap && cap < width)
+                {
+                    width = cap;
+                    offered = cap;
+                }
+                else
+                {
+                    // Text is laid out at exactly its natural width; a little room keeps rounding from wrapping its last word.
+                    offered = width + 0.01;
+                }
+            }
+
+            FlowFit fit = child.Layout(ctx, new Constraint(offered, double.PositiveInfinity, true), null);
+            if (fit.Kind == FlowKind.Partial)
+            {
+                throw new PdfLayoutException(ctx.PathText, offered, double.PositiveInfinity, double.NaN, double.NaN, "An inline element cannot contain a page break");
+            }
+
+            if (fit.Placed is not Placed placed)
+            {
+                throw new PdfLayoutException(ctx.PathText, offered, double.PositiveInfinity, offered, double.NaN, "An inline element could not be laid out");
+            }
+
+            double height = ie.Height ?? placed.Height;
+            double inner = ie.InnerBaseline ?? (FirstBaseline(placed) is { } fb ? Math.Max(0, height - fb) : 0);
+            return new ResolvedInline(placed, width, height, inner, ie.AltText, ie.Link, ie.Alignment, ie.BaselineOffset, ie.GrowsLine, ie.KeepWithNeighbours, ie.Artifact);
+        }
+        finally
+        {
+            if (ie.Artifact)
+            {
+                ctx.LayoutArtifactDepth--;
+            }
+
+            ctx.Pop();
+        }
+    }
+
+    // Distance from the top of the placed element to the baseline of its first line of text, or null when it has none.
+    private static double? FirstBaseline(Placed root)
+    {
+        var stack = new Stack<(Placed Node, double Y)>();
+        stack.Push((root, 0));
+        while (stack.Count > 0)
+        {
+            (Placed node, double y) = stack.Pop();
+            if (node.Data is Text.Fragment { Count: > 0 } fragment)
+            {
+                return y + node.Y + fragment.Block.FirstBaseline;
+            }
+
+            for (int i = node.Children.Count - 1; i >= 0; i--)
+            {
+                stack.Push((node.Children[i], y + node.Y));
+            }
+        }
+
+        return null;
     }
 
     private sealed class Entry(LayoutDirection direction)
@@ -131,13 +231,99 @@ internal sealed class ParagraphTextEngine : ITextEngine
 
         public double LineX(int line) => layout.Lines[line].X;
 
+        public bool HasInline => layout.Paragraph.HasInline;
+
         public void Draw(in DrawContext d, Placed p, int first, int count)
         {
-            renderer.Draw(d.B, layout, d.X, d.PdfY(0), first, count);
+            renderer.Draw(d.B, layout, d.X, d.PdfY(0), first, count, HasInline ? new Host(d) : null);
             if (first + count >= layout.Lines.Count)
             {
                 entry.Release();
             }
         }
     }
+}
+
+
+/// <summary>Carries out what the text renderer asks for inline objects: structure, links and the drawing of element subtrees, at positions in the paragraph's frame.</summary>
+internal sealed class Host(DrawContext frame) : IInlineHost
+{
+    private sealed class Token
+    {
+        public TagScope Link;
+        public TagScope Figure;
+        public bool Artifact;
+    }
+
+    private Tagger Tag => frame.Ctx.Tag;
+
+    public bool BeginContent() => Tag.BeginContent();
+
+    public void EndContent(bool began) => Tag.EndContent(began);
+
+    public object? Begin(InlineObject item, PdfContentBuilder b, double x, double y)
+    {
+        Tagger tag = Tag;
+        var token = new Token();
+        if (item.Link is { Length: > 0 } && !item.IsDecoration)
+        {
+            token.Link = tag.Open(item, false, false, "Link");
+        }
+
+        if (!tag.Enabled)
+        {
+            return token;
+        }
+
+        if (item.IsDecoration)
+        {
+            token.Artifact = tag.BeginArtifact(b);
+        }
+        else if (item.AltText is not null)
+        {
+            token.Figure = tag.Open(item, false, false, "Figure", item.AltText);
+        }
+        else if (item is InlineBox { Image: not null })
+        {
+            frame.Ctx.NoteOnce(item, "An inline image has no alternate text (AltText); assistive technology cannot describe it. Set AltText, or Artifact for a decorative image.");
+            token.Figure = tag.Open(item, false, false, "Figure");
+        }
+
+        return token;
+    }
+
+    public void DrawElement(ResolvedInline item, double x, double y)
+    {
+        DrawContext at = At(x, y + item.ResolvedHeight);
+        item.Placed.Element.Draw(at, item.Placed);
+    }
+
+    public void End(object? token, InlineObject item, PdfContentBuilder b, double x, double y)
+    {
+        var t = (Token)token!;
+        Tagger tag = Tag;
+        tag.Close(t.Figure);
+        if (t.Artifact)
+        {
+            tag.EndArtifact(b, true);
+        }
+
+        if (item.Link is { Length: > 0 } link && !item.IsDecoration)
+        {
+            DrawContext at = At(x, y + item.ResolvedHeight);
+            if (link[0] == '#')
+            {
+                frame.Ctx.AddLink(at, item.ResolvedWidth, item.ResolvedHeight, null, link[1..], t.Link.Node?.Element, item.AltText);
+            }
+            else
+            {
+                frame.Ctx.AddLink(at, item.ResolvedWidth, item.ResolvedHeight, link, null, t.Link.Node?.Element, item.AltText);
+            }
+        }
+
+        tag.Close(t.Link);
+    }
+
+    // A frame whose origin is the top-left corner of a box at (x, top) in the builder's coordinates.
+    private DrawContext At(double x, double top) => frame.At(x - frame.X, frame.PdfY(0) - top);
 }

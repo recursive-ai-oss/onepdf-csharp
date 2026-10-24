@@ -51,7 +51,10 @@ public sealed class TextRenderer
     /// <param name="firstLine">The first line to draw. Default 0.</param>
     /// <param name="count">How many lines, or -1 for all from <paramref name="firstLine"/>.</param>
     /// <returns>The link areas of spans that have a <see cref="TextStyle.Link"/>.</returns>
-    public IReadOnlyList<TextLinkArea> Draw(PdfContentBuilder builder, ParagraphLayout layout, double x, double top, int firstLine = 0, int count = -1)
+    public IReadOnlyList<TextLinkArea> Draw(PdfContentBuilder builder, ParagraphLayout layout, double x, double top, int firstLine = 0, int count = -1) =>
+        Draw(builder, layout, x, top, firstLine, count, null);
+
+    internal IReadOnlyList<TextLinkArea> Draw(PdfContentBuilder builder, ParagraphLayout layout, double x, double top, int firstLine, int count, IInlineHost? host)
     {
         ArgumentNullException.ThrowIfNull(builder);
         ArgumentNullException.ThrowIfNull(layout);
@@ -73,13 +76,34 @@ public sealed class TextRenderer
         }
 
         double origin = layout.Lines[firstLine].Top;
+        if (layout.Paragraph.HasInline)
+        {
+            // With inline objects the graphics state is saved around each stretch of text instead of around the whole paragraph, so that
+            // an object (which may open marked content of its own) is never drawn inside a state saved before its marked content began.
+            var state = new DrawState(host);
+            try
+            {
+                for (int l = firstLine; l < firstLine + count; l++)
+                {
+                    ParagraphLine line = layout.Lines[l];
+                    DrawLine(builder, layout.Paragraph, line, x + line.X, top - (line.Top - origin), ref links, state);
+                }
+            }
+            finally
+            {
+                CloseText(builder, state);
+            }
+
+            return links ?? (IReadOnlyList<TextLinkArea>)Array.Empty<TextLinkArea>();
+        }
+
         builder.Save();
         try
         {
             for (int l = firstLine; l < firstLine + count; l++)
             {
                 ParagraphLine line = layout.Lines[l];
-                DrawLine(builder, layout.Paragraph, line, x + line.X, top - (line.Top - origin), ref links);
+                DrawLine(builder, layout.Paragraph, line, x + line.X, top - (line.Top - origin), ref links, null);
             }
         }
         finally
@@ -122,6 +146,37 @@ public sealed class TextRenderer
         public string? Literal;
         public int FirstItem;
         public int LastItem;
+
+        /// <summary>True for an inline object; <see cref="FirstItem"/> is its item.</summary>
+        public bool IsInline;
+    }
+
+    // What one Draw call with inline objects keeps between lines: the host and whether a stretch of text (graphics state and tagged
+    // content) is open.
+    private sealed class DrawState(IInlineHost? host)
+    {
+        public IInlineHost? Host { get; } = host;
+
+        public bool TextOpen { get; set; }
+
+        public bool Began { get; set; }
+    }
+
+    private static void OpenText(PdfContentBuilder b, DrawState st)
+    {
+        st.Began = st.Host?.BeginContent() ?? false;
+        b.Save();
+        st.TextOpen = true;
+    }
+
+    private static void CloseText(PdfContentBuilder b, DrawState st)
+    {
+        if (st.TextOpen)
+        {
+            st.TextOpen = false;
+            b.Restore();
+            st.Host?.EndContent(st.Began);
+        }
     }
 
     private PdfShapedGlyph[] _glyphs = new PdfShapedGlyph[128];
@@ -150,7 +205,7 @@ public sealed class TextRenderer
         return _pieceCount++;
     }
 
-    private void DrawLine(PdfContentBuilder b, ShapedParagraph para, ParagraphLine line, double x0, double lineTop, ref List<TextLinkArea>? links)
+    private void DrawLine(PdfContentBuilder b, ShapedParagraph para, ParagraphLine line, double x0, double lineTop, ref List<TextLinkArea>? links, DrawState? st)
     {
         double baseline = lineTop - line.Baseline;
         int count = line.ItemEnd - line.ItemStart;
@@ -207,6 +262,16 @@ public sealed class TextRenderer
 
             int idx = line.ItemStart + logical;
             Item it = para.ItemAt(idx);
+            if (it.Inline != 0)
+            {
+                // The gap letter-spaced justification leaves after an item goes after the object, in display order.
+                double iw = it.Advance + ((idx != line.ItemEnd - 1 || hyphen) ? line.LetterExtra : 0);
+                AddPiece(new Piece { Fmt = it.Fmt, GlyphStart = _glyphCount, GlyphEnd = _glyphCount, FirstItem = idx, LastItem = idx, Width = iw, IsInline = true });
+                cur = -1;
+                prevLogical = -2;
+                continue;
+            }
+
             Fmt f = para.FmtAt(it.Fmt);
             bool extend = cur >= 0 && _pieces[cur].Fmt == it.Fmt
                 && para.ItemAt(_pieces[cur].LastItem).Level == it.Level && Math.Abs(logical - prevLogical) == 1;
@@ -226,7 +291,7 @@ public sealed class TextRenderer
         for (int pi = 0; pi < _pieceCount; pi++)
         {
             ref Piece p = ref _pieces[pi];
-            if (p.IsHyphen)
+            if (p.IsHyphen || p.IsInline)
             {
                 continue;
             }
@@ -250,6 +315,20 @@ public sealed class TextRenderer
         {
             Piece p = _pieces[pi];
             Fmt f = para.FmtAt(p.Fmt);
+            if (p.IsInline)
+            {
+                CloseText(b, st!);
+                DrawInline(b, para, line, p, f, x, baseline, st!.Host, ref links);
+                x += p.Width;
+                continue;
+            }
+
+            if (st is not null && !st.TextOpen)
+            {
+                OpenText(b, st);
+                lastColorStyle = null;
+            }
+
             PdfCreatedFont font = FontFor(f.Entry);
             LayoutColor color = f.Style.Color;
             if (lastColorStyle is null || lastColorStyle.Color != color)
@@ -304,6 +383,93 @@ public sealed class TextRenderer
             }
 
             x += p.Width;
+        }
+    }
+
+    // Draws one inline object whose left edge is at x. The text before it has been closed. Wording of the order: the host opens the
+    // structure the object needs (a link, a figure, an artifact), the alternate text goes in as an invisible glyph inside a span that
+    // replaces whatever text the object contains with it, then the object draws.
+    private void DrawInline(PdfContentBuilder b, ShapedParagraph para, ParagraphLine line, in Piece p, Fmt f, double x, double baseline, IInlineHost? host, ref List<TextLinkArea>? links)
+    {
+        InlineObject o = para.InlineOf(para.ItemAt(p.FirstItem));
+        double w = o.ResolvedWidth;
+        double h = o.ResolvedHeight;
+        double bottom = baseline + ShapedParagraph.InlineBottom(o, f, line.Baseline, line.Height - line.Baseline);
+        object? token = host?.Begin(o, b, x, bottom);
+        bool alt = o.AltText is { Length: > 0 } && !o.IsDecoration;
+        try
+        {
+            if (alt)
+            {
+                b.BeginSpan(o.AltText);
+                DrawAltGlyph(b, f, x, baseline, host);
+            }
+
+            if (o is InlineBox box)
+            {
+                bool began = !o.IsDecoration && (host?.BeginContent() ?? false);
+                box.Draw(b, x, bottom);
+                host?.EndContent(began);
+            }
+            else if (o is ResolvedInline resolved && host is not null)
+            {
+                var savedGlyphs = _glyphs;
+                var savedPieces = _pieces;
+                int savedGlyphCount = _glyphCount;
+                int savedPieceCount = _pieceCount;
+                (_glyphs, _pieces) = _spare.Count > 0 ? _spare.Pop() : (new PdfShapedGlyph[128], new Piece[8]);
+                try
+                {
+                    host.DrawElement(resolved, x, bottom);
+                }
+                finally
+                {
+                    _spare.Push((_glyphs, _pieces));
+                    (_glyphs, _pieces, _glyphCount, _pieceCount) = (savedGlyphs, savedPieces, savedGlyphCount, savedPieceCount);
+                }
+            }
+
+            if (alt)
+            {
+                b.EndMarkedContent();
+            }
+        }
+        finally
+        {
+            host?.End(token, o, b, x, bottom);
+        }
+
+        if (o.Link is { } target)
+        {
+            (links ??= []).Add(new TextLinkArea(target, x, bottom, w, h));
+        }
+    }
+
+    // Pairs of buffers for text drawn while an outer line is still being drawn (the text inside an inline element).
+    private readonly Stack<(PdfShapedGlyph[], Piece[])> _spare = new();
+
+    // The alternate text of an object, as an invisible space with the text the object stands for: extraction reads the text, nothing shows.
+    private void DrawAltGlyph(PdfContentBuilder b, Fmt f, double x, double baseline, IInlineHost? host)
+    {
+        bool began = host?.BeginContent() ?? false;
+        PdfCreatedFont font = FontFor(f.Entry);
+        b.SetFont(font, f.Size);
+        b.SetTextRenderMode(PdfTextRenderMode.Invisible);
+        try
+        {
+            if (f.IsStandard)
+            {
+                b.DrawText(" ", x, baseline);
+            }
+            else
+            {
+                b.DrawGlyphRun(x, baseline, [new PdfShapedGlyph(f.Face.GetGlyphIndex(' '), 0, 0)], " ");
+            }
+        }
+        finally
+        {
+            b.SetTextRenderMode(PdfTextRenderMode.Fill);
+            host?.EndContent(began);
         }
     }
 
@@ -397,4 +563,23 @@ public sealed class TextRenderer
 
         b.SetCharacterSpacing(0);
     }
+}
+
+
+/// <summary>What <see cref="TextRenderer"/> asks of the layout that owns the page when a paragraph has inline objects: tagged content for text, structure around objects, and drawing of element subtrees.</summary>
+internal interface IInlineHost
+{
+    /// <summary>Begins tagged content for the paragraph's text; returns whether it did, to pass to <see cref="EndContent"/>.</summary>
+    bool BeginContent();
+
+    void EndContent(bool began);
+
+    /// <summary>Opens the structure an object needs before it draws (link, figure, artifact); the result goes to <see cref="End"/>.</summary>
+    object? Begin(InlineObject item, PdfContentBuilder b, double x, double y);
+
+    /// <summary>Draws an element subtree with its lower-left corner at (x, y) in the builder's coordinates.</summary>
+    void DrawElement(ResolvedInline item, double x, double y);
+
+    /// <summary>Closes what <see cref="Begin"/> opened, and adds the link annotation of the object.</summary>
+    void End(object? token, InlineObject item, PdfContentBuilder b, double x, double y);
 }

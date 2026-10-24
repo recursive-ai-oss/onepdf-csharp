@@ -83,6 +83,15 @@ var paragraph = new TextParagraph(text) { Alignment = TextAlignment.Justify, Lin
 - Spans with `TextStyle.Link` are returned as `TextLinkArea` rectangles (line-box height); placing the annotation is up to the caller.
 - The builder's graphics state is restored.
 
+## Inline objects
+
+A span can hold an object instead of text: `TextSpan.ForInline(InlineObject, style)`. `InlineBox(width, height)` is the standalone kind, drawn by a `Paint` callback (a `CanvasSurface` clipped to the box) and/or an `Image` (`PdfCreatedImage`); `InlineElement` (layout `Text` only) holds an element tree. Common settings: `Alignment` (`InlineAlignment`: baseline, top, middle, bottom, text top, text bottom), `BaselineOffset`, `InnerBaseline`, `GrowsLine`, `KeepWithNeighbours`, `AltText`, `Artifact` and `Link`.
+
+- **In the paragraph** the object is one character, U+FFFC OBJECT REPLACEMENT CHARACTER, one item as wide as the object. It has line break class CB (a break is allowed before and after, UAX #14 rule LB20) and bidi class ON (it takes the level of its position, UAX #9), so right-to-left lines place it correctly. `KeepWithNeighbours` clears the two opportunities after the line breaker has found them. A U+FFFC in ordinary span text is dropped. Hyphenation points never fall next to an object.
+- **Line box.** The object takes the font of the span it stands in, which gives the line its minimum height and the ascent and descent that middle, text-top and text-bottom use. Objects against the baseline or the text come first and raise the line's ascent and descent as far as they reach; objects aligned to the top then add what they lack below the baseline, and objects aligned to the bottom what they lack above it, in that order. With `GrowsLine` false the object is placed by the same rules but changes nothing. `ParagraphLine.Baseline` and `Height` are the result.
+- **Drawing.** `TextRenderer.Draw` closes its saved graphics state around each stretch of text and draws the object between stretches, so the object may open marked content of its own. An object with `AltText` is preceded by an invisible space inside a `/Span` with `/ActualText`, so extraction returns the description; one with `Link` is reported in the `TextLinkArea`s. Without a layout host nothing is tagged.
+- **Content widths** (`MinContentWidth`, `MaxContentWidth`) count the object like a word.
+
 ## Limits and behaviour
 
 A paragraph holds at most 2^24 characters. Layout work is linear in the text for any number of lines: the scan for a break stops once the content has passed the width. The shaped paragraph is immutable; `Layout` caches hyphen glyphs, so use one shaped paragraph from one thread at a time. Output is byte-identical between runs (no fused multiply-add, fixed evaluation order).

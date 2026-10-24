@@ -335,6 +335,30 @@ public class DocSamples
     }
     // end sample
 
+    // sample: inline
+    private static void InlineObjects()
+    {
+        LayoutDocument.Compose(doc => doc.Page(page =>
+        {
+            page.Content().Text(t =>
+            {
+                t.Span("Build ");
+                t.InlineCanvas(10, 10, s =>
+                {
+                    s.Builder.SetFillRgb(0.1, 0.6, 0.2);
+                    s.Builder.Ellipse(0, 0, s.Width, s.Height);
+                    s.Builder.Fill();
+                }).AltText("passing").AlignTextBottom();
+                t.Span(" passed; the release notes ");
+                t.Inline(s => s.Background(Colors.LightGrey).Padding(3, 1).Text("NEW").FontSize(8).Bold()).AltText("new");
+                t.Span(" and a logo ");
+                t.InlineImage(File.ReadAllBytes("logo.png"), 12, 12).AltText("Company logo").AlignMiddle();
+                t.Span(" flow with the words around them.");
+            });
+        })).Save("inline.pdf");
+    }
+    // end sample
+
     // sample: rtl
     private static void RightToLeft()
     {
@@ -398,6 +422,7 @@ public class DocSamples
             TableOfContents();
             Statement();
             Images();
+            InlineObjects();
             RightToLeft();
             SaveOptions();
         });
@@ -416,6 +441,7 @@ public class DocSamples
     [InlineData("toc", "docs/layout.md")]
     [InlineData("statement", "docs/layout.md")]
     [InlineData("images", "docs/layout.md")]
+    [InlineData("inline", "docs/layout.md")]
     [InlineData("rtl", "docs/layout.md")]
     [InlineData("save", "docs/layout.md")]
     public void DocumentsShowTheSamples(string name, string document)

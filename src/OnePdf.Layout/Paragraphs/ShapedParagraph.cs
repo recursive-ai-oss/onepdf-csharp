@@ -28,6 +28,12 @@ internal sealed class Fmt(FontEntry entry, TextStyle style, double size, double 
     public double Ascent { get; set; }
 
     public double Descent { get; set; }
+
+    /// <summary>The font's own ascent above the baseline (no line gap, no extra from the line height), for text-top and middle alignment.</summary>
+    public double FontAscent { get; set; }
+
+    /// <summary>The font's own descent below the baseline, positive.</summary>
+    public double FontDescent { get; set; }
 }
 
 /// <summary>One shaped cluster placed in logical order.</summary>
@@ -48,6 +54,9 @@ internal struct Item
     public bool Stretch;
     public bool BreakOk;
     public bool HyphenOk;
+
+    /// <summary>One more than the index of the inline object this item stands for; 0 for text.</summary>
+    public int Inline;
 }
 
 internal struct GlyphRec
@@ -182,6 +191,11 @@ public sealed partial class ShapedParagraph
 
     internal int ItemCount => _items.Count;
 
+    /// <summary>True when the paragraph holds inline objects.</summary>
+    internal bool HasInline => _norm.Inlines is { Count: > 0 };
+
+    internal InlineObject InlineOf(in Item item) => _norm.Inlines![item.Inline - 1];
+
     internal Item ItemAt(int index) => _items[index];
 
     internal Fmt FmtAt(int index) => _fmts[index];
@@ -229,15 +243,23 @@ public sealed partial class ShapedParagraph
 
                 int i = 0;
                 int span = strutSpan;
+                Dictionary<int, int>? inlineAt = _norm.InlineAt;
                 while (i < segText.Length)
                 {
                     int pos = s + i;
                     span = SpanOf(pos, span);
                     int grp = groups[span];
                     byte level = levels[i];
+                    if (inlineAt is not null && inlineAt.TryGetValue(pos, out int inlineIndex))
+                    {
+                        AddInline(pos, inlineIndex, groups, chains, span, level);
+                        i++;
+                        continue;
+                    }
+
                     int j = i + 1;
                     int spanJ = span;
-                    while (j < segText.Length && levels[j] == level)
+                    while (j < segText.Length && levels[j] == level && (inlineAt is null || !inlineAt.ContainsKey(s + j)))
                     {
                         spanJ = SpanOf(s + j, spanJ);
                         if (groups[spanJ] != grp)
@@ -254,13 +276,18 @@ public sealed partial class ShapedParagraph
 
                 opp = ArrayPool<LineBreakOpportunity>.Shared.Rent(segText.Length + 1);
                 TextSegmentation.GetLineBreakOpportunities(segText, opp);
+                if (inlineAt is not null)
+                {
+                    GlueInlines(s, segText.Length, opp);
+                }
+
                 for (int k = seg.First; k < _items.Count; k++)
                 {
                     Item it = _items[k];
                     int rel = it.Start - s;
                     bool breakOk = k > seg.First && opp[rel] != LineBreakOpportunity.None;
                     it.BreakOk = breakOk;
-                    it.HyphenOk = k > seg.First && !breakOk && _discretionary is not null && _discretionary[it.Start];
+                    it.HyphenOk = k > seg.First && !breakOk && _discretionary is not null && _discretionary[it.Start] && it.Inline == 0 && _items[k - 1].Inline == 0;
                     _items[k] = it;
                 }
             }
@@ -290,7 +317,7 @@ public sealed partial class ShapedParagraph
     {
         foreach (char c in text)
         {
-            if (c >= '\u0590')
+            if (c >= '\u0590' && c != '\uFFFC')
             {
                 return false;
             }
@@ -615,6 +642,8 @@ public sealed partial class ShapedParagraph
 
             f.Ascent = Math.Max(asc, 0);
             f.Descent = Math.Max(desc, 0);
+            f.FontAscent = a;
+            f.FontDescent = d;
         }
     }
 
