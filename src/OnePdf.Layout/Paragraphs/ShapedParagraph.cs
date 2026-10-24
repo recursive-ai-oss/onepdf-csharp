@@ -1,3 +1,5 @@
+using System.Buffers;
+using System.Collections.Concurrent;
 using System.Globalization;
 using OneFont;
 
@@ -206,57 +208,70 @@ public sealed partial class ShapedParagraph
                 ParagraphDirection.RightToLeft => TextDirection.RightToLeft,
                 _ => TextDirection.Auto,
             };
-            byte[] levels;
-            int paraLevel;
-            if (dir != TextDirection.RightToLeft && IsBelowHebrew(segText))
+            byte[] levels = ArrayPool<byte>.Shared.Rent(segText.Length);
+            LineBreakOpportunity[]? opp = null;
+            try
             {
-                // No character before U+0590 is right-to-left, an Arabic-number or a bidi control (those start at U+0590, U+0600, U+2000):
-                // every level is 0 and so is the paragraph level (UAX #9 P2/P3 with no strong right-to-left character).
-                levels = new byte[segText.Length];
-                paraLevel = 0;
-            }
-            else
-            {
-                levels = TextShaping.GetBidiLevels(segText, dir, out paraLevel);
-            }
-
-            seg.ParaLevel = (byte)paraLevel;
-            MarkHyphenation(s, e);
-
-            int i = 0;
-            int span = strutSpan;
-            while (i < segText.Length)
-            {
-                int pos = s + i;
-                span = SpanOf(pos, span);
-                int grp = groups[span];
-                byte level = levels[i];
-                int j = i + 1;
-                int spanJ = span;
-                while (j < segText.Length && levels[j] == level)
+                int paraLevel;
+                if (dir != TextDirection.RightToLeft && IsBelowHebrew(segText))
                 {
-                    spanJ = SpanOf(s + j, spanJ);
-                    if (groups[spanJ] != grp)
-                    {
-                        break;
-                    }
-
-                    j++;
+                    // No character before U+0590 is right-to-left, an Arabic-number or a bidi control (those start at U+0590, U+0600, U+2000):
+                    // every level is 0 and so is the paragraph level (UAX #9 P2/P3 with no strong right-to-left character).
+                    Array.Clear(levels, 0, segText.Length);
+                    paraLevel = 0;
+                }
+                else
+                {
+                    TextShaping.GetBidiLevels(segText, dir, levels, out paraLevel);
                 }
 
-                ShapeRun(s, i, j, level, chains[grp], groupStyles[grp], span);
-                i = j;
-            }
+                seg.ParaLevel = (byte)paraLevel;
+                MarkHyphenation(s, e);
 
-            LineBreakOpportunity[] opp = TextSegmentation.GetLineBreakOpportunities(segText);
-            for (int k = seg.First; k < _items.Count; k++)
+                int i = 0;
+                int span = strutSpan;
+                while (i < segText.Length)
+                {
+                    int pos = s + i;
+                    span = SpanOf(pos, span);
+                    int grp = groups[span];
+                    byte level = levels[i];
+                    int j = i + 1;
+                    int spanJ = span;
+                    while (j < segText.Length && levels[j] == level)
+                    {
+                        spanJ = SpanOf(s + j, spanJ);
+                        if (groups[spanJ] != grp)
+                        {
+                            break;
+                        }
+
+                        j++;
+                    }
+
+                    ShapeRun(s, i, j, level, chains[grp], groupStyles[grp], span);
+                    i = j;
+                }
+
+                opp = ArrayPool<LineBreakOpportunity>.Shared.Rent(segText.Length + 1);
+                TextSegmentation.GetLineBreakOpportunities(segText, opp);
+                for (int k = seg.First; k < _items.Count; k++)
+                {
+                    Item it = _items[k];
+                    int rel = it.Start - s;
+                    bool breakOk = k > seg.First && opp[rel] != LineBreakOpportunity.None;
+                    it.BreakOk = breakOk;
+                    it.HyphenOk = k > seg.First && !breakOk && _discretionary is not null && _discretionary[it.Start];
+                    _items[k] = it;
+                }
+            }
+            finally
             {
-                Item it = _items[k];
-                int rel = it.Start - s;
-                bool breakOk = k > seg.First && opp[rel] != LineBreakOpportunity.None;
-                it.BreakOk = breakOk;
-                it.HyphenOk = k > seg.First && !breakOk && _discretionary is not null && _discretionary[it.Start];
-                _items[k] = it;
+                ArrayPool<byte>.Shared.Return(levels);
+                if (opp is not null)
+                {
+                    ArrayPool<LineBreakOpportunity>.Shared.Return(opp);
+                }
             }
         }
 
@@ -408,23 +423,20 @@ public sealed partial class ShapedParagraph
             return;
         }
 
-        var options = new ShapingOptions { Language = groupStyle.Language };
         bool sup = groupStyle.Position != ScriptPosition.Normal;
-        if (sup)
-        {
-            options.Features.Add(FontFeature.On(groupStyle.Position == ScriptPosition.Superscript ? "sups" : "subs"));
-        }
-
-        IReadOnlyList<ShapedCluster> clusters = chain.Chain!.ShapeRun(run, rtl, options);
+        ShapingOptions options = OptionsFor(groupStyle.Language, groupStyle.Position);
+        ShapedRun clusters = _runs ??= new ShapedRun();
+        chain.Chain!.ShapeRun(run, clusters, rtl, options);
         bool synthesize = false;
         if (sup)
         {
             // The font has the feature when turning it on changes the glyphs; otherwise scale and shift.
-            IReadOnlyList<ShapedCluster> plain = chain.Chain.ShapeRun(run, rtl, new ShapingOptions { Language = groupStyle.Language });
+            ShapedRun plain = _plainRun ??= new ShapedRun();
+            chain.Chain.ShapeRun(run, plain, rtl, OptionsFor(groupStyle.Language, ScriptPosition.Normal));
             synthesize = SameGlyphs(clusters, plain);
         }
 
-        foreach (ShapedCluster c in clusters)
+        foreach (ShapedClusterRange c in clusters.Clusters)
         {
             int start = runStart + c.Start;
             span = SpanOf(start, span);
@@ -433,7 +445,7 @@ public sealed partial class ShapedParagraph
             double scale = fmt.Size / fmt.Face.UnitsPerEm;
             int glyphStart = _glyphs.Count;
             double adv = 0;
-            foreach (ShapedGlyph g in c.Glyphs)
+            foreach (ShapedGlyph g in clusters.GlyphsOf(c))
             {
                 double a = g.XAdvance * scale;
                 _glyphs.Add(new GlyphRec { Gid = g.GlyphId, Advance = a, Dx = g.XOffset * scale, Dy = (g.YOffset * scale) + fmt.Rise });
@@ -445,9 +457,31 @@ public sealed partial class ShapedParagraph
                 Warn("A character has no glyph in any font of the chain (U+" + CodePointAt(_norm.Text, start, out _).ToString("X4", CultureInfo.InvariantCulture) + ").");
             }
 
-            AddItem(start, c.Length, fmtIndex, glyphStart, c.Glyphs.Length, adv, level);
+            AddItem(start, c.Length, fmtIndex, glyphStart, c.GlyphCount, adv, level);
         }
     }
+
+    // Shaping only reads its options, so one instance per language and script position is shared by every call and thread.
+    private static readonly ConcurrentDictionary<(string Language, ScriptPosition Position), ShapingOptions> OptionCache = new();
+
+    private static ShapingOptions OptionsFor(string? language, ScriptPosition position) =>
+        OptionCache.GetOrAdd((language ?? string.Empty, position), static (key, lang) =>
+        {
+            var o = new ShapingOptions { Language = lang };
+            if (key.Position != ScriptPosition.Normal)
+            {
+                o.Features.Add(FontFeature.On(key.Position == ScriptPosition.Superscript ? "sups" : "subs"));
+            }
+
+            return o;
+        }, language);
+
+    // The buffers the shaper fills, one pair per thread: shaping output is copied into the paragraph's own arrays at once.
+    [ThreadStatic]
+    private static ShapedRun? _runs;
+
+    [ThreadStatic]
+    private static ShapedRun? _plainRun;
 
     private void ShapeStandard(int runStart, ReadOnlySpan<char> run, byte level, FontEntry entry, ref int span)
     {
@@ -511,18 +545,18 @@ public sealed partial class ShapedParagraph
         return char.IsSurrogate(c) ? 0xFFFD : c;
     }
 
-    private static bool SameGlyphs(IReadOnlyList<ShapedCluster> a, IReadOnlyList<ShapedCluster> b)
+    private static bool SameGlyphs(ShapedRun a, ShapedRun b)
     {
-        if (a.Count != b.Count)
+        if (a.ClusterCount != b.ClusterCount)
         {
             return false;
         }
 
-        for (int i = 0; i < a.Count; i++)
+        for (int i = 0; i < a.ClusterCount; i++)
         {
-            ReadOnlySpan<ShapedGlyph> x = a[i].Glyphs;
-            ReadOnlySpan<ShapedGlyph> y = b[i].Glyphs;
-            if (x.Length != y.Length || a[i].FaceIndex != b[i].FaceIndex)
+            ReadOnlySpan<ShapedGlyph> x = a.GlyphsOf(a.Clusters[i]);
+            ReadOnlySpan<ShapedGlyph> y = b.GlyphsOf(b.Clusters[i]);
+            if (x.Length != y.Length || a.Clusters[i].FaceIndex != b.Clusters[i].FaceIndex)
             {
                 return false;
             }
