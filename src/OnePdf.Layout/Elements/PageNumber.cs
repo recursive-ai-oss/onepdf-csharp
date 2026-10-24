@@ -26,8 +26,8 @@ public enum PageNumberKind
 /// <para>Put the elements of "Page N of M" side by side in a <see cref="Row"/> with <see cref="Row.Spacing"/> for the gaps: a space at the end
 /// of a text does not count towards its width. A total with more digits than reserved is squeezed horizontally to fit and a note is
 /// recorded.</para>
-/// <para>A total is drawn with a standard font (the Helvetica, Times or Courier face that matches <see cref="FontName"/>) at the baseline
-/// the text engine gives the same font and size, so it lines up with text beside it.</para>
+/// <para>A total is shaped and drawn like <see cref="Text"/> with the same font, size and colour, so it uses the same embedded face as the text
+/// beside it and sits on the same baseline. Only the digits it needs are embedded.</para>
 /// </remarks>
 public sealed class PageNumber : Element
 {
@@ -99,52 +99,48 @@ public sealed class PageNumber : Element
             return ctx.NoFit(c, box, lh, "A line of text is taller than the space offered");
         }
 
-        PdfFormXObject form = TotalForm(ctx, box, lh, probe.FirstBaseline);
+        PdfFormXObject form = TotalForm(ctx, box, lh);
         double width = c.WidthBounded ? c.Width : box;
         return FlowFit.Complete(lh, new Placed(this, 0, 0, width, lh) { Data = new Data(form, box) });
     }
 
-    private string StandardFont()
-    {
-        bool bold = Weight >= 600;
-        return FontName switch
-        {
-            "Serif" or "Liberation Serif" or "Times-Roman" or "Times-Bold" or "Times" => bold ? "Times-Bold" : "Times-Roman",
-            "Mono" or "Monospace" or "Liberation Mono" or "Courier" or "Courier-Bold" => bold ? "Courier-Bold" : "Courier",
-            "Helvetica-Bold" => "Helvetica-Bold",
-            _ => bold ? "Helvetica-Bold" : "Helvetica",
-        };
-    }
-
-    private PdfFormXObject TotalForm(LayoutContext ctx, double boxWidth, double lh, double baseline)
+    private PdfFormXObject TotalForm(LayoutContext ctx, double boxWidth, double lh)
     {
         int section = Kind == PageNumberKind.SectionTotal ? ctx.Page.Section : -1;
         NumberingStyle style = Kind == PageNumberKind.SectionTotal ? ctx.Page.Style : NumberingStyle.Arabic;
-        string fontName = StandardFont();
-        string key = string.Create(CultureInfo.InvariantCulture, $"{fontName}|{Size}|{Color.R},{Color.G},{Color.B}|{Digits}|{LineSpacing}|{section}|{(int)style}|{FontName}");
-        double size = Size;
-        LayoutColor color = Color;
+        string key = string.Create(CultureInfo.InvariantCulture, $"{FontName}|{Weight}|{Size}|{Color.R},{Color.G},{Color.B}|{Digits}|{LineSpacing}|{section}|{(int)style}");
         int digits = Digits;
-        PdfCreatedFont font = ctx.Font(fontName);
         return ctx.TotalForm(key, new PdfRectangle(0, 0, boxWidth, lh), section, (fb, count) =>
         {
-            fb.SetFont(font, size);
-            fb.SetFillRgb(color.R, color.G, color.B);
-            string text = Numbering.Format(count, style);
-            double w = fb.MeasureText(text);
-            double y = lh - baseline;
-            if (w > boxWidth)
+            // The number is shaped and drawn like any other text, so it uses the same (embedded) face as the text beside it and only the
+            // digits it needs are subset into the file.
+            Text number = MakeText(Numbering.Format(count, style), HorizontalAlignment.Start);
+            LayoutDirection saved = ctx.Direction;
+            ctx.Direction = LayoutDirection.LeftToRight;
+            try
             {
-                // More digits than reserved: squeeze rather than clip.
-                fb.Save();
-                fb.Scale(boxWidth / w, 1);
-                fb.DrawText(text, 0, y);
-                fb.Restore();
-                ctx.Note($"The total page count has more digits than the {digits} reserved; it is drawn condensed.");
+                double w = ctx.Text.Prepare(number, 1e6, ctx).NaturalWidth;
+                double x = boxWidth - w;
+                bool squeeze = w > boxWidth;
+                ITextBlock block = ctx.Text.Prepare(number, w + 0.01, ctx);
+                var d = new DrawContext(fb, ctx, lh, squeeze ? 0 : x, 0);
+                if (squeeze)
+                {
+                    // More digits than reserved: squeeze rather than clip.
+                    fb.Save();
+                    fb.Scale(boxWidth / w, 1);
+                    block.Draw(d, new Placed(number, 0, 0, w, lh), 0, 1);
+                    fb.Restore();
+                    ctx.Note($"The total page count has more digits than the {digits} reserved; it is drawn condensed.");
+                }
+                else
+                {
+                    block.Draw(d, new Placed(number, 0, 0, w, lh), 0, 1);
+                }
             }
-            else
+            finally
             {
-                fb.DrawText(text, boxWidth - w, y);
+                ctx.Direction = saved;
             }
         });
     }
