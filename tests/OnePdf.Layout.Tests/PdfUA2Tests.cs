@@ -98,7 +98,7 @@ public class PdfUA2Tests
         Assert.Empty(back.CheckPdfUA(PdfUAPart.Part2));
         // Anchors, bookmarks and the table of contents go to structure elements, not to pages.
         Assert.NotEmpty(back.Outline);
-        Assert.All(back.Outline, o => Assert.True(o.Destination is { PageIndex: -1 }, "a bookmark goes to a page"));
+        Assert.All(back.Outline, o => Assert.True(o.Destination is { IsStructureDestination: true }, "a bookmark goes to a page"));
     }
 
     [Fact]

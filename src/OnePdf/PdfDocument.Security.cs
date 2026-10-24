@@ -250,8 +250,12 @@ public sealed partial class PdfDocument
     }
 
     /// <summary>Decrypts a string read from object <paramref name="objectNumber"/>; records what was wrong with damaged ciphertext.</summary>
-    internal byte[] DecryptStringBytes(byte[] data, int objectNumber, int generation)
+    internal byte[] DecryptStringBytes(byte[] data, int objectNumber, int generation) => DecryptStringBytes(data, objectNumber, generation, out _);
+
+    /// <summary>As above; <paramref name="issues"/> says whether the ciphertext was damaged, in which case the result is only what decrypted.</summary>
+    internal byte[] DecryptStringBytes(byte[] data, int objectNumber, int generation, out DecryptIssues issues)
     {
+        issues = DecryptIssues.None;
         SecurityDecryptor? d = _decryptor;
         if (d is null || objectNumber < 0 || data.Length == 0)
         {
@@ -268,6 +272,7 @@ public sealed partial class PdfDocument
             throw new PdfEncryptionException(e.Message, e) { ObjectNumber = objectNumber };
         }
 
+        issues = r.Issues;
         if (r.Issues != DecryptIssues.None)
         {
             _diag.Warn($"A string could not be decrypted cleanly ({r.Issues}); the decrypted bytes were used as far as they go.", objectNumber);
