@@ -102,6 +102,29 @@ public partial class Slot
         Put(d.Build());
     }
 
+    /// <summary>
+    /// A table of contents of the document's headings and <see cref="Slot.TocEntry(string?, int)"/> entries, with page numbers, leaders and links. The page
+    /// numbers are settled by laying the document out more than once (see <see cref="OnePdf.Layout.TableOfContents"/>).
+    /// </summary>
+    /// <param name="compose">Chooses the levels, leader and styles; null for the defaults (levels 1 to 3, dots).</param>
+    /// <example>
+    /// <code>
+    /// page.Content().Column(c =>
+    /// {
+    ///     c.Item().Text("Contents").Bold().FontSize(20);
+    ///     c.Item().TableOfContents(toc => toc.Levels(1, 2));
+    ///     c.Item().PageBreak();
+    ///     c.Item().Heading(1).Text("Introduction").Bold().FontSize(16);
+    /// });
+    /// </code>
+    /// </example>
+    public void TableOfContents(Action<TocDescriptor>? compose = null)
+    {
+        var d = new TocDescriptor();
+        compose?.Invoke(d);
+        Put(d.Build());
+    }
+
     /// <summary>A forced page break: whatever follows in the same column starts a new page. At the top of a page it does nothing.</summary>
     public void PageBreak() => Put(new PageBreak());
 

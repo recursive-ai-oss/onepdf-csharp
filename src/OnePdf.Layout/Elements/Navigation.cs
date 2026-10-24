@@ -28,17 +28,17 @@ public sealed class Link : SingleChildElement
         // The link is a structure element holding what it covers, and its annotation is tied to it (ISO 32000-2 14.8.4.4.2).
         TagScope scope = d.Ctx.Tag.Open(this, p.Continued, p.Continues, "Link");
         DrawChildren(d, p);
-        d.Ctx.AddLink(d, p.Width, p.Height, Uri, Destination, scope.Node?.Element, AltText ?? TextOf(p));
+        d.Ctx.AddLink(d, p.Width, p.Height, Uri, Destination, scope.Node?.Element, AltText ?? TextOf(p, 200));
         d.Ctx.Tag.Close(scope);
     }
 
     // The link's description (its /Contents, which assistive technology reads) is the text it covers (ISO 14289-1 7.18.5).
-    private static string? TextOf(Placed root)
+    internal static string? TextOf(Placed root, int max)
     {
         var sb = new System.Text.StringBuilder();
         var stack = new Stack<Placed>();
         stack.Push(root);
-        while (stack.Count > 0 && sb.Length < 200)
+        while (stack.Count > 0 && sb.Length < max)
         {
             Placed p = stack.Pop();
             if (p.Element is Text t)
@@ -68,7 +68,7 @@ public sealed class Link : SingleChildElement
         }
 
         string text = string.Join(' ', sb.ToString().Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries));
-        return text.Length == 0 ? null : text.Length > 200 ? text[..200] : text;
+        return text.Length == 0 ? null : text.Length > max ? text[..max] : text;
     }
 }
 
@@ -134,6 +134,12 @@ public sealed class Heading : SingleChildElement
 
     private static readonly string[] Types = ["H1", "H2", "H3", "H4", "H5", "H6"];
 
+    /// <summary>Whether a <see cref="TableOfContents"/> lists this heading. Default true.</summary>
+    public bool InToc { get; set; } = true;
+
+    /// <summary>The text of the heading's entry in a <see cref="TableOfContents"/>, when it should differ from the heading's own text (a shorter title, no number). Null or empty uses the heading's text.</summary>
+    public string? TocTitle { get; set; }
+
     /// <summary>The heading level, 1 (most important) to 6; it becomes the structure type <c>H1</c> to <c>H6</c> (values outside the range are clamped). Default 1.</summary>
     public int Level { get; set; } = 1;
 
@@ -141,6 +147,7 @@ public sealed class Heading : SingleChildElement
 
     internal override void DrawCore(in DrawContext d, Placed p)
     {
+        TocState.DefineTarget(d, p);
         TagScope scope = d.Ctx.Tag.Open(this, p.Continued, p.Continues, Types[Math.Clamp(Level, 1, 6) - 1]);
         DrawChildren(d, p);
         d.Ctx.Tag.Close(scope);

@@ -44,6 +44,14 @@ public sealed class ItemList : Element
     /// <summary>The entries, first at the top.</summary>
     public List<ListItem> Items { get; } = [];
 
+    internal override void PushChildren(Stack<Element> into)
+    {
+        foreach (ListItem i in Items)
+        {
+            into.Push(i.Content);
+        }
+    }
+
     /// <summary>Bulleted or numbered. Default <see cref="ListKind.Bulleted"/>.</summary>
     public ListKind Kind { get; set; }
 

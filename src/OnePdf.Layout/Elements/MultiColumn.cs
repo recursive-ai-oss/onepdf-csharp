@@ -42,6 +42,14 @@ public sealed class MultiColumn : Element
     /// <summary>The items, poured in order.</summary>
     public List<Element> Items { get; } = [];
 
+    internal override void PushChildren(Stack<Element> into)
+    {
+        foreach (Element e in Items)
+        {
+            into.Push(e);
+        }
+    }
+
     /// <summary>How many columns. Default 2. From 1 to <see cref="MaxColumns"/>.</summary>
     /// <exception cref="ArgumentOutOfRangeException">The value is outside that range.</exception>
     public int Count

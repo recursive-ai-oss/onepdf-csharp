@@ -32,6 +32,13 @@ public sealed class LayoutOptions
     /// are never tagged, whatever this says.
     /// </summary>
     public bool Tagged { get; set; } = true;
+
+    /// <summary>
+    /// Whether the document has a <see cref="TableOfContents"/>, which needs the pages laid out several times before they are written (see
+    /// <see cref="TableOfContents"/>). Null, the default, looks for one in the element tree; true forces the extra runs, for a table that sits
+    /// in a container the search does not know; false never makes them, and a table then has no entries.
+    /// </summary>
+    public bool? TableOfContents { get; set; }
 }
 
 /// <summary>The narrowest and widest width of an element's content, in points.</summary>
@@ -129,6 +136,9 @@ internal sealed class LayoutContext : IDisposable
 
     /// <summary>True in the run that only counts pages: nothing is drawn.</summary>
     public bool CountOnly { get; init; }
+
+    /// <summary>The state shared by the runs of a document with a table of contents; null without one.</summary>
+    public TocState? Toc { get; init; }
 
     /// <summary>How many lists enclose the element being laid out.</summary>
     public int ListDepth { get; set; }
@@ -412,6 +422,11 @@ public abstract class Element
 
     /// <summary>True when this element, or the chain of transparent wrappers around the real content, asks to stay with what follows it.</summary>
     internal virtual bool EffectiveKeepWithNext => KeepWithNext;
+
+    /// <summary>Pushes the elements this one holds, so a search of the tree (for a table of contents) can reach them. Leaves push nothing.</summary>
+    internal virtual void PushChildren(Stack<Element> into)
+    {
+    }
 
     internal virtual string TypeName => GetType().Name;
 

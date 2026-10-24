@@ -205,6 +205,41 @@ if (!hyphRaw.Contains('­', StringComparison.Ordinal) && !hyphRaw.Contains('-', 
     return 1;
 }
 
+// Table of contents: a two-section document whose table of roman-numbered front pages lists chapters of the body, with the numbers read back.
+LayoutDocument tocDoc = LayoutDocument.Compose(d =>
+{
+    d.Page(p =>
+    {
+        p.Size(200, 200);
+        p.NumberStyle(NumberingStyle.LowerRoman);
+        p.Content().Column(c =>
+        {
+            c.Item().Text("Contents");
+            c.Item().TableOfContents(t => t.Levels(1, 1));
+        });
+    });
+    d.Page(p =>
+    {
+        p.Size(200, 200);
+        p.StartNumber(1);
+        p.Content().Column(c =>
+        {
+            c.Item().Heading(1).Text("Alpha");
+            c.Item().PageBreak();
+            c.Item().Heading(1).Text("Beta");
+        });
+    });
+});
+using var tocStream = new MemoryStream();
+tocDoc.Save(tocStream, new PdfDocumentWriterOptions { LeaveOpen = true });
+using PdfDocument tocBack = PdfDocument.Open(tocStream.ToArray());
+string tocText = string.Join(" ", tocBack.Pages[0].ExtractText().Text.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries));
+if (tocBack.Pages.Count != 3 || !tocText.Contains("Alpha", StringComparison.Ordinal) || !tocText.Contains(" 1 Beta", StringComparison.Ordinal) || !tocText.EndsWith(" 2", StringComparison.Ordinal))
+{
+    Console.WriteLine("FAIL table of contents: " + tocText);
+    return 1;
+}
+
 // Knuth-Plass line breaking: one justified paragraph with a hyphenator, broken by total fit, reads back whole.
 const string kpText = "Typesetting a paragraph well means looking at all of it at once, so that a loose line is not the price of a tight one that comes later in the same paragraph.";
 LayoutDocument kp = LayoutDocument.Compose(d => d.Page(p =>

@@ -10,6 +10,14 @@ public abstract class SingleChildElement : Element
 
     internal override bool EffectiveKeepWithNext => KeepWithNext || (Child?.EffectiveKeepWithNext ?? false);
 
+    internal override void PushChildren(Stack<Element> into)
+    {
+        if (Child is not null)
+        {
+            into.Push(Child);
+        }
+    }
+
     internal override WidthRange WidthsCore(LayoutContext ctx) => Child is null ? new WidthRange(0, 0) : Child.MeasureWidths(ctx);
 
     internal FlowFit LayoutChild(LayoutContext ctx, in Constraint c, object? resume)
