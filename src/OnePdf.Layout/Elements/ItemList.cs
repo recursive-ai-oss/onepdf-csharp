@@ -65,8 +65,11 @@ public sealed class ItemList : Element
     /// </summary>
     public Func<int, string>? MarkerFormat { get; set; }
 
-    /// <summary>A standard font name for the markers. Default Helvetica.</summary>
-    public string FontName { get; set; } = "Helvetica";
+    /// <summary>The font family of the markers, as for <see cref="Text.FontName"/>. Null, the default, is the text default.</summary>
+    public string? FontName { get; set; }
+
+    /// <summary>Weight of the marker font. Default 400.</summary>
+    public int Weight { get; set; } = 400;
 
     /// <summary>Marker size in points; use the size of the entries' text. Default 11.</summary>
     public double Size { get; set; } = 11;
@@ -120,11 +123,20 @@ public sealed class ItemList : Element
         return Bullet ?? (ctx.ListDepth % 2 == 0 ? "\u2022" : "\u2013");
     }
 
+    private Text MarkerElement(LayoutContext ctx, int index) => new()
+    {
+        Content = MarkerOf(ctx, index),
+        FontName = FontName,
+        Weight = Weight,
+        Size = Size,
+        Color = Color,
+        LineSpacing = LineSpacing,
+        Alignment = HorizontalAlignment.End,
+    };
+
     private double MeasureMarkers(LayoutContext ctx)
     {
         double widest = Math.Max(0, MarkerWidth);
-        PdfContentBuilder m = ctx.Measurer;
-        m.SetFont(ctx.Font(FontName), Size);
         for (int i = 0; i < Items.Count; i++)
         {
             ListItem item = Items[i];
@@ -139,12 +151,10 @@ public sealed class ItemList : Element
                 {
                     ctx.Pop();
                 }
-
-                m.SetFont(ctx.Font(FontName), Size);
             }
             else
             {
-                widest = Math.Max(widest, m.MeasureText(MarkerOf(ctx, i)));
+                widest = Math.Max(widest, ctx.Text.Prepare(MarkerElement(ctx, i), 1e6, ctx).NaturalWidth);
             }
         }
 
@@ -288,15 +298,7 @@ public sealed class ItemList : Element
             ctx.Push("Marker");
             try
             {
-                Element element = item.Marker ?? new Text
-                {
-                    Content = list.MarkerOf(ctx, index),
-                    FontName = list.FontName,
-                    Size = list.Size,
-                    Color = list.Color,
-                    LineSpacing = list.LineSpacing,
-                    Alignment = HorizontalAlignment.End,
-                };
+                Element element = item.Marker ?? list.MarkerElement(ctx, index);
                 FlowFit f = element.Layout(ctx, new Constraint(markerColumn, available, atTop), null);
                 if (f.Kind == FlowKind.NoFit)
                 {

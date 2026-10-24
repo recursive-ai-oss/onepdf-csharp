@@ -20,6 +20,8 @@ internal interface ILayoutTarget
 
     PdfCreatedFont AddStandardFont(string name);
 
+    PdfCreatedFont AddFont(ReadOnlyMemory<byte> fontData, PdfEmbedFontOptions? options);
+
     PdfCreatedImage AddJpegImage(ReadOnlyMemory<byte> jpeg);
 
     PdfCreatedImage AddPngImage(ReadOnlyMemory<byte> png);
@@ -87,6 +89,8 @@ internal sealed class DocumentTarget(PdfDocument document, int[]? sectionTotals 
 
     public PdfCreatedFont AddStandardFont(string name) => document.AddStandardFont(name);
 
+    public PdfCreatedFont AddFont(ReadOnlyMemory<byte> fontData, PdfEmbedFontOptions? options) => document.AddFont(fontData, options);
+
     public PdfCreatedImage AddJpegImage(ReadOnlyMemory<byte> jpeg) => document.AddJpegImage(jpeg);
 
     public PdfCreatedImage AddPngImage(ReadOnlyMemory<byte> png) => document.AddPngImage(png);
@@ -139,6 +143,8 @@ internal sealed class WriterTarget(PdfDocumentWriter writer) : ILayoutTarget
     public int PageCount => writer.PageCount;
 
     public PdfCreatedFont AddStandardFont(string name) => writer.AddStandardFont(name);
+
+    public PdfCreatedFont AddFont(ReadOnlyMemory<byte> fontData, PdfEmbedFontOptions? options) => writer.AddFont(fontData, options);
 
     public PdfCreatedImage AddJpegImage(ReadOnlyMemory<byte> jpeg) => writer.AddJpegImage(jpeg);
 

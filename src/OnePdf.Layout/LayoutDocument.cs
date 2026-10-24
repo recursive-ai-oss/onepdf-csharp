@@ -128,7 +128,7 @@ public sealed class LayoutDocument
     // When `capture` is set, each page's placed tree is handed to it as the page is finished.
     internal int RenderCore(ILayoutTarget target, Action<int, LayoutPage, Placed?, Placed?, Placed?>? capture, int[]? sectionCounts = null, bool countOnly = false)
     {
-        using var ctx = new LayoutContext(target, Options, new PlainTextEngine()) { CountOnly = countOnly };
+        using var ctx = new LayoutContext(target, Options, new ParagraphTextEngine(target, Options.Fonts ?? TextFontRegistry.Shared)) { CountOnly = countOnly };
         _diagnostics = ctx.Diagnostics;
         int pageNumber = 0;
         long nextNumber = 1;

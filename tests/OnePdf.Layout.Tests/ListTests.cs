@@ -74,10 +74,10 @@ public class ListTests
         byte[] pdf = Support.Save(doc);
         using PdfDocument back = PdfDocument.Open(pdf);
         Assert.True(back.Pages.Count > 2);
-        string all = string.Join(" ", back.ExtractText().Select(p => Support.Normalize(p.Text)));
+        string all = " " + string.Join(" ", back.ExtractText().Select(p => Support.Normalize(p.Text)));
         for (int i = 1; i <= 120; i++)
         {
-            Assert.Equal(1, CountOf(all, $" {i}. Item number {i - 1} "));
+            Assert.True(CountOf(all, $" {i}. Item number {i - 1}") == 1, $"entry {i}: {all[..Math.Min(300, all.Length)]}");
         }
     }
 
