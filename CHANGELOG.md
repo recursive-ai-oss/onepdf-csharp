@@ -9,6 +9,10 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 - Gradient backgrounds in layout: `LayoutGradient` (`Linear` at any angle, `Horizontal`, `Vertical`, `Circle` with a centre and `RadialExtent`) and `LayoutGradientStop`, taken by `Slot.Background`, `Box.BackgroundGradient`, table rows and cells (`TableRowDescriptor.Background`, `CellBackground`, `TableRow.BackgroundGradient`, `TableCell.BackgroundGradient`) and page backgrounds. Clipped to rounded corners, faded by opacity, carried by transforms, drawn as artifacts. A box split over pages paints the whole gradient in each piece. See `docs/layout.md`.
 - Content builder: `PdfGradient` (`Axial`, `Radial`), `PdfGradientStop`, `PdfGradientColor` (DeviceGray, DeviceRGB, DeviceCMYK), `PdfContentBuilder.PaintGradient` and `FillRectangle`. Written as axial and radial shadings with exponential and stitching functions. See `docs/content-creation.md`.
 
+### Changed
+
+- Faster first document in a managed process (JIT included): about 16 ms less for the layout invoice (about 130 to 114 ms on the benchmark host). `PdfDocument.CreateEmpty` (and with it every `PdfDocumentWriter`) builds its cross-reference data directly instead of reading a generated file back, and the first document no longer compiles struct-keyed concurrent and sorted collections: the editable document's object table, the layout font-chain and shaping-option caches, the writer's information, destination and role maps, and the TrueType subsetter's table set and composite check now use plain dictionaries, arrays and snapshots. Output is byte-identical. Peak memory of the first document is about 1 MB lower.
+
 ## [1.8.0] - 2026-10-24
 
 ### Added

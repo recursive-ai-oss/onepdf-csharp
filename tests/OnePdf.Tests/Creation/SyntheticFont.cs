@@ -153,7 +153,7 @@ internal static class SyntheticFont
         BinaryPrimitives.WriteUInt32BigEndian(cmap.AsSpan(8), 12);
         sub.CopyTo(cmap.AsSpan(12));
 
-        var tables = new SortedDictionary<uint, byte[]>
+        var tables = new SfntTables
         {
             [Tag("cmap")] = cmap,
             [Tag("glyf")] = [.. glyf],

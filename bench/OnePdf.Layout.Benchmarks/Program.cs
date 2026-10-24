@@ -54,6 +54,7 @@ internal static class Program
             return 2;
         }
 
+        JitListener? jit = Environment.GetEnvironmentVariable("BENCH_JIT_LIST") is null ? null : new JitListener();
         IEngine e = Engine(args[1]);
         if (Environment.GetEnvironmentVariable("BENCH_RSS_TRACE") is not null)
         {
@@ -77,9 +78,15 @@ internal static class Program
 
         if (Environment.GetEnvironmentVariable("BENCH_RSS_TRACE") is not null)
         {
+            Console.Error.WriteLine($"jit: {System.Runtime.JitInfo.GetCompiledMethodCount()} methods, {System.Runtime.JitInfo.GetCompilationTime().TotalMilliseconds:F0} ms, {System.Runtime.JitInfo.GetCompiledILBytes()} IL bytes");
             Maps();
             Console.Error.WriteLine("assemblies: " + string.Join(", ", AppDomain.CurrentDomain.GetAssemblies().Select(a => a.GetName().Name)));
             Console.Error.WriteLine("rss after: " + Status("VmRSS") + " peak: " + Status("VmHWM") + " gc heap MB: " + (GC.GetTotalMemory(false) / 1048576) + " gen0 gcs: " + GC.CollectionCount(0));
+        }
+
+        if (jit is not null)
+        {
+            jit.Write(Environment.GetEnvironmentVariable("BENCH_JIT_LIST")!);
         }
 
         Console.WriteLine($"ok {args[1]} {args[2]} bytes={bytes} wall_ms={clock.Elapsed.TotalMilliseconds:F0}");

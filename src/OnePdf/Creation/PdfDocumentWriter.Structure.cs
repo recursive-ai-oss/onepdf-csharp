@@ -135,7 +135,7 @@ public sealed partial class PdfDocumentWriter
     private readonly List<PdfStructureElement> _structureStack = [];
     private readonly List<int> _topLevel = [];
     private readonly List<(int Key, PdfObject Value)> _parentTree = [];
-    private readonly SortedDictionary<string, string> _roleMap = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, string> _roleMap = new(StringComparer.Ordinal); // written in ordinal key order
     private PdfReference? _structureRoot;
     private int _nextStructureKey;
 
@@ -431,9 +431,9 @@ public sealed partial class PdfDocumentWriter
         if (_roleMap.Count > 0)
         {
             var map = new PdfDictionary();
-            foreach (KeyValuePair<string, string> kv in _roleMap)
+            foreach (string key in OrdinalKeys(_roleMap))
             {
-                map.SetEntry(kv.Key, new PdfName(kv.Value));
+                map.SetEntry(key, new PdfName(_roleMap[key]));
             }
 
             root.SetEntry("RoleMap", map);

@@ -139,7 +139,10 @@ internal static class Content
     }
 
     /// <summary>A 240 x 140 RGB PNG (non-interlaced, 8-bit), made here with the BCL so every engine gets identical bytes.</summary>
-    public static byte[] Picture { get; } = MakePng(240, 140);
+    /// <remarks>Made on first use: only the report rows draw it, and building it up front put its cost into every other row's first document.</remarks>
+    public static byte[] Picture => _picture ??= MakePng(240, 140);
+
+    private static byte[]? _picture;
 
     private static byte[] MakePng(int w, int h)
     {

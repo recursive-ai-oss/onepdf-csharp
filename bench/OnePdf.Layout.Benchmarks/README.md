@@ -47,6 +47,7 @@ Every engine gets the same Liberation Sans/Serif files (regular, bold, italic, b
 
 - **Time and allocation:** BenchmarkDotNet with `[MemoryDiagnoser]`. Each document is written to a stream that discards and counts. The managed allocation figure does not include native memory, which is why peak RSS is measured too.
 - **Peak RSS and cold time:** `rss.sh` runs each (engine, row) cell in a fresh process under `/usr/bin/time -v`, three repetitions. The wall time is the first document in the process, JIT included.
+- **Where a cold document goes:** `BENCH_RSS_TRACE=1` adds the JIT totals (methods, milliseconds, IL bytes) to an `rss` run, and `BENCH_JIT_LIST=file` writes every method the JIT compiled with its time (tab separated), to see what a first document pays for. The picture the report draws is made on first use, so the other rows' first document does not include building it.
 - **Output size:** printed by every runner (`bytes=`).
 
 ### Output size

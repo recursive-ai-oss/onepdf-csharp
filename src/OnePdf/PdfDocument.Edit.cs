@@ -1,4 +1,3 @@
-using System.Collections.Concurrent;
 using OnePdf.Internal;
 
 namespace OnePdf;
@@ -7,7 +6,7 @@ namespace OnePdf;
 // to a parsed object cannot be lost when the object cache drops it) and remembers which indirect objects changed.
 public sealed partial class PdfDocument
 {
-    private ConcurrentDictionary<int, PdfObject>? _pinned;
+    private PinTable? _pinned;
     private readonly HashSet<int> _dirty = [];
     private int _nextObjectNumber;
     private int _maxReferenced;
@@ -89,7 +88,7 @@ public sealed partial class PdfDocument
         }
     }
 
-    private PdfObject ResolvePinned(ConcurrentDictionary<int, PdfObject> pins, int number)
+    private PdfObject ResolvePinned(PinTable pins, int number)
     {
         if (pins.TryGetValue(number, out PdfObject? pinned))
         {

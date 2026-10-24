@@ -185,7 +185,7 @@ internal static class TrueTypeSubsetter
         byte[] maxpOut = maxp.ToArray();
         BinaryPrimitives.WriteUInt16BigEndian(maxpOut.AsSpan(4), (ushort)order.Count);
 
-        var tables = new SortedDictionary<uint, byte[]>
+        var tables = new SfntTables
         {
             [Be.Tag("head")] = headOut,
             [Be.Tag("hhea")] = hheaOut,
@@ -369,11 +369,13 @@ internal static class TrueTypeSubsetter
     // Composite nesting is limited (the reader limits it too) and a composite reaching itself is an error: depth-first with an explicit stack.
     private static void CheckCompositeDepth(ReadOnlySpan<byte> glyf, uint[] offsets, int numGlyphs, List<int> order)
     {
-        var state = new Dictionary<int, byte>(); // 1 = on the path, 2 = done
+        // 1 = on the path, 2 = done; a glyph number outside the font has no children and is not tracked. An array, because a
+        // dictionary over these types is compiled by the JIT on first use.
+        byte[] state = new byte[numGlyphs];
         var stack = new Stack<(int Glyph, int[] Children, int Next)>();
         foreach (int root in order)
         {
-            if (state.ContainsKey(root))
+            if ((uint)root >= (uint)numGlyphs || state[root] != 0)
             {
                 continue;
             }
@@ -387,7 +389,13 @@ internal static class TrueTypeSubsetter
                 {
                     stack.Push((g, children, next + 1));
                     int c = children[next];
-                    if (state.TryGetValue(c, out byte s))
+                    if ((uint)c >= (uint)numGlyphs)
+                    {
+                        continue;
+                    }
+
+                    byte s = state[c];
+                    if (s != 0)
                     {
                         if (s == 1)
                         {
@@ -420,10 +428,57 @@ internal static class TrueTypeSubsetter
     }
 }
 
+/// <summary>
+/// The tables of an sfnt file kept in tag order, which the table directory needs. A handful of entries in two parallel arrays: sorted
+/// dictionaries over these types are compiled by the JIT on first use, which a first document pays for.
+/// </summary>
+internal sealed class SfntTables
+{
+    private uint[] _tags = new uint[16];
+    private byte[][] _data = new byte[16][];
+
+    public int Count { get; private set; }
+
+    public uint TagAt(int index) => _tags[index];
+
+    public byte[] DataAt(int index) => _data[index];
+
+    /// <summary>Sets the table with this tag, replacing an earlier one.</summary>
+    public byte[] this[uint tag]
+    {
+        set
+        {
+            int i = 0;
+            while (i < Count && _tags[i] < tag)
+            {
+                i++;
+            }
+
+            if (i < Count && _tags[i] == tag)
+            {
+                _data[i] = value;
+                return;
+            }
+
+            if (Count == _tags.Length)
+            {
+                Array.Resize(ref _tags, Count * 2);
+                Array.Resize(ref _data, Count * 2);
+            }
+
+            Array.Copy(_tags, i, _tags, i + 1, Count - i);
+            Array.Copy(_data, i, _data, i + 1, Count - i);
+            _tags[i] = tag;
+            _data[i] = value;
+            Count++;
+        }
+    }
+}
+
 /// <summary>Assembles an sfnt file from its tables (OpenType spec, "Organization of an OpenType Font").</summary>
 internal static class SfntWriter
 {
-    public static byte[] Assemble(uint version, SortedDictionary<uint, byte[]> tables, uint headTag)
+    public static byte[] Assemble(uint version, SfntTables tables, uint headTag)
     {
         int n = tables.Count;
         int entrySelector = 0;
@@ -434,9 +489,9 @@ internal static class SfntWriter
 
         int searchRange = (1 << entrySelector) * 16;
         long total = 12 + (16L * n);
-        foreach (byte[] t in tables.Values)
+        for (int i = 0; i < n; i++)
         {
-            total += (t.Length + 3L) & ~3L;
+            total += (tables.DataAt(i).Length + 3L) & ~3L;
         }
 
         byte[] file = new byte[checked((int)total)];
@@ -448,16 +503,17 @@ internal static class SfntWriter
         int dir = 12;
         int pos = 12 + (16 * n);
         int headPos = -1;
-        foreach (KeyValuePair<uint, byte[]> kv in tables)
+        for (int i = 0; i < n; i++)
         {
-            byte[] t = kv.Value;
+            uint tag = tables.TagAt(i);
+            byte[] t = tables.DataAt(i);
             t.CopyTo(file.AsSpan(pos));
-            if (kv.Key == headTag)
+            if (tag == headTag)
             {
                 headPos = pos;
             }
 
-            BinaryPrimitives.WriteUInt32BigEndian(file.AsSpan(dir), kv.Key);
+            BinaryPrimitives.WriteUInt32BigEndian(file.AsSpan(dir), tag);
             BinaryPrimitives.WriteUInt32BigEndian(file.AsSpan(dir + 4), Checksum(file.AsSpan(pos, (t.Length + 3) & ~3)));
             BinaryPrimitives.WriteUInt32BigEndian(file.AsSpan(dir + 8), (uint)pos);
             BinaryPrimitives.WriteUInt32BigEndian(file.AsSpan(dir + 12), (uint)t.Length);
