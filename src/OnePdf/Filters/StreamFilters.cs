@@ -103,6 +103,9 @@ internal static class StreamFilters
         return new FilterResult(data, issues, message, -1);
     }
 
+    // Compressed input at least this long is measured before it is decoded when nothing says how big the result is.
+    private const int MeasureThreshold = 128 << 10;
+
     private static Kind Classify(ReadOnlySpan<char> name) => name switch
     {
         "FlateDecode" or "Fl" => Kind.Flate,
@@ -133,6 +136,13 @@ internal static class StreamFilters
             _ => input.Length,
         };
         long exact = kind is Kind.Flate or Kind.Lzw ? ExactOutputSize(expectedSize, input.Length, p, limits) : 0;
+        if (exact == 0 && kind == Kind.Flate && input.Length >= MeasureThreshold)
+        {
+            // No size is known and the result is probably large: one cheap pass to learn it saves the segment growth and the join.
+            long measured = CompressedFilters.MeasureFlate(input, limits, ct);
+            exact = measured > OutputBuffer.PooledLimit && measured <= cap ? measured : 0;
+        }
+
         var output = exact > 0 ? new OutputBuffer(cap, estimate, exact) : new OutputBuffer(cap, estimate);
         try
         {

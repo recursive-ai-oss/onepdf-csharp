@@ -61,6 +61,88 @@ public class DisplayListTests
         Assert.Equal(live.ToString(), list.ToText());
     }
 
+    private sealed class RunCapture : PdfDevice
+    {
+        public readonly List<(PdfGlyphRun Run, PdfGlyph[] Glyphs, byte[] Codes)> Runs = [];
+
+        public override void ShowGlyphRun(in PdfGlyphRun run, in PdfGraphicsState state) =>
+            Runs.Add((run, run.Glyphs.ToArray(), run.Codes.ToArray()));
+    }
+
+    [Fact]
+    public void GlyphRunsReplayWithEveryFieldIntact()
+    {
+        using PdfDocument doc = TestPdf.Open(BusyPdf());
+        PdfDictionary? fontA = doc.Pages[0].Resources.GetDictionary("Font")?.GetDictionary("F");
+        Assert.NotNull(fontA);
+        var state = new PdfGraphicsState(PdfMatrix.Identity, default, default, 1, 0, 0, 10, ReadOnlyMemory<double>.Empty, 0, 1, "", 1, 1, "Normal", 0, false, false, false, 0);
+
+        // Mutable outline memory is reused by the caller after each call: the recording must have copied it.
+        double[] pts = [0, 0, 5, 0, 5, 5];
+        byte[] verbs = [(byte)PdfPathVerb.Move, (byte)PdfPathVerb.Line, (byte)PdfPathVerb.Line];
+        var glyphs = new[]
+        {
+            new PdfGlyph(65, 1, 0, 0, 0.5, 7, "A", new PdfPath(verbs, pts)),
+            new PdfGlyph(66, 2, 0.5, -0.0, 0.25, -1, null, default, 0.1, -0.2, 0.3),
+            new PdfGlyph(67, 1, 0.75, 0, 0.25, 9, "C\u0301"),
+        };
+        byte[] codes = [65, 0, 66, 67];
+        var list = new PdfDisplayList();
+        var tm = new PdfMatrix(1, 0, 0, 1, 10, 20);
+        var runs = new[]
+        {
+            new PdfGlyphRun("F", fontA, 12, PdfTextRenderMode.Fill, 0.5, 1.5, 0.8, -0.0, tm, false, codes, glyphs, 3, 0),
+            new PdfGlyphRun("F", fontA, 12, PdfTextRenderMode.Fill, 0.5, 1.5, 0.8, -0.0, tm, false, codes, glyphs, 3, 0),
+            new PdfGlyphRun("G", null, 9, PdfTextRenderMode.Stroke, 0, 0, 1, 2, tm, true, codes.AsMemory(1, 2), glyphs.AsMemory(1, 1), 0, -4),
+        };
+        foreach (PdfGlyphRun r in runs)
+        {
+            list.ShowGlyphRun(r, state);
+        }
+
+        Array.Clear(pts);
+        Array.Clear(verbs);
+
+        for (int pass = 0; pass < 2; pass++)
+        {
+            var cap = new RunCapture();
+            list.Replay(cap);
+            Assert.Equal(3, cap.Runs.Count);
+            for (int i = 0; i < 3; i++)
+            {
+                PdfGlyphRun want = runs[i];
+                (PdfGlyphRun got, PdfGlyph[] gotGlyphs, byte[] gotCodes) = cap.Runs[i];
+                Assert.Equal(want.FontName, got.FontName);
+                Assert.Same(want.Font, got.Font);
+                Assert.Equal(want.FontSize, got.FontSize);
+                Assert.Equal(want.RenderMode, got.RenderMode);
+                Assert.Equal(want.CharSpacing, got.CharSpacing);
+                Assert.Equal(want.WordSpacing, got.WordSpacing);
+                Assert.Equal(want.HorizontalScale, got.HorizontalScale);
+                Assert.Equal(BitConverter.DoubleToInt64Bits(want.Rise), BitConverter.DoubleToInt64Bits(got.Rise));
+                Assert.Equal(want.TextMatrix, got.TextMatrix);
+                Assert.Equal(want.IsVertical, got.IsVertical);
+                Assert.Equal(want.AdvanceX, got.AdvanceX);
+                Assert.Equal(want.AdvanceY, got.AdvanceY);
+                Assert.Equal(want.Codes.ToArray(), gotCodes);
+                Assert.Equal(want.Glyphs.Length, gotGlyphs.Length);
+                for (int k = 0; k < gotGlyphs.Length; k++)
+                {
+                    PdfGlyph a = want.Glyphs.Span[k];
+                    PdfGlyph b = gotGlyphs[k];
+                    Assert.Equal((a.Code, a.ByteLength, a.OffsetX, a.OffsetY, a.Width, a.GlyphId, a.Unicode), (b.Code, b.ByteLength, b.OffsetX, b.OffsetY, b.Width, b.GlyphId, b.Unicode));
+                    Assert.Equal((a.VectorX, a.VectorY, a.VerticalAdvance), (b.VectorX, b.VectorY, b.VerticalAdvance));
+                    Assert.Equal(BitConverter.DoubleToInt64Bits(a.OffsetY), BitConverter.DoubleToInt64Bits(b.OffsetY));
+                }
+            }
+
+            // The first glyph's outline is what the caller passed in, not the cleared arrays.
+            Assert.Equal(new double[] { 0, 0, 5, 0, 5, 5 }, cap.Runs[0].Glyphs[0].Outline.Points.ToArray());
+            Assert.Equal(3, cap.Runs[0].Glyphs[0].Outline.VerbBytes.Length);
+            Assert.True(cap.Runs[0].Glyphs[1].Outline.IsEmpty);
+        }
+    }
+
     [Fact]
     public void ReplayWithClipRectCullsPaintsAndWholeClipBrackets()
     {

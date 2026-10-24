@@ -19,6 +19,9 @@ internal sealed class OutputBuffer : IDisposable
     // Largest array that is rented from the shared pool.
     private const int SmallMax = 1 << 20;
 
+    /// <summary>Results up to this size are built in pooled arrays; larger ones are worth sizing exactly.</summary>
+    public const int PooledLimit = SmallMax;
+
     // Segments of the large mode grow from 4 MiB, doubling, up to this size.
     private const int FirstSegment = 4 << 20;
     private const int MaxSegment = 32 << 20;

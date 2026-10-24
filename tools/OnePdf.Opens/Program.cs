@@ -275,6 +275,7 @@ internal static class Program
                 }
             }
 
+            Console.WriteLine($"G {GC.GetTotalAllocatedBytes(false).ToString(ci)}");
             Console.WriteLine("DONE");
             return 0;
         }

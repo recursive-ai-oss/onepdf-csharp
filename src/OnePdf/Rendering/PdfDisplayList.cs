@@ -57,18 +57,56 @@ public sealed class PdfDisplayList : IPdfDevice
         public double Y1;
     }
 
-    private struct RunRecord
+    // A glyph as stored: the public PdfGlyph carries a 40-byte outline view and three rarely used vertical-writing fields,
+    // which made it more than twice this size. The outline is an index into a table that shares the cached glyph shapes, and
+    // the vertical fields live in a side table that only vertical runs use. PdfGlyph is rebuilt exactly on replay.
+    private struct GlyphRecord
     {
-        public string FontName;
-        public PdfDictionary? Font;
+        public int Code;
+        public int ByteLength;
+        public int GlyphId;
+        public int Outline;
+        public int Vertical;
+        public double OffsetX;
+        public double OffsetY;
+        public double Width;
+        public string? Unicode;
+    }
+
+    private struct VerticalRecord
+    {
+        public double VectorX;
+        public double VectorY;
+        public double Advance;
+    }
+
+    // The text-state values that repeat from one run to the next, stored once and shared (like graphics states).
+    private struct RunParams
+    {
+        public int Font;
         public double FontSize;
         public PdfTextRenderMode Mode;
         public double Tc;
         public double Tw;
         public double Th;
         public double Rise;
-        public PdfMatrix Tm;
         public bool Vertical;
+
+        // Bitwise, so that 0 and -0 stay different and a NaN equals itself.
+        public readonly bool SameAs(in RunParams o) =>
+            Font == o.Font && Mode == o.Mode && Vertical == o.Vertical && Bits(FontSize) == Bits(o.FontSize) && Bits(Tc) == Bits(o.Tc)
+            && Bits(Tw) == Bits(o.Tw) && Bits(Th) == Bits(o.Th) && Bits(Rise) == Bits(o.Rise);
+
+        public readonly int Hash() =>
+            HashCode.Combine(Font, (int)Mode, Vertical, Bits(FontSize), Bits(Tc), HashCode.Combine(Bits(Tw), Bits(Th), Bits(Rise)));
+
+        private static long Bits(double d) => BitConverter.DoubleToInt64Bits(d);
+    }
+
+    private struct RunRecord
+    {
+        public int Params;
+        public PdfMatrix Tm;
         public int CodeChunk;
         public int CodeStart;
         public int CodeLength;
@@ -85,7 +123,17 @@ public sealed class PdfDisplayList : IPdfDevice
     private readonly ChunkArena<byte> _verbs = new(1 << 16, 1024);
     private readonly ChunkArena<double> _points = new(1 << 13, 2048);
     private readonly ChunkArena<byte> _codes = new(1 << 16, 1024);
-    private readonly ChunkArena<PdfGlyph> _glyphs = new(1 << 9, 64);
+    private readonly ChunkArena<GlyphRecord> _glyphs = new(1 << 10, 64);
+    private readonly List<PdfPath> _outlines = [];
+    private readonly Dictionary<OutlineKey, int> _outlineIndex = [];
+    private readonly ChunkedList<VerticalRecord> _vertical = new(8, 16);
+    private readonly List<(string Name, PdfDictionary? Dict)> _fonts = [];
+    private readonly Dictionary<FontKey, int> _fontIndex = new(new FontKeyComparer());
+    private readonly ChunkedList<RunParams> _params = new(8, 16);
+    private readonly ParamsComparer _paramsComparer;
+    private readonly HashSet<int> _paramsIndex;
+    private int _lastParams = -1;
+    private int _lastFont = -1;
     private readonly ChunkedList<PdfGraphicsState> _states = new(7, 16);
     private readonly StateComparer _stateComparer;
     private readonly HashSet<int> _stateIndex;
@@ -108,7 +156,32 @@ public sealed class PdfDisplayList : IPdfDevice
     {
         _stateComparer = new StateComparer(_states);
         _stateIndex = new HashSet<int>(_stateComparer);
+        _paramsComparer = new ParamsComparer(_params);
+        _paramsIndex = new HashSet<int>(_paramsComparer);
     }
+
+    private sealed class ParamsComparer(ChunkedList<RunParams> table) : IEqualityComparer<int>
+    {
+        private RunParams _probe;
+
+        public void SetProbe(in RunParams p) => _probe = p;
+
+        public bool Equals(int a, int b) => (a < 0 ? _probe : table[a]).SameAs(b < 0 ? _probe : table[b]);
+
+        public int GetHashCode(int a) => (a < 0 ? _probe : table[a]).Hash();
+    }
+
+    private readonly record struct FontKey(string Name, PdfDictionary? Dict);
+
+    private sealed class FontKeyComparer : IEqualityComparer<FontKey>
+    {
+        public bool Equals(FontKey a, FontKey b) => ReferenceEquals(a.Dict, b.Dict) && string.Equals(a.Name, b.Name, StringComparison.Ordinal);
+
+        public int GetHashCode(FontKey k) => HashCode.Combine(k.Name, k.Dict is null ? 0 : System.Runtime.CompilerServices.RuntimeHelpers.GetHashCode(k.Dict));
+    }
+
+    // Two outlines are the same when they view the same memory (a glyph shape from the font's cache, used again).
+    private readonly record struct OutlineKey(ReadOnlyMemory<byte> Verbs, ReadOnlyMemory<double> Points);
 
     // Finds a state by value without storing it twice: the set holds indices into the state list, and a candidate that is not
     // stored yet is compared through the probe slot (index -1).
@@ -159,6 +232,7 @@ public sealed class PdfDisplayList : IPdfDevice
         PdfBounds clip = clipRect.GetValueOrDefault();
         PdfGraphicsState state = default;
         int stateLoaded = -1;
+        PdfGlyph[] glyphScratch = [];
         for (int i = 0; i < _items.Count; i++)
         {
             ref readonly Item it = ref _items[i];
@@ -227,10 +301,23 @@ public sealed class PdfDisplayList : IPdfDevice
                         }
 
                         Load(it.State, ref state, ref stateLoaded);
-                        RunRecord r = _runs[it.A];
+                        ref readonly RunRecord r = ref _runs[it.A];
+                        ref readonly RunParams rp = ref _params[r.Params];
+                        (string fontName, PdfDictionary? font) = _fonts[rp.Font];
+                        if (glyphScratch.Length < r.GlyphCount)
+                        {
+                            glyphScratch = new PdfGlyph[Math.Max(r.GlyphCount, Math.Max(16, glyphScratch.Length * 2))];
+                        }
+
+                        ReadOnlySpan<GlyphRecord> stored = _glyphs.Memory(r.GlyphChunk, r.GlyphStart, r.GlyphCount).Span;
+                        for (int k = 0; k < stored.Length; k++)
+                        {
+                            glyphScratch[k] = Rebuild(in stored[k]);
+                        }
+
                         var run = new PdfGlyphRun(
-                            r.FontName, r.Font, r.FontSize, r.Mode, r.Tc, r.Tw, r.Th, r.Rise, r.Tm, r.Vertical,
-                            _codes.Memory(r.CodeChunk, r.CodeStart, r.CodeLength), _glyphs.Memory(r.GlyphChunk, r.GlyphStart, r.GlyphCount), r.AdvX, r.AdvY);
+                            fontName, font, rp.FontSize, rp.Mode, rp.Tc, rp.Tw, rp.Th, rp.Rise, r.Tm, rp.Vertical,
+                            _codes.Memory(r.CodeChunk, r.CodeStart, r.CodeLength), glyphScratch.AsMemory(0, r.GlyphCount), r.AdvX, r.AdvY);
                         device.ShowGlyphRun(in run, in state);
                         break;
                     }
@@ -368,6 +455,80 @@ public sealed class PdfDisplayList : IPdfDevice
 
     private static bool Overlaps(in Item it, in PdfBounds clip) =>
         it.X0 <= clip.Right && clip.Left <= it.X1 && it.Y0 <= clip.Top && clip.Bottom <= it.Y1;
+
+    private PdfGlyph Rebuild(in GlyphRecord g)
+    {
+        PdfPath outline = g.Outline < 0 ? default : _outlines[g.Outline];
+        if (g.Vertical < 0)
+        {
+            return new PdfGlyph(g.Code, g.ByteLength, g.OffsetX, g.OffsetY, g.Width, g.GlyphId, g.Unicode, outline);
+        }
+
+        ref VerticalRecord v = ref _vertical[g.Vertical];
+        return new PdfGlyph(g.Code, g.ByteLength, g.OffsetX, g.OffsetY, g.Width, g.GlyphId, g.Unicode, outline, v.VectorX, v.VectorY, v.Advance);
+    }
+
+    private int OutlineIndex(in PdfPath outline)
+    {
+        if (outline.IsEmpty && outline.Points.IsEmpty)
+        {
+            return -1;
+        }
+
+        // Library-owned shapes are shared between uses; a caller's temporary memory is copied, once per glyph.
+        if (!outline.IsImmutable)
+        {
+            _outlines.Add(outline.ToOwned());
+            return _outlines.Count - 1;
+        }
+
+        var key = new OutlineKey(outline.VerbBytes, outline.Points);
+        if (!_outlineIndex.TryGetValue(key, out int idx))
+        {
+            _outlines.Add(outline);
+            idx = _outlines.Count - 1;
+            _outlineIndex.Add(key, idx);
+        }
+
+        return idx;
+    }
+
+    private int FontIndex(string name, PdfDictionary? dict)
+    {
+        if (_lastFont >= 0 && ReferenceEquals(_fonts[_lastFont].Dict, dict) && string.Equals(_fonts[_lastFont].Name, name, StringComparison.Ordinal))
+        {
+            return _lastFont;
+        }
+
+        var key = new FontKey(name, dict);
+        if (!_fontIndex.TryGetValue(key, out int idx))
+        {
+            _fonts.Add((name, dict));
+            idx = _fonts.Count - 1;
+            _fontIndex.Add(key, idx);
+        }
+
+        _lastFont = idx;
+        return idx;
+    }
+
+    private int ParamsIndex(in RunParams p)
+    {
+        if (_lastParams >= 0 && _params[_lastParams].SameAs(p))
+        {
+            return _lastParams;
+        }
+
+        _paramsComparer.SetProbe(p);
+        if (!_paramsIndex.TryGetValue(-1, out int idx))
+        {
+            idx = _params.Add(p);
+            _paramsIndex.Add(idx);
+        }
+
+        _lastParams = idx;
+        return idx;
+    }
 
     private void Load(int index, ref PdfGraphicsState state, ref int loaded)
     {
@@ -539,28 +700,45 @@ public sealed class PdfDisplayList : IPdfDevice
         ReadOnlySpan<byte> codes = run.Codes.Span;
         codes.CopyTo(_codes.Reserve(codes.Length, out int codeChunk, out int codeStart));
         ReadOnlySpan<PdfGlyph> glyphs = run.Glyphs.Span;
-        Span<PdfGlyph> dest = _glyphs.Reserve(glyphs.Length, out int glyphChunk, out int glyphStart);
-
-        // Outlines handed over for the duration of the call are copied so the recording owns them; ToOwned returns an
-        // immutable outline (a cached glyph shape) as it is, so every use of a glyph shares one copy.
+        Span<GlyphRecord> dest = _glyphs.Reserve(glyphs.Length, out int glyphChunk, out int glyphStart);
         for (int i = 0; i < glyphs.Length; i++)
         {
-            PdfGlyph g = glyphs[i];
-            dest[i] = g.Outline.IsEmpty || g.Outline.IsImmutable ? g : g with { Outline = g.Outline.ToOwned() };
+            ref readonly PdfGlyph g = ref glyphs[i];
+            int vertical = -1;
+            if (BitConverter.DoubleToInt64Bits(g.VectorX) != 0 || BitConverter.DoubleToInt64Bits(g.VectorY) != 0 || BitConverter.DoubleToInt64Bits(g.VerticalAdvance) != 0)
+            {
+                vertical = _vertical.Add(new VerticalRecord { VectorX = g.VectorX, VectorY = g.VectorY, Advance = g.VerticalAdvance });
+            }
+
+            dest[i] = new GlyphRecord
+            {
+                Code = g.Code,
+                ByteLength = g.ByteLength,
+                GlyphId = g.GlyphId,
+                Outline = OutlineIndex(g.Outline),
+                Vertical = vertical,
+                OffsetX = g.OffsetX,
+                OffsetY = g.OffsetY,
+                Width = g.Width,
+                Unicode = g.Unicode,
+            };
         }
 
-        _runs.Add(new RunRecord
+        var rp = new RunParams
         {
-            FontName = run.FontName,
-            Font = run.Font,
+            Font = FontIndex(run.FontName, run.Font),
             FontSize = run.FontSize,
             Mode = run.RenderMode,
             Tc = run.CharSpacing,
             Tw = run.WordSpacing,
             Th = run.HorizontalScale,
             Rise = run.Rise,
-            Tm = run.TextMatrix,
             Vertical = run.IsVertical,
+        };
+        _runs.Add(new RunRecord
+        {
+            Params = ParamsIndex(rp),
+            Tm = run.TextMatrix,
             CodeChunk = codeChunk,
             CodeStart = codeStart,
             CodeLength = codes.Length,
