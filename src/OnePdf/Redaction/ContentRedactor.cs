@@ -5,6 +5,7 @@ using System.Globalization;
 using System.Security.Cryptography;
 using System.Text;
 using OnePdf.Content;
+using OnePdf.PdfFonts;
 using OnePdf.Writing;
 
 namespace OnePdf.Redaction;
@@ -80,6 +81,128 @@ internal sealed class ResourceEdit(PdfDocument doc, PdfDictionary? effective)
 
     public PdfDictionary? Effective => effective;
 
+    /// <summary>The (category, name) pairs the rewritten content refers to; what is not in it is dropped from the copy.</summary>
+    public HashSet<(string, string)> Used { get; } = [];
+
+    /// <summary>True once the copy is stored in a page or in a rewritten form, so later changes to it reach the saved file.</summary>
+    public bool Attached { get; set; }
+
+    // The copy holds categories that were separate objects in the original as references, which it cannot resolve itself, so the
+    // original is asked when the copy has none of its own.
+    private PdfDictionary? Category(string category) => _owned?.GetDictionary(category) ?? effective?.GetDictionary(category);
+
+    private static readonly string[] Prunable = ["Font", "XObject", "Pattern", "Shading", "ExtGState"];
+
+    /// <summary>
+    /// Drops the fonts, XObjects, patterns, shadings and graphics states that the rewritten content no longer refers to, so the
+    /// removed content cannot be reached through them. Colour spaces and property lists stay: images name colour spaces in the
+    /// resources without an operator, and they hold no page content.
+    /// </summary>
+    public void RemoveUnused(HashSet<(string, string)> used)
+    {
+        foreach (string cat in Prunable)
+        {
+            PdfDictionary? src = Category(cat);
+            if (src is null)
+            {
+                continue;
+            }
+
+            List<string>? dead = null;
+            foreach (string k in src.Keys)
+            {
+                if (!used.Contains((cat, k)))
+                {
+                    (dead ??= []).Add(k);
+                }
+            }
+
+            if (dead is null)
+            {
+                continue;
+            }
+
+            PdfDictionary target = EnsureCategory(GetOwned(), cat);
+            foreach (string k in dead)
+            {
+                target.RemoveEntry(k);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Replaces the entries of <paramref name="category"/> that are separate objects nothing painted with by a small stand-in, so the
+    /// original (a font program, a pattern cell) is not reachable through them while every operator that names the entry still
+    /// finds a valid one.
+    /// </summary>
+    public void StubUnused(string category, HashSet<int> used, HashSet<int> stubs, Func<PdfDictionary, PdfReference?> stubFor)
+    {
+        PdfDictionary? src = Category(category);
+        if (src is null)
+        {
+            return;
+        }
+
+        List<(string Name, PdfReference Stub)>? replace = null;
+        foreach (string k in src.Keys)
+        {
+            if (src.GetRaw(k) is PdfReference r && !used.Contains(r.Number) && !stubs.Contains(r.Number))
+            {
+                PdfObject? obj = doc.GetObject(r.Number);
+                PdfDictionary? d = obj is PdfStream s ? s.Dictionary : obj as PdfDictionary;
+                if (d is not null && stubFor(d) is { } stub)
+                {
+                    (replace ??= []).Add((k, stub));
+                }
+            }
+        }
+
+        if (replace is null)
+        {
+            return;
+        }
+
+        PdfDictionary target = EnsureCategory(GetOwned(), category);
+        foreach ((string name, PdfReference stub) in replace)
+        {
+            target.SetEntry(name, stub);
+        }
+    }
+
+    /// <summary>Points every font entry that is the font identified by <paramref name="key"/> (an object number, or the direct dictionary) at <paramref name="replacement"/>.</summary>
+    public bool ReplaceFont(object key, PdfObject replacement)
+    {
+        PdfDictionary? src = Category("Font");
+        if (src is null)
+        {
+            return false;
+        }
+
+        List<string>? hits = null;
+        foreach (string k in src.Keys)
+        {
+            PdfObject? raw = src.GetRaw(k);
+            bool same = key is int n ? raw is PdfReference r && r.Number == n : ReferenceEquals(raw, key);
+            if (same)
+            {
+                (hits ??= []).Add(k);
+            }
+        }
+
+        if (hits is null)
+        {
+            return false;
+        }
+
+        PdfDictionary target = EnsureCategory(GetOwned(), "Font");
+        foreach (string k in hits)
+        {
+            target.SetEntry(k, replacement);
+        }
+
+        return true;
+    }
+
     /// <summary>Counts a reference to <paramref name="name"/> that stays in the rewritten content.</summary>
     public void Use(string category, string name) => _uses[(category, name)] = _uses.GetValueOrDefault((category, name)) + 1;
 
@@ -100,7 +223,7 @@ internal sealed class ResourceEdit(PdfDocument doc, PdfDictionary? effective)
             }
 
             PdfDictionary owned = GetOwned();
-            if (owned.GetDictionary(cat) is null)
+            if (Category(cat) is null)
             {
                 continue;
             }
@@ -143,7 +266,7 @@ internal sealed class ResourceEdit(PdfDocument doc, PdfDictionary? effective)
         }
 
         var copy = new PdfDictionary();
-        if (owned.GetDictionary(category) is { } old)
+        if (Category(category) is { } old)
         {
             foreach (string k in (string[])[.. old.Keys])
             {
@@ -208,7 +331,23 @@ internal sealed class ContentRedactor : PdfDevice, IContentTap
     private bool _imageHit;
     private PdfMatrix _imageCtm;
     private bool _shadingHit;
-    private int _skip;
+    private bool _paintPattern;
+    private int _t3Depth;
+    private bool _t3Hit;
+    private int _t3Index = -1;
+    private int _t3Next;
+    private bool _noPrune;
+    private readonly HashSet<int> _usedFonts = [];
+    private readonly Dictionary<PdfDictionary, int> _fontRefs = new(ReferenceEqualityComparer.Instance);
+    private bool _fontUnknown;
+    private readonly HashSet<int> _usedPatterns = [];
+    private readonly HashSet<int> _stubs = [];
+    private readonly List<PdfPattern> _opPatterns = [];
+    private PdfReference? _stubFont;
+    private PdfReference? _stubColoredPattern;
+    private PdfReference? _stubStencilPattern;
+    private readonly List<ResourceEdit> _edits = [];
+    private readonly Dictionary<object, T3Use> _t3Fonts = [];
     private bool _inAnnotation;
     private Ctx? _child;
     private PdfDictionary? _currentAnnotation;
@@ -225,6 +364,15 @@ internal sealed class ContentRedactor : PdfDevice, IContentTap
         _decoders = options.Decoders ?? PdfImageDecoderRegistry.Default;
         _outLimit = doc.Limits.MaxDecodedStreamBytes;
         PageResources = new ResourceEdit(doc, page.Resources);
+        _edits.Add(PageResources);
+    }
+
+    /// <summary>What a page does with one Type 3 font: the glyph codes it shows and the ones it had to remove.</summary>
+    private sealed class T3Use(PdfDictionary font)
+    {
+        public PdfDictionary Font = font;
+        public HashSet<int> Removed = [];
+        public HashSet<int> Kept = [];
     }
 
     // ---- results ----
@@ -302,6 +450,9 @@ internal sealed class ContentRedactor : PdfDevice, IContentTap
 
     private struct GlyphMark
     {
+        public int Code;
+        public PdfDictionary? Font;
+        public PdfDictionary? Type3Font;
         public int Len;
         public bool Hit;
         public double Adjust;
@@ -318,6 +469,11 @@ internal sealed class ContentRedactor : PdfDevice, IContentTap
             Res = isPage ? PageResources : new ResourceEdit(_doc, resources),
             McBase = _mc.Count,
         };
+        if (!isPage)
+        {
+            _edits.Add(ctx.Res);
+        }
+
         _stack.Add(ctx);
         _child = null;
     }
@@ -326,6 +482,21 @@ internal sealed class ContentRedactor : PdfDevice, IContentTap
     {
         Ctx ctx = _stack[^1];
         _stack.RemoveAt(_stack.Count - 1);
+        if (!ctx.IsPage)
+        {
+            // A form or appearance without resources of its own runs against its parent's (ISO 32000-2 7.8.3), so what it
+            // names counts as used there.
+            ResourceEdit? parent = _stack.Count > 0 ? _stack[^1].Res : null;
+            if (parent is not null && ReferenceEquals(ctx.Res.Effective, parent.Effective))
+            {
+                parent.Used.UnionWith(ctx.Res.Used);
+            }
+            else if (parent is null && ReferenceEquals(ctx.Res.Effective, PageResources.Effective))
+            {
+                PageResources.Used.UnionWith(ctx.Res.Used);
+            }
+        }
+
         FlushPath(ctx);
         // Bytes after the last executed operator were never run: a string or array cut off by the end of the data, or operands
         // without their operator. They may hold text that was never checked against the areas, so unless they are only white space
@@ -492,7 +663,39 @@ internal sealed class ContentRedactor : PdfDevice, IContentTap
         }
         finally
         {
+            bool keptText = false;
+            foreach (GlyphMark m in _marks)
+            {
+                if (!m.Hit)
+                {
+                    keptText = true;
+                    AddUsedFont(m.Font);
+                }
+
+                if (m.Type3Font is { } t3)
+                {
+                    object key = t3.Reference is { } r ? r.Number : t3;
+                    if (!_t3Fonts.TryGetValue(key, out T3Use? use))
+                    {
+                        _t3Fonts[key] = use = new T3Use(t3);
+                    }
+
+                    (m.Hit ? use.Removed : use.Kept).Add(m.Code);
+                }
+            }
+
+            if (keptText)
+            {
+                RecordOpPatterns();
+            }
+
+            _opPatterns.Clear();
             _marks.Clear();
+            _t3Depth = 0;
+            _t3Hit = false;
+            _t3Index = -1;
+            _t3Next = 0;
+            _paintPattern = false;
             _anyGlyphHit = false;
             _paintHit = false;
             _imageHit = false;
@@ -543,6 +746,7 @@ internal sealed class ContentRedactor : PdfDevice, IContentTap
         {
             if (!_paintHit)
             {
+                RecordOpPatterns();
                 FlushPath(ctx);
                 EmitThrough(ctx, start, end);
                 return;
@@ -552,8 +756,12 @@ internal sealed class ContentRedactor : PdfDevice, IContentTap
             ctx.Changed = true;
             MarkHit();
             bool clips = ctx.Pending && ctx.PathClip;
-            if (_options.VectorMode == PdfRedactionVectorMode.ClipOut && ctx.Pending && !ctx.PathClip && op != ContentOp.EndPath)
+
+            // A path painted with a tiling pattern goes whole even under ClipOut: the pattern's cell is a procedure repeated
+            // across the path, so the part under the area cannot be cut out of it and the cell's text and images would stay.
+            if (_options.VectorMode == PdfRedactionVectorMode.ClipOut && ctx.Pending && !ctx.PathClip && op != ContentOp.EndPath && !_paintPattern)
             {
+                RecordOpPatterns();
                 EmitClippedOut(ctx, start, end);
                 return;
             }
@@ -601,6 +809,13 @@ internal sealed class ContentRedactor : PdfDevice, IContentTap
                 break;
             case ContentOp.Do:
                 if (HandleDo(ctx, start, end))
+                {
+                    return;
+                }
+
+                break;
+            case ContentOp.SetExtGState:
+                if (_child is { } maskGroup && (maskGroup.Changed || maskGroup.Res.Edited) && HandleSoftMaskState(ctx, maskGroup, start, end))
                 {
                     return;
                 }
@@ -660,7 +875,31 @@ internal sealed class ContentRedactor : PdfDevice, IContentTap
                 break;
         }
 
+        NoteUse(ctx, op, start, end);
         EmitThrough(ctx, start, end, raw: op == ContentOp.BeginInline);
+    }
+
+    // Records the resource an operator that stays in the output refers to.
+    private void NoteUse(Ctx ctx, ContentOp op, int start, int end)
+    {
+        string? category = op switch
+        {
+            ContentOp.TextFont => "Font",
+            ContentOp.Do => "XObject",
+            ContentOp.SetExtGState => "ExtGState",
+            ContentOp.Shading => "Shading",
+            ContentOp.FillColor or ContentOp.FillColorN or ContentOp.StrokeColor or ContentOp.StrokeColorN => "Pattern",
+            _ => null,
+        };
+        if (category is not null && ReadFirstName(ctx, start, end) is { } name)
+        {
+            if (op == ContentOp.TextFont && ctx.Res.Effective?.GetDictionary("Font") is { } fonts && fonts.GetRaw(name) is PdfReference fr && fonts.GetDictionary(name) is { } fd)
+            {
+                _fontRefs[fd] = fr.Number;
+            }
+
+            ctx.Res.Used.Add((category, name));
+        }
     }
 
     private void MarkHit()
@@ -686,13 +925,59 @@ internal sealed class ContentRedactor : PdfDevice, IContentTap
         }
     }
 
-    public override void BeginType3Glyph(in PdfType3GlyphInfo glyph, in PdfGraphicsState state) => _skip++;
+    // A Type 3 glyph is removed whole: its procedure is shared by every place the glyph is shown, so it is only read here (what
+    // it paints, where) and the glyph is taken out of the string when that meets an area.
+    public override void BeginType3Glyph(in PdfType3GlyphInfo glyph, in PdfGraphicsState state)
+    {
+        if (glyph.Font.GetDictionary("Resources") is null)
+        {
+            // Without resources of its own the procedure names things in the resources around it.
+            _noPrune = true;
+        }
 
-    public override void EndType3Glyph() => _skip--;
+        if (_t3Depth++ > 0)
+        {
+            return;
+        }
 
-    public override void BeginSoftMask(in PdfSoftMaskInfo mask, in PdfGraphicsState state) => _skip++;
+        _t3Hit = false;
+        int j = _t3Next;
+        while (j < _marks.Count && !(_marks[j].Type3Font is not null && _marks[j].Code == glyph.Code))
+        {
+            j++;
+        }
 
-    public override void EndSoftMask() => _skip--;
+        if (j >= _marks.Count)
+        {
+            _t3Index = -1;
+            CannotVerify("a Type 3 glyph could not be matched to the string that shows it");
+        }
+        else
+        {
+            _t3Index = j;
+            _t3Next = j + 1;
+        }
+    }
+
+    public override void EndType3Glyph()
+    {
+        if (--_t3Depth > 0)
+        {
+            return;
+        }
+
+        _t3Depth = 0;
+        if (_t3Hit && _t3Index >= 0)
+        {
+            GlyphMark m = _marks[_t3Index];
+            m.Hit = true;
+            _marks[_t3Index] = m;
+            _anyGlyphHit = true;
+        }
+
+        _t3Hit = false;
+        _t3Index = -1;
+    }
 
     public override void BeginAnnotation(in PdfAnnotationInfo annotation)
     {
@@ -761,19 +1046,20 @@ internal sealed class ContentRedactor : PdfDevice, IContentTap
         return false;
     }
 
-    public override void FillPath(in PdfPath path, bool evenOdd, in PdfGraphicsState state) => PaintEvent(in path, in state, stroke: false);
+    public override void FillPath(in PdfPath path, bool evenOdd, in PdfGraphicsState state) => PaintEvent(in path, in state, stroke: false, fillPaint: true);
 
-    public override void StrokePath(in PdfPath path, in PdfGraphicsState state) => PaintEvent(in path, in state, stroke: true);
+    public override void StrokePath(in PdfPath path, in PdfGraphicsState state) => PaintEvent(in path, in state, stroke: true, fillPaint: false);
 
-    public override void FillStrokePath(in PdfPath path, bool evenOdd, in PdfGraphicsState state) => PaintEvent(in path, in state, stroke: true);
+    public override void FillStrokePath(in PdfPath path, bool evenOdd, in PdfGraphicsState state) => PaintEvent(in path, in state, stroke: true, fillPaint: true);
 
-    private void PaintEvent(in PdfPath path, in PdfGraphicsState state, bool stroke)
+    private void PaintEvent(in PdfPath path, in PdfGraphicsState state, bool stroke, bool fillPaint)
     {
-        if (_skip > 0 || path.IsEmpty)
+        if (path.IsEmpty)
         {
             return;
         }
 
+        NotePatterns(in state, fillPaint, stroke);
         PdfBounds b = state.Ctm.TransformBounds(path.ControlBounds());
         if (stroke)
         {
@@ -787,18 +1073,20 @@ internal sealed class ContentRedactor : PdfDevice, IContentTap
 
         if (Meets(in b))
         {
+            if (_t3Depth > 0)
+            {
+                _t3Hit = true;
+                return;
+            }
+
             _paintHit = true;
             _paintCtm = state.Ctm;
+            _paintPattern = (fillPaint && state.FillColor.Pattern is PdfTilingPattern) || (stroke && state.StrokeColor.Pattern is PdfTilingPattern);
         }
     }
 
     public override void PaintShading(PdfShading shading, in PdfGraphicsState state)
     {
-        if (_skip > 0)
-        {
-            return;
-        }
-
         PdfBounds b = _clip;
         if (shading.BBox is { } bb)
         {
@@ -808,20 +1096,30 @@ internal sealed class ContentRedactor : PdfDevice, IContentTap
 
         if (Meets(in b))
         {
+            if (_t3Depth > 0)
+            {
+                _t3Hit = true;
+                return;
+            }
+
             _shadingHit = true;
         }
     }
 
     public override void DrawImage(in PdfImage image, in PdfGraphicsState state)
     {
-        if (_skip > 0)
-        {
-            return;
-        }
-
+        // A stencil mask paints in the current colour, so a pattern selected for it is used. Counted whether or not the image
+        // is later changed.
+        AddUsedPattern(state.FillColor.Pattern);
         PdfBounds b = state.Ctm.TransformBounds(new PdfBounds(0, 0, 1, 1));
         if (Meets(in b))
         {
+            if (_t3Depth > 0)
+            {
+                _t3Hit = true;
+                return;
+            }
+
             _imageHit = true;
             _imageCtm = state.Ctm;
         }
@@ -829,12 +1127,9 @@ internal sealed class ContentRedactor : PdfDevice, IContentTap
 
     public override void ShowGlyphRun(in PdfGlyphRun run, in PdfGraphicsState state)
     {
-        if (_skip > 0)
-        {
-            return;
-        }
-
+        NotePatterns(in state, true, true);
         double fs = run.FontSize, th = run.HorizontalScale;
+        bool isType3 = run.Font?.GetName("Subtype") == "Type3";
         var scale = new PdfMatrix(fs * th, 0, 0, fs, 0, run.Rise);
         ReadOnlySpan<PdfGlyph> glyphs = run.Glyphs.Span;
         Span<double> q = stackalloc double[8];
@@ -902,6 +1197,14 @@ internal sealed class ContentRedactor : PdfDevice, IContentTap
                 hit = GlyphHit(q, none);
             }
 
+            if (_t3Depth > 0)
+            {
+                // Text inside a Type 3 procedure only decides whether the glyph that holds it is removed.
+                _t3Hit |= hit;
+                AddUsedFont(run.Font);
+                continue;
+            }
+
             double adj = 0;
             if (!none && fs != 0 && double.IsFinite(fs))
             {
@@ -920,7 +1223,7 @@ internal sealed class ContentRedactor : PdfDevice, IContentTap
                 }
             }
 
-            _marks.Add(new GlyphMark { Len = g.ByteLength, Hit = hit, Adjust = adj });
+            _marks.Add(new GlyphMark { Len = g.ByteLength, Hit = hit, Adjust = adj, Code = g.Code, Font = run.Font, Type3Font = isType3 && !none ? run.Font : null });
             if (hit)
             {
                 _anyGlyphHit = true;
@@ -1287,6 +1590,7 @@ internal sealed class ContentRedactor : PdfDevice, IContentTap
                         MarkHit();
                         ctx.Res.Touch("XObject", name);
                         string newName = ctx.Res.Add("XObject", "OPRi", hit.Item2!);
+                        ctx.Res.Used.Add(("XObject", newName));
                         ctx.Out.Add("/" + newName + " Do\n");
                         ctx.Copied = end;
                         ctx.Changed = true;
@@ -1307,6 +1611,7 @@ internal sealed class ContentRedactor : PdfDevice, IContentTap
             PdfReference variant = MakeFormVariant(xo, child);
             ctx.Res.Touch("XObject", name);
             string newName = ctx.Res.Add("XObject", "OPRf", variant);
+            ctx.Res.Used.Add(("XObject", newName));
             ctx.Out.Add("/" + newName + " Do\n");
             ctx.Copied = end;
             ctx.Changed = true;
@@ -1315,6 +1620,52 @@ internal sealed class ContentRedactor : PdfDevice, IContentTap
 
         ctx.Res.Use("XObject", name);
         return false;
+    }
+
+    // A soft mask whose group was rewritten: the graphics state is copied with the new group, and the content selects the copy.
+    private bool HandleSoftMaskState(Ctx ctx, Ctx group, int start, int end)
+    {
+        string? name = ReadFirstName(ctx, start, end);
+        PdfDictionary? state = name is null ? null : ctx.Res.Effective?.GetDictionary("ExtGState")?.GetDictionary(name);
+        if (state?.Get("SMask") is not PdfDictionary mask || mask.GetStream("G") is not { } source)
+        {
+            return false;
+        }
+
+        PdfReference variant = MakeFormVariant(source, group);
+        var newMask = new PdfDictionary();
+        foreach (string k in (string[])[.. mask.Keys])
+        {
+            if (k == "G")
+            {
+                newMask.SetEntry(k, variant);
+            }
+            else if (mask.GetRaw(k) is { } raw)
+            {
+                newMask.SetEntry(k, FormFiller.Clone(_doc, raw));
+            }
+        }
+
+        var newState = new PdfDictionary();
+        foreach (string k in (string[])[.. state.Keys])
+        {
+            if (k == "SMask")
+            {
+                newState.SetEntry(k, newMask);
+            }
+            else if (state.GetRaw(k) is { } raw)
+            {
+                newState.SetEntry(k, FormFiller.Clone(_doc, raw));
+            }
+        }
+
+        ctx.Res.Touch("ExtGState", name!);
+        string newName = ctx.Res.Add("ExtGState", "OPRg", newState);
+        ctx.Res.Used.Add(("ExtGState", newName));
+        ctx.Out.Add("/" + newName + " gs\n");
+        ctx.Copied = end;
+        ctx.Changed = true;
+        return true;
     }
 
     private PdfReference MakeFormVariant(PdfStream? original, Ctx child)
@@ -1333,6 +1684,12 @@ internal sealed class ContentRedactor : PdfDevice, IContentTap
         }
 
         child.Res.Prune();
+        if (!_noPrune)
+        {
+            child.Res.RemoveUnused(child.Res.Used);
+            StubUnused(child.Res);
+        }
+
         PdfStream ns = _doc.CreateStream(bytes, compress: true);
         PdfDictionary nd = ns.Dictionary;
         if (original is not null)
@@ -1360,11 +1717,303 @@ internal sealed class ContentRedactor : PdfDevice, IContentTap
         if (child.Res.GetOwned() is { } owned)
         {
             nd.SetEntry("Resources", owned);
+            child.Res.Attached = true;
         }
 
         PdfReference reference = _doc.AddObject(ns);
         _variants[key] = reference;
         return reference;
+    }
+
+    // ---- patterns and fonts that are painted with ----
+
+    // What the operator being read paints with. Inside a Type 3 procedure the paint is counted at once (the glyph decides later
+    // whether it stays, and a stand-in for something in use would break the glyph).
+    private void NotePatterns(in PdfGraphicsState state, bool fill, bool stroke)
+    {
+        if (_t3Depth > 0)
+        {
+            AddUsedPattern(state.FillColor.Pattern);
+            AddUsedPattern(state.StrokeColor.Pattern);
+            return;
+        }
+
+        if (fill && state.FillColor.Pattern is { } f)
+        {
+            _opPatterns.Add(f);
+        }
+
+        if (stroke && state.StrokeColor.Pattern is { } s)
+        {
+            _opPatterns.Add(s);
+        }
+    }
+
+    private void RecordOpPatterns()
+    {
+        foreach (PdfPattern p in _opPatterns)
+        {
+            AddUsedPattern(p);
+        }
+
+        _opPatterns.Clear();
+    }
+
+    // A font is known by the object number its resource entry points at; a dictionary that was never selected by name (through an
+    // ExtGState, say) is unknown, and then no font is replaced on the page.
+    private void AddUsedFont(PdfDictionary? font)
+    {
+        if (font is null)
+        {
+            return;
+        }
+
+        if (_fontRefs.TryGetValue(font, out int n) || font.Reference is { } r && (n = r.Number) >= 0)
+        {
+            _usedFonts.Add(n);
+        }
+        else
+        {
+            _fontUnknown = true;
+        }
+    }
+
+    private void AddUsedPattern(PdfPattern? p)
+    {
+        if (p?.Source.Reference is { } r)
+        {
+            _usedPatterns.Add(r.Number);
+        }
+    }
+
+    // Fonts and tiling patterns that nothing kept paints with are replaced by a bare stand-in. Entries that are not separate
+    // objects are left alone: they cannot be told apart from a used one by identity.
+    private void StubUnused(ResourceEdit edit)
+    {
+        if (!_fontUnknown)
+        {
+            edit.StubUnused("Font", _usedFonts, _stubs, _ => _stubFont ??= NewStub(font: true, 1));
+        }
+
+        edit.StubUnused("Pattern", _usedPatterns, _stubs, d =>
+        {
+            if (d.GetInt("PatternType", 0) != 1)
+            {
+                return null;
+            }
+
+            return d.GetInt("PaintType", 1) == 2 ? _stubStencilPattern ??= NewStub(font: false, 2) : _stubColoredPattern ??= NewStub(font: false, 1);
+        });
+    }
+
+    private PdfReference NewStub(bool font, int paintType)
+    {
+        PdfReference reference;
+        if (font)
+        {
+            var d = new PdfDictionary();
+            d.SetEntry("Type", new PdfName("Font"));
+            d.SetEntry("Subtype", new PdfName("Type1"));
+            d.SetEntry("BaseFont", new PdfName("Helvetica"));
+            reference = _doc.AddObject(d);
+        }
+        else
+        {
+            PdfStream cell = _doc.CreateStream(ReadOnlySpan<byte>.Empty);
+            PdfDictionary d = cell.Dictionary;
+            d.SetEntry("Type", new PdfName("Pattern"));
+            d.SetEntry("PatternType", new PdfInteger(1));
+            d.SetEntry("PaintType", new PdfInteger(paintType));
+            d.SetEntry("TilingType", new PdfInteger(1));
+            var box = new PdfArray();
+            foreach (long v in (long[])[0, 0, 1, 1])
+            {
+                box.Append(new PdfInteger(v));
+            }
+
+            d.SetEntry("BBox", box);
+            d.SetEntry("XStep", new PdfInteger(1));
+            d.SetEntry("YStep", new PdfInteger(1));
+            d.SetEntry("Resources", new PdfDictionary());
+            reference = _doc.AddObject(cell);
+        }
+
+        _stubs.Add(reference.Number);
+        return reference;
+    }
+
+    // ---- what is left reachable ----
+
+    /// <summary>
+    /// Called when the whole page has been read. Takes the procedures of removed Type 3 glyphs out of the fonts that show them,
+    /// then drops the resources the rewritten content no longer uses, so the removed content is not reachable through them.
+    /// Nothing is dropped from a page that nothing was removed from.
+    /// </summary>
+    public void FinishResources(PdfPage page)
+    {
+        if (!Changed)
+        {
+            return;
+        }
+
+        bool sealedOff = _noPrune || AnnotationsRunAgainstPageResources(page);
+        if (!sealedOff)
+        {
+            StubUnused(PageResources);
+        }
+
+        BuildType3Variants();
+        if (sealedOff)
+        {
+            return;
+        }
+
+        PageResources.RemoveUnused(PageResources.Used);
+    }
+
+    // An appearance stream with no /Resources runs against the page's (the interpreter does the same), and annotations that
+    // meet no area are not run here, so their names cannot be seen.
+    private static bool AnnotationsRunAgainstPageResources(PdfPage page)
+    {
+        foreach (PdfAnnotation a in page.Annotations)
+        {
+            PdfObject? normal = a.Dictionary.GetDictionary("AP")?.Get("N");
+            if (normal is PdfStream s)
+            {
+                if (!s.Dictionary.ContainsKey("Resources"))
+                {
+                    return true;
+                }
+            }
+            else if (normal is PdfDictionary states)
+            {
+                foreach (string k in states.Keys)
+                {
+                    if (states.Get(k) is PdfStream ss && !ss.Dictionary.ContainsKey("Resources"))
+                    {
+                        return true;
+                    }
+                }
+            }
+        }
+
+        return false;
+    }
+
+    private void BuildType3Variants()
+    {
+        foreach ((object key, T3Use use) in _t3Fonts)
+        {
+            if (use.Removed.Count == 0 || use.Font.GetDictionary("CharProcs") is not { } procs || _doc.GetFont(use.Font) is not Type3Font font)
+            {
+                continue;
+            }
+
+            HashSet<string> keep = GlyphNames(font, use.Kept);
+            HashSet<string> drop = GlyphNames(font, use.Removed);
+            drop.ExceptWith(keep);
+            drop.IntersectWith(procs.Keys);
+            if (drop.Count == 0)
+            {
+                continue;
+            }
+
+            var variant = new PdfDictionary();
+            foreach (string k in (string[])[.. use.Font.Keys])
+            {
+                if (k != "CharProcs" && use.Font.GetRaw(k) is { } raw)
+                {
+                    variant.SetEntry(k, FormFiller.Clone(_doc, raw));
+                }
+            }
+
+            var kept = new PdfDictionary();
+            var used = new HashSet<(string, string)>();
+            bool scanned = true;
+            foreach (string name in (string[])[.. procs.Keys])
+            {
+                if (drop.Contains(name) || procs.GetRaw(name) is not { } rawProc)
+                {
+                    continue;
+                }
+
+                kept.SetEntry(name, FormFiller.Clone(_doc, rawProc));
+                try
+                {
+                    scanned &= procs.Get(name) is PdfStream ps && ResourceScan.Collect(ps.GetDecodedBytes(_ct), _doc.Limits.MaxNestingDepth, used);
+                }
+                catch (PdfException)
+                {
+                    scanned = false;
+                }
+            }
+
+            variant.SetEntry("CharProcs", kept);
+            if (scanned && use.Font.GetDictionary("Resources") is { } resources && !ProceduresInheritResources(resources, used))
+            {
+                var edit = new ResourceEdit(_doc, resources);
+                edit.RemoveUnused(used);
+                if (edit.Owned is { } pruned)
+                {
+                    variant.SetEntry("Resources", pruned);
+                }
+            }
+
+            PdfReference reference = _doc.AddObject(variant);
+            foreach (ResourceEdit e in _edits)
+            {
+                if (e.Attached || ReferenceEquals(e, PageResources))
+                {
+                    e.ReplaceFont(key, reference);
+                }
+            }
+        }
+    }
+
+    private static HashSet<string> GlyphNames(Type3Font font, HashSet<int> codes)
+    {
+        var names = new HashSet<string>(StringComparer.Ordinal);
+        byte[] one = new byte[1];
+        foreach (int code in codes)
+        {
+            one[0] = (byte)code;
+            font.Next(one, 0, out FontGlyph? g);
+            if (g?.Name is { } n)
+            {
+                names.Add(n);
+            }
+        }
+
+        return names;
+    }
+
+    // Forms, soft-mask groups and Type 3 fonts without resources of their own take the ones around them, so what they name is
+    // not visible in the procedures; then nothing is dropped.
+    private static bool ProceduresInheritResources(PdfDictionary resources, HashSet<(string, string)> used)
+    {
+        foreach ((string category, string name) in used)
+        {
+            PdfObject? o = resources.GetDictionary(category)?.Get(name);
+            if (category == "XObject" && o is PdfStream xo && xo.Dictionary.GetName("Subtype") == "Form" && !xo.Dictionary.ContainsKey("Resources"))
+            {
+                return true;
+            }
+
+            if (category == "ExtGState" && o is PdfDictionary gs)
+            {
+                if (gs.ContainsKey("Font") || (gs.Get("SMask") is PdfDictionary sm && sm.GetStream("G") is { } g && !g.Dictionary.ContainsKey("Resources")))
+                {
+                    return true;
+                }
+            }
+
+            if (category == "Font" && o is PdfDictionary fd && fd.GetName("Subtype") == "Type3" && !fd.ContainsKey("Resources"))
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     // ---- ClipOut ----
