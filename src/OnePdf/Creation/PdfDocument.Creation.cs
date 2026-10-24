@@ -3,6 +3,7 @@ using System.Runtime.CompilerServices;
 using System.Text;
 using OnePdf.FontData;
 using OnePdf.Forms;
+using OnePdf.Images;
 
 namespace OnePdf;
 
@@ -290,6 +291,116 @@ public sealed partial class PdfDocument
         return new PdfCreatedImage(this, AddObject(s), width, height, !alpha.IsEmpty);
     }
 
+    /// <summary>
+    /// Adds a PNG image (W3C PNG / ISO 15948) as an image XObject. Gray (1, 2, 4, 8, 16 bits), RGB (8, 16), palette (1 to 8 bits,
+    /// as <c>/Indexed</c>) and the two alpha colour types are read; interlacing (Adam7) is accepted.
+    /// </summary>
+    /// <remarks>
+    /// <para>A non-interlaced image without an alpha channel is not decoded: its IDAT data goes into a <c>FlateDecode</c> stream with
+    /// <c>/Predictor 15</c> (ISO 32000-2 7.4.4.4), byte for byte. Interlaced images and images with alpha are decoded; the alpha
+    /// channel becomes a <c>/SMask</c>. A <c>tRNS</c> chunk becomes a colour-key <c>/Mask</c> when it can (gray, RGB, and palettes
+    /// whose transparent entries form one run), otherwise a soft mask. An <c>iCCP</c> chunk with an RGB or gray profile that matches
+    /// the image becomes an <c>ICCBased</c> colour space. <c>gAMA</c>, <c>cHRM</c>, <c>sRGB</c>, <c>sBIT</c> and the other ancillary
+    /// chunks are ignored, and samples are used as stored. APNG animation frames are ignored (the default image is used).</para>
+    /// <para>A chunk with a bad CRC is an error when critical (IHDR, PLTE, IDAT); a bad <c>tRNS</c> or <c>iCCP</c> chunk is skipped
+    /// with a warning in <see cref="Diagnostics"/>. Limits: <see cref="PdfLimits.MaxImagePixels"/> and
+    /// <see cref="PdfLimits.MaxDecodedStreamBytes"/>, checked from the header before any pixel memory is allocated.</para>
+    /// </remarks>
+    /// <param name="png">The PNG file.</param>
+    /// <exception cref="InvalidOperationException">The document is not editable.</exception>
+    /// <exception cref="PdfFormatException">The data is not a valid PNG, or is one this reader does not support.</exception>
+    /// <exception cref="PdfLimitException">The image is larger than the document's limits.</exception>
+    public PdfCreatedImage AddPngImage(ReadOnlyMemory<byte> png)
+    {
+        EnsureEditable(0);
+        PngImageData img = PngReader.Read(png.Span, Limits);
+        foreach (string w in img.Warnings)
+        {
+            ReportWarning(w, -1, -1);
+        }
+
+        PdfObject colorSpace = img.Kind switch
+        {
+            PngKind.Gray when img.IccProfileZlib is not null => IccColorSpace(img),
+            PngKind.Gray => new PdfName("DeviceGray"),
+            PngKind.Rgb when img.IccProfileZlib is not null => IccColorSpace(img),
+            PngKind.Rgb => new PdfName("DeviceRGB"),
+            _ => IndexedColorSpace(img),
+        };
+
+        PdfStream s = CreateStream([], false);
+        if (img.IsPassThrough)
+        {
+            s.SetStoredBytes(img.Data);
+            s.Dictionary.SetEntry("Filter", new PdfName("FlateDecode"));
+            var parms = new PdfDictionary();
+            parms.SetEntry("Predictor", new PdfInteger(15));
+            parms.SetEntry("Colors", new PdfInteger(img.Components));
+            parms.SetEntry("BitsPerComponent", new PdfInteger(img.BitsPerComponent));
+            parms.SetEntry("Columns", new PdfInteger(img.Width));
+            s.Dictionary.SetEntry("DecodeParms", parms);
+        }
+        else
+        {
+            s.SetData(img.Data, true);
+        }
+
+        PdfDictionary d = s.Dictionary;
+        d.SetEntry("Type", new PdfName("XObject"));
+        d.SetEntry("Subtype", new PdfName("Image"));
+        d.SetEntry("Width", new PdfInteger(img.Width));
+        d.SetEntry("Height", new PdfInteger(img.Height));
+        d.SetEntry("ColorSpace", colorSpace);
+        d.SetEntry("BitsPerComponent", new PdfInteger(img.BitsPerComponent));
+        if (img.ColorKey is { } key)
+        {
+            var mask = new PdfArray();
+            foreach (int v in key)
+            {
+                mask.Append(new PdfInteger(v));
+            }
+
+            d.SetEntry("Mask", mask);
+        }
+
+        if (img.Alpha is { } alpha)
+        {
+            PdfStream m = CreateStream(alpha, true);
+            PdfDictionary md = m.Dictionary;
+            md.SetEntry("Type", new PdfName("XObject"));
+            md.SetEntry("Subtype", new PdfName("Image"));
+            md.SetEntry("Width", new PdfInteger(img.Width));
+            md.SetEntry("Height", new PdfInteger(img.Height));
+            md.SetEntry("ColorSpace", new PdfName("DeviceGray"));
+            md.SetEntry("BitsPerComponent", new PdfInteger(img.AlphaBitsPerComponent));
+            d.SetEntry("SMask", AddObject(m));
+        }
+
+        return new PdfCreatedImage(this, AddObject(s), img.Width, img.Height, img.Alpha is not null || img.ColorKey is not null);
+    }
+
+    private PdfArray IccColorSpace(PngImageData img)
+    {
+        PdfStream icc = CreateStream([], false);
+        icc.SetStoredBytes(img.IccProfileZlib);
+        icc.Dictionary.SetEntry("Filter", new PdfName("FlateDecode"));
+        icc.Dictionary.SetEntry("N", new PdfInteger(img.IccComponents));
+        var cs = new PdfArray();
+        cs.Append(new PdfName("ICCBased"));
+        cs.Append(AddObject(icc));
+        return cs;
+    }
+
+    private PdfArray IndexedColorSpace(PngImageData img)
+    {
+        var cs = new PdfArray();
+        cs.Append(new PdfName("Indexed"));
+        cs.Append(img.IccProfileZlib is not null ? IccColorSpace(img) : new PdfName("DeviceRGB"));
+        cs.Append(new PdfInteger((img.Palette!.Length / 3) - 1));
+        cs.Append(new PdfString(img.Palette));
+        return cs;
+    }
+
     private void CheckPixels(int width, int height)
     {
         if ((long)width * height > Limits.MaxImagePixels)
@@ -486,11 +597,13 @@ public sealed class PdfPageContentBuilder : PdfContentBuilder
 public sealed class PdfFormContentBuilder : PdfContentBuilder
 {
     private readonly PdfRectangle _box;
+    private readonly PdfFormXObject? _reserved;
 
-    internal PdfFormContentBuilder(PdfDocument document, PdfRectangle box)
+    internal PdfFormContentBuilder(PdfDocument document, PdfRectangle box, PdfFormXObject? reserved = null)
         : base(document, null)
     {
         _box = box;
+        _reserved = reserved;
     }
 
     /// <summary>Writes the form into the document and returns it.</summary>
@@ -517,7 +630,19 @@ public sealed class PdfFormContentBuilder : PdfContentBuilder
         PageContentWriter.AddResources(doc, d.GetDictionary("Resources")!, "XObject", XObjectResources);
         PageContentWriter.AddResources(doc, d.GetDictionary("Resources")!, "ExtGState", StateResources);
         IsClosed = true;
-        return new PdfFormXObject(doc, doc.AddObject(s), _box);
+        PdfFormXObject form;
+        if (_reserved is not null)
+        {
+            doc.SetObject(_reserved.Reference.Number, s);
+            form = _reserved;
+        }
+        else
+        {
+            form = new PdfFormXObject(doc, doc.AddObject(s), _box);
+        }
+
+        AfterCommit?.Invoke();
+        return form;
     }
 }
 

@@ -16,6 +16,8 @@
     <!-- The signature target signs its starting files with the test kit that the unit tests use. -->
     <Compile Include="../../tests/OnePdf.Tests/Signatures/SigKit.cs" Link="Signatures/SigKit.cs" />
     <Compile Include="../../tests/OnePdf.Tests/Signatures/SigKit.Pdf.cs" Link="Signatures/SigKit.Pdf.cs" />
+    <!-- The png target starts from PNG files this small encoder writes. -->
+    <Compile Include="../../tests/OnePdf.Tests/Images/PngKit.cs" Link="Images/PngKit.cs" />
   </ItemGroup>
 
   <ItemGroup>

@@ -24,6 +24,12 @@ if (OnePdf.AotSmoke.CreationSmoke.Run() is { } creationFailure)
     return 1;
 }
 
+if (OnePdf.AotSmoke.WriterSmoke.Run() is { } writerFailure)
+{
+    Console.Error.WriteLine("streaming writer: " + writerFailure);
+    return 1;
+}
+
 if (OnePdf.AotSmoke.PdfASmoke.Run() is { } pdfaFailure)
 {
     Console.Error.WriteLine("PDF/A: " + pdfaFailure);

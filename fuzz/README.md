@@ -13,6 +13,7 @@ One executable (`fuzz/OnePdf.Fuzz`) holds one target per input surface. SharpFuz
 | `ccitt` | 6 parameter bytes, then an encoded stream | CCITTFaxDecode |
 | `security` | encryption-dictionary values, a document ID, a password | standard security handler R2–R6 |
 | `pdffont` | a PDF file | PDF font dictionaries: every font of every page, whole code range through metrics, Unicode, outlines |
+| `png` | a mode byte (bit 0: recompute chunk CRCs), then a PNG file | the minimal PNG reader: every colour type and depth, Adam7, tRNS, iCCP, bad CRCs and sizes; the image is added, drawn, saved, reopened and interpreted |
 | `redact` | 20 parameter bytes (options, four areas), then a PDF file or a bare content stream | redaction: rewriting page, form and annotation content, image blanking, annotations, metadata; full save; reopen; no glyph left inside an area |
 | `fontsubset` | an option byte, 8 character picks, then a TrueType/OpenType font | adding a font to a new document, drawing with it, subsetting on save (TrueType `glyf` and CFF), reading the subset back |
 | `fontprogram` | a mode byte, then a font program | Type 1, CFF, TrueType/OpenType outlines and cmaps; mode 5 runs the TrueType instruction interpreter on any TrueType font |
