@@ -239,10 +239,19 @@ public sealed class ItemList : Element
             double indent = markerColumn + Math.Max(0, list.MarkerGap);
             double contentWidth = c.WidthBounded ? Math.Max(0, c.Width - indent) : double.PositiveInfinity;
             ctx.PushItem(index);
-            ctx.ListDepth++;
             try
             {
-                FlowFit content = item.Content.Layout(ctx, new Constraint(contentWidth, available, atTop), resume);
+                FlowFit content;
+                ctx.ListDepth++;
+                try
+                {
+                    content = item.Content.Layout(ctx, new Constraint(contentWidth, available, atTop), resume);
+                }
+                finally
+                {
+                    ctx.ListDepth--;
+                }
+
                 if (content.Kind == FlowKind.NoFit)
                 {
                     return content;
@@ -285,7 +294,6 @@ public sealed class ItemList : Element
             }
             finally
             {
-                ctx.ListDepth--;
                 ctx.Pop();
             }
         }

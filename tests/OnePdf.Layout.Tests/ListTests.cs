@@ -59,6 +59,8 @@ public class ListTests
         Assert.Contains("a) sub one", text, StringComparison.Ordinal);
         Assert.Contains("b) sub two", text, StringComparison.Ordinal);
         Assert.Contains("[3] formatted", text, StringComparison.Ordinal);
+        Assert.Contains("\u2022 first", text, StringComparison.Ordinal);
+        Assert.Contains("\u2013 deep bullet", text, StringComparison.Ordinal);
     }
 
     [Fact]

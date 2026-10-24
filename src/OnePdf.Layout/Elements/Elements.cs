@@ -591,6 +591,9 @@ internal interface ITextBlock
     /// <summary>Width of the widest unbreakable piece (the longest word): the narrowest width the text can wrap to without cutting a word.</summary>
     double MinContentWidth { get; }
 
+    /// <summary>Distance from the top of the block down to the first line's baseline.</summary>
+    double FirstBaseline { get; }
+
     double LineHeight(int line);
 
     void Draw(in DrawContext d, Placed p, int first, int count);
