@@ -56,4 +56,27 @@ renderer.Draw(builder, first, x: 50, top: 780);
 
 A paragraph holds at most 2^24 characters. Layout work is linear in the text for any number of lines: the scan for a break stops once the content has passed the width. The shaped paragraph is immutable; `Layout` caches hyphen glyphs, so use one shaped paragraph from one thread at a time. Output is byte-identical between runs (no fused multiply-add, fixed evaluation order).
 
-Not included: vertical writing, Knuth–Plass breaking, bundled hyphenation patterns, colour glyphs, inline elements, tab stops.
+Not included: vertical writing, Knuth–Plass breaking, colour glyphs, inline elements, tab stops.
+
+## Hyphenation patterns
+
+The `RecursiveAI.OnePdf.Hyphenation` package supplies `IHyphenator`s built on Liang's algorithm (the method of TeX). Layout does not depend on it, and without a hyphenator only soft hyphens break words.
+
+```csharp
+using OnePdf.Hyphenation;
+
+page.Content().Text(t =>
+{
+    t.Language("de-DE");
+    t.Hyphenator(Hyphenators.Auto());     // picks patterns from each span's language; no language, no hyphenation
+    t.Justify();
+    t.Span("Donaudampfschifffahrtsgesellschaft ...");
+});
+```
+
+- `Hyphenators.For("en-GB")` gives one language's `PatternHyphenator` (null when none is bundled); `Hyphenators.Auto(options, defaultLanguage)` dispatches on the language of each word's style. `Hyphenators.Languages` lists the 26 bundled ids; `Resolve` maps a tag to one (`en` is American unless the region is GB, AU, NZ, IE, ZA, IN, SG or HK; `de` is the 1996 spelling, `de-1901` the traditional one, `de-CH` the Swiss traditional patterns; `pt-BR` is `pt`).
+- **Defaults.** Words under 5 characters are not hyphenated. At least `LeftMin` letters stay before a hyphen and `RightMin` after it; by default these are the language's own typesetting minimums from its pattern file (2 and 3 for American and British English, Portuguese, Slovak, Estonian, Welsh and Irish; 2 and 2 for most others, 1 and 1 for monotonic Greek). All three are set through `HyphenationOptions`. Words over 255 characters are left alone.
+- **Exceptions** in the pattern files replace the patterns for that word, and are held to the same minimums. Custom data goes through `PatternHyphenator.FromPatterns`.
+- **Output.** The engine draws the hyphen from the line's font and maps it to U+00AD, so the text layer reads `hyphen\u00ADation`; extraction with `JoinHyphenatedWords` returns the whole word. Tagged and PDF/A output stay compliant (checked with veraPDF).
+- **Data.** Each language is a compressed embedded resource read the first time it is used. Sources, licences and per-file notices are in the package's `THIRD-PARTY-NOTICES.md`; the data is regenerated with `tools/hyphenation/generate.py`. Not bundled, for licence reasons: Swedish, Finnish, Icelandic, Catalan, Croatian, Russian, Turkish, Esperanto, Czech, Hungarian, Latvian and Romanian.
+- A word is the run of letters and combining marks the engine finds, so apostrophes and hyphens split words (`l'avion` is `l` and `avion`).
