@@ -1,6 +1,7 @@
 using System.Linq;
 using OnePdf.Filters;
 using OnePdf.Internal;
+using OnePdf.Security;
 
 namespace OnePdf;
 
@@ -159,12 +160,16 @@ public sealed class PdfStream : PdfObject
     }
 
     /// <summary>The stored (still filtered) bytes with the document's encryption removed.</summary>
-    internal ReadOnlyMemory<byte> GetStoredBytes(IReadOnlyList<string> filters)
+    internal ReadOnlyMemory<byte> GetStoredBytes(IReadOnlyList<string> filters) => GetStoredBytes(filters, out _);
+
+    /// <summary>As above; <paramref name="issues"/> reports damaged ciphertext (the result is then only what decrypted).</summary>
+    internal ReadOnlyMemory<byte> GetStoredBytes(IReadOnlyList<string> filters, out DecryptIssues issues)
     {
+        issues = DecryptIssues.None;
         ReadOnlyMemory<byte> raw = GetRawBytes();
         if (raw.Length > 0 && _memory is null && Reference is { } self && !IsExternal)
         {
-            raw = _resolver.Doc.DecryptStreamData(this, raw, self, filters);
+            raw = _resolver.Doc.DecryptStreamData(this, raw, self, filters, out issues);
         }
 
         return raw;
@@ -176,10 +181,29 @@ public sealed class PdfStream : PdfObject
         PdfDocument doc = _resolver.Doc;
         IReadOnlyList<string> filters = FilterNames;
         ReadOnlyMemory<byte> raw = GetStoredBytes(filters);
+        FilterResult r = DecodeStored(raw, filters, expectedSize, ct);
+        int objNum = Reference?.Number ?? -1;
+        if ((r.Issues & FilterIssues.LimitExceeded) != 0)
+        {
+            throw new PdfLimitException(r.Message ?? "A stream decodes to more than the configured limits allow.") { ObjectNumber = objNum };
+        }
 
+        // Stopping at an image codec is not damage; everything else is a repair worth recording.
+        if ((r.Issues & ~FilterIssues.UnsupportedFilter) != 0)
+        {
+            doc.ReportWarning(r.Message ?? "The stream data is damaged.", objNum, -1);
+        }
+
+        return r.Data;
+    }
+
+    /// <summary>Runs the filter chain over already decrypted stored bytes; no diagnostics, no exceptions for damage or limits (they are in the result).</summary>
+    private FilterResult DecodeStored(ReadOnlyMemory<byte> raw, IReadOnlyList<string> filters, long expectedSize, CancellationToken ct)
+    {
+        PdfDocument doc = _resolver.Doc;
         if (filters.Count == 0)
         {
-            return raw;
+            return new FilterResult(raw, FilterIssues.None, null, -1);
         }
 
         FilterParameters?[] parameters = FilterParametersReader.ForChain(Dictionary.Get("DecodeParms"), filters);
@@ -202,27 +226,54 @@ public sealed class PdfStream : PdfObject
 
             if (keptNames.Count == 0)
             {
-                return raw;
+                return new FilterResult(raw, FilterIssues.None, null, -1);
             }
 
             filters = keptNames;
             parameters = [.. keptParams];
         }
 
-        FilterResult r = StreamFilters.DecodeChain(filters, parameters, raw, limits, expectedSize, ct);
-        int objNum = Reference?.Number ?? -1;
-        if ((r.Issues & FilterIssues.LimitExceeded) != 0)
+        return StreamFilters.DecodeChain(filters, parameters, raw, limits, expectedSize, ct);
+    }
+
+    /// <summary>
+    /// Reads and decodes the stream the way a save and an interpreter would, and says why the content cannot be relied on: unreadable or
+    /// undecryptable bytes, a limit, or filter data that is cut short or invalid. Returns null when the stream is sound. Repairs that lose
+    /// nothing (a wrong <c>/Length</c> found by scanning, a missing or wrong checksum, a missing end marker, trailing bytes) are not problems.
+    /// External streams are not read.
+    /// </summary>
+    internal string? FindUnreadableReason(CancellationToken ct)
+    {
+        if (IsExternal)
         {
-            throw new PdfLimitException(r.Message ?? "A stream decodes to more than the configured limits allow.") { ObjectNumber = objNum };
+            return null;
         }
 
-        // Stopping at an image codec is not damage; everything else is a repair worth recording.
-        if ((r.Issues & ~FilterIssues.UnsupportedFilter) != 0)
+        IReadOnlyList<string> filters = FilterNames;
+        ReadOnlyMemory<byte> stored;
+        DecryptIssues dec;
+        try
         {
-            doc.ReportWarning(r.Message ?? "The stream data is damaged.", objNum, -1);
+            stored = GetStoredBytes(filters, out dec);
+        }
+        catch (PdfException ex)
+        {
+            return "its stored bytes cannot be read: " + ex.Message;
         }
 
-        return r.Data;
+        if (dec != DecryptIssues.None)
+        {
+            return $"it cannot be decrypted cleanly ({dec})";
+        }
+
+        FilterResult r = DecodeStored(stored, filters, 0, ct);
+        const FilterIssues Lossy = FilterIssues.Truncated | FilterIssues.DataError | FilterIssues.LimitExceeded | FilterIssues.BadParameters;
+        if ((r.Issues & Lossy) != 0)
+        {
+            return "its data cannot be decoded: " + (r.Message ?? r.Issues.ToString());
+        }
+
+        return null;
     }
 
     /// <summary>

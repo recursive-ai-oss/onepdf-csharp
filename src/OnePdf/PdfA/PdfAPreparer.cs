@@ -586,6 +586,13 @@ internal static class PdfAPreparer
     {
         string conf = options is null ? string.Empty : ConformanceLetter(options.Conformance);
         PdfStream? current = doc.Catalog.GetStream("Metadata");
+        if (current is not null && current.FindUnreadableReason(CancellationToken.None) is not null)
+        {
+            // A packet that exists but cannot be read is not replaced by one built from Info: its properties would be lost. The content-loss
+            // scan of the checkers reports it, so neither the check nor the save passes.
+            return;
+        }
+
         if (current is not null && current.FilterNames.Count == 0 && current.Dictionary.GetName("Type") == "Metadata" && current.Dictionary.GetName("Subtype") == "XML")
         {
             XmpMetadata? xmp = doc.Xmp;

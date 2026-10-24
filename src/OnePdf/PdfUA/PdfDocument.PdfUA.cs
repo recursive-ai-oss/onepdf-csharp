@@ -1,3 +1,4 @@
+using System.Linq;
 using OnePdf.PdfA;
 using OnePdf.PdfUA;
 using OnePdf.Writing;
@@ -98,7 +99,11 @@ internal static class PdfUAProcessor
                 var all = new List<PdfAViolation>(av);
                 foreach (PdfUAViolation v in failures)
                 {
-                    all.Add(new PdfAViolation("PDF/UA-1 " + v.Clause, v.Message, v.ObjectNumber, v.PageIndex));
+                    // The content-loss findings are the same in both checkers; list each once.
+                    if (!av.Any(a => a.ObjectNumber == v.ObjectNumber && a.Message == v.Message))
+                    {
+                        all.Add(new PdfAViolation("PDF/UA-1 " + v.Clause, v.Message, v.ObjectNumber, v.PageIndex));
+                    }
                 }
 
                 throw new PdfAException(pa.Name + " with PDF/UA-1", all);

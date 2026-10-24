@@ -130,12 +130,33 @@ internal sealed class PdfAChecker
         CheckColourUse();
         CheckCreatedFonts();
         CheckTransparency();
+        CheckContentLoss();
         if (_seen.Count > 8388607)
         {
             Add("6.1.13", "The file has more than 8388607 indirect objects.", -1, -1);
         }
 
         return _violations;
+    }
+
+    // A save must not drop what it cannot read (see ContentLossScan): the same findings are reported here and by the PDF/UA checker, so a
+    // document that passes the check is written without loss and one that would lose content is refused by the check as well as the save.
+    private void CheckContentLoss()
+    {
+        foreach (ContentLoss loss in ContentLossScan.Run(_doc, _ct))
+        {
+            string clause = loss.Kind switch
+            {
+                LossKind.Font => "6.2.11.4.1",
+                LossKind.IccProfile => "6.2.4.2",
+                LossKind.Image => "6.2.8",
+                LossKind.Content => "6.2.2",
+                LossKind.Metadata => "6.6.2.1",
+                LossKind.EmbeddedFile => "6.8",
+                _ => "6.1.7.1",
+            };
+            Add(clause, loss.Message, loss.ObjectNumber, loss.PageIndex);
+        }
     }
 
     // Level A adds a tagged logical structure (ISO 19005-2, 6.7). The structure checks are shared with PDF/UA; only those that
