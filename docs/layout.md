@@ -240,6 +240,46 @@ LayoutDocument.Compose(doc =>
 }).Save("toc.pdf");
 ```
 
+### Values that depend on the page
+
+Headers and footers are laid out for every page, so they can show numbers that depend on what landed on that page: "Brought forward" at the head and "Carried forward" at the foot of a statement, a page subtotal, the first and last entry of a dictionary page, the section a page is in. Content contributes while it is placed, and a `DynamicText` formats the result when the page is drawn.
+
+- `Accumulate(account, amount)` wraps content (a table cell is the usual place) and adds a `decimal` to a named account on the page where the content starts. `Marker(key, text)` records a text the same way. Neither draws anything or changes size. Because they ride on the content, a row that a keep rule or a page break moves to the next page takes its amount with it.
+- `DynamicText(v => ...)` is one line of text whose string comes from a callback given the page's `PageValues`: `Sum(account)` (this page), `Total(account)` (up to the end of this page, what a footer carries forward), `BroughtForward(account)` (up to the end of the previous page, zero on the first), `First(key)` and `Last(key)` (on this page, in reading order, else null), `Current(key)` (the last one at or before the end of this page) and `Entering(key)` (in force when the page starts), plus `PageIndex`, `PageNumber`, `PageLabel` and `SectionIndex`. Culture and number format are the callback's. The style methods are `FontSize`, `FontColor`, `Bold`, `Weight`, `FontFamily`, `Sample` (a typical text, for sizing in an unbounded space) and `AlignStart`, `AlignEnd`, `AlignLeft`, `AlignRight` and `AlignCenter`; a text in an aligned slot takes that alignment, as `Text` does.
+- Totals run across sections; use another account name to start again. Sums are `decimal`, so money adds exactly; a sum beyond `decimal` range is a `PdfLayoutException`.
+
+```csharp
+var culture = System.Globalization.CultureInfo.InvariantCulture;
+LayoutDocument.Compose(doc =>
+{
+    doc.Title("Account statement").Language("en-GB");
+    doc.Page(page =>
+    {
+        page.Size(PageSize.A5);
+        page.Margin(28);
+        page.Header().DynamicText(v => $"Statement, {v.First("month")} - brought forward {v.BroughtForward("amount").ToString("N2", culture)}");
+        page.Footer().DynamicText(v => $"Carried forward {v.Total("amount").ToString("N2", culture)}").AlignEnd().Bold();
+        page.Content().Table(t =>
+        {
+            t.Columns(c => { c.Constant(60); c.Relative(); c.Constant(70); });
+            for (int i = 1; i <= 90; i++)
+            {
+                int n = i;
+                t.Row(r =>
+                {
+                    r.KeepTogether();
+                    r.Cell().Marker("month", n <= 45 ? "October" : "November").Text($"{n:00}.{(n <= 45 ? 10 : 11)}");
+                    r.Cell().Text($"Payment {n}");
+                    r.Cell().Accumulate("amount", n * 12.35m).AlignEnd().Text((n * 12.35m).ToString("N2", culture));
+                });
+            }
+        });
+    });
+}).Save("statement.pdf");
+```
+
+How it works. The height of a `DynamicText` is one line of its font, fixed before the page is known (a header's height decides how much room the body has), so the callback cannot change the layout. Contributions are collected from the placed pieces of the page's flowing content, walked in reading order (columns left to right, or right to left in right-to-left documents), after page breaking and before the page is drawn; the header, footer, background and foreground do not contribute, but table header rows repeated on each page do (they are placed on each page). An element that splits over pages contributes on the page where it starts. The callback runs once for each page that is written: the count-only runs a table of contents makes do not draw, so nothing is counted twice, and a page's values are known when the page is written, which keeps streaming output streaming. A text wider than its box is squeezed horizontally, with a note, rather than wrapped. In a header, footer, background or foreground it is an artifact like the rest of that band; in the body it is a tagged paragraph. The callback should have no side effects and must be deterministic for output to be.
+
 ### Components
 
 Implement `IComponent` to reuse a piece of layout. `Component<T>()` creates one with its parameterless constructor.

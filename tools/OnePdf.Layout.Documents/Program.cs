@@ -693,6 +693,53 @@ Write("columns", "A newsletter page: a full-width title, a three-column article 
     });
 }));
 
+Write("statement", "A three-page account statement: brought forward in the header, carried forward and the page subtotal in the footer, the month of the first entry on the page in the header, amounts that follow their rows across page breaks", LayoutDocument.Compose(doc =>
+{
+    doc.Title("Account statement").Language("en");
+    var culture = CultureInfo.InvariantCulture;
+    doc.Page(page =>
+    {
+        page.Size(PageSize.A5);
+        page.Margin(28);
+        page.Header().PaddingBottom(5).BorderBottom(0.5, Colors.Grey).Row(row =>
+        {
+            row.RelativeItem().DynamicText(v => "Statement " + v.First("month")).FontSize(9).Bold().FontColor(ink);
+            row.RelativeItem().DynamicText(v => "Brought forward  " + v.BroughtForward("amount").ToString("N2", culture)).FontSize(9).AlignEnd();
+        });
+        page.Footer().PaddingTop(5).BorderTop(0.5, Colors.Grey).Row(row =>
+        {
+            row.RelativeItem().DynamicText(v => "Page subtotal  " + v.Sum("amount").ToString("N2", culture)).FontSize(9);
+            row.RelativeItem().DynamicText(v => "Carried forward  " + v.Total("amount").ToString("N2", culture)).FontSize(9).Bold().AlignEnd();
+        });
+        page.Content().Table(t =>
+        {
+            t.Columns(c => { c.Constant(54); c.Relative(); c.Constant(66); });
+            t.CellPadding(3);
+            t.CellBorder(0.4, Colors.LightGrey);
+            t.HeaderRow(r =>
+            {
+                r.Cell().CellBackground(ink).Text("Date").FontSize(8).Bold().FontColor(Colors.White);
+                r.Cell().CellBackground(ink).Text("Description").FontSize(8).Bold().FontColor(Colors.White);
+                r.Cell().CellBackground(ink).AlignEnd().Text("Amount").FontSize(8).Bold().FontColor(Colors.White);
+            });
+            string[] what = ["Groceries", "Rent", "Salary", "Electricity", "Train ticket", "Refund", "Books", "Coffee"];
+            for (int i = 1; i <= 62; i++)
+            {
+                int n = i;
+                decimal amount = ((n * 37 % 91) + 5) * 1.25m * (n % 6 == 3 ? -1 : 1);
+                bool second = n > 31;
+                t.Row(r =>
+                {
+                    r.KeepTogether();
+                    r.Cell().Marker("month", second ? "November 2026" : "October 2026").Text($"{(second ? n - 31 : n):00}.{(second ? 11 : 10)}.2026").FontSize(8);
+                    r.Cell().Text(what[n % what.Length] + (n % 5 == 0 ? "\nstanding order" : string.Empty)).FontSize(8);
+                    r.Cell().Accumulate("amount", amount).AlignEnd().Text(amount.ToString("N2", culture)).FontSize(8);
+                });
+            }
+        });
+    });
+}));
+
 File.WriteAllText(Path.Combine(outDir, "index.csv"), index.ToString());
 return 0;
 

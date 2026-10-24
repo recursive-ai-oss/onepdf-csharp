@@ -287,6 +287,39 @@ public class DocSamples
     }
     // end sample
 
+    // sample: statement
+    private static void Statement()
+    {
+        var culture = System.Globalization.CultureInfo.InvariantCulture;
+        LayoutDocument.Compose(doc =>
+        {
+            doc.Title("Account statement").Language("en-GB");
+            doc.Page(page =>
+            {
+                page.Size(PageSize.A5);
+                page.Margin(28);
+                page.Header().DynamicText(v => $"Statement, {v.First("month")} - brought forward {v.BroughtForward("amount").ToString("N2", culture)}");
+                page.Footer().DynamicText(v => $"Carried forward {v.Total("amount").ToString("N2", culture)}").AlignEnd().Bold();
+                page.Content().Table(t =>
+                {
+                    t.Columns(c => { c.Constant(60); c.Relative(); c.Constant(70); });
+                    for (int i = 1; i <= 90; i++)
+                    {
+                        int n = i;
+                        t.Row(r =>
+                        {
+                            r.KeepTogether();
+                            r.Cell().Marker("month", n <= 45 ? "October" : "November").Text($"{n:00}.{(n <= 45 ? 10 : 11)}");
+                            r.Cell().Text($"Payment {n}");
+                            r.Cell().Accumulate("amount", n * 12.35m).AlignEnd().Text((n * 12.35m).ToString("N2", culture));
+                        });
+                    }
+                });
+            });
+        }).Save("statement.pdf");
+    }
+    // end sample
+
     // sample: images
     private static void Images()
     {
@@ -363,6 +396,7 @@ public class DocSamples
             Components();
             Navigation();
             TableOfContents();
+            Statement();
             Images();
             RightToLeft();
             SaveOptions();
@@ -380,6 +414,7 @@ public class DocSamples
     [InlineData("component", "docs/layout.md")]
     [InlineData("navigation", "docs/layout.md")]
     [InlineData("toc", "docs/layout.md")]
+    [InlineData("statement", "docs/layout.md")]
     [InlineData("images", "docs/layout.md")]
     [InlineData("rtl", "docs/layout.md")]
     [InlineData("save", "docs/layout.md")]

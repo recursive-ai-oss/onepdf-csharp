@@ -4,6 +4,10 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ## [Unreleased]
 
+### Added
+
+- Per-page values in layout: `Accumulate` adds a `decimal` to a named account and `Marker` records a text under a key, both wrapping content (`Slot.Accumulate`, `Slot.Marker`); `DynamicText` (`Slot.DynamicText`, styled by `DynamicTextDescriptor`) is a line of text computed for each page by a callback from `PageValues`: `Sum`, `Total`, `BroughtForward`, `First`, `Last`, `Current`, `Entering`, page index, number, label and section. Values come from what actually landed on the page after page breaking, so "Carried forward" and "Brought forward" lines, page subtotals and running headers move with the rows that keep rules push to the next page. They work in headers, footers and the body, in tables, multi-column flow, sections, right-to-left documents and documents with a table of contents (no double counting), are artifacts in headers and footers and tagged text in the body, and are deterministic. See `docs/layout.md`.
+
 ## [1.9.0] - 2026-10-24
 
 ### Added

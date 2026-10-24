@@ -14,3 +14,4 @@ sections.pdf,3,"Two sections: roman-numbered front matter with a first-page head
 gradients.pdf,2,"Gradient backgrounds: linear at several angles, radial, many stops, gray and CMYK, rounded and bordered, faded, rotated, in a table, and a box that splits over two pages"
 line-breaking.pdf,1,"The same justified paragraphs set by first fit (left) and by Knuth-Plass total fit (right), with and without hyphenation"
 columns.pdf,1,"A newsletter page: a full-width title, a three-column article with a heading, a table, a picture and a rule between the columns, then a full-width note"
+statement.pdf,3,"A three-page account statement: brought forward in the header, carried forward and the page subtotal in the footer, the month of the first entry on the page in the header, amounts that follow their rows across page breaks"
