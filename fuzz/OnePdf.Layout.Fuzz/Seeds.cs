@@ -22,6 +22,22 @@ internal static class Seeds
             Put($"plain-{i:D2}.bin", [flags, (byte)script.Length, (byte)(script.Length >> 8), .. script]);
         }
 
+        // Colour fonts: the valid COLR (version 0 and 1) and CPAL tables as the starting point for mutation, with flag 64 (and 128 for version 1).
+        foreach (bool v1 in new[] { false, true })
+        {
+            byte[] colr = OnePdf.Layout.Tests.ColorFont.BuildColr(v1);
+            byte[] cpal = OnePdf.Layout.Tests.ColorFont.BuildCpal();
+            int total = colr.Length + cpal.Length;
+            int split = Enumerable.Range(0, 256).First(b => b * total / 256 >= colr.Length);
+            for (int i = 0; i < 10; i++)
+            {
+                var script = new byte[60 + rnd.Next(200)];
+                rnd.NextBytes(script);
+                byte flags = (byte)((rnd.Next(64) & ~1) | 64 | (v1 ? 128 : 0));
+                Put($"colour-{(v1 ? 1 : 0)}-{i:D2}.bin", [flags, (byte)script.Length, (byte)(script.Length >> 8), .. script, (byte)split, .. colr, .. cpal]);
+            }
+        }
+
         if (fontDir is { Length: > 0 } && Directory.Exists(fontDir))
         {
             int k = 0;

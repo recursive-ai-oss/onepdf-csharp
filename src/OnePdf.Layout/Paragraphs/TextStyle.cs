@@ -101,6 +101,12 @@ public sealed record TextStyle
     /// </summary>
     public string? Link { get; init; }
 
+    /// <summary>
+    /// Which palette colour glyphs (colour emoji, colour icon fonts with OpenType <c>COLR</c> version 0 layers) are drawn with. Null, the default,
+    /// takes <see cref="LayoutOptions.ColorPalette"/> of the document. Text in a font without colour glyphs is not affected.
+    /// </summary>
+    public ColorPalette? Palette { get; init; }
+
     internal void Validate()
     {
         if (!(Size > 0) || !double.IsFinite(Size) || Size > 10_000)

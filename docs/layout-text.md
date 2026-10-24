@@ -92,11 +92,33 @@ A span can hold an object instead of text: `TextSpan.ForInline(InlineObject, sty
 - **Drawing.** `TextRenderer.Draw` closes its saved graphics state around each stretch of text and draws the object between stretches, so the object may open marked content of its own. An object with `AltText` is preceded by an invisible space inside a `/Span` with `/ActualText`, so extraction returns the description; one with `Link` is reported in the `TextLinkArea`s. Without a layout host nothing is tagged.
 - **Content widths** (`MinContentWidth`, `MaxContentWidth`) count the object like a word.
 
+## Colour glyphs
+
+A font with OpenType `COLR` version 0 and `CPAL` tables (colour emoji, colour icon fonts) draws its colour glyphs in colour. A base glyph that has a `COLR` record is drawn as its layers, bottom to top; each layer is a glyph of the same font filled with a palette colour (OpenType `COLR` version 0, `CPAL`). The foreground entry 0xFFFF takes the text colour. Glyphs without a record draw as before, and a document whose fonts have no `COLR` table produces the same bytes as without this feature.
+
+```csharp
+doc.Fonts.Add(File.ReadAllBytes("ColorEmoji.ttf"), "Emoji");
+page.Content().Text(t =>
+{
+    t.Span("Done ").FontSize(14);
+    t.Span("\U0001F600").FontFamily("Emoji", "Sans").FontSize(24);                 // palette 0
+    t.Span("\U0001F600").FontFamily("Emoji", "Sans").FontSize(24).Palette(ColorPalette.Dark);
+});
+doc.Options.ColorPalette = ColorPalette.Light;                                     // the default for text that does not choose
+```
+
+- **Palettes.** `ColorPalette.Default` is palette 0. `ColorPalette.Light` and `Dark` pick the first palette that `CPAL` version 1 tags for light (0x0001) or dark (0x0002) backgrounds, and palette 0 when the font tags none. `ColorPalette.FromIndex(n)` picks palette n, and palette 0 when the font has fewer. The choice is `TextStyle.Palette`, `Text.Palette`, the fluent `Palette(...)` on spans and texts, or `LayoutOptions.ColorPalette` for text that does not choose.
+- **Alpha** in a palette entry is not used: layers are painted opaque. This keeps PDF/A and tagged output free of transparency.
+- **Output.** Each layer is a one-glyph text run in its fill colour, and the layers of one glyph sit inside one `/Span` with `/ActualText` of the character (ISO 32000-2 14.9.4), so extraction returns the character once, not once per layer. The layers' glyphs are subset and embedded with the font like any other glyph, and the span lies inside the paragraph's tagged content, so the layers are part of the text, not artifacts. Colour glyph runs are written one glyph per `BT`/`ET`, which makes them larger than plain text.
+- **Tables that cannot be used.** The tables are read with bounds checks, and a table that does not hold together is rejected whole: record arrays outside the table, base glyphs out of order or outside the font, more than 256 layers on a glyph, layers that name a glyph outside the font or a palette entry that does not exist, palettes that point outside `CPAL`, a missing `CPAL`, or a `COLR` version above 1. Text in such a font is drawn in one colour and the layout records one diagnostic per font (`LayoutDocument.Diagnostics`). Layers are looked up once per glyph and never followed further, so there are no cycles to detect.
+- **COLR version 1** (paint graphs: gradients, transforms, compositing) is not drawn. A glyph that only has a version 1 description draws its plain outline, with one diagnostic per font; a glyph that also has a version 0 record is drawn from that.
+- **Not included:** bitmap and SVG colour fonts (`CBDT`, `sbix`, `SVG `), palette alpha and `CPAL` palette labels.
+
 ## Limits and behaviour
 
 A paragraph holds at most 2^24 characters. Layout work is linear in the text for any number of lines: the scan for a break stops once the content has passed the width. The shaped paragraph is immutable; `Layout` caches hyphen glyphs, so use one shaped paragraph from one thread at a time. Output is byte-identical between runs (no fused multiply-add, fixed evaluation order).
 
-Not included: vertical writing, colour glyphs, inline elements, tab stops.
+Not included: vertical writing, COLR version 1 and bitmap colour fonts, tab stops.
 
 ## Hyphenation patterns
 

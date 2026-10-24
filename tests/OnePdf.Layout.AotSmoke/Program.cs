@@ -355,6 +355,24 @@ if (carriedBack.Pages.Count < 2 || !carriedText.Contains("Carried 697.50", Strin
     return 1;
 }
 
+// Colour glyphs: a font with COLR layers draws the emoji in colour and extraction returns it once.
+LayoutDocument colour = LayoutDocument.Compose(d =>
+{
+    d.Fonts.Add(OnePdf.Layout.Tests.ColorFont.Build(), "Colour Test");
+    d.Page(p => p.Content().Text(t => t.Span("A" + OnePdf.Layout.Tests.ColorFont.Grin + "A").FontFamily("Colour Test", "Sans").FontSize(30).Palette(ColorPalette.Dark)));
+});
+using var colourStream = new MemoryStream();
+colour.Save(colourStream, new PdfDocumentWriterOptions { LeaveOpen = true });
+byte[] colourBytes = colourStream.ToArray();
+using PdfDocument colourBack = PdfDocument.Open(colourBytes);
+string colourText = colourBack.Pages[0].ExtractText().Text.Trim();
+string content = System.Text.Encoding.Latin1.GetString(colourBack.Pages[0].ContentStreams[0].GetDecodedBytes().Span);
+if (colourText != "A" + OnePdf.Layout.Tests.ColorFont.Grin + "A" || !content.Contains("1 0.549 0 rg", StringComparison.Ordinal))
+{
+    Console.WriteLine("FAIL colour glyphs: " + colourText + " / " + content);
+    return 1;
+}
+
 Console.WriteLine("ok");
 return 0;
 

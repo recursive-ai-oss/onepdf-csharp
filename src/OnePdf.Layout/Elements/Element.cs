@@ -23,6 +23,12 @@ public sealed class LayoutOptions
     /// <summary>The knobs of <see cref="LineBreakMode.KnuthPlass"/> for text elements that give none. Null, the default, means <see cref="KnuthPlassOptions.Default"/>.</summary>
     public KnuthPlassOptions? KnuthPlass { get; set; }
 
+    /// <summary>
+    /// The palette colour glyphs (OpenType <c>COLR</c> version 0 layers with <c>CPAL</c> colours) are drawn with when a text does not choose. Default
+    /// <see cref="ColorPalette.Default"/>, palette 0. See <see cref="ColorPalette"/>.
+    /// </summary>
+    public ColorPalette ColorPalette { get; set; }
+
     /// <summary>The fonts text can use. Null, the default, is a shared registry of the Liberation faces and the standard fonts; system fonts are never used unless the registry is told to.</summary>
     public TextFontRegistry? Fonts { get; set; }
 
