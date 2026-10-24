@@ -3,6 +3,10 @@
     <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
   </PropertyGroup>
   <ItemGroup>
+    <!-- The shaping package of the same family; Layout is the only library project that references it. -->
+    <PackageVersion Include="RecursiveAI.OneFont" Version="1.0.0" />
+  </ItemGroup>
+  <ItemGroup>
     <!-- Used by the test, benchmark and fuzz projects only. The libraries depend on nothing outside the shared framework. -->
     <PackageVersion Include="xunit.v3" Version="4.0.2" />
     <PackageVersion Include="BenchmarkDotNet" Version="0.15.8" />

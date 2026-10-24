@@ -2,10 +2,13 @@
   <Folder Name="/src/">
     <Project Path="src/OnePdf/OnePdf.csproj" />
     <Project Path="src/OnePdf.Fonts/OnePdf.Fonts.csproj" />
+    <Project Path="src/OnePdf.Layout/OnePdf.Layout.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/OnePdf.Tests/OnePdf.Tests.csproj" />
     <Project Path="tests/OnePdf.AotSmoke/OnePdf.AotSmoke.csproj" />
+    <Project Path="tests/OnePdf.Layout.Tests/OnePdf.Layout.Tests.csproj" />
+    <Project Path="tests/OnePdf.Layout.AotSmoke/OnePdf.Layout.AotSmoke.csproj" />
   </Folder>
   <Folder Name="/bench/">
     <Project Path="bench/OnePdf.Benchmarks/OnePdf.Benchmarks.csproj" />
@@ -13,8 +16,11 @@
   <Folder Name="/tools/">
     <Project Path="tools/OnePdf.Quality/OnePdf.Quality.csproj" />
     <Project Path="tools/OnePdf.Opens/OnePdf.Opens.csproj" />
+    <Project Path="tools/OnePdf.Layout.Documents/OnePdf.Layout.Documents.csproj" />
+    <Project Path="tools/OnePdf.Layout.References/OnePdf.Layout.References.csproj" />
   </Folder>
   <Folder Name="/fuzz/">
     <Project Path="fuzz/OnePdf.Fuzz/OnePdf.Fuzz.csproj" />
+    <Project Path="fuzz/OnePdf.Layout.Fuzz/OnePdf.Layout.Fuzz.csproj" />
   </Folder>
 </Solution>

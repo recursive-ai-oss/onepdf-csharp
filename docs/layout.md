@@ -1,6 +1,6 @@
 # Layout
 
-`OnePdf.Layout` generates documents from code: you describe pages with nested delegates, it lays them out (shaped text, tables, lists, images, headers and footers, page numbers) and writes a tagged PDF through OnePDF's streaming writer, one page at a time. It lives in `OnePdf.Layout.slnx` and is not packed yet; names may still change before the first release.
+`OnePdf.Layout` generates documents from code: you describe pages with nested delegates, it lays them out (shaped text, tables, lists, images, headers and footers, page numbers) and writes a tagged PDF through OnePDF's streaming writer, one page at a time. It ships as the package `RecursiveAI.OnePdf.Layout` (`dotnet add package RecursiveAI.OnePdf.Layout`), which depends on `RecursiveAI.OnePdf`, `RecursiveAI.OnePdf.Fonts` and `RecursiveAI.OneFont`.
 
 ```csharp
 LayoutDocument.Compose(doc =>

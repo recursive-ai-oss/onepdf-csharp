@@ -218,7 +218,7 @@ doc.Save("out.pdf");
 
 ## Layout
 
-`OnePdf.Layout` generates documents from code: nested delegates describe pages, and it lays out shaped text (Latin, Arabic, Indic and more), tables, lists, images, headers, footers and "page X of Y", then streams a tagged PDF page by page. It is pure managed, BCL-only and NativeAOT-clean like the rest, and it is not packed yet. It lives in `OnePdf.Layout.slnx` in the repository.
+`OnePdf.Layout` generates documents from code: nested delegates describe pages, and it lays out shaped text (Latin, Arabic, Indic and more), tables, lists, images, headers, footers and "page X of Y", then streams a tagged PDF page by page. It is pure managed, BCL-only and NativeAOT-clean like the rest, and it ships as its own package, `RecursiveAI.OnePdf.Layout`, which builds on `RecursiveAI.OneFont` for shaping.
 
 ```csharp
 LayoutDocument.Compose(doc =>

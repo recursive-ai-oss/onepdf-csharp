@@ -7,7 +7,7 @@ public documentation ([features overview](https://www.questpdf.com/features-over
 for details of QuestPDF's behavior. The names here are OnePDF's own, so this is a map, not a drop-in replacement: expect to
 rename calls, not to rethink the structure.
 
-`OnePdf.Layout` is part of the OnePDF repository and is not packed yet (see [layout.md](layout.md)).
+`OnePdf.Layout` ships as the package `RecursiveAI.OnePdf.Layout` (see [layout.md](layout.md)).
 
 ## What is the same
 
