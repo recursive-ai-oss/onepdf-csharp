@@ -39,6 +39,8 @@ LayoutDocument doc = LayoutDocument.Compose(d => d.Page(p =>
             row.ConstantItem(80).Padding(4).Background(new LayoutColor(0.9, 0.9, 1)).Text("left");
             row.RelativeItem().Padding(4).BorderBottom(1, null, BorderStyle.Dashed).Text("right cell with a longer sentence that wraps over lines");
         });
+        col.Item().Height(30).Rounded(6).Background(LayoutGradient.Linear(60, new LayoutColor(1, 0, 0), new LayoutColor(0, 0, 1))).Text("gradient");
+        col.Item().Height(30).Background(LayoutGradient.Circle([new LayoutGradientStop(0, PdfGradientColor.Gray(1)), new LayoutGradientStop(0.5, PdfGradientColor.Gray(0.5)), new LayoutGradientStop(1, PdfGradientColor.Gray(0))])).Text("radial");
         col.Item().Rotate(30).Spacer(10, 40);
         col.Item().Canvas(20, s => { s.Builder.Rectangle(0, 0, s.Width, s.Height); s.Builder.Stroke(); });
     });

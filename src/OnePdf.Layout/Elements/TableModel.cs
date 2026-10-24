@@ -46,6 +46,9 @@ public sealed class TableCell
     /// <summary>Fill colour of the cell, over the row's. None when null.</summary>
     public LayoutColor? Background { get; set; }
 
+    /// <summary>Gradient fill of the cell, replacing <see cref="Background"/>. A cell split over pages paints the whole gradient in each piece.</summary>
+    public LayoutGradient? BackgroundGradient { get; set; }
+
     /// <summary>Top border. The table's <see cref="Table.CellBorder"/> when null; use a default <see cref="Border"/> for none.</summary>
     public Border? BorderTop { get; set; }
 
@@ -79,6 +82,9 @@ public sealed class TableRow
 
     /// <summary>Fill colour behind the whole row. For body rows it replaces the table's <see cref="Table.RowBackground"/>.</summary>
     public LayoutColor? Background { get; set; }
+
+    /// <summary>Gradient fill behind the whole row, replacing <see cref="Background"/>. Painted again, scaled, in each piece of a row that splits over pages.</summary>
+    public LayoutGradient? BackgroundGradient { get; set; }
 }
 
 /// <summary>A cell as placed in the grid.</summary>

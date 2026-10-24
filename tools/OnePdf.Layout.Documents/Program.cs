@@ -476,6 +476,78 @@ Write("sections", "Two sections: roman-numbered front matter with a first-page h
     });
 }));
 
+Write("gradients", "Gradient backgrounds: linear at several angles, radial, many stops, gray and CMYK, rounded and bordered, faded, rotated, in a table, and a box that splits over two pages", LayoutDocument.Compose(doc =>
+{
+    doc.Title("Gradients").Language("en");
+    doc.Page(page =>
+    {
+        page.Size(PageSize.A5);
+        page.Margin(26);
+        var sky = LayoutGradient.Vertical(new LayoutGradientStop(0, LayoutColor.FromHex("#2b5d9b")), new LayoutGradientStop(1, LayoutColor.FromHex("#cfe3f7")));
+        var rainbow = LayoutGradient.Horizontal(
+            new LayoutGradientStop(0, LayoutColor.FromHex("#d62828")), new LayoutGradientStop(0.25, LayoutColor.FromHex("#f77f00")),
+            new LayoutGradientStop(0.5, LayoutColor.FromHex("#fcbf49")), new LayoutGradientStop(0.75, LayoutColor.FromHex("#2a9d8f")),
+            new LayoutGradientStop(1, LayoutColor.FromHex("#264653")));
+        page.Content().Column(col =>
+        {
+            col.Spacing(8);
+            col.Item().Text("Gradient backgrounds").FontSize(16).Bold();
+            col.Item().Row(row =>
+            {
+                row.Spacing(6);
+                foreach (double angle in (double[])[0, 45, 90, 135])
+                {
+                    row.RelativeItem().Height(54).Background(LayoutGradient.Linear(angle, LayoutColor.FromHex("#fff3b0"), LayoutColor.FromHex("#9e2a2b")))
+                        .AlignCenter().AlignMiddle().Text($"{angle}\u00b0").FontSize(10).FontColor(Colors.White);
+                }
+            });
+            col.Item().Row(row =>
+            {
+                row.Spacing(6);
+                row.RelativeItem().Height(70).Background(LayoutGradient.Circle([new LayoutGradientStop(0, Colors.White), new LayoutGradientStop(1, ink)]))
+                    .AlignCenter().AlignMiddle().Text("Radial").FontSize(10);
+                row.RelativeItem().Height(70).Rounded(10).Background(LayoutGradient.Circle([new LayoutGradientStop(0, LayoutColor.FromHex("#ffe66d")), new LayoutGradientStop(1, LayoutColor.FromHex("#ff6b6b"))], 0.25, 0.3, RadialExtent.ClosestSide))
+                    .AlignCenter().AlignMiddle().Text("Off-centre").FontSize(10);
+            });
+            col.Item().Height(34).Background(rainbow).AlignCenter().AlignMiddle().Text("Five stops").FontSize(11).FontColor(Colors.White).Bold();
+            col.Item().Row(row =>
+            {
+                row.Spacing(6);
+                row.RelativeItem().Height(34).Background(LayoutGradient.Horizontal(new LayoutGradientStop(0, PdfGradientColor.Gray(0.1)), new LayoutGradientStop(1, PdfGradientColor.Gray(0.9)))).AlignCenter().AlignMiddle().Text("Gray").FontSize(10).FontColor(Colors.White);
+                row.RelativeItem().Height(34).Background(LayoutGradient.Horizontal(new LayoutGradientStop(0, PdfGradientColor.Cmyk(0, 0, 0, 0)), new LayoutGradientStop(1, PdfGradientColor.Cmyk(1, 0.6, 0, 0.1)))).AlignCenter().AlignMiddle().Text("CMYK").FontSize(10);
+            });
+            col.Item().Border(2, ink).Rounded(14).Background(sky).Padding(8).Text("Rounded corners clip the gradient and the border draws over it").FontSize(10).FontColor(Colors.White);
+            col.Item().Row(row =>
+            {
+                row.Spacing(6);
+                foreach (double o in (double[])[1.0, 0.6, 0.3])
+                {
+                    row.RelativeItem().Height(30).Opacity(o).Background(rainbow).AlignCenter().AlignMiddle().Text($"{o:F1}").FontSize(10).FontColor(Colors.White);
+                }
+
+                row.AutoItem().Width(60).Rotate(-12).Height(30).Background(sky).AlignCenter().AlignMiddle().Text("Turned").FontSize(9).FontColor(Colors.White);
+            });
+            col.Item().Table(t =>
+            {
+                t.Columns(c => { c.Relative(); c.Relative(); c.Relative(); });
+                t.CellPadding(4);
+                t.Row(r =>
+                {
+                    r.Background(sky);
+                    r.Cell().Text("Row").FontColor(Colors.White).FontSize(10);
+                    r.Cell().CellBackground(rainbow).Text("Cell").FontColor(Colors.White).FontSize(10);
+                    r.Cell().Text("gradients").FontColor(Colors.White).FontSize(10);
+                });
+            });
+            col.Item().Background(LayoutGradient.Linear(180, LayoutColor.FromHex("#e9f5db"), LayoutColor.FromHex("#718355"))).Padding(8).Column(inner =>
+            {
+                inner.Item().Text("A box that splits over pages paints the whole gradient again in each piece.").FontSize(10).Bold();
+                inner.Item().Text(Para(8)).FontSize(10).Justify();
+            });
+        });
+    });
+}));
+
 File.WriteAllText(Path.Combine(outDir, "index.csv"), index.ToString());
 return 0;
 

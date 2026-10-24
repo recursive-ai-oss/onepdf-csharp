@@ -10,3 +10,4 @@ rtl.pdf,1,"A right-to-left document: mirrored rows, start-aligned Arabic text, a
 scripts.pdf,1,"Latin, Hebrew, Devanagari, Thai and Japanese text in one document, with font fallback"
 text-styles.pdf,1,"Spans in different weights, sizes, colours and decorations; superscripts; letter spacing; alignment; justification and indent"
 sections.pdf,3,"Two sections: roman-numbered front matter with a first-page header, then a landscape body numbered from 1"
+gradients.pdf,2,"Gradient backgrounds: linear at several angles, radial, many stops, gray and CMYK, rounded and bordered, faded, rotated, in a table, and a box that splits over two pages"

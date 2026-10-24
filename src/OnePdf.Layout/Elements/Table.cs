@@ -524,7 +524,11 @@ public sealed class Table : Element
         bool artifact = tag.BeginArtifact(b);
         foreach (RowGeometry rg in piece.Rows)
         {
-            if (rg.Background is { } fill)
+            if (g.RowObjects[rg.Row].BackgroundGradient is { } rowGradient)
+            {
+                Box.FillGradientRect(d, rowGradient, 0, rg.Y, width, rg.Height);
+            }
+            else if (rg.Background is { } fill)
             {
                 b.SetFillRgb(fill.R, fill.G, fill.B);
                 d.FillRect(0, rg.Y, width, rg.Height);
@@ -533,7 +537,11 @@ public sealed class Table : Element
 
         foreach (CellGeometry cg in piece.Cells)
         {
-            if (g.Slots[cg.Slot].Cell.Background is { } fill)
+            if (g.Slots[cg.Slot].Cell.BackgroundGradient is { } cellGradient)
+            {
+                Box.FillGradientRect(d, cellGradient, cg.X, cg.Y, cg.Width, cg.Height);
+            }
+            else if (g.Slots[cg.Slot].Cell.Background is { } fill)
             {
                 b.SetFillRgb(fill.R, fill.G, fill.B);
                 d.FillRect(cg.X, cg.Y, cg.Width, cg.Height);

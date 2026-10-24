@@ -564,6 +564,7 @@ public sealed class PdfPageContentBuilder : PdfContentBuilder
         PageContentWriter.AddResources(doc, res, "Font", FontResources);
         PageContentWriter.AddResources(doc, res, "XObject", XObjectResources);
         PageContentWriter.AddResources(doc, res, "ExtGState", StateResources);
+        PageContentWriter.AddResources(doc, res, "Shading", ShadingResources);
 
         var contents = new PdfArray();
         (PdfReference q, PdfReference bigQ) = doc.SharedSaveRestore();
@@ -639,6 +640,7 @@ public sealed class PdfFormContentBuilder : PdfContentBuilder
         PageContentWriter.AddResources(doc, d.GetDictionary("Resources")!, "Font", FontResources);
         PageContentWriter.AddResources(doc, d.GetDictionary("Resources")!, "XObject", XObjectResources);
         PageContentWriter.AddResources(doc, d.GetDictionary("Resources")!, "ExtGState", StateResources);
+        PageContentWriter.AddResources(doc, d.GetDictionary("Resources")!, "Shading", ShadingResources);
         IsClosed = true;
         PdfFormXObject form;
         if (_reserved is not null)
