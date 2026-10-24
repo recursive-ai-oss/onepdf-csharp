@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text;
 using System.Text.RegularExpressions;
 using OnePdf.Content;
@@ -25,6 +26,39 @@ public class DisplayListTests
         PdfDisplayList list = TestPdf.Record(doc);
         Assert.Equal(live.ToString(), list.ToText());
         Assert.True(list.ItemCount > 5);
+    }
+
+    [Fact]
+    public void LargeRecordingSpansStorageChunksAndReplaysExactly()
+    {
+        // Thousands of items, hundreds of distinct states, many glyph runs and one path far larger than a storage chunk.
+        var sb = new StringBuilder("BT /F 8 Tf 1 0 0 1 10 10 Tm ");
+        sb.Append("(start) Tj ET ");
+        for (int i = 0; i < 6000; i++)
+        {
+            sb.Append(CultureInfo.InvariantCulture, $"{(i % 251) / 251.0:F3} 0 0 rg {i % 500} {i / 12} 3 3 re f ");
+            if (i % 7 == 0)
+            {
+                sb.Append(CultureInfo.InvariantCulture, $"BT /F 8 Tf 1 0 0 1 {i % 400} {i / 20} Tm (n{i}) Tj ET ");
+            }
+        }
+
+        sb.Append("0 0 m ");
+        for (int i = 1; i < 30000; i++)
+        {
+            sb.Append(CultureInfo.InvariantCulture, $"{i % 600} {(i * 7) % 700} l ");
+        }
+
+        sb.Append("S 0 0 1 rg 5 5 20 20 re f");
+        byte[] pdf = TestPdf.Build(sb.ToString(), "/Resources << /Font << /F << /Type /Font /Subtype /Type1 /BaseFont /Courier >> >> >>");
+        using PdfDocument doc = TestPdf.Open(pdf);
+        var live = new StringWriter();
+        var writer = new PdfDisplayListTextWriter(live);
+        writer.WriteHeader();
+        TestPdf.Page(doc).Interpret(writer);
+        PdfDisplayList list = TestPdf.Record(doc);
+        Assert.True(list.ItemCount > 6800);
+        Assert.Equal(live.ToString(), list.ToText());
     }
 
     [Fact]
