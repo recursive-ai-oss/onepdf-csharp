@@ -64,7 +64,7 @@ public sealed class LayoutPage
 /// A document made of the element tree: pages in order, each described by a <see cref="LayoutPage"/>. Laying out writes each finished page
 /// to the target document before the next is measured.
 /// </summary>
-public sealed class LayoutDocument
+public sealed partial class LayoutDocument
 {
     /// <summary>The runs of pages, in order. Each contributes at least one page.</summary>
     public List<LayoutPage> Pages { get; } = [];
@@ -79,13 +79,13 @@ public sealed class LayoutDocument
     public LayoutDirection Direction { get; set; }
 
     /// <summary>
-    /// The document title: the information dictionary's <c>Title</c>, and (in <see cref="Save"/>) <c>DisplayDocTitle</c>, so viewers show it instead of
+    /// The document title: the information dictionary's <c>Title</c>, and (in <see cref="Save(Stream, PdfDocumentWriterOptions?)"/>) <c>DisplayDocTitle</c>, so viewers show it instead of
     /// the file name. Tagged documents should have one. Null writes none.
     /// </summary>
     public string? Title { get; set; }
 
     /// <summary>
-    /// The language of the document, a BCP 47 tag such as <c>en-US</c>: the catalog's <c>/Lang</c> when written by <see cref="Save"/> (set it in the
+    /// The language of the document, a BCP 47 tag such as <c>en-US</c>: the catalog's <c>/Lang</c> when written by <see cref="Save(Stream, PdfDocumentWriterOptions?)"/> (set it in the
     /// writer's options when you render into your own writer) and the language every structure element inherits. Elements override it with
     /// <see cref="Element.Language"/>. Null for none.
     /// </summary>

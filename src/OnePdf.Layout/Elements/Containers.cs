@@ -142,6 +142,12 @@ public sealed class Row : Element
     /// <summary>Where a cell shorter than the row sits (only once the row is on one page). Default <see cref="VerticalAlignment.Top"/>.</summary>
     public VerticalAlignment Alignment { get; set; }
 
+    /// <summary>
+    /// When true and no item is relative, the row is only as wide as its items and gaps instead of the offered width, so a box around it can
+    /// align it (centre a footer line made of several pieces). Default false. Ignored when an item is relative.
+    /// </summary>
+    public bool Compact { get; set; }
+
     private sealed record RowResume(object?[] Inner, bool[] Done);
 
     internal override WidthRange WidthsCore(LayoutContext ctx)
@@ -258,7 +264,8 @@ public sealed class Row : Element
             totalWidth += w;
         }
 
-        double rowWidth = c.WidthBounded ? c.Width : totalWidth;
+        bool compact = Compact && weights == 0;
+        double rowWidth = c.WidthBounded && !compact ? c.Width : totalWidth;
         var node = new Placed(this, 0, 0, rowWidth, height);
         double x = 0;
         bool rtl = ctx.Direction == LayoutDirection.RightToLeft;

@@ -4,6 +4,9 @@
     <Project Path="src/OnePdf.Fonts/OnePdf.Fonts.csproj" />
     <Project Path="src/OnePdf.Layout/OnePdf.Layout.csproj" />
   </Folder>
+  <Folder Name="/fuzz/">
+    <Project Path="fuzz/OnePdf.Layout.Fuzz/OnePdf.Layout.Fuzz.csproj" />
+  </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/OnePdf.Layout.Tests/OnePdf.Layout.Tests.csproj" />
     <Project Path="tests/OnePdf.Layout.AotSmoke/OnePdf.Layout.AotSmoke.csproj" />

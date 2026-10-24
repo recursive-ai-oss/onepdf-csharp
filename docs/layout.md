@@ -1,8 +1,205 @@
 # Layout
 
-`OnePdf.Layout` lays out an element tree over pages and writes the result through OnePDF's content builder. It is not released yet and lives in `OnePdf.Layout.slnx`; its element types and properties may still change.
+`OnePdf.Layout` generates documents from code: you describe pages with nested delegates, it lays them out (shaped text, tables, lists, images, headers and footers, page numbers) and writes a tagged PDF through OnePDF's streaming writer, one page at a time. It lives in `OnePdf.Layout.slnx` and is not packed yet; names may still change before the first release.
 
-## Model
+```csharp
+LayoutDocument.Compose(doc =>
+{
+    doc.Title("Quarterly report").Language("en");
+    doc.Page(page =>
+    {
+        page.Size(PageSize.A4);
+        page.Margin(2.Cm());
+        page.Header().Text("Acme Corp").FontSize(9).FontColor(Colors.Grey);
+        page.Content().Column(col =>
+        {
+            col.Spacing(10);
+            col.Item().Heading(1).Text("Quarterly report").FontSize(22).Bold();
+            col.Item().Text("Sales rose in every region.").Justify();
+            col.Item().Table(table =>
+            {
+                table.Columns(c => { c.Relative(2); c.Constant(60); });
+                table.CellBorder(0.5, Colors.LightGrey);
+                table.HeaderRow(r =>
+                {
+                    r.Cell().Text("Region").Bold();
+                    r.Cell().Text("Sales").Bold();
+                });
+                table.Row(r => { r.Cell().Text("North"); r.Cell().AlignEnd().Text("1,204"); });
+                table.Row(r => { r.Cell().Text("South"); r.Cell().AlignEnd().Text("987"); });
+            });
+        });
+        page.Footer().AlignCenter().Text(t =>
+        {
+            t.FontSize(9);
+            t.Span("Page ");
+            t.CurrentPageNumber();
+            t.Span(" of ");
+            t.TotalPages().ReservedDigits(2);
+        });
+    });
+}).Save("report.pdf");
+```
+
+## The fluent API
+
+`LayoutDocument.Compose` runs your delegate once and returns the finished description (the C# 14 extension `PdfDocument.Compose` does the same). Nothing is laid out until you save.
+
+- **Document** (`DocumentComposer`): `Title`, `Language`, `Direction`/`RightToLeft`, `Fonts` (the font registry, see [layout-text.md](layout-text.md)), `Debug`, `Tagged(false)`, `WidowsAndOrphans`, `MaxPages`, and `Page` once per section.
+- **Page** (`PageComposer`): `Size` (`PageSize.A4` and the other constants, or width and height in points), `Landscape`, `Margin`, `Direction`, page numbering (`NumberStyle`, `StartNumber`, `LabelPrefix`) and the slots `Header`, `Footer`, `FirstPageHeader`/`FirstPageFooter`, `EvenPageHeader`/`EvenPageFooter`, `Background`, `Foreground` and `Content`. Each `Page` call starts a new section on a new page.
+- **Slots.** Every place that holds one child is a `Slot`. You chain decorators on it and end with one thing that fills it: `Text`, `Column`, `Row`, `Layers`, `List`, `Table`, `Image`, `Canvas`, `Spacer`, `PageBreak`, `Component` or `Content`. A slot takes exactly one such call.
+- **Units** are points. `10.Mm()`, `2.Cm()` and `1.Inch()` convert; `Colors` has named colours and `LayoutColor.FromHex("#336699")` parses a hex colour.
+
+### Decorators
+
+Decorators wrap the slot from the outside in, in the order you write them:
+
+```csharp
+LayoutDocument.Compose(doc => doc.Page(page =>
+{
+    page.Content().Column(col =>
+    {
+        // Read from the outside in: a margin, then a rounded border with a background, then padding, then the text.
+        col.Item()
+            .Margin(8)
+            .Border(1.5, Colors.Blue).Rounded(6).Background(Colors.LightGrey)
+            .Padding(10)
+            .Text("A rounded, padded box");
+    });
+})).Save("chain.pdf");
+```
+
+`Margin`, `Border`, `Background`, `Rounded`, `Opacity`, `Width`/`Height` (and `Min`/`Max`), `AspectRatio`, `Padding` and the nine-point `Align*` methods all become one box when the order allows it: margin first, then border and background and size, then padding, then alignment. Writing them in another order gives nested boxes, which look the same on the page and cost a little more; the result is correct either way. `Rounded` can sit anywhere. Spelled-out sides exist for every inset (`PaddingTop`, `MarginStart`, `BorderEnd` and so on); `Start` and `End` flip in right-to-left documents.
+
+Other decorators: `Rotate`, `Scale`, `Translate`, `KeepTogether`, `EnsureSpace`, `KeepWithNext`, `ExpandHeight`, `Name` (the label the debug overlay and errors use). `AlignMiddle` and `AlignBottom` make the slot as tall as the space offered, because there is nothing to centre in otherwise.
+
+- `Rotate` and `Scale` do not split their child: if the content would need a page break inside them, layout throws `PdfLayoutException`. Rotating by 90 degrees makes the child's width the page height, so put a `Width` box inside the rotation.
+- Text fills the width it is offered, so `AlignCenter().Text(...)` aligns the text, not a box around it.
+
+### Text
+
+`Text("...")` returns a `TextDescriptor` with `FontSize`, `FontFamily`, `FontColor`, `Bold`, `Italic`, `Underline`, `Strike`, `LetterSpacing`, `LineHeight`, `Justify`, `AlignStart`/`AlignCenter`/`AlignEnd`, `FirstLineIndent`, `Language` and `Hyphenator`. `Text(t => ...)` builds rich text from `Span`, `Line`, `CurrentPageNumber`, `TotalPages` and `SectionPages`; a span has the same formatting methods plus `Superscript` and `Subscript`. Settings made on the descriptor are the default for its spans.
+
+A page number is shaped like any other text. A paragraph that holds a page number stays on one line (it does not wrap) and is as wide as its content. "Total pages" is not known until the end, so its width is reserved: `ReservedDigits` (default 4) says how many digits to leave room for. In a centred footer that reserve shows as a gap, so use `ReservedDigits(2)` for documents under 100 pages. Details of shaping, fallback fonts, bidirectional text and hyphenation are in [layout-text.md](layout-text.md).
+
+### Rows, columns, layers, lists, images
+
+- `Column(c => ...)` with `Spacing`, `ItemAlignment` and `Item()`; `Row(r => ...)` with `Spacing`, `AlignTop`/`AlignMiddle`/`AlignBottom`, and `ConstantItem(width)`, `RelativeItem(weight)` or `AutoItem()`.
+- `Layers(l => ...)`: `PrimaryLayer()` sets the size and may span pages; `Layer()` slots (a watermark, a frame) are laid out at its size.
+- `List(l => ...)`: `Bulleted`, `Numbered(style)`, `Bullet`, `Start`, `Suffix`, `MarkerFormat`, marker font, size, colour, width and gap, and `Item()` (or `Item("custom marker")`). Lists nest by putting a `List` inside an item.
+- `Image(bytes | path | PdfCreatedImage)` for JPEG and PNG with `FitWidth` (the default), `FitHeight`, `Contain`, `Cover`, `Stretch`, `Dpi` and `Align`. Give figures `AltText(...)`, or `Artifact()` for decoration.
+- `Canvas(height, surface => ...)` hands you a clipped drawing surface.
+
+```csharp
+LayoutDocument.Compose(doc => doc.Page(page =>
+{
+    page.Content().Column(col =>
+    {
+        col.Spacing(8);
+        col.Item().Width(120).Image(File.ReadAllBytes("logo.png")).AltText("Company logo");
+        col.Item().Width(200).Height(80).Image("photo.jpg").Cover().AltText("A photo");
+    });
+})).Save("images.pdf");
+```
+
+### Tables
+
+`Table(t => ...)` takes `Columns` (`Auto`, `Constant`, `Relative`), `HeaderRow`, `Row` and `FooterRow`, `CellPadding`, `CellBorder`, `RowBackground` for striping and `MeasuredRows`. Each row has `Cell()` slots; a cell can `Span(columns, rows)`, set its own padding, background, borders and vertical alignment, and mark itself a row header (`RowHeader`). Header and footer rows repeat on every page. The sample at the top of this page has a small table; the layout rules (column widths, splitting, collapsed borders) are in [Tables](#tables-1) below.
+
+### Pagination, links, structure
+
+`KeepTogether`, `KeepWithNext`, `EnsureSpace(height)` and `PageBreak()` control breaks (rules and defaults under [Pagination core](#pagination-core)). `Hyperlink(uri)`, `LinkToAnchor(id)`, `Anchor(id)` and `Bookmark(title, level)` make links and the outline. `Heading(level)`, `AltText`, `Language` and `Artifact` set the tags; tagging is on by default.
+
+```csharp
+LayoutDocument.Compose(doc => doc.Page(page =>
+{
+    page.Size(PageSize.A5);
+    page.Content().Column(col =>
+    {
+        col.Item().Bookmark("Contents").Anchor("top").Heading(1).Text("Contents");
+        col.Item().List(list =>
+        {
+            list.Numbered();
+            list.Item().LinkToAnchor("top").Text("Back to the top");
+            list.Item().Hyperlink("https://example.com/").Text("A web page");
+        });
+    });
+})).Save("navigation.pdf");
+```
+
+### Components
+
+Implement `IComponent` to reuse a piece of layout. `Component<T>()` creates one with its parameterless constructor.
+
+```csharp
+sealed class Address(string name, string city) : IComponent
+{
+    public void Compose(Slot slot) => slot.Column(column =>
+    {
+        column.Item().Text(name).Bold();
+        column.Item().Text(city);
+    });
+}
+
+LayoutDocument.Compose(doc => doc.Page(page =>
+    page.Content().Component(new Address("Ada Lovelace", "London"))))
+    .Save("address.pdf");
+```
+
+### Right to left and fonts
+
+`doc.RightToLeft()` mirrors rows, table columns, start/end alignment and insets, and sets the base direction of text. Fonts are registered on `doc.Fonts` (grouped by family, weight and style); the default is Liberation Sans from `RecursiveAI.OnePdf.Fonts`, embedded as a subset. System fonts are never used unless you add them.
+
+```csharp
+LayoutDocument.Compose(doc =>
+{
+    doc.RightToLeft().Language("ar");
+    doc.Fonts.Add(File.ReadAllBytes("NotoSansArabic-Regular.ttf"), "Noto Sans Arabic");
+    doc.Fonts.FallbackFamilies.Add("Noto Sans Arabic");
+    doc.Page(page => page.Content().Row(row =>
+    {
+        row.ConstantItem(80).Text("\u0645\u0631\u062D\u0628\u0627");
+        row.RelativeItem().Text("first item sits at the right");
+    }));
+}).Save("rtl.pdf");
+```
+
+### Saving
+
+`Save(path)` and `ToBytes()` stream the document page by page with the small memory footprint described under [Output](#output). Everything that needs the finished file goes through core: `Save(stream, PdfSaveOptions)` lays the document out, then rewrites it with the options (PDF/A, encryption, object streams); the whole file is in memory while it does. For signing, `ToPdfDocument()` returns an open `PdfDocument` to sign with the core API. Use a fixed `PdfDocumentWriterOptions.DocumentId` when you need byte-identical output.
+
+```csharp
+LayoutDocument layout = LayoutDocument.Compose(doc =>
+{
+    doc.Title("Archive copy").Language("en");
+    doc.Page(page => page.Content().Text("Archive copy"));
+});
+
+layout.Save("plain.pdf");                                // streamed page by page
+
+using (var archive = File.Create("archive.pdf"))         // laid out, then rewritten by the core library
+{
+    layout.Save(archive, new PdfSaveOptions
+    {
+        PdfA = new PdfAOptions { Part = PdfAPart.Part2, Conformance = PdfAConformance.B },
+    });
+}
+
+using (var secret = File.Create("secret.pdf"))
+{
+    layout.Save(secret, new PdfSaveOptions
+    {
+        Encryption = PdfEncryptionAction.Set,
+        NewEncryption = new PdfEncryptionOptions { UserPassword = "open sesame" },
+    });
+}
+```
+
+### The element tree underneath
+
+The facade builds the element objects described below; they stay public. They are the lower layer for code that builds trees from data, for custom elements' tests, and an escape hatch: `slot.Element(element)` puts any element object into a slot. A facade document and the same document built from element objects produce identical bytes (a test lays out a 50-page report both ways).
+
+## Element tree
 
 A tree of plain element objects. Elements hold properties and no layout state, so one element may appear several times and a tree can be laid out again; two runs give the same bytes (use a fixed `PdfDocumentWriterOptions.DocumentId`).
 
