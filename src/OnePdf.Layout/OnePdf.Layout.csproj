@@ -3,6 +3,7 @@
   <PropertyGroup>
     <!-- The OneFont checkout sits beside the repository (or beside the worktrees folder); override with -p:OneFontProject=... -->
     <OneFontProject Condition="'$(OneFontProject)' == '' and Exists('$(MSBuildThisFileDirectory)../../../onefont/csharp/onefont-csharp/src/OneFont/OneFont.csproj')">$(MSBuildThisFileDirectory)../../../onefont/csharp/onefont-csharp/src/OneFont/OneFont.csproj</OneFontProject>
+    <OneFontProject Condition="'$(OneFontProject)' == '' and Exists('$(MSBuildThisFileDirectory)../../../../../onefont/csharp/onefont-csharp/src/OneFont/OneFont.csproj')">$(MSBuildThisFileDirectory)../../../../../onefont/csharp/onefont-csharp/src/OneFont/OneFont.csproj</OneFontProject>
     <OneFontProject Condition="'$(OneFontProject)' == ''">$(MSBuildThisFileDirectory)../../../../../../onefont/csharp/onefont-csharp/src/OneFont/OneFont.csproj</OneFontProject>
     <AssemblyName>$(LibName).Layout</AssemblyName>
     <RootNamespace>$(LibName).Layout</RootNamespace>
