@@ -220,6 +220,38 @@ public class DocSamples
     }
     // end sample
 
+    // sample: toc
+    private static void TableOfContents()
+    {
+        LayoutDocument.Compose(doc =>
+        {
+            doc.Title("Field notes").Language("en");
+            doc.Page(page =>
+            {
+                page.NumberStyle(NumberingStyle.LowerRoman);
+                page.Content().Column(col =>
+                {
+                    col.Item().Text("Contents").FontSize(20).Bold();
+                    col.Item().TableOfContents(toc => toc.Levels(1, 2).Level(1, s => s.Weight = 700));
+                });
+            });
+            doc.Page(page =>
+            {
+                page.StartNumber(1);
+                page.Content().Column(col =>
+                {
+                    col.Item().Heading(1).Text("The harbour").FontSize(16).Bold();
+                    col.Item().Text("Gulls and ropes.");
+                    col.Item().PageBreak();
+                    col.Item().Heading(1).Text("The orchard").FontSize(16).Bold();
+                    col.Item().Heading(2).Text("Windfalls").Bold();
+                    col.Item().TocEntry("A note on cider", 2).Text("Pressed in October.");
+                });
+            });
+        }).Save("toc.pdf");
+    }
+    // end sample
+
     // sample: images
     private static void Images()
     {
@@ -294,6 +326,7 @@ public class DocSamples
             Gradient();
             Components();
             Navigation();
+            TableOfContents();
             Images();
             RightToLeft();
             SaveOptions();
@@ -309,6 +342,7 @@ public class DocSamples
     [InlineData("gradient", "docs/layout.md")]
     [InlineData("component", "docs/layout.md")]
     [InlineData("navigation", "docs/layout.md")]
+    [InlineData("toc", "docs/layout.md")]
     [InlineData("images", "docs/layout.md")]
     [InlineData("rtl", "docs/layout.md")]
     [InlineData("save", "docs/layout.md")]

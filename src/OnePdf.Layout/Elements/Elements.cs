@@ -299,6 +299,8 @@ public abstract class Component : Element
 
     internal override bool EffectiveKeepWithNext => KeepWithNext || Composed.EffectiveKeepWithNext;
 
+    internal Element ComposedElement => Composed;
+
     private Element Composed => _composed ??= Compose() ?? throw new InvalidOperationException("Compose returned null.");
 
     internal override WidthRange WidthsCore(LayoutContext ctx) => Composed.MeasureWidths(ctx);
@@ -626,6 +628,12 @@ internal interface ITextBlock
     double FirstBaseline { get; }
 
     double LineHeight(int line);
+
+    /// <summary>Width of the line's content (trailing spaces not counted).</summary>
+    double LineWidth(int line);
+
+    /// <summary>Distance from the left edge of the block to the left edge of the line's content.</summary>
+    double LineX(int line);
 
     void Draw(in DrawContext d, Placed p, int first, int count);
 }

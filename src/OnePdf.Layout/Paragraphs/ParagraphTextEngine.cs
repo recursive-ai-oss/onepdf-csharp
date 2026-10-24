@@ -127,6 +127,10 @@ internal sealed class ParagraphTextEngine : ITextEngine
 
         public double LineHeight(int line) => layout.Lines[line].Height;
 
+        public double LineWidth(int line) => layout.Lines[line].Width;
+
+        public double LineX(int line) => layout.Lines[line].X;
+
         public void Draw(in DrawContext d, Placed p, int first, int count)
         {
             renderer.Draw(d.B, layout, d.X, d.PdfY(0), first, count);

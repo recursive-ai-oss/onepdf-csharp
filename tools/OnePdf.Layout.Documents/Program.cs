@@ -132,6 +132,49 @@ Write("report", "Two-page report: headings with bookmarks, justified paragraphs 
     });
 }));
 
+Write("toc", "Short report with a two-page table of contents in roman numerals: levels, leaders, page numbers that follow the body's own numbering, a long title that wraps", LayoutDocument.Compose(doc =>
+{
+    doc.Title("Field notes").Language("en");
+    doc.Page(page =>
+    {
+        page.Size(PageSize.A5);
+        page.Margin(30);
+        page.NumberStyle(NumberingStyle.LowerRoman);
+        page.Footer().AlignCenter().Text(t => { t.FontSize(8); t.CurrentPageNumber(); });
+        page.Content().Column(col =>
+        {
+            col.Spacing(8);
+            col.Item().Text("Contents").FontSize(20).Bold().FontColor(ink);
+            col.Item().TableOfContents(toc => toc
+                .Levels(1, 2)
+                .Style(s => s.Size = 10)
+                .Level(1, s => { s.Weight = 700; s.Size = 11; s.SpaceBefore = 5; })
+                .Level(2, s => s.Color = Colors.DarkGrey));
+        });
+    });
+    doc.Page(page =>
+    {
+        page.Size(PageSize.A5);
+        page.Margin(30);
+        page.StartNumber(1);
+        page.Footer().AlignCenter().Text(t => { t.FontSize(8); t.CurrentPageNumber(); });
+        page.Content().Column(col =>
+        {
+            col.Spacing(6);
+            string[] places = ["The harbour", "The orchard", "The old mill and the long road that leads up to it, past the chapel and over the three stone bridges", "The ridge", "The salt flats", "The market town", "The lighthouse", "The northern pass", "The river delta", "The quarry"];
+            for (int i = 0; i < places.Length; i++)
+            {
+                col.Item().Heading(1).Text($"{i + 1}. {places[i]}").FontSize(14).Bold().FontColor(ink);
+                col.Item().Text(Para(1)).FontSize(10).Justify();
+                col.Item().Heading(2).Text("Arrival").FontSize(11).Bold();
+                col.Item().Text(Para(1)).FontSize(10).Justify();
+                col.Item().Heading(2).Text("Weather and tides").FontSize(11).Bold();
+                col.Item().Text(Para(1)).FontSize(10).Justify();
+            }
+        });
+    });
+}));
+
 Write("table-pages", "A table over three pages: repeated header and footer, row and column spans, striped rows, collapsed borders", LayoutDocument.Compose(doc =>
 {
     doc.Title("Table").Language("en");

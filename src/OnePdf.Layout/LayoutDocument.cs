@@ -146,7 +146,7 @@ public sealed partial class LayoutDocument
             writer.SetInfo("Keywords", Keywords);
         }
 
-        return RenderCore(new WriterTarget(writer), null);
+        return RenderCore(new WriterTarget(writer), null, null, false, PlanToc());
     }
 
     /// <summary>Lays the document out through a streaming writer and finishes the file on <paramref name="output"/>.</summary>
@@ -180,19 +180,64 @@ public sealed partial class LayoutDocument
     // writer that throws its output away. Links, anchors, bookmarks and page labels need a streaming writer and are left out here.
     internal int RenderCore(PdfDocument target, Action<int, LayoutPage, Placed?, Placed?, Placed?>? capture)
     {
+        TocState? toc = PlanToc();
         var counts = new int[Pages.Count];
         using (var counter = new PdfDocumentWriter(Stream.Null, new PdfDocumentWriterOptions { CompressStreams = false, LeaveOpen = true }))
         {
-            RenderCore(new WriterTarget(counter), null, counts, countOnly: true);
+            RenderCore(new WriterTarget(counter), null, counts, countOnly: true, toc);
         }
 
-        return RenderCore(new DocumentTarget(target, counts), capture, null);
+        return RenderCore(new DocumentTarget(target, counts), capture, null, false, toc);
+    }
+
+    // A table of contents shows page numbers that depend on its own length. Pages are laid out without drawing until the entries a run finds
+    // are the entries the table drew in it; the run that writes the file then draws the settled table. Documents without a table skip all
+    // of this.
+    private TocState? PlanToc()
+    {
+        bool wanted = Options.TableOfContents ?? HasTableOfContents();
+        if (!wanted)
+        {
+            return null;
+        }
+
+        var state = new TocState();
+        for (int run = 0; run < TocState.MaxRuns; run++)
+        {
+            using var counter = new PdfDocumentWriter(Stream.Null, new PdfDocumentWriterOptions { CompressStreams = false, LeaveOpen = true });
+            RenderCore(new WriterTarget(counter), null, null, countOnly: true, state);
+            if (TocState.Same(state.Output, state.Input))
+            {
+                return state;
+            }
+
+            state.Advance();
+        }
+
+        state.Unsettled = true;
+        return state;
+    }
+
+    private bool HasTableOfContents()
+    {
+        foreach (LayoutPage p in Pages)
+        {
+            if (TocState.Contains(p.Content) || TocState.Contains(p.Header) || TocState.Contains(p.Footer) || TocState.Contains(p.FirstHeader)
+                || TocState.Contains(p.FirstFooter) || TocState.Contains(p.EvenHeader) || TocState.Contains(p.EvenFooter)
+                || TocState.Contains(p.Background) || TocState.Contains(p.Foreground))
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     // When `capture` is set, each page's placed tree is handed to it as the page is finished.
-    internal int RenderCore(ILayoutTarget target, Action<int, LayoutPage, Placed?, Placed?, Placed?>? capture, int[]? sectionCounts = null, bool countOnly = false)
+    internal int RenderCore(ILayoutTarget target, Action<int, LayoutPage, Placed?, Placed?, Placed?>? capture, int[]? sectionCounts = null, bool countOnly = false, TocState? toc = null)
     {
-        using var ctx = new LayoutContext(target, Options, new ParagraphTextEngine(target, Options.Fonts ?? TextFontRegistry.Shared)) { CountOnly = countOnly };
+        toc?.Reset();
+        using var ctx = new LayoutContext(target, Options, new ParagraphTextEngine(target, Options.Fonts ?? TextFontRegistry.Shared)) { CountOnly = countOnly, Toc = toc };
         _diagnostics = ctx.Diagnostics;
         if (!countOnly)
         {
@@ -228,6 +273,14 @@ public sealed partial class LayoutDocument
         }
 
         target.SetTotal(-1, pageNumber);
+        if (toc is not null && !countOnly)
+        {
+            if (toc.Unsettled || !TocState.Same(toc.Output, toc.Input))
+            {
+                ctx.Note("The page numbers of the table of contents did not settle; some may be off by the length of the table.");
+            }
+        }
+
         ctx.Tag.Finish();
         ctx.CheckLinks();
         return pageNumber;
@@ -280,6 +333,12 @@ public sealed partial class LayoutDocument
 
         void OnPage(int page, FlowFit fit)
         {
+            if (ctx.Toc is { } toc && fit.Placed is Placed found)
+            {
+                string label = (setup.LabelPrefix ?? string.Empty) + Numbering.Format(startNumber + page, setup.NumberStyle);
+                toc.Collect(found, firstPage + page, label, !ctx.CountOnly);
+            }
+
             if (ctx.CountOnly)
             {
                 // Only the number of pages matters; elements made for another document could not be drawn here anyway.
@@ -317,6 +376,8 @@ public sealed partial class LayoutDocument
             {
                 body.Element.Draw(d.At(m.Left, m.Top + (header?.Height ?? 0)), body);
             }
+
+            ctx.Toc?.EndPage();
 
             if (footer is not null)
             {
