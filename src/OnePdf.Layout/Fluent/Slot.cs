@@ -379,6 +379,17 @@ public partial class Slot
     /// <summary>Makes the content a heading of the given level (1 to 6; it becomes the structure type <c>H1</c> to <c>H6</c>). A heading is kept with what follows it.</summary>
     public Slot Heading(int level) => Wrap(new Heading { Level = level });
 
+    /// <summary>A heading that a <see cref="TableOfContents(Action{TocDescriptor}?)"/> lists under another text (a shorter title, no number) or leaves out.</summary>
+    /// <param name="level">1 to 6, as in <see cref="Heading(int)"/>.</param>
+    /// <param name="inToc">False keeps the heading out of every table of contents.</param>
+    /// <param name="tocTitle">The text of its entry; the heading's own text when null.</param>
+    public Slot Heading(int level, bool inToc, string? tocTitle = null) => Wrap(new Heading { Level = level, InToc = inToc, TocTitle = tocTitle });
+
+    /// <summary>Adds an entry to the table of contents going to the top of the content, for things that are not headings.</summary>
+    /// <param name="title">The text of the entry; the content's own text when null or empty.</param>
+    /// <param name="level">Nesting, 1 or more.</param>
+    public Slot TocEntry(string? title, int level = 1) => Wrap(new TocEntry { Title = title, Level = level });
+
     /// <summary>Describes the content for readers who cannot see it. The content, and everything in it, becomes one figure with this description.</summary>
     public Slot AltText(string description) => Attribute(b => b.AltText = description ?? throw new ArgumentNullException(nameof(description)));
 

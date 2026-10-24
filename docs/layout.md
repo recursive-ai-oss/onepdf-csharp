@@ -207,6 +207,39 @@ LayoutDocument.Compose(doc => doc.Page(page =>
 })).Save("navigation.pdf");
 ```
 
+### Table of contents
+
+`TableOfContents(toc => ...)` lists the document's headings, with page numbers, leaders and links. Entries come from `Heading` elements and from `TocEntry(title, level)` wrappers for things that are not headings; `Heading(level, inToc, tocTitle)` leaves a heading out or lists it under another text. `Levels(min, max)` (default 1 to 3), `Leader` (default a dot; null for none), `Indent`, `Gap`, `Spacing`, `Style` and `Level(n, style)` (font, size, colour, line spacing and `SpaceBefore` per level) shape it. The number is the page's label, so a roman front section shows "iv" and a `LabelPrefix` of "A-" shows "A-12", exactly as a viewer's page-label box does.
+
+```csharp
+LayoutDocument.Compose(doc =>
+{
+    doc.Title("Field notes").Language("en");
+    doc.Page(page =>
+    {
+        page.NumberStyle(NumberingStyle.LowerRoman);
+        page.Content().Column(col =>
+        {
+            col.Item().Text("Contents").FontSize(20).Bold();
+            col.Item().TableOfContents(toc => toc.Levels(1, 2).Level(1, s => s.Weight = 700));
+        });
+    });
+    doc.Page(page =>
+    {
+        page.StartNumber(1);
+        page.Content().Column(col =>
+        {
+            col.Item().Heading(1).Text("The harbour").FontSize(16).Bold();
+            col.Item().Text("Gulls and ropes.");
+            col.Item().PageBreak();
+            col.Item().Heading(1).Text("The orchard").FontSize(16).Bold();
+            col.Item().Heading(2).Text("Windfalls").Bold();
+            col.Item().TocEntry("A note on cider", 2).Text("Pressed in October.");
+        });
+    });
+}).Save("toc.pdf");
+```
+
 ### Components
 
 Implement `IComponent` to reuse a piece of layout. `Component<T>()` creates one with its parameterless constructor.
@@ -311,6 +344,7 @@ A tree of plain element objects. Elements hold properties and no layout state, s
 
 - **Page numbers.** `PageNumber` shows the current number, or a total. A total is not known while pages are laid out: it is a form XObject reserved on first use and drawn on each page, filled once the document (or section) ends, with the number right-aligned inside a box of `ReservedDigits` digits. More digits than reserved are drawn condensed with a note. `Render(PdfDocument)` cannot fill a form later, so it lays the document out once into a throw-away writer to count pages, then renders. Put "Page N of M" in a `Row` with `Spacing`; a trailing space does not count towards a text's width.
 - **Numbering.** Each section has `NumberStyle`, `StartNumber` (default: continue) and `LabelPrefix`. The document gets page labels (ISO 32000-2 12.4.2) where numbering does not simply continue. `SectionTotal` counts a section's pages in its own style.
+- **Table of contents.** A table shows page numbers that depend on its own length and on pages not yet laid out. A document that contains one is laid out without drawing, as many times as it takes for the entries a run finds (title, level, page, label) to equal the entries the table drew in that run: the first run draws an empty table, the second the numbers of the first, a third confirms; at most six, with a note if they do not settle. One more run then writes the file. The number column is as wide as the widest label seen and never narrows between runs, so a label gaining a digit cannot make the runs chase each other. Only the entry list is kept between runs, so streaming memory is unchanged, and a document without a table pays nothing. Headings and entries are collected from the placed body pages in drawing order (not from table cells, repeated header rows, headers or footers), and each gets a named destination `onepdf-toc-N`. The search for a table before layout walks every container of this package (including `MultiColumn`) and components, and asks any element that holds others through one internal hook; set `LayoutOptions.TableOfContents` to true for a table it cannot see. An entry is not split across pages: a long title wraps and the number sits on its last line; the leader is a grid anchored at the number's edge, so dots line up from entry to entry. In right-to-left content the numbers move to the left. Structure: `TOC` holding one `TOCI` per entry, each a `Reference` holding a `Link` that owns the link annotation (ISO 32000-2 14.8.4.3.3, 14.8.4.4.2); the leader is an artifact.
 - **Links and anchors.** `Link` covers its child's box (every piece of a split child) with a URI or the name of an `Anchor`; anchors are named destinations at the top of their child's first piece, and links may precede them. Undefined and duplicate names are noted. `Bookmark` adds an outline entry (levels lifted to one below the previous entry when they jump). Links and anchors inside `Rotate` or `Scale` are not recorded. Only the streaming writer can record links, destinations, bookmarks and labels; `Render(PdfDocument)` leaves them out with a note.
 
 ## Tagging and direction

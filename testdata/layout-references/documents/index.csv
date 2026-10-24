@@ -1,6 +1,7 @@
 document,pages,description
 invoice.pdf,1,"One-page invoice: header band, address blocks, a table with a footer row, page x of y"
 report.pdf,2,"Two-page report: headings with bookmarks, justified paragraphs that split across pages, a link and its anchor"
+toc.pdf,6,"Short report with a two-page table of contents in roman numerals: levels, leaders, page numbers that follow the body's own numbering, a long title that wraps"
 table-pages.pdf,2,"A table over three pages: repeated header and footer, row and column spans, striped rows, collapsed borders"
 lists.pdf,1,"Bulleted, numbered, roman and lettered lists, a nested list and a custom marker"
 boxes.pdf,1,"Borders (solid, dashed, dotted, per side), rounded corners, backgrounds, opacity, padding and nine-point alignment"
