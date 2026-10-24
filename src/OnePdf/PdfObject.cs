@@ -1,5 +1,6 @@
 using System.Text;
 using OnePdf.Internal;
+using OnePdf.Security;
 
 namespace OnePdf;
 
@@ -14,11 +15,40 @@ public abstract class PdfObject
     {
     }
 
-    /// <summary>The object number and generation this object was read under, or null for direct objects and for indirect nulls.</summary>
-    public PdfReference? Reference { get; internal set; }
+    private PdfReference? _reference;
+    private long _sourceOffset = -1;
 
-    /// <summary>The byte offset of the object's <c>n g obj</c> header in the file, or -1 for direct objects and for objects read from an object stream.</summary>
-    public long SourceOffset { get; internal set; } = -1;
+    /// <summary>
+    /// The object number and generation this object was read under, or null for direct objects and for indirect nulls.
+    /// A stream's dictionary reports the same reference as the stream itself: in a file they are one indirect object
+    /// (ISO 32000-2 7.3.8), so code that identifies objects through <see cref="PdfDictionary"/> sees it as the same object.
+    /// </summary>
+    public PdfReference? Reference
+    {
+        get => _reference;
+        internal set
+        {
+            _reference = value;
+            if (this is PdfStream s)
+            {
+                s.Dictionary.Reference = value;
+            }
+        }
+    }
+
+    /// <summary>The byte offset of the object's <c>n g obj</c> header in the file, or -1 for direct objects and for objects read from an object stream. A stream's dictionary reports the stream's offset.</summary>
+    public long SourceOffset
+    {
+        get => _sourceOffset;
+        internal set
+        {
+            _sourceOffset = value;
+            if (this is PdfStream s)
+            {
+                s.Dictionary.SourceOffset = value;
+            }
+        }
+    }
 
     /// <summary>The object stream's object number when this object was stored in one, otherwise -1.</summary>
     public int ContainerObjectNumber { get; internal set; } = -1;
@@ -84,6 +114,10 @@ public sealed class PdfString : PdfObject
 {
     /// <summary>Creates the object.</summary>
     public PdfString(byte[] bytes) => Bytes = bytes ?? throw new ArgumentNullException(nameof(bytes));
+
+    // What was wrong with the ciphertext this string was decrypted from (bad padding, a partial last block); None for every other string.
+    // The bytes are then only what decrypted. A conformance save must not write them as if they were the original text.
+    internal DecryptIssues DecryptDamage { get; init; }
 
     /// <summary>
     /// Encodes <paramref name="text"/> as a PDF text string (ISO 32000-2 7.9.2.2): PDFDocEncoding when every character has a code

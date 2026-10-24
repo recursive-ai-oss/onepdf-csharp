@@ -1,3 +1,5 @@
+using OnePdf.Security;
+
 namespace OnePdf.Internal;
 
 /// <summary>
@@ -105,7 +107,16 @@ internal sealed class ObjectParser
                         _stack[depth - 1].RawContents = t.Bytes;
                     }
 
-                    value = Count(new PdfString(_decrypting is null ? t.Bytes! : _decrypting.DecryptStringBytes(t.Bytes!, _objNum, _generation)), 32 + t.Bytes!.Length);
+                    if (_decrypting is null)
+                    {
+                        value = Count(new PdfString(t.Bytes!), 32 + t.Bytes!.Length);
+                    }
+                    else
+                    {
+                        byte[] plain = _decrypting.DecryptStringBytes(t.Bytes!, _objNum, _generation, out DecryptIssues damage);
+                        value = Count(new PdfString(plain) { DecryptDamage = damage }, 32 + t.Bytes!.Length);
+                    }
+
                     break;
                 case TokenKind.Name:
                     if (depth > 0 && _stack[depth - 1].Dict is not null && _stack[depth - 1].Key is null)

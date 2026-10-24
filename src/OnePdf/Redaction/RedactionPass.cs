@@ -227,6 +227,15 @@ internal sealed class RedactionPass
         {
             throw new PdfRedactionException($"Page {index + 1} could not be redacted safely: {why}.", index);
         }
+
+        try
+        {
+            redactor.FinishResources(page);
+        }
+        catch (PdfException e) when (e is not PdfRedactionException)
+        {
+            throw new PdfRedactionException($"Page {index + 1} could not be redacted safely: {e.Message}", index, e);
+        }
     }
 
     private static bool Meets(PdfRectangle a, List<PdfRectangle> rects)
