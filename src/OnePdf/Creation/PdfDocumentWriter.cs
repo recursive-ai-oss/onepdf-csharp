@@ -61,7 +61,7 @@ public sealed partial class PdfDocumentWriter : IDisposable
     private readonly PdfDocument _workspace;
     private readonly StreamingSaver _saver;
     private readonly HashSet<int> _held = [];
-    private readonly SortedDictionary<string, string> _info = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, string> _info = new(StringComparer.Ordinal); // written in ordinal key order
     private readonly List<int> _pageNumbers = [];
     private readonly List<int> _nodeNumbers = [];
     private readonly List<int> _nodeCounts = [];
@@ -71,7 +71,7 @@ public sealed partial class PdfDocumentWriter : IDisposable
     private readonly List<(PdfFormXObject Form, bool Done)> _reservedForms = [];
     private readonly List<(string Title, int Level, int PageIndex, double Top)> _bookmarks = [];
     private readonly List<PdfPageLabelRange> _labelRanges = [];
-    private readonly SortedDictionary<string, (int PageIndex, double Top)> _destinations = new(StringComparer.Ordinal);
+    private Dictionary<string, (int PageIndex, double Top)>? _destinations; // created on first use
     private PdfStreamPageBuilder? _openPage;
     private bool _finished;
     private bool _disposed;
@@ -387,6 +387,7 @@ public sealed partial class PdfDocumentWriter : IDisposable
             throw new ArgumentOutOfRangeException(nameof(top));
         }
 
+        _destinations ??= new Dictionary<string, (int PageIndex, double Top)>(StringComparer.Ordinal);
         if (!_destinations.TryAdd(name, (pageIndex, top)))
         {
             throw new ArgumentException($"The destination '{name}' is already defined.", nameof(name));
@@ -569,9 +570,9 @@ public sealed partial class PdfDocumentWriter : IDisposable
         if (_info.Count > 0)
         {
             var info = new PdfDictionary();
-            foreach (KeyValuePair<string, string> kv in _info)
+            foreach (string key in OrdinalKeys(_info))
             {
-                info.SetEntry(kv.Key, PdfString.FromText(kv.Value));
+                info.SetEntry(key, PdfString.FromText(_info[key]));
             }
 
             infoRef = _workspace.AddObject(info);
@@ -760,9 +761,19 @@ public sealed partial class PdfDocumentWriter : IDisposable
         return dest;
     }
 
+    // Dictionaries of strings are precompiled in the runtime and sorted dictionaries are not, so the maps that must be written in key order
+    // are plain dictionaries sorted when they are written.
+    private static string[] OrdinalKeys(Dictionary<string, string> map)
+    {
+        string[] keys = new string[map.Count];
+        map.Keys.CopyTo(keys, 0);
+        Array.Sort(keys, StringComparer.Ordinal);
+        return keys;
+    }
+
     private PdfReference? WriteDestinations()
     {
-        if (_destinations.Count == 0)
+        if (_destinations is null || _destinations.Count == 0)
         {
             return null;
         }
