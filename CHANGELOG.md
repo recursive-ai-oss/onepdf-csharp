@@ -4,6 +4,8 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ## [Unreleased]
 
+## [1.8.0] - 2026-10-24
+
 ### Added
 
 - PDF/UA-1 (ISO 14289-1): `PdfSaveOptions.PdfUA` (`PdfUAOptions`), `PdfDocument.PreparePdfUA` and `CheckPdfUA`, `PdfUAException` and `PdfUAViolation` (Matterhorn checkpoint and ISO clause per finding). A save repairs `/MarkInfo`, `/Lang` (from `PdfUAOptions.Language`), `DisplayDocTitle`, `/Tabs /S`, link `/Contents` and the XMP identification, and refuses with every violation listed: missing title or language, figures without alternate text, untagged content, skipped heading levels, tables without header cells or with irregular rows, malformed lists, unmapped structure types, links and widgets outside their structure elements, unembedded fonts and encryption that blocks assistive technology. Only for documents that are already tagged; a clean result is not proof of conformance. See `docs/pdfua.md`.
@@ -167,6 +169,7 @@ First release. Two packages, `RecursiveAI.OnePdf` (the library, `net10.0`, no de
 - Limits on by default (`PdfLimits`) and fuzzed parsers, filters and font readers; no `unsafe` code. OnePDF never runs code or touches the network.
 - `RecursiveAI.OnePdf.Fonts`: Liberation and Noto substitute outlines under the SIL Open Font License 1.1, registered with `FontsPackage.Register()`.
 
+[1.8.0]: https://github.com/recursive-ai-oss/onepdf-csharp/releases/tag/v1.8.0
 [1.7.0]: https://github.com/recursive-ai-oss/onepdf-csharp/releases/tag/v1.7.0
 [1.6.0]: https://github.com/recursive-ai-oss/onepdf-csharp/releases/tag/v1.6.0
 [1.5.0]: https://github.com/recursive-ai-oss/onepdf-csharp/releases/tag/v1.5.0
