@@ -1,0 +1,30 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- The OnePDF side of the layout benchmark as a NativeAOT program, for the cold first-document row. The competitors run as ordinary
+       managed code only: they use reflection and native libraries and do not publish as NativeAOT. -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <RootNamespace>LayoutBench</RootNamespace>
+    <IsPackable>false</IsPackable>
+    <PublishAot>true</PublishAot>
+    <TrimmerSingleWarn>false</TrimmerSingleWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="../OnePdf.Layout.Benchmarks/Content.cs" Link="Content.cs" />
+    <Compile Include="../OnePdf.Layout.Benchmarks/IEngine.cs" Link="IEngine.cs" />
+    <Compile Include="../OnePdf.Layout.Benchmarks/OnePdfEngine.cs" Link="OnePdfEngine.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../../src/OnePdf/OnePdf.csproj" />
+    <ProjectReference Include="../../src/OnePdf.Layout/OnePdf.Layout.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="../../src/OnePdf.Fonts/Fonts/Liberation*.ttf" Link="fonts/%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../../testdata/fonts/NotoSansArabic-Subset-Regular.ttf" Link="fonts/%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../../testdata/fonts/NotoSansDevanagari-Subset-Regular.ttf" Link="fonts/%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+</Project>
