@@ -4,6 +4,8 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ## [Unreleased]
 
+## [1.9.0] - 2026-10-24
+
 ### Added
 
 - Knuth–Plass line breaking in layout, opt in per paragraph and as a document default. `LineBreakMode` (`Greedy`, the default, and `KnuthPlass`), `KnuthPlassOptions` (tolerance, pre-tolerance, line, hyphen and explicit-hyphen penalties, consecutive-hyphen, final-hyphen and fitness demerits, looseness, emergency stretch), `TextParagraph.LineBreakMode`/`KnuthPlass`, `Text.LineBreakMode`/`KnuthPlass`, `LayoutOptions.LineBreakMode`/`KnuthPlass`, `TextDescriptor.OptimalLineBreaks`/`GreedyLineBreaks` and `DocumentComposer.LineBreaking`. After Knuth and Plass, 1981: the breaks of a whole paragraph are chosen together, with hyphenation points, mixed fonts and sizes and bidi text; a paragraph with no setting in tolerance is retried with emergency stretch and then accepts any line, and one beyond its search bounds is broken greedily with a warning. Greedy output is unchanged. See `docs/layout-text.md`.
@@ -194,6 +196,7 @@ First release. Two packages, `RecursiveAI.OnePdf` (the library, `net10.0`, no de
 - Limits on by default (`PdfLimits`) and fuzzed parsers, filters and font readers; no `unsafe` code. OnePDF never runs code or touches the network.
 - `RecursiveAI.OnePdf.Fonts`: Liberation and Noto substitute outlines under the SIL Open Font License 1.1, registered with `FontsPackage.Register()`.
 
+[1.9.0]: https://github.com/recursive-ai-oss/onepdf-csharp/releases/tag/v1.9.0
 [1.8.0]: https://github.com/recursive-ai-oss/onepdf-csharp/releases/tag/v1.8.0
 [1.7.0]: https://github.com/recursive-ai-oss/onepdf-csharp/releases/tag/v1.7.0
 [1.6.0]: https://github.com/recursive-ai-oss/onepdf-csharp/releases/tag/v1.6.0
