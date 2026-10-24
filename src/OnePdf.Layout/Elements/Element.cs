@@ -89,6 +89,9 @@ internal sealed class LayoutContext : IDisposable
     /// <summary>True in the run that only counts pages: nothing is drawn.</summary>
     public bool CountOnly { get; init; }
 
+    /// <summary>How many lists enclose the element being laid out.</summary>
+    public int ListDepth { get; set; }
+
     /// <summary>The page being laid out and drawn.</summary>
     public PageInfo Page { get; set; }
 

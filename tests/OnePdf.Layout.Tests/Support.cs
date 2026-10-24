@@ -20,11 +20,18 @@ internal static class Support
 
     public static byte[] Jpeg() => File.ReadAllBytes(Path.Combine(Root(), "testdata", "generated", "images", "rgb16.jpg"));
 
-    public static byte[] Save(LayoutDocument layout)
+    public static byte[] Save(LayoutDocument layout, string? dump = null)
     {
         using var ms = new MemoryStream();
         layout.Save(ms, Fixed);
-        return ms.ToArray();
+        byte[] bytes = ms.ToArray();
+        if (dump is not null && Environment.GetEnvironmentVariable("ONEPDF_LAYOUT_DUMP") is { Length: > 0 } dir)
+        {
+            Directory.CreateDirectory(dir);
+            File.WriteAllBytes(Path.Combine(dir, dump + ".pdf"), bytes);
+        }
+
+        return bytes;
     }
 
     public static LayoutDocument Single(Element content, PageSize? size = null, double margin = 20, Action<LayoutPage>? setup = null)

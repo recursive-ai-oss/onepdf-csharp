@@ -522,7 +522,7 @@ public sealed class Box : SingleChildElement
         b.Restore();
     }
 
-    private static void ApplyStrokeStyle(PdfContentBuilder b, Border side)
+    internal static void ApplyStrokeStyle(PdfContentBuilder b, Border side)
     {
         b.SetStrokeRgb(side.Color.R, side.Color.G, side.Color.B);
         b.SetLineWidth(side.Width);
