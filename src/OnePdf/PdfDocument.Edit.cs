@@ -57,6 +57,20 @@ public sealed partial class PdfDocument
         ThrowIfDisposed();
     }
 
+    /// <summary>
+    /// Removes a new object (one added with <see cref="AddObject"/> and not yet saved) from the document and returns it, so a streaming
+    /// writer can write it out and let go of it. Null when there is no such object.
+    /// </summary>
+    internal PdfObject? TakeNewObject(int number)
+    {
+        lock (_dirty)
+        {
+            _dirty.Remove(number);
+        }
+
+        return _pinned!.TryRemove(number, out PdfObject? o) ? o : null;
+    }
+
     internal void MarkDirty(int owner)
     {
         lock (_dirty)

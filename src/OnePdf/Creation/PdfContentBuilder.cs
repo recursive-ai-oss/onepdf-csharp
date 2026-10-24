@@ -138,6 +138,9 @@ public abstract partial class PdfContentBuilder : IDisposable
     /// <summary>The document the content is for.</summary>
     public PdfDocument Document { get; }
 
+    /// <summary>Called by the form and streaming page builders after their content has been stored, so a streaming writer can write it out.</summary>
+    internal Action? AfterCommit { get; set; }
+
     /// <summary>True once <c>Commit</c> has run or the builder was disposed; further calls throw <see cref="InvalidOperationException"/>.</summary>
     public bool IsClosed { get; private protected set; }
 

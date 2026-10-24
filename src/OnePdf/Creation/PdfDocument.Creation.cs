@@ -597,11 +597,13 @@ public sealed class PdfPageContentBuilder : PdfContentBuilder
 public sealed class PdfFormContentBuilder : PdfContentBuilder
 {
     private readonly PdfRectangle _box;
+    private readonly PdfFormXObject? _reserved;
 
-    internal PdfFormContentBuilder(PdfDocument document, PdfRectangle box)
+    internal PdfFormContentBuilder(PdfDocument document, PdfRectangle box, PdfFormXObject? reserved = null)
         : base(document, null)
     {
         _box = box;
+        _reserved = reserved;
     }
 
     /// <summary>Writes the form into the document and returns it.</summary>
@@ -628,7 +630,19 @@ public sealed class PdfFormContentBuilder : PdfContentBuilder
         PageContentWriter.AddResources(doc, d.GetDictionary("Resources")!, "XObject", XObjectResources);
         PageContentWriter.AddResources(doc, d.GetDictionary("Resources")!, "ExtGState", StateResources);
         IsClosed = true;
-        return new PdfFormXObject(doc, doc.AddObject(s), _box);
+        PdfFormXObject form;
+        if (_reserved is not null)
+        {
+            doc.SetObject(_reserved.Reference.Number, s);
+            form = _reserved;
+        }
+        else
+        {
+            form = new PdfFormXObject(doc, doc.AddObject(s), _box);
+        }
+
+        AfterCommit?.Invoke();
+        return form;
     }
 }
 
