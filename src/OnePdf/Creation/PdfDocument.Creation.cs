@@ -609,6 +609,16 @@ public sealed class PdfFormContentBuilder : PdfContentBuilder
 {
     private readonly PdfRectangle _box;
     private readonly PdfFormXObject? _reserved;
+    private (bool Isolated, bool Knockout)? _group;
+
+    /// <summary>
+    /// Makes the form a transparency group (ISO 32000-2 11.6.6): its content is composited on its own and then painted as one object, so
+    /// the opacity, blend mode and soft mask in force when the form is drawn apply to the result and not to each piece. A form used as a
+    /// soft mask (<see cref="PdfContentBuilder.SetSoftMask"/>) must be a group. The group's colour space is DeviceRGB.
+    /// </summary>
+    /// <param name="isolated">Whether the group is composited against a transparent backdrop (default true).</param>
+    /// <param name="knockout">Whether each object in the group replaces what the earlier ones painted (default false).</param>
+    public void SetTransparencyGroup(bool isolated = true, bool knockout = false) => _group = (isolated, knockout);
 
     internal PdfFormContentBuilder(PdfDocument document, PdfRectangle box, PdfFormXObject? reserved = null)
         : base(document, null)
@@ -635,6 +645,16 @@ public sealed class PdfFormContentBuilder : PdfContentBuilder
         }
 
         d.SetEntry("BBox", bbox);
+        if (_group is { } group)
+        {
+            var g = new PdfDictionary();
+            g.SetEntry("S", new PdfName("Transparency"));
+            g.SetEntry("CS", new PdfName("DeviceRGB"));
+            g.SetEntry("I", new PdfBoolean(group.Isolated));
+            g.SetEntry("K", new PdfBoolean(group.Knockout));
+            d.SetEntry("Group", g);
+        }
+
         var res = new PdfDictionary();
         d.SetEntry("Resources", res);
         PageContentWriter.AddResources(doc, d.GetDictionary("Resources")!, "Font", FontResources);

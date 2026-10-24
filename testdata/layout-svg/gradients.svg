@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="240" height="160" viewBox="0 0 240 160">
+  <defs>
+    <linearGradient id="lg" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#f00"/><stop offset="0.5" stop-color="#ff0"/><stop offset="1" stop-color="#00f"/></linearGradient>
+    <radialGradient id="rg" cx="0.5" cy="0.5" r="0.5" fx="0.3" fy="0.3"><stop offset="0" stop-color="#fff"/><stop offset="1" stop-color="#036"/></radialGradient>
+    <linearGradient id="rep" x1="0" y1="0" x2="30" y2="0" gradientUnits="userSpaceOnUse" spreadMethod="repeat"><stop offset="0" stop-color="#000"/><stop offset="1" stop-color="#fff"/></linearGradient>
+    <linearGradient id="refl" x1="0" y1="0" x2="30" y2="0" gradientUnits="userSpaceOnUse" spreadMethod="reflect"><stop offset="0" stop-color="#900"/><stop offset="1" stop-color="#fc9"/></linearGradient>
+    <linearGradient id="fade" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#06c" stop-opacity="1"/><stop offset="1" stop-color="#06c" stop-opacity="0"/></linearGradient>
+  </defs>
+  <rect x="10" y="10" width="100" height="40" fill="url(#lg)"/>
+  <circle cx="170" cy="40" r="30" fill="url(#rg)"/>
+  <rect x="10" y="60" width="100" height="30" fill="url(#rep)" stroke="#000"/>
+  <rect x="130" y="80" width="100" height="30" fill="url(#refl)"/>
+  <rect x="10" y="100" width="100" height="50" fill="#eee"/>
+  <rect x="10" y="100" width="100" height="50" fill="url(#fade)"/>
+</svg>

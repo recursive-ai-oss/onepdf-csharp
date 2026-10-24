@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <RootNamespace>$(LibName).Layout.SvgCompare</RootNamespace>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Using Include="System" />
+    <Using Include="System.Collections.Generic" />
+    <Using Include="System.IO" />
+    <Using Include="System.Linq" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../../src/OnePdf.Layout/OnePdf.Layout.csproj" />
+    <!-- The published SVG renderer, used as a black box: SVG files go in, PNG files come out. -->
+    <PackageReference Include="RecursiveAI.OneImage.Svg" />
+  </ItemGroup>
+
+</Project>

@@ -21,6 +21,7 @@
     <Project Path="tools/OnePdf.Opens/OnePdf.Opens.csproj" />
     <Project Path="tools/OnePdf.Layout.Documents/OnePdf.Layout.Documents.csproj" />
     <Project Path="tools/OnePdf.Layout.References/OnePdf.Layout.References.csproj" />
+    <Project Path="tools/OnePdf.Layout.SvgCompare/OnePdf.Layout.SvgCompare.csproj" />
   </Folder>
   <Folder Name="/fuzz/">
     <Project Path="fuzz/OnePdf.Fuzz/OnePdf.Fuzz.csproj" />

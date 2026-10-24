@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="220" height="120" viewBox="0 0 220 120">
+  <defs>
+    <g id="star"><polygon points="15,0 19,11 30,11 21,18 24,30 15,23 6,30 9,18 0,11 11,11" fill="#fc0" stroke="#a60"/></g>
+    <symbol id="badge" viewBox="0 0 20 20"><circle cx="10" cy="10" r="9" fill="#36c"/><path d="M5 10 l4 4 l7 -8" stroke="#fff" stroke-width="2" fill="none"/></symbol>
+  </defs>
+  <use xlink:href="#star" x="10" y="10"/>
+  <use href="#star" x="60" y="10" fill="red"/>
+  <use href="#star" transform="translate(110 10) scale(1.5)"/>
+  <use href="#badge" x="10" y="60" width="40" height="40"/>
+  <use href="#badge" x="70" y="60" width="20" height="20"/>
+  <use href="#badge" x="110" y="60" width="80" height="30"/>
+</svg>

@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="220" height="140" viewBox="0 0 220 140">
+  <path d="M10 70 A30 30 0 0 1 70 70 A30 30 0 0 1 10 70 Z" fill="#8ac"/>
+  <path d="M80 70 a25 40 30 1 0 50 0" fill="none" stroke="#333" stroke-width="2"/>
+  <path d="M140 20 Q 170 -10 200 20 T 200 60 S 150 90 140 60 Z" fill="#fdd" stroke="#a33" stroke-width="2"/>
+  <path d="M20 120 C 40 90, 60 150, 80 120 s 40 -30 60 0 h 20 v 10 H 20 z" fill="#cfc" stroke="#363"/>
+  <path d="M100 10 l 20 30 -40 0 z" fill="#ccf" fill-rule="evenodd"/>
+</svg>

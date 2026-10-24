@@ -172,6 +172,33 @@ public partial class Slot
     /// <param name="path">A local file.</param>
     public ImageDescriptor Image(string path) => Image(File.ReadAllBytes(path ?? throw new ArgumentNullException(nameof(path))));
 
+    /// <summary>
+    /// A vector picture from an SVG file, drawn as PDF paths and real text. Alternate text is the SVG's <c>title</c> (then <c>desc</c>) unless
+    /// <see cref="SvgDescriptor.AltText"/> sets it.
+    /// </summary>
+    /// <param name="data">The SVG file's bytes.</param>
+    /// <returns>A descriptor for the fit, size and description.</returns>
+    /// <exception cref="PdfFormatException">The data is not a well-formed SVG document.</exception>
+    /// <exception cref="PdfLimitException">The document exceeds a limit of <see cref="SvgLimits.Default"/>.</exception>
+    /// <example>
+    /// <code>
+    /// slot.Width(120).Svg(File.ReadAllBytes("logo.svg")).Contain().AltText("Company logo");
+    /// </code>
+    /// </example>
+    public SvgDescriptor Svg(ReadOnlySpan<byte> data) => Svg(SvgImage.Parse(data));
+
+    /// <summary>A vector picture from SVG text. See <see cref="Svg(ReadOnlySpan{byte})"/>.</summary>
+    public SvgDescriptor Svg(string svg) => Svg(SvgImage.Parse(svg));
+
+    /// <summary>A vector picture from an already parsed document, to place one SVG in many places without parsing it again.</summary>
+    public SvgDescriptor Svg(SvgImage svg)
+    {
+        ArgumentNullException.ThrowIfNull(svg);
+        var e = new SvgPicture { Source = svg, AltText = svg.Title ?? svg.Description };
+        Put(e);
+        return new SvgDescriptor(e);
+    }
+
     /// <summary>A picture already added to the output with <see cref="PdfDocumentWriter.AddJpegImage(ReadOnlyMemory{byte})"/> or the document's equivalent, to share it between many places.</summary>
     public ImageDescriptor Image(PdfCreatedImage image)
     {
@@ -222,6 +249,51 @@ public sealed class ImageDescriptor
     private ImageDescriptor Set(Action<Image> change)
     {
         change(_image);
+        return this;
+    }
+}
+
+/// <summary>Sets how an SVG picture fills its box, its natural size and its description. Returned by <see cref="Slot.Svg(SvgImage)"/>.</summary>
+public sealed class SvgDescriptor
+{
+    private readonly SvgPicture _picture;
+
+    internal SvgDescriptor(SvgPicture picture) => _picture = picture;
+
+    /// <summary>The width fills the offered width and the height follows the proportions. This is the default.</summary>
+    public SvgDescriptor FitWidth() => Set(i => i.Fit = ImageFit.FitWidth);
+
+    /// <summary>The height fills the offered height (the natural height when unbounded) and the width follows.</summary>
+    public SvgDescriptor FitHeight() => Set(i => i.Fit = ImageFit.FitHeight);
+
+    /// <summary>The whole picture shows, proportions kept, inside the box it is offered.</summary>
+    public SvgDescriptor Contain() => Set(i => i.Fit = ImageFit.Contain);
+
+    /// <summary>The picture covers the box it is offered, proportions kept, and is clipped to it.</summary>
+    public SvgDescriptor Cover() => Set(i => i.Fit = ImageFit.Cover);
+
+    /// <summary>The picture is stretched to the box it is offered, proportions ignored.</summary>
+    public SvgDescriptor Stretch() => Set(i => i.Fit = ImageFit.Stretch);
+
+    /// <summary>CSS pixels per inch that give the natural size (default 96, 0.75 point per pixel).</summary>
+    public SvgDescriptor Dpi(double dpi) => Set(i => i.Dpi = dpi);
+
+    /// <summary>For <see cref="Contain"/>: where the picture sits in its box.</summary>
+    public SvgDescriptor Align(HorizontalAlignment horizontal, VerticalAlignment vertical) => Set(i =>
+    {
+        i.HorizontalAlignment = horizontal;
+        i.VerticalAlignment = vertical;
+    });
+
+    /// <summary>Describes the picture for readers who cannot see it; wins over the SVG's own title and description.</summary>
+    public SvgDescriptor AltText(string description) => Set(i => i.AltText = description ?? throw new ArgumentNullException(nameof(description)));
+
+    /// <summary>Marks the picture as decoration, so it needs no description and stays out of the structure tree.</summary>
+    public SvgDescriptor Artifact() => Set(i => i.Artifact = true);
+
+    private SvgDescriptor Set(Action<SvgPicture> change)
+    {
+        change(_picture);
         return this;
     }
 }

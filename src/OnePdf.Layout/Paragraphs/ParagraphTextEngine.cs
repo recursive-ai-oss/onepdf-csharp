@@ -16,6 +16,10 @@ internal sealed class ParagraphTextEngine : ITextEngine
         _renderer = new TextRenderer(target.AddFont, target.AddStandardFont);
     }
 
+    internal TextFontRegistry Fonts => _fonts;
+
+    internal TextRenderer Renderer => _renderer;
+
     public ITextBlock Prepare(Text text, double width, LayoutContext ctx)
     {
         Entry e = Shaped(text, ctx);

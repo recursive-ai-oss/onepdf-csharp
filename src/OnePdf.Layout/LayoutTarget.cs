@@ -29,6 +29,9 @@ internal interface ILayoutTarget
     /// <summary>A builder used only to measure text; it is never committed.</summary>
     PdfContentBuilder BeginMeasurer();
 
+    /// <summary>Starts a form XObject (a transparency group, a soft mask, a pattern cell).</summary>
+    PdfFormContentBuilder BeginForm(PdfRectangle box);
+
     TargetPage BeginPage(double width, double height);
 
     /// <summary>True when the target can record links, bookmarks, named destinations and page labels.</summary>
@@ -125,6 +128,8 @@ internal sealed class DocumentTarget(PdfDocument document, int[]? sectionTotals 
 
     public PdfContentBuilder BeginMeasurer() => document.BeginForm(new PdfRectangle(0, 0, 1, 1));
 
+    public PdfFormContentBuilder BeginForm(PdfRectangle box) => document.BeginForm(box);
+
     public TargetPage BeginPage(double width, double height)
     {
         PdfPage page = document.InsertBlankPage(document.Pages.Count, width, height);
@@ -191,6 +196,8 @@ internal sealed class WriterTarget(PdfDocumentWriter writer) : ILayoutTarget
     public PdfCreatedImage AddPngImage(ReadOnlyMemory<byte> png) => writer.AddPngImage(png);
 
     public PdfContentBuilder BeginMeasurer() => writer.BeginForm(new PdfRectangle(0, 0, 1, 1));
+
+    public PdfFormContentBuilder BeginForm(PdfRectangle box) => writer.BeginForm(box);
 
     public TargetPage BeginPage(double width, double height)
     {

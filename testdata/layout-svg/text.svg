@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="260" height="140" viewBox="0 0 260 140">
+  <title>Text sample</title>
+  <text x="10" y="30" font-family="sans-serif" font-size="20" fill="#222">Hello, vector text</text>
+  <text x="10" y="60" font-family="serif" font-size="18" font-style="italic" fill="#a30">Serif italic <tspan font-weight="bold" fill="#03a">bold span</tspan> end</text>
+  <text x="130" y="90" font-family="monospace" font-size="14" text-anchor="middle">anchored middle</text>
+  <text x="250" y="115" font-family="sans-serif" font-size="16" text-anchor="end" fill="#080">end anchored</text>
+  <text x="10" y="130" font-family="sans-serif" font-size="12" text-decoration="underline">Underlined</text>
+</svg>

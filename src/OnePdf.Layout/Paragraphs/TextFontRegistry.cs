@@ -236,6 +236,29 @@ public sealed class TextFontRegistry
         }
     }
 
+    /// <summary>Whether a registered font file (not a standard or system font) has this family name, directly or through an alias.</summary>
+    internal bool HasFamily(string name)
+    {
+        string family = name.Trim();
+        lock (_gate)
+        {
+            if (_aliases.TryGetValue(family, out string? real))
+            {
+                family = real;
+            }
+
+            foreach (FontEntry e in _entries)
+            {
+                if (string.Equals(e.Family, family, StringComparison.OrdinalIgnoreCase))
+                {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
     /// <summary>Makes <paramref name="alias"/> another name for a registered family.</summary>
     public void AddAlias(string alias, string family)
     {
