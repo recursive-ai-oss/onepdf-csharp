@@ -5,7 +5,7 @@ namespace OnePdf.Layout.Tests;
 
 internal static class Support
 {
-    public static readonly PdfSaveOptions Fixed = new() { DocumentId = new byte[16] };
+    public static readonly PdfDocumentWriterOptions Fixed = new() { DocumentId = new byte[16], LeaveOpen = true };
 
     public static string Root([CallerFilePath] string here = "")
     {

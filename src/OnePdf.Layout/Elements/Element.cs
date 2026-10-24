@@ -54,18 +54,18 @@ internal sealed class LayoutContext : IDisposable
     private readonly List<string> _path = [];
     private readonly Dictionary<string, PdfCreatedFont> _fonts = new(StringComparer.Ordinal);
     private readonly Dictionary<Image, PdfCreatedImage> _images = [];
-    private PdfFormContentBuilder? _measurer;
+    private PdfContentBuilder? _measurer;
     private PdfCreatedFont? _debugFont;
 
-    public LayoutContext(PdfDocument document, LayoutOptions options, ITextEngine text)
+    public LayoutContext(ILayoutTarget target, LayoutOptions options, ITextEngine text)
     {
-        Document = document;
+        Target = target;
         Options = options;
         Text = text;
         Rules = new FlowRules(Math.Max(1, options.Orphans), Math.Max(1, options.Widows));
     }
 
-    public PdfDocument Document { get; }
+    public ILayoutTarget Target { get; }
 
     public LayoutOptions Options { get; }
 
@@ -88,13 +88,13 @@ internal sealed class LayoutContext : IDisposable
     public void Note(string message) => Diagnostics.Add(new LayoutDiagnostic(PathText, message));
 
     /// <summary>A builder used only to measure text; nothing drawn into it is kept.</summary>
-    public PdfContentBuilder Measurer => _measurer ??= Document.BeginForm(new PdfRectangle(0, 0, 1, 1));
+    public PdfContentBuilder Measurer => _measurer ??= Target.BeginMeasurer();
 
     public PdfCreatedFont Font(string name)
     {
         if (!_fonts.TryGetValue(name, out PdfCreatedFont? font))
         {
-            font = Document.AddStandardFont(name);
+            font = Target.AddStandardFont(name);
             _fonts[name] = font;
         }
 
@@ -112,7 +112,7 @@ internal sealed class LayoutContext : IDisposable
 
         if (!_images.TryGetValue(image, out PdfCreatedImage? result))
         {
-            result = Document.AddJpegImage(image.Jpeg);
+            result = image.Png.IsEmpty ? Target.AddJpegImage(image.Jpeg) : Target.AddPngImage(image.Png);
             _images[image] = result;
         }
 

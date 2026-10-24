@@ -48,7 +48,7 @@ public sealed class LayoutDocument
     /// <summary>Layout switches.</summary>
     public LayoutOptions Options { get; } = new();
 
-    /// <summary>Notes recorded by the last <see cref="Render"/>: adjustments and rules that could not be honoured.</summary>
+    /// <summary>Notes recorded by the last <see cref="Render(PdfDocument)"/>: adjustments and rules that could not be honoured.</summary>
     public IReadOnlyList<LayoutDiagnostic> Diagnostics => _diagnostics;
 
     private List<LayoutDiagnostic> _diagnostics = [];
@@ -62,22 +62,37 @@ public sealed class LayoutDocument
     public int Render(PdfDocument target)
     {
         ArgumentNullException.ThrowIfNull(target);
-        return RenderCore(target, null);
+        return RenderCore(new DocumentTarget(target), null);
     }
 
-    /// <summary>Lays the document out into a fresh document and saves it to <paramref name="output"/>.</summary>
-    /// <param name="output">Where the file goes.</param>
-    /// <param name="options">Save options; pass a fixed <see cref="PdfSaveOptions.DocumentId"/> for reproducible bytes.</param>
-    public void Save(Stream output, PdfSaveOptions? options = null)
+    /// <summary>
+    /// Lays the document out and writes each page to <paramref name="writer"/> as soon as it is laid out, so memory does not grow with the
+    /// page count beyond the writer's own bookkeeping. The writer is not finished: call <see cref="PdfDocumentWriter.Finish"/> afterwards.
+    /// </summary>
+    /// <returns>The number of pages written.</returns>
+    /// <exception cref="PdfLayoutException">Something cannot be placed even on an empty page.</exception>
+    public int Render(PdfDocumentWriter writer)
+    {
+        ArgumentNullException.ThrowIfNull(writer);
+        return RenderCore(new WriterTarget(writer), null);
+    }
+
+    /// <summary>Lays the document out through a streaming writer and finishes the file on <paramref name="output"/>.</summary>
+    /// <param name="output">Where the file goes. It is closed unless <see cref="PdfDocumentWriterOptions.LeaveOpen"/> is set.</param>
+    /// <param name="options">Writer options; set a fixed <see cref="PdfDocumentWriterOptions.DocumentId"/> for reproducible bytes.</param>
+    public void Save(Stream output, PdfDocumentWriterOptions? options = null)
     {
         ArgumentNullException.ThrowIfNull(output);
-        using PdfDocument doc = PdfDocument.CreateEmpty();
-        Render(doc);
-        doc.Save(output, options);
+        using var writer = new PdfDocumentWriter(output, options);
+        Render(writer);
+        writer.Finish();
     }
 
-    // Test hook: when `capture` is set, each page's placed tree is handed to it instead of being dropped after drawing.
-    internal int RenderCore(PdfDocument target, Action<int, LayoutPage, Placed?, Placed?, Placed?>? capture)
+    // Test hook with a document target.
+    internal int RenderCore(PdfDocument target, Action<int, LayoutPage, Placed?, Placed?, Placed?>? capture) => RenderCore(new DocumentTarget(target), capture);
+
+    // When `capture` is set, each page's placed tree is handed to it as the page is finished.
+    internal int RenderCore(ILayoutTarget target, Action<int, LayoutPage, Placed?, Placed?, Placed?>? capture)
     {
         using var ctx = new LayoutContext(target, Options, new PlainTextEngine());
         _diagnostics = ctx.Diagnostics;
@@ -92,7 +107,7 @@ public sealed class LayoutDocument
         return pageNumber;
     }
 
-    private int RenderSection(LayoutContext ctx, PdfDocument target, LayoutPage setup, int sectionIndex, int firstPage, Action<int, LayoutPage, Placed?, Placed?, Placed?>? capture)
+    private int RenderSection(LayoutContext ctx, ILayoutTarget target, LayoutPage setup, int sectionIndex, int firstPage, Action<int, LayoutPage, Placed?, Placed?, Placed?>? capture)
     {
         PageSize size = setup.Size.Oriented(setup.Orientation);
         Insets m = setup.Margin;
@@ -133,18 +148,22 @@ public sealed class LayoutDocument
 
         void OnPage(int page, FlowFit fit)
         {
-            PdfPage pdfPage = target.InsertBlankPage(target.Pages.Count, size.Width, size.Height);
-            using PdfPageContentBuilder b = pdfPage.BeginContent();
+            using TargetPage tp = target.BeginPage(size.Width, size.Height);
+            PdfContentBuilder b = tp.Builder;
             var d = new DrawContext(b, ctx, size.Height, 0, 0);
-            Placed? background = LayoutFull(ctx, setup.Background, "Background", sectionIndex, firstPage + page, size);
+            Placed? background = LayoutFull(ctx, setup.Background, "Background", firstPage + page, size);
             if (background is not null)
             {
+                b.BeginArtifact(PdfArtifactType.Background);
                 background.Element.Draw(d, background);
+                b.EndMarkedContent();
             }
 
             if (header is not null)
             {
+                b.BeginArtifact(PdfArtifactType.Pagination, PdfArtifactSubtype.Header);
                 header.Element.Draw(d.At(m.Left, m.Top), header);
+                b.EndMarkedContent();
             }
 
             Placed? body = fit.Placed as Placed;
@@ -155,16 +174,20 @@ public sealed class LayoutDocument
 
             if (footer is not null)
             {
+                b.BeginArtifact(PdfArtifactType.Pagination, PdfArtifactSubtype.Footer);
                 footer.Element.Draw(d.At(m.Left, size.Height - m.Bottom - footer.Height), footer);
+                b.EndMarkedContent();
             }
 
-            Placed? foreground = LayoutFull(ctx, setup.Foreground, "Foreground", sectionIndex, firstPage + page, size);
+            Placed? foreground = LayoutFull(ctx, setup.Foreground, "Foreground", firstPage + page, size);
             if (foreground is not null)
             {
+                b.BeginArtifact(PdfArtifactType.Pagination, PdfArtifactSubtype.Watermark);
                 foreground.Element.Draw(d, foreground);
+                b.EndMarkedContent();
             }
 
-            b.Commit();
+            tp.Commit();
             capture?.Invoke(firstPage + page, setup, body, header, footer);
             pagesDone++;
         }
@@ -205,7 +228,7 @@ public sealed class LayoutDocument
         }
     }
 
-    private static Placed? LayoutFull(LayoutContext ctx, Element? element, string slot, int section, int page, PageSize size)
+    private static Placed? LayoutFull(LayoutContext ctx, Element? element, string slot, int page, PageSize size)
     {
         if (element is null)
         {
