@@ -1,5 +1,4 @@
 using System.Globalization;
-using System.Security.Cryptography;
 using System.Text;
 using OnePdf.FontData;
 using OnePdf.FontPrograms;
@@ -209,7 +208,7 @@ internal sealed class StandardCreatedFont : PdfCreatedFont
 /// <remarks>A source is immutable. It keeps its own copy of the bytes. Documents that embed the same source stay independent of each other.</remarks>
 public sealed class PdfFontSource
 {
-    private byte[]? _hash;
+    private ulong _hash;
 
     private PdfFontSource(byte[] data, int faceIndex, SfntFont font)
     {
@@ -224,8 +223,49 @@ public sealed class PdfFontSource
 
     internal SfntFont Font { get; }
 
-    /// <summary>SHA-256 of the file, computed once. Two threads may both compute it; the results are equal.</summary>
-    internal byte[] Hash => _hash ??= SHA256.HashData(Data);
+    /// <summary>True once an empty subset has been cut from this font, which shows its glyph tables can be read.</summary>
+    internal bool SubsetChecked { get; set; }
+
+    /// <summary>
+    /// A 64-bit hash of the file for subset tags, computed once (two threads may both compute it; the results are equal). It only has to
+    /// tell fonts apart and be the same every time, so it is a plain multiply-and-rotate mix and the cryptography library stays unloaded
+    /// for documents that do not need it.
+    /// </summary>
+    internal ulong Hash
+    {
+        get
+        {
+            ulong h = _hash;
+            if (h == 0)
+            {
+                h = Mix64(0x9E3779B97F4A7C15UL, Data) | 1;
+                _hash = h;
+            }
+
+            return h;
+        }
+    }
+
+    internal static ulong Mix64(ulong seed, ReadOnlySpan<byte> data)
+    {
+        const ulong k = 0x9FB21C651E98DF25UL;
+        ulong h = seed ^ ((ulong)data.Length * k);
+        int i = 0;
+        for (; i + 8 <= data.Length; i += 8)
+        {
+            h = System.Numerics.BitOperations.RotateLeft((h ^ System.Buffers.Binary.BinaryPrimitives.ReadUInt64LittleEndian(data[i..])) * k, 29) + 0x632BE59BD9B4E019UL;
+        }
+
+        for (; i < data.Length; i++)
+        {
+            h = System.Numerics.BitOperations.RotateLeft((h ^ data[i]) * k, 11);
+        }
+
+        h ^= h >> 32;
+        h *= k;
+        h ^= h >> 29;
+        return h;
+    }
 
     /// <summary>Reads a font file.</summary>
     /// <param name="fontData">The bytes of a TrueType, OpenType or TrueType Collection file. They are copied.</param>
@@ -373,6 +413,14 @@ internal sealed class EmbeddedCreatedFont : PdfCreatedFont
         Reference = doc.AddObject(_type0);
         Describe();
         UpdateNames();
+
+        // A font whose tables cannot be subset is refused here, not when the document is saved. Cutting an empty subset proves the tables
+        // can be read; it is done once per font source, whichever documents embed it.
+        if (_subset && !source.SubsetChecked)
+        {
+            _ = BuildSubset();
+            source.SubsetChecked = true;
+        }
     }
 
     public override string BaseFontName => _currentName;
@@ -617,24 +665,7 @@ internal sealed class EmbeddedCreatedFont : PdfCreatedFont
 
         // ---- font program ----
         UpdateNames();
-        byte[] program;
-        if (_subset)
-        {
-            try
-            {
-                program = _isCff
-                    ? CffSubsetter.Subset(_font.GetTable("CFF "), _glyphs, _currentName)
-                    : TrueTypeSubsetter.Subset(_font, _glyphs);
-            }
-            catch (FontProgramException ex)
-            {
-                throw new PdfFormatException("The font cannot be subset: " + ex.Message, ex);
-            }
-        }
-        else
-        {
-            program = _data;
-        }
+        byte[] program = _subset ? BuildSubset() : _data;
 
         _fontFile.SetData(program, compress: true);
         if (_isCff)
@@ -654,6 +685,20 @@ internal sealed class EmbeddedCreatedFont : PdfCreatedFont
         _toUnicode.SetData(BuildToUnicode(), compress: true);
     }
 
+    private byte[] BuildSubset()
+    {
+        try
+        {
+            return _isCff
+                ? CffSubsetter.Subset(_font.GetTable("CFF "), _glyphs, _currentName)
+                : TrueTypeSubsetter.Subset(_font, _glyphs);
+        }
+        catch (FontProgramException ex)
+        {
+            throw new PdfFormatException("The font cannot be subset: " + ex.Message, ex);
+        }
+    }
+
     // The name carries the subset tag once glyphs are used (a tag for the empty set before that).
     private void UpdateNames()
     {
@@ -665,19 +710,20 @@ internal sealed class EmbeddedCreatedFont : PdfCreatedFont
     private string SubsetTag()
     {
         // Six capital letters from a hash of the font and the glyphs, so the same inputs always give the same name (ISO 32000-2 9.6.4).
-        using var sha = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
-        sha.AppendData(_source.Hash);
-        sha.AppendData(BitConverter.GetBytes(_faceIndex));
+        ulong h = PdfFontSource.Mix64(_source.Hash ^ ((ulong)_faceIndex << 40), default);
         foreach (int g in _glyphs)
         {
-            sha.AppendData(BitConverter.GetBytes(g));
+            h = System.Numerics.BitOperations.RotateLeft((h ^ (uint)g) * 0x9FB21C651E98DF25UL, 23) + 0x632BE59BD9B4E019UL;
         }
 
-        byte[] h = sha.GetHashAndReset();
+        h ^= h >> 31;
+        h *= 0x9FB21C651E98DF25UL;
+        h ^= h >> 29;
         var chars = new char[6];
         for (int i = 0; i < 6; i++)
         {
-            chars[i] = (char)('A' + (h[i] % 26));
+            chars[i] = (char)('A' + (int)(h % 26));
+            h /= 26;
         }
 
         return new string(chars);

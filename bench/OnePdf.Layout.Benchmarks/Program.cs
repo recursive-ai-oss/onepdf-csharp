@@ -55,6 +55,11 @@ internal static class Program
         }
 
         IEngine e = Engine(args[1]);
+        if (Environment.GetEnvironmentVariable("BENCH_RSS_TRACE") is not null)
+        {
+            Console.Error.WriteLine("rss before: " + Status("VmRSS"));
+        }
+
         var clock = Stopwatch.StartNew();
         long bytes;
         if (args[2] == "throughput32")
@@ -70,8 +75,53 @@ internal static class Program
             bytes = sink.Count;
         }
 
+        if (Environment.GetEnvironmentVariable("BENCH_RSS_TRACE") is not null)
+        {
+            Maps();
+            Console.Error.WriteLine("assemblies: " + string.Join(", ", AppDomain.CurrentDomain.GetAssemblies().Select(a => a.GetName().Name)));
+            Console.Error.WriteLine("rss after: " + Status("VmRSS") + " peak: " + Status("VmHWM") + " gc heap MB: " + (GC.GetTotalMemory(false) / 1048576) + " gen0 gcs: " + GC.CollectionCount(0));
+        }
+
         Console.WriteLine($"ok {args[1]} {args[2]} bytes={bytes} wall_ms={clock.Elapsed.TotalMilliseconds:F0}");
         return 0;
+    }
+
+    // Resident size per mapped file (and the anonymous total) from /proc/self/smaps, to see what a run touches besides the managed heap.
+    private static void Maps()
+    {
+        var perFile = new Dictionary<string, long>();
+        string current = "?";
+        foreach (string line in File.ReadLines("/proc/self/smaps"))
+        {
+            if (line.Length > 0 && (char.IsAsciiHexDigit(line[0])) && line.Contains('-') && line.Contains(' '))
+            {
+                string[] parts = line.Split(' ', 6, StringSplitOptions.RemoveEmptyEntries);
+                current = parts.Length >= 6 ? parts[5].Trim() : "[anon]";
+            }
+            else if (line.StartsWith("Rss:", StringComparison.Ordinal))
+            {
+                long kb = long.Parse(line[4..].Replace("kB", "").Trim(), CultureInfo.InvariantCulture);
+                perFile[current] = perFile.GetValueOrDefault(current) + kb;
+            }
+        }
+
+        foreach (KeyValuePair<string, long> kv in perFile.OrderByDescending(k => k.Value).Take(14))
+        {
+            Console.Error.WriteLine($"  {kv.Value,8} kB  {kv.Key}");
+        }
+    }
+
+    private static string Status(string key)
+    {
+        foreach (string line in File.ReadLines("/proc/self/status"))
+        {
+            if (line.StartsWith(key + ":", StringComparison.Ordinal))
+            {
+                return line[(key.Length + 1)..].Trim();
+            }
+        }
+
+        return "?";
     }
 
     public static Workload ParseRow(string s) => s switch

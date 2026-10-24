@@ -595,6 +595,7 @@ public sealed partial class PdfDocumentWriter : IDisposable
         }
 
         _disposed = true;
+        _saver.Release();
         _workspace.Dispose();
         if (!_options.LeaveOpen)
         {
@@ -648,7 +649,10 @@ public sealed partial class PdfDocumentWriter : IDisposable
     // Allocates an object number for something written later.
     internal PdfReference Reserve(PdfDictionary placeholder)
     {
-        return Hold(() => _workspace.AddObject(placeholder));
+        // Adding an object makes exactly one new dirty number; no need to diff the dirty set as Hold does.
+        PdfReference r = _workspace.AddObject(placeholder);
+        _held.Add(r.Number);
+        return r;
     }
 
     internal void Release(int number) => _held.Remove(number);

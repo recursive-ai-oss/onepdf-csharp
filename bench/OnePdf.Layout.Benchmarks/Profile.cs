@@ -1,6 +1,7 @@
 using System;
 using System.Diagnostics;
 using System.IO;
+using OnePdf;
 using OnePdf.Layout;
 
 namespace LayoutBench;
@@ -133,6 +134,35 @@ internal static class Profile
                     }
                 });
                 Step("full save (tree, layout, write)", () => new OnePdfEngine().Render(Workload.Book500, new CountingStream()));
+                break;
+            }
+
+            case "invoice-phases":
+            {
+                // Allocation of the writer's own setup, an empty page, and the invoice's content, per document (averaged).
+                const int n = 200;
+                long Measure(Action a)
+                {
+                    for (int i = 0; i < 20; i++)
+                    {
+                        a();
+                    }
+
+                    long before = GC.GetAllocatedBytesForCurrentThread();
+                    for (int i = 0; i < n; i++)
+                    {
+                        a();
+                    }
+
+                    return (GC.GetAllocatedBytesForCurrentThread() - before) / n;
+                }
+
+                Console.WriteLine("writer create+dispose        " + Measure(() => { using var w = new PdfDocumentWriter(new CountingStream()); }) + " B");
+                Console.WriteLine("writer + finish, no pages    " + Measure(() => { using var w = new PdfDocumentWriter(new CountingStream()); w.Finish(); }) + " B");
+                Console.WriteLine("one empty page               " + Measure(() => { using var w = new PdfDocumentWriter(new CountingStream()); w.BeginPage(595, 842).Commit(); w.Finish(); }) + " B");
+                Console.WriteLine("invoice                      " + Measure(() => new OnePdfEngine().Render(Workload.Invoice, new CountingStream())) + " B");
+                Console.WriteLine("invoice, untagged            " + Measure(() => { LayoutDocument d = OnePdfEngine.InvoiceDocument(); d.Options.Fonts = OnePdfEngine.Fonts; d.Options.Tagged = false; d.Save(new CountingStream()); }) + " B");
+                Console.WriteLine("invoice, build tree only     " + Measure(() => { _ = OnePdfEngine.InvoiceDocument(); }) + " B");
                 break;
             }
 

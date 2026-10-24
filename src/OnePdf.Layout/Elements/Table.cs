@@ -17,7 +17,7 @@ namespace OnePdf.Layout;
 /// <para><b>Borders</b> are collapsed: two cells that meet share one line, centred on the grid line. The wider of the two borders wins; at equal
 /// width solid beats dashed beats dotted; if those are equal too, the cell before (above or at the start side) wins. Lines at the outer edge
 /// of the table, and at the top and bottom of each page's piece of it, are drawn inside the table.</para>
-/// <para><b>Cost.</b> The grid and the column widths (from the header, footer and first <see cref="MeasuredRows"/> body rows, all by default) are worked out once, when the table starts; each page then costs the rows on it plus the
+/// <para><b>Cost.</b> The grid and the column widths (from the header, footer and the body rows <see cref="MeasuredRows"/> chooses) are worked out once, when the table starts; each page then costs the rows on it plus the
 /// header and footer rows, so a 10,000-row table takes time in proportion to its rows.</para>
 /// </remarks>
 public sealed class Table : Element
@@ -39,11 +39,13 @@ public sealed class Table : Element
 
     /// <summary>
     /// How many body rows (counting from the first) are measured to size automatic and relative columns; the header and footer rows are
-    /// always measured. The default measures every row, so no cell is wider than its column. Measuring a very large table costs about as
-    /// much as laying it out; set a limit to trade that for columns sized from the first rows only, where content that turns out wider in
-    /// a later row wraps within its column.
+    /// always measured. Null, the default, measures every row when some column is automatic (its width is the widest content), and the
+    /// first 100 body rows when every column is constant or relative: there the measuring only keeps a relative column from being narrower
+    /// than its longest word, which a sample of a hundred rows settles in practice. Measuring a very large table costs about as much as
+    /// laying it out. With a limit, content that turns out wider in a later row wraps within its column (a word that is too wide spills
+    /// over the cell's edge).
     /// </summary>
-    public int MeasuredRows { get; set; } = int.MaxValue;
+    public int? MeasuredRows { get; set; }
 
     /// <summary>Border of every cell edge unless the cell sets its own. Default none.</summary>
     public Border CellBorder { get; set; }

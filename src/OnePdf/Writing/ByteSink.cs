@@ -6,15 +6,32 @@ namespace OnePdf.Writing;
 internal sealed class ByteSink
 {
     private readonly Stream _out;
-    private readonly byte[] _buf;
+    private readonly bool _pooled;
+    private byte[] _buf;
     private int _n;
     private long _flushed;
 
-    public ByteSink(Stream output, long startPosition = 0, int bufferSize = 1 << 16)
+    /// <param name="output">Where the bytes go.</param>
+    /// <param name="startPosition">The position the first byte counts from.</param>
+    /// <param name="bufferSize">The size of the buffer.</param>
+    /// <param name="pooled">Takes the buffer from the shared array pool; <see cref="Release"/> gives it back. The sink must not be used afterwards.</param>
+    public ByteSink(Stream output, long startPosition = 0, int bufferSize = 1 << 16, bool pooled = false)
     {
         _out = output;
-        _buf = new byte[bufferSize];
+        _pooled = pooled;
+        _buf = pooled ? System.Buffers.ArrayPool<byte>.Shared.Rent(bufferSize) : new byte[bufferSize];
         _flushed = startPosition;
+    }
+
+    /// <summary>Returns a pooled buffer to the pool; unflushed bytes are dropped. Does nothing for a sink with its own buffer, or when called twice.</summary>
+    public void Release()
+    {
+        if (_pooled && _buf.Length > 0)
+        {
+            System.Buffers.ArrayPool<byte>.Shared.Return(_buf);
+            _buf = [];
+            _n = 0;
+        }
     }
 
     /// <summary>Number of bytes written so far, counting from the start position.</summary>

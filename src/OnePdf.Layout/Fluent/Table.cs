@@ -45,7 +45,7 @@ public sealed class TableDescriptor
         return this;
     }
 
-    /// <summary>Limits how many body rows are measured to size automatic and relative columns (default: all). A cap trades column fit for speed on very large tables.</summary>
+    /// <summary>Limits how many body rows are measured to size automatic and relative columns. The default is every row when a column is automatic and the first 100 when all are constant or relative; a cap trades column fit for speed on very large tables (see <see cref="Table.MeasuredRows"/>).</summary>
     public TableDescriptor MeasuredRows(int count)
     {
         _table.MeasuredRows = count;

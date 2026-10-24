@@ -15,12 +15,15 @@ internal sealed class StreamingSaver : SaverBase
     public StreamingSaver(PdfDocument workspace, PdfSaveOptions options, Stream output, string version)
         : base(workspace, options, CancellationToken.None)
     {
-        Sink = new ByteSink(output);
+        Sink = new ByteSink(output, 0, 1 << 16, pooled: true);
         Writer = new ObjectWriter(workspace, IdentityMapper.Instance, options);
         Sink.Ascii("%PDF-" + version + "\n%");
         Sink.Write([0xE2, 0xE3, 0xCF, 0xD3]);
         Sink.Byte((byte)'\n');
     }
+
+    /// <summary>Gives the output buffer back to the pool. Call once writing is over (finished or abandoned).</summary>
+    public void Release() => Sink.Release();
 
     /// <summary>Bytes written so far.</summary>
     public long Position => Sink.Position;
@@ -46,9 +49,13 @@ internal sealed class StreamingSaver : SaverBase
         Writer.WriteIndirect(Sink, number, 0, value, null);
     }
 
+    // Its own method, so the cryptography assembly is loaded only by documents that ask for a random id.
+    [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.NoInlining)]
+    private static byte[] RandomId() => RandomNumberGenerator.GetBytes(16);
+
     public void Finish(PdfReference root, PdfReference? info, byte[]? documentId, bool xrefStream)
     {
-        byte[] id = documentId ?? RandomNumberGenerator.GetBytes(16);
+        byte[] id = documentId ?? RandomId();
         var trailer = new PdfDictionary(null);
         trailer.Set("Root", root);
         if (info is not null)
