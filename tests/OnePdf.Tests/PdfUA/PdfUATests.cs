@@ -147,6 +147,232 @@ public class PdfUATests
         return ms.ToArray();
     }
 
+    // ---- flattening a tagged form ----
+
+    // The generated tagged document plus one text field: the widget has an appearance, a /StructParent, and a Form element holding its OBJR.
+    private static PdfDocument WithTaggedField(byte[] built)
+    {
+        PdfDocument doc = Editable(built);
+        PdfDictionary root = doc.StructureTreeRoot!;
+        PdfDictionary page = doc.Pages[0].Dictionary;
+        PdfReference pageRef = page.Reference!;
+
+        PdfStream ap = doc.CreateStream("0.9 g 0 0 100 20 re f"u8, false);
+        ap.Dictionary.SetEntry("Type", new PdfName("XObject"));
+        ap.Dictionary.SetEntry("Subtype", new PdfName("Form"));
+        var bbox = new PdfArray();
+        foreach (int v in new[] { 0, 0, 100, 20 })
+        {
+            bbox.Append(new PdfInteger(v));
+        }
+
+        ap.Dictionary.SetEntry("BBox", bbox);
+        PdfReference apRef = doc.AddObject(ap);
+
+        var rect = new PdfArray();
+        foreach (int v in new[] { 150, 20, 250, 40 })
+        {
+            rect.Append(new PdfInteger(v));
+        }
+
+        var widget = new PdfDictionary();
+        widget.SetEntry("Type", new PdfName("Annot"));
+        widget.SetEntry("Subtype", new PdfName("Widget"));
+        widget.SetEntry("FT", new PdfName("Tx"));
+        widget.SetEntry("T", new PdfString("name"u8.ToArray()));
+        widget.SetEntry("TU", new PdfString("Your name"u8.ToArray()));
+        widget.SetEntry("Rect", rect);
+        widget.SetEntry("F", new PdfInteger(4));
+        widget.SetEntry("P", pageRef);
+        var n = new PdfDictionary();
+        n.SetEntry("N", apRef);
+        widget.SetEntry("AP", n);
+        long key = 900;
+        widget.SetEntry("StructParent", new PdfInteger(key));
+        PdfReference widgetRef = doc.AddObject(widget);
+
+        var annots = new PdfArray();
+        if (page.GetArray("Annots") is { } old)
+        {
+            for (int i = 0; i < old.Count; i++)
+            {
+                annots.Append(old.GetRaw(i));
+            }
+        }
+
+        annots.Append(widgetRef);
+        page.SetEntry("Annots", annots);
+
+        var fields = new PdfArray();
+        fields.Append(widgetRef);
+        var acro = new PdfDictionary();
+        acro.SetEntry("Fields", fields);
+        doc.Catalog.SetEntry("AcroForm", doc.AddObject(acro));
+
+        // The Form element goes under the Document element, with the OBJR as its only content.
+        PdfDictionary documentElement = root.Get("K") switch { PdfArray a => (PdfDictionary)a[0]!, PdfDictionary d => d, _ => throw new InvalidOperationException() };
+        var objr = new PdfDictionary();
+        objr.SetEntry("Type", new PdfName("OBJR"));
+        objr.SetEntry("Obj", widgetRef);
+        objr.SetEntry("Pg", pageRef);
+        var formElement = new PdfDictionary();
+        formElement.SetEntry("Type", new PdfName("StructElem"));
+        formElement.SetEntry("S", new PdfName("Form"));
+        formElement.SetEntry("P", documentElement.Reference!);
+        formElement.SetEntry("Pg", pageRef);
+        formElement.SetEntry("K", objr);
+        PdfReference formRef = doc.AddObject(formElement);
+        var kids = new PdfArray();
+        if (documentElement.Get("K") is PdfArray existing)
+        {
+            for (int i = 0; i < existing.Count; i++)
+            {
+                kids.Append(existing.GetRaw(i));
+            }
+        }
+        else if (documentElement.GetRaw("K") is { } one)
+        {
+            kids.Append(one);
+        }
+
+        kids.Append(formRef);
+        documentElement.SetEntry("K", kids);
+
+        var nums = new PdfArray();
+        var entries = new List<(long, PdfObject)>();
+        foreach (KeyValuePair<PdfObject, PdfObject> kv in doc.ReadTree(root.GetDictionary("ParentTree"), true, "parent tree"))
+        {
+            entries.Add((((PdfInteger)kv.Key).Value, kv.Value));
+        }
+
+        entries.Add((key, formRef));
+        entries.Sort(static (a, b) => a.Item1.CompareTo(b.Item1));
+        foreach ((long k, PdfObject v) in entries)
+        {
+            nums.Append(new PdfInteger(k));
+            nums.Append(v);
+        }
+
+        var leaf = new PdfDictionary();
+        leaf.SetEntry("Nums", nums);
+        root.SetEntry("ParentTree", leaf);
+        return doc;
+    }
+
+    // Every OBJR in the tree names an annotation that is still in its page's /Annots; every parent tree value is an element of the tree.
+    private static (int Objrs, int Keys) CheckTree(PdfDocument doc)
+    {
+        PdfDictionary root = doc.StructureTreeRoot!;
+        var annots = new HashSet<int>();
+        for (int i = 0; i < doc.Pages.Count; i++)
+        {
+            foreach (PdfAnnotation a in doc.Pages[i].Annotations)
+            {
+                annots.Add(a.Dictionary.Reference!.Number);
+            }
+        }
+
+        int objrs = 0;
+        var seen = new HashSet<PdfDictionary>(ReferenceEqualityComparer.Instance);
+        var stack = new Stack<PdfDictionary>();
+        stack.Push(root);
+        while (stack.Count > 0)
+        {
+            PdfDictionary el = stack.Pop();
+            if (!seen.Add(el))
+            {
+                continue;
+            }
+
+            var kids = new List<PdfObject?>();
+            if (el.Get("K") is PdfArray arr)
+            {
+                for (int i = 0; i < arr.Count; i++)
+                {
+                    kids.Add(arr[i]);
+                }
+            }
+            else
+            {
+                kids.Add(el.Get("K"));
+            }
+
+            foreach (PdfObject? k in kids)
+            {
+                if (k is PdfDictionary kd && kd.GetName("Type") == "OBJR")
+                {
+                    objrs++;
+                    Assert.True(kd.GetRaw("Obj") is PdfReference r && annots.Contains(r.Number), "an OBJR points at an annotation that is gone");
+                }
+                else if (k is PdfDictionary ke && ke.GetName("Type") != "MCR")
+                {
+                    stack.Push(ke);
+                }
+            }
+        }
+
+        int keys = 0;
+        foreach (KeyValuePair<PdfObject, PdfObject> kv in doc.ReadTree(root.GetDictionary("ParentTree"), true, "parent tree"))
+        {
+            keys++;
+            PdfObject? v = doc.Resolve(kv.Value);
+            Assert.True(v is PdfDictionary or PdfArray, "a parent tree value is neither an element nor an array");
+        }
+
+        return (objrs, keys);
+    }
+
+    [Fact]
+    public void FlatteningATaggedFormRemovesTheObjrAndTheParentTreeEntry()
+    {
+        byte[] built = Build(new Spec());
+        using PdfDocument doc = WithTaggedField(built);
+        (int before, int keysBefore) = CheckTree(doc);
+        Assert.True(before >= 2); // the link and the field
+        PdfFlattenResult r = doc.Flatten();
+        Assert.Equal(1, r.Removed);
+        (int after, int keysAfter) = CheckTree(doc);
+        Assert.Equal(before - 1, after);
+        Assert.Equal(keysBefore - 1, keysAfter);
+        using var ms = new MemoryStream();
+        doc.Save(ms, new PdfSaveOptions { DocumentId = new byte[16] });
+        using PdfDocument back = PdfDocument.Open(ms.ToArray());
+        Assert.Equal((after, keysAfter), CheckTree(back));
+
+        // The baked-in art is an artifact, so the page content stays tagged or artifact.
+        string content = string.Concat(back.Pages[0].Dictionary.Get("Contents") switch
+        {
+            PdfArray a => Enumerable.Range(0, a.Count).Select(i => System.Text.Encoding.Latin1.GetString(((PdfStream)a[i]!).GetDecodedBytes().Span)),
+            PdfStream s => [System.Text.Encoding.Latin1.GetString(s.GetDecodedBytes().Span)],
+            _ => [],
+        });
+        Assert.Contains("/Artifact BMC q", content, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void VeraPdfAcceptsPdfUA1BeforeAndAfterFlatteningATaggedForm()
+    {
+        VeraPdf.Require();
+        var options = new PdfSaveOptions { DocumentId = new byte[16], PdfUA = new PdfUAOptions { Language = "en-US" } };
+        byte[] built = Build(new Spec { Language = null });
+        using (PdfDocument doc = WithTaggedField(built))
+        {
+            using var ms = new MemoryStream();
+            doc.Save(ms, options);
+            List<string> failures = VeraPdf.Validate(ms.ToArray(), "ua1");
+            Assert.True(failures.Count == 0, "before flattening: " + string.Join("\n", failures));
+        }
+
+        using (PdfDocument doc = WithTaggedField(built))
+        {
+            doc.Flatten();
+            using var ms = new MemoryStream();
+            doc.Save(ms, options);
+            List<string> failures = VeraPdf.Validate(ms.ToArray(), "ua1");
+            Assert.True(failures.Count == 0, "after flattening: " + string.Join("\n", failures));
+        }
+    }
+
     // ---- veraPDF ----
 
     [Fact]

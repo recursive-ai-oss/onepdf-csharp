@@ -226,6 +226,9 @@ internal sealed class CffFont : FontProgram
         return GlyphOutline.Combine(b, a);
     }
 
+    /// <summary>True when the glyph's charstring ends in <c>endchar</c> with accent arguments (the deprecated form that composes two StandardEncoding characters).</summary>
+    internal bool IsAccented(int gid) => (uint)gid < (uint)GlyphCount && Execute(gid, widthOnly: false).IsAccented;
+
     private int FindStandard(int code)
     {
         string? n = (uint)code < 256 ? Encodings.GetName(PredefinedEncoding.Standard, code) : null;
@@ -611,7 +614,7 @@ internal sealed class CffFont : FontProgram
         return result;
     }
 
-    private static double ReadReal(ReadOnlySpan<byte> d, ref int p)
+    internal static double ReadReal(ReadOnlySpan<byte> d, ref int p)
     {
         // Packed BCD, two nibbles per byte, ended by an 0xF nibble.
         Span<char> text = stackalloc char[48];

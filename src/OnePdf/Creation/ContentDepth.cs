@@ -1,3 +1,5 @@
+using OnePdf.Content;
+
 namespace OnePdf;
 
 /// <summary>
@@ -9,124 +11,98 @@ internal static class ContentDepth
 {
     private const int MaxDepth = 4096;
 
-    public static int Unclosed(ReadOnlySpan<byte> d, int depth)
+    public static int Unclosed(ReadOnlyMemory<byte> data, int depth)
     {
-        int i = 0;
-        while (i < d.Length)
+        var lx = new ContentLexer(data, 64);
+        int guard = 0;
+        while (true)
         {
-            byte b = d[i];
-            if (b is 0 or 9 or 10 or 12 or 13 or 32)
+            if (++guard > (1 << 24))
             {
-                i++;
+                break;
             }
-            else if (b == '%')
-            {
-                while (i < d.Length && d[i] is not (10 or 13))
-                {
-                    i++;
-                }
-            }
-            else if (b == '(')
-            {
-                int nest = 0;
-                for (; i < d.Length; i++)
-                {
-                    if (d[i] == '\\')
-                    {
-                        i++;
-                    }
-                    else if (d[i] == '(')
-                    {
-                        nest++;
-                    }
-                    else if (d[i] == ')' && --nest == 0)
-                    {
-                        i++;
-                        break;
-                    }
-                }
-            }
-            else if (b == '<')
-            {
-                if (i + 1 < d.Length && d[i + 1] == '<')
-                {
-                    i += 2;
-                }
-                else
-                {
-                    while (i < d.Length && d[i] != '>')
-                    {
-                        i++;
-                    }
 
-                    i++;
-                }
-            }
-            else if (b is (byte)'>' or (byte)'[' or (byte)']' or (byte)'{' or (byte)'}' or (byte)')')
+            lx.ResetItems();
+            ContentToken t = lx.Next(out _, out ContentOp op);
+            if (t == ContentToken.End)
             {
-                i++;
+                break;
             }
-            else
+
+            if (t != ContentToken.Operator)
             {
-                int start = i;
-                i++;
-                while (i < d.Length && !IsDelimiterOrWhite(d[i]))
-                {
-                    i++;
-                }
+                continue;
+            }
 
-                ReadOnlySpan<byte> word = d[start..i];
-                if (b == '/')
-                {
-                    continue;
-                }
-
-                if (word.SequenceEqual("q"u8))
-                {
+            switch (op)
+            {
+                case ContentOp.Save:
                     depth = Math.Min(depth + 1, MaxDepth);
-                }
-                else if (word.SequenceEqual("Q"u8))
-                {
+                    break;
+                case ContentOp.Restore:
+                    // A Q with nothing to close is ignored (ISO 32000-2 8.4.2 forbids it; readers skip it).
                     depth = Math.Max(depth - 1, 0);
-                }
-                else if (word.SequenceEqual("BI"u8))
-                {
-                    i = SkipInlineImage(d, i);
-                }
+                    break;
+                case ContentOp.BeginInline:
+                    PdfDictionary? d = lx.ReadInlineImageDictionary();
+                    if (d is null)
+                    {
+                        return depth;
+                    }
+
+                    _ = lx.ReadInlineImageData(DataLength(d), out _);
+                    break;
+                default:
+                    break;
             }
         }
 
         return depth;
     }
 
-    private static bool IsDelimiterOrWhite(byte b) => b is 0 or 9 or 10 or 12 or 13 or 32 or (byte)'(' or (byte)')' or (byte)'<' or (byte)'>' or (byte)'[' or (byte)']' or (byte)'{' or (byte)'}' or (byte)'/' or (byte)'%';
-
-    // After BI: find the ID keyword, then the next EI that stands alone between white space.
-    private static int SkipInlineImage(ReadOnlySpan<byte> d, int i)
+    // Byte length of unfiltered inline data when the colour space is a device space or Indexed (ISO 32000-2 8.9.7); -1 lets the lexer scan for EI.
+    private static long DataLength(PdfDictionary d)
     {
-        int id = -1;
-        for (int p = i; p + 2 < d.Length; p++)
+        if (d.ContainsKey("Filter"))
         {
-            if (d[p] == 'I' && d[p + 1] == 'D' && (p == 0 || d[p - 1] is 0 or 9 or 10 or 12 or 13 or 32) && d[p + 2] is 0 or 9 or 10 or 12 or 13 or 32)
+            return -1;
+        }
+
+        long w = d.GetInt("Width"), h = d.GetInt("Height");
+        if (w <= 0 || h <= 0 || w > (1 << 24) || h > (1 << 24))
+        {
+            return -1;
+        }
+
+        long n, bpc;
+        if (d.GetBool("ImageMask"))
+        {
+            n = 1;
+            bpc = 1;
+        }
+        else
+        {
+            bpc = d.GetInt("BitsPerComponent");
+            if (bpc is < 1 or > 16)
             {
-                id = p + 3;
-                break;
+                return -1;
+            }
+
+            PdfObject? cs = d.Get("ColorSpace");
+            n = cs switch
+            {
+                PdfName { Value: "DeviceGray" or "CalGray" } => 1,
+                PdfName { Value: "DeviceRGB" or "CalRGB" } => 3,
+                PdfName { Value: "DeviceCMYK" } => 4,
+                PdfArray { Count: > 0 } a when a[0] is PdfName { Value: "Indexed" } => 1,
+                _ => -1,
+            };
+            if (n < 0)
+            {
+                return -1;
             }
         }
 
-        if (id < 0)
-        {
-            return d.Length;
-        }
-
-        for (int p = id; p + 2 <= d.Length; p++)
-        {
-            if (d[p] == 'E' && d[p + 1] == 'I' && (p == 0 || d[p - 1] is 0 or 9 or 10 or 12 or 13 or 32) && (p + 2 == d.Length || d[p + 2] is 0 or 9 or 10 or 12 or 13 or 32))
-            {
-                return p + 2;
-            }
-        }
-
-        return d.Length;
+        return (((w * n * bpc) + 7) / 8) * h;
     }
 }

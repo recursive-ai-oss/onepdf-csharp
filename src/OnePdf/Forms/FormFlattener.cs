@@ -119,6 +119,7 @@ internal static class FormFlattener
         bool? needAppearances = null;
         PdfReference? qRef = null, bigQRef = null;
         var removed = new HashSet<PdfDictionary>(ReferenceEqualityComparer.Instance);
+        bool tagged = doc.StructureTreeRoot is not null;
         PdfPageCollection pages = doc.Pages;
         for (int pi = 0; pi < pages.Count; pi++)
         {
@@ -204,10 +205,16 @@ internal static class FormFlattener
                 edit ??= new PageEdit();
                 string name = "OnePdfFlat" + edit.Forms.Count.ToString(CultureInfo.InvariantCulture);
                 edit.Forms.Add((name, formRef));
+                // In a tagged document the baked-in art is not content of the structure tree: mark it as an artifact (ISO 32000-2 14.8.2.2).
+                if (tagged)
+                {
+                    edit.Content.Append("/Artifact BMC ");
+                }
+
                 edit.Content.Append("q ")
                     .Append(Num(ctm.A)).Append(' ').Append(Num(ctm.B)).Append(' ').Append(Num(ctm.C)).Append(' ')
                     .Append(Num(ctm.D)).Append(' ').Append(Num(ctm.E)).Append(' ').Append(Num(ctm.F))
-                    .Append(" cm /").Append(name).Append(" Do Q\n");
+                    .Append(" cm /").Append(name).Append(" Do Q").Append(tagged ? " EMC\n" : "\n");
                 result.Drawn++;
             }
 
@@ -234,6 +241,11 @@ internal static class FormFlattener
         }
 
         result.Removed = removed.Count;
+        if (removed.Count > 0 && doc.StructureTreeRoot is { } structRoot)
+        {
+            DropFromStructureTree(doc, structRoot, removed);
+        }
+
         if (form is not null)
         {
             RemoveFields(doc, form, selectedFields, result);
@@ -442,6 +454,174 @@ internal static class FormFlattener
             arr.Append(k);
         }
     }
+
+    // ---- structure tree ----
+
+    // A removed annotation must not stay reachable from the structure tree (ISO 32000-2 14.7.5.3): its object reference (OBJR) in the
+    // element that held it goes, and so does its parent tree entry (14.7.4.4, keyed by the annotation's /StructParent). Elements are
+    // visited once each with an explicit stack; an element left without content simply has no /K.
+    private static void DropFromStructureTree(PdfDocument doc, PdfDictionary root, HashSet<PdfDictionary> removed)
+    {
+        var gone = new HashSet<PdfDictionary>(removed, ReferenceEqualityComparer.Instance);
+        var keys = new HashSet<long>();
+        foreach (PdfDictionary a in removed)
+        {
+            if (a.Get("StructParent") is PdfInteger k)
+            {
+                keys.Add(k.Value);
+            }
+        }
+
+        var visited = new HashSet<PdfDictionary>(ReferenceEqualityComparer.Instance);
+        var emptied = new Queue<PdfDictionary>();
+        var stack = new Stack<PdfDictionary>();
+        stack.Push(root);
+        long budget = doc.Limits.MaxObjects;
+        while (stack.Count > 0 && budget-- > 0)
+        {
+            PdfDictionary el = stack.Pop();
+            if (!visited.Add(el))
+            {
+                continue;
+            }
+
+            switch (el.Get("K"))
+            {
+                case PdfDictionary single:
+                    if (IsGoneObjr(single, gone))
+                    {
+                        el.RemoveEntry("K");
+                        emptied.Enqueue(el);
+                    }
+                    else if (single.GetName("Type") is not ("OBJR" or "MCR"))
+                    {
+                        stack.Push(single);
+                    }
+
+                    break;
+                case PdfArray kids:
+                    var keep = new List<PdfObject>(kids.Count);
+                    for (int i = 0; i < kids.Count; i++)
+                    {
+                        if (kids[i] is PdfDictionary kd)
+                        {
+                            if (IsGoneObjr(kd, gone))
+                            {
+                                continue;
+                            }
+
+                            if (kd.GetName("Type") is not ("OBJR" or "MCR"))
+                            {
+                                stack.Push(kd);
+                            }
+                        }
+
+                        keep.Add(kids.GetRaw(i));
+                    }
+
+                    if (keep.Count != kids.Count)
+                    {
+                        kids.Clear();
+                        foreach (PdfObject k in keep)
+                        {
+                            kids.Append(k);
+                        }
+
+                        if (keep.Count == 0)
+                        {
+                            el.RemoveEntry("K");
+                            emptied.Enqueue(el);
+                        }
+                    }
+
+                    break;
+                default:
+                    break;
+            }
+        }
+
+        // An element that only held a removed field has no content left: it goes too (PDF/UA-1 7.18.4 wants a Form element to hold its
+        // widget), and so does a parent it leaves empty.
+        while (emptied.Count > 0 && budget-- > 0)
+        {
+            PdfDictionary el = emptied.Dequeue();
+            if (el == root || el.GetDictionary("P") is not { } parent)
+            {
+                continue;
+            }
+
+            switch (parent.Get("K"))
+            {
+                case PdfDictionary only when ReferenceEquals(only, el):
+                    parent.RemoveEntry("K");
+                    emptied.Enqueue(parent);
+                    break;
+                case PdfArray siblings:
+                    int at = -1;
+                    for (int i = 0; i < siblings.Count; i++)
+                    {
+                        if (ReferenceEquals(siblings[i], el))
+                        {
+                            at = i;
+                            break;
+                        }
+                    }
+
+                    if (at >= 0)
+                    {
+                        siblings.RemoveAt(at);
+                        if (siblings.Count == 0)
+                        {
+                            parent.RemoveEntry("K");
+                            emptied.Enqueue(parent);
+                        }
+                    }
+
+                    break;
+                default:
+                    break;
+            }
+        }
+
+        if (keys.Count == 0 || root.GetDictionary("ParentTree") is not { } tree)
+        {
+            return;
+        }
+
+        var entries = new List<(long Key, PdfObject Value)>();
+        bool dropped = false;
+        foreach (KeyValuePair<PdfObject, PdfObject> kv in doc.ReadTree(tree, true, "parent tree"))
+        {
+            long key = ((PdfInteger)kv.Key).Value;
+            if (keys.Contains(key))
+            {
+                dropped = true;
+                continue;
+            }
+
+            entries.Add((key, kv.Value));
+        }
+
+        if (!dropped)
+        {
+            return;
+        }
+
+        entries.Sort(static (x, y) => x.Key.CompareTo(y.Key));
+        var nums = new PdfArray();
+        foreach ((long key, PdfObject value) in entries)
+        {
+            nums.Append(new PdfInteger(key));
+            nums.Append(value);
+        }
+
+        var leaf = new PdfDictionary();
+        leaf.SetEntry("Nums", nums);
+        root.SetEntry("ParentTree", leaf);
+    }
+
+    private static bool IsGoneObjr(PdfDictionary d, HashSet<PdfDictionary> gone) =>
+        d.GetName("Type") == "OBJR" && d.GetDictionary("Obj") is { } target && gone.Contains(target);
 
     // ---- fields ----
 

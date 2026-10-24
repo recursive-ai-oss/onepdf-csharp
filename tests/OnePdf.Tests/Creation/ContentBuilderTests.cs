@@ -425,6 +425,28 @@ public class ContentBuilderTests
         Assert.Throws<ArgumentOutOfRangeException>(() => doc.AddTextStamp("x", f, 10, null, [9]));
     }
 
+    [Theory]
+    [InlineData(0, 0)]
+    [InlineData(45, 0)]
+    [InlineData(90, 0)]
+    [InlineData(135, 0)]
+    [InlineData(180, 0)]
+    [InlineData(-45, 0)]
+    [InlineData(30, 90)]
+    public void RotatedTextStampsExtractInReadingOrder(double degrees, int pageRotate)
+    {
+        using PdfDocument doc = NewDoc(out _);
+        if (pageRotate != 0)
+        {
+            doc.SetPageRotation(0, pageRotate);
+        }
+
+        PdfCreatedFont f = doc.AddStandardFont("Helvetica-Bold");
+        doc.AddTextStamp("CONFIDENTIAL", f, 48, new PdfStampOptions { RotationDegrees = degrees });
+        string text = CreationSupport.Normalize(CreationSupport.AllText(CreationSupport.Save(doc)));
+        Assert.Equal("CONFIDENTIAL", text);
+    }
+
     [Fact]
     public void ImageStamp()
     {

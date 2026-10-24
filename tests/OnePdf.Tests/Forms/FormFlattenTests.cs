@@ -12,9 +12,42 @@ public class FormFlattenTests
     {
         for (int i = 0; i < before.Length; i++)
         {
-            string[] a = FormTestSupport.Lines(after, i);
+            string[] a = WithoutFlattenArtifacts(before[i], FormTestSupport.Lines(after, i));
             Assert.True(before[i].SequenceEqual(a), $"{what}: page {i} differs: first difference at line {FirstDiff(before[i], a)}: [{Line(before[i], FirstDiff(before[i], a))}] vs [{Line(a, FirstDiff(before[i], a))}]");
         }
+    }
+
+    // Flattening a tagged document wraps each baked-in appearance in an Artifact sequence; the original has none of those, so they are
+    // taken out (with their matching end) when the original itself holds no artifact sequence at all.
+    private static string[] WithoutFlattenArtifacts(string[] original, string[] flattened)
+    {
+        if (original.Any(static l => l.StartsWith("begin-mc /Artifact", StringComparison.Ordinal)))
+        {
+            return flattened;
+        }
+
+        var kept = new List<string>(flattened.Length);
+        var open = new Stack<bool>();
+        foreach (string l in flattened)
+        {
+            if (l.StartsWith("begin-mc ", StringComparison.Ordinal))
+            {
+                bool artifact = l.StartsWith("begin-mc /Artifact props=null", StringComparison.Ordinal);
+                open.Push(artifact);
+                if (artifact)
+                {
+                    continue;
+                }
+            }
+            else if (l.StartsWith("end-mc", StringComparison.Ordinal) && open.Count > 0 && open.Pop())
+            {
+                continue;
+            }
+
+            kept.Add(l);
+        }
+
+        return [.. kept];
     }
 
     private static string Line(string[] x, int i) => i < x.Length ? x[i][..Math.Min(400, x[i].Length)] : "(end)";
