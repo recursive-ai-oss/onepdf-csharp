@@ -134,7 +134,14 @@ internal static class Rfc3161
             return false;
         }
 
-        token = tokenBytes.ToArray();
+        // PAdES wants the SignedData in /Contents as DER (ETSI EN 319 142-1); an authority may have used indefinite lengths.
+        if (!BerToDer.TryConvert(tokenBytes, out token))
+        {
+            token = [];
+            error = "The time-stamp token could not be re-encoded as DER.";
+            return false;
+        }
+
         error = string.Empty;
         return true;
     }

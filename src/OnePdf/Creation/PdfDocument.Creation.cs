@@ -728,7 +728,7 @@ internal static class PageContentWriter
         }
     }
 
-    // Open q levels left by the page's own content streams, found by a lexical scan. A stream that cannot be decoded counts as balanced.
+    // Open q levels left by the page's own content streams, counted by tokens. A stream that cannot be decoded counts as balanced.
     public static int UnclosedSaves(PdfDocument doc, PdfDictionary page)
     {
         int depth = 0;
@@ -736,7 +736,7 @@ internal static class PageContentWriter
         {
             if (page.Get("Contents") is PdfStream single)
             {
-                depth = ContentDepth.Unclosed(single.GetDecodedBytes().Span, depth);
+                depth = ContentDepth.Unclosed(single.GetDecodedBytes(), depth);
             }
             else if (page.Get("Contents") is PdfArray list)
             {
@@ -744,7 +744,7 @@ internal static class PageContentWriter
                 {
                     if (list[i] is PdfStream s)
                     {
-                        depth = ContentDepth.Unclosed(s.GetDecodedBytes().Span, depth);
+                        depth = ContentDepth.Unclosed(s.GetDecodedBytes(), depth);
                     }
                 }
             }
