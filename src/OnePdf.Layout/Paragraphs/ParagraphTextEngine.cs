@@ -49,6 +49,7 @@ internal sealed class ParagraphTextEngine : ITextEngine
             Families = text.FontName is null ? [] : [text.FontName],
             Size = text.Size,
             Color = text.Color,
+            Palette = text.Palette,
             Weight = text.Weight,
             Italic = text.Italic,
             LineHeight = text.LineSpacing,
@@ -235,6 +236,8 @@ internal sealed class ParagraphTextEngine : ITextEngine
 
         public void Draw(in DrawContext d, Placed p, int first, int count)
         {
+            renderer.Context = d.Ctx;
+            renderer.DefaultPalette = d.Ctx.Options.ColorPalette;
             renderer.Draw(d.B, layout, d.X, d.PdfY(0), first, count, HasInline ? new Host(d) : null);
             if (first + count >= layout.Lines.Count)
             {

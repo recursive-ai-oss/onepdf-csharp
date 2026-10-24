@@ -495,6 +495,9 @@ public sealed class Text : Element
     /// <summary>Text colour. Default black.</summary>
     public LayoutColor Color { get; set; }
 
+    /// <summary>The palette colour glyphs are drawn with. Null, the default, takes <see cref="LayoutOptions.ColorPalette"/> of the document.</summary>
+    public ColorPalette? Palette { get; set; }
+
     /// <summary>Line placement. Default <see cref="HorizontalAlignment.Start"/>.</summary>
     public HorizontalAlignment Alignment { get; set; }
 

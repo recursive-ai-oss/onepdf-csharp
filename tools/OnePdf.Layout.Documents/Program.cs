@@ -4,6 +4,7 @@ using System.Globalization;
 using System.Text;
 using OnePdf;
 using OnePdf.Layout;
+using OnePdf.Layout.Tests;
 
 // Writes the layout reference documents: small PDFs that each exercise one family of layout features, built with the fluent API.
 //
@@ -845,6 +846,37 @@ Write("inline-objects", "A paragraph with inline objects: drawn icons, a badge w
                 t.Span("A picture can be a link: ");
                 t.InlineImage(jpeg, 14, 14).AltText("project page").Hyperlink("https://example.com/").AlignTextBottom();
                 t.Span(" click it.");
+            });
+        });
+    });
+}));
+
+Write("colour-glyphs", "Colour glyphs from a COLR version 0 font built in code: layers in palette colours, the foreground layer taking the text colour, light and dark palettes, and a version 1 only glyph drawn as a plain box", LayoutDocument.Compose(doc =>
+{
+    doc.Title("Colour glyphs").Language("en");
+    doc.Fonts.Add(ColorFont.Build(version1: true), "Colour Test");
+    string glyphs = ColorFont.Grin + " " + ColorFont.Beam + " " + ColorFont.Joy + " A";
+    doc.Page(page =>
+    {
+        page.Size(PageSize.A5);
+        page.Margin(30);
+        page.Content().Column(col =>
+        {
+            col.Spacing(12);
+            col.Item().Text("Colour glyphs").FontSize(18).Bold();
+            col.Item().Text("Palette 0 (default), text colour black. The middle layer of the first glyph is the foreground layer.").FontSize(10);
+            col.Item().Text(t => t.Span(glyphs).FontFamily("Colour Test", "Sans").FontSize(40));
+            col.Item().Text("The same with the text colour blue: only the foreground layer changes.").FontSize(10);
+            col.Item().Text(t => t.Span(glyphs).FontFamily("Colour Test", "Sans").FontSize(40).FontColor(LayoutColor.FromHex("#1f4fd8")));
+            col.Item().Text("The font's dark-background palette, on a dark box with white text.").FontSize(10);
+            col.Item().Background(LayoutColor.FromHex("#20242b")).Padding(8).Text(t => t.Span(glyphs).FontFamily("Colour Test", "Sans").FontSize(40).FontColor(LayoutColor.White).Palette(ColorPalette.Dark));
+            col.Item().Text("Mixed in a line of text: ").FontSize(12);
+            col.Item().Text(t =>
+            {
+                t.Span("Reactions ").FontSize(14);
+                t.Span(ColorFont.Grin + ColorFont.Beam).FontFamily("Colour Test", "Sans").FontSize(22);
+                t.Span(" and more text after them, which wraps onto a second line with the glyphs still in colour: ").FontSize(14);
+                t.Span(ColorFont.Beam).FontFamily("Colour Test", "Sans").FontSize(14);
             });
         });
     });

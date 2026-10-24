@@ -88,6 +88,37 @@ internal sealed class FontEntry
         }
     }
 
+    /// <summary>The colour layers of this face (COLR version 0 with CPAL), or null when the font file has none. Read once.</summary>
+    public ColorGlyphs? ColorGlyphs
+    {
+        get
+        {
+            if (StandardName is not null)
+            {
+                return null;
+            }
+
+            if (!Volatile.Read(ref _colorRead))
+            {
+                FontFace face = Face;
+                byte[] data = Data;
+                lock (_gate)
+                {
+                    if (!_colorRead)
+                    {
+                        _color = ColorGlyphs.Load(data, _faceIndex, face.GlyphCount);
+                        Volatile.Write(ref _colorRead, true);
+                    }
+                }
+            }
+
+            return _color;
+        }
+    }
+
+    private ColorGlyphs? _color;
+    private bool _colorRead;
+
     public FontFace Face
     {
         get

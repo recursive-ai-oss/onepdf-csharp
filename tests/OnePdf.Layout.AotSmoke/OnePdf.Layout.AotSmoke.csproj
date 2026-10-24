@@ -10,6 +10,10 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Compile Include="../OnePdf.Layout.Tests/ColorFont.cs" Link="ColorFont.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="../../src/OnePdf/OnePdf.csproj" />
     <ProjectReference Include="../../src/OnePdf.Layout/OnePdf.Layout.csproj" />
     <ProjectReference Include="../../src/OnePdf.Hyphenation/OnePdf.Hyphenation.csproj" />

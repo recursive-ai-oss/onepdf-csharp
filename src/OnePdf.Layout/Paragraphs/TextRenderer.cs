@@ -253,7 +253,7 @@ public sealed class TextRenderer
                 Hyph h = para.HyphenFor(line.ItemEnd - 1);
                 Fmt hf = para.FmtAt(h.Fmt);
                 int gs = _glyphCount;
-                AddGlyph(new PdfShapedGlyph(h.Gid, 0, Thousandths(h.Advance, hf.Size)));
+                AddGlyph(new PdfShapedGlyph((uint)h.Gid < (uint)hf.Face.GlyphCount ? h.Gid : 0, 0, Thousandths(h.Advance, hf.Size)));
                 AddPiece(new Piece { Fmt = h.Fmt, GlyphStart = gs, GlyphEnd = _glyphCount, TextLength = 0, Literal = h.Text, Width = h.Advance, IsHyphen = true, FirstItem = -1, LastItem = -1 });
                 cur = -1;
                 prevLogical = -2;
@@ -345,7 +345,16 @@ public sealed class TextRenderer
             }
             else
             {
-                b.DrawGlyphRun(x, baseline, glyphs, p.Literal is { } literal ? literal.AsSpan() : para.Text.AsSpan(p.TextStart, p.TextLength));
+                ReadOnlySpan<char> runText = p.Literal is { } literal ? literal.AsSpan() : para.Text.AsSpan(p.TextStart, p.TextLength);
+                ColorGlyphs? colour = ColourOf(f, glyphs);
+                if (colour is null)
+                {
+                    b.DrawGlyphRun(x, baseline, glyphs, runText);
+                }
+                else
+                {
+                    DrawColourRun(b, colour, f, glyphs, runText, x, baseline);
+                }
             }
 
             if (f.Style.Underline || f.Style.Strike)
@@ -498,6 +507,7 @@ public sealed class TextRenderer
             return a;
         }
 
+        int glyphCount = f.Face.GlyphCount;
         for (int k = 0; k < n; k++)
         {
             int gi = it.GlyphStart + (rtl ? n - 1 - k : k);
@@ -509,11 +519,218 @@ public sealed class TextRenderer
             }
 
             width += a;
-            AddGlyph(new PdfShapedGlyph(g.Gid, it.Start, Thousandths(a, size), Thousandths(g.Dx, size), Thousandths(g.Dy, size)));
+            // A character map can name a glyph the font does not have; it draws as the missing-glyph box instead of failing the document.
+            int gid = (uint)g.Gid < (uint)glyphCount ? g.Gid : 0;
+            AddGlyph(new PdfShapedGlyph(gid, it.Start, Thousandths(a, size), Thousandths(g.Dx, size), Thousandths(g.Dy, size)));
         }
 
         return width;
     }
+
+    /// <summary>The palette colour glyphs use when a style does not choose; set from the document's options.</summary>
+    internal ColorPalette DefaultPalette { get; set; }
+
+    /// <summary>Where notes about colour fonts go (once per font and kind); null when drawing outside a layout.</summary>
+    internal LayoutContext? Context { get; set; }
+
+    // The colour tables of the run's font when the run has at least one glyph to draw in colour; null for the usual case, which draws as before.
+    // A font whose tables are unusable, and glyphs that only have a version 1 description, draw as plain outlines with one note per font.
+    private ColorGlyphs? ColourOf(Fmt f, ReadOnlySpan<PdfShapedGlyph> glyphs)
+    {
+        ColorGlyphs? c = f.Entry.ColorGlyphs;
+        if (c is null)
+        {
+            return null;
+        }
+
+        if (!c.IsUsable)
+        {
+            Context?.NoteOnce(f.Entry, $"The colour tables of font '{f.Entry.Family}' are not valid ({c.Problem}); its glyphs are drawn in one colour.");
+            return null;
+        }
+
+        bool any = false;
+        foreach (PdfShapedGlyph g in glyphs)
+        {
+            if (c.TryGetLayers(g.GlyphId, out _, out _))
+            {
+                any = true;
+            }
+            else if (c.IsVersion1Only(g.GlyphId))
+            {
+                Context?.NoteOnce((f.Entry, 1), $"Font '{f.Entry.Family}' describes some glyphs only as COLR version 1 paint graphs, which are not drawn; they appear in one colour.");
+            }
+        }
+
+        return any ? c : null;
+    }
+
+    // Draws a run in which some glyphs have colour layers. Plain stretches go out as ordinary glyph runs; a colour glyph is its layers, each
+    // a one-glyph run in the layer's palette colour, inside one /Span with /ActualText of the glyph's text (ISO 32000-2 14.9.4), so
+    // extraction returns the character once and not once per layer. The layers share the cluster's text for their /ToUnicode entries.
+    private void DrawColourRun(PdfContentBuilder b, ColorGlyphs c, Fmt f, ReadOnlySpan<PdfShapedGlyph> glyphs, ReadOnlySpan<char> text, double x, double baseline)
+    {
+        double size = f.Size;
+        int palette = c.ResolvePalette(f.Style.Palette ?? DefaultPalette);
+        LayoutColor foreground = f.Style.Color;
+        double pen = x;
+        int n = glyphs.Length;
+
+        // A cluster's text runs from its value to the next higher cluster value in the run, or to the end of the text. Looking that up in
+        // the whole run (not in a piece of it) keeps the text of a glyph from swallowing a neighbour that is drawn separately.
+        int[] sorted = new int[n];
+        for (int k = 0; k < n; k++)
+        {
+            sorted[k] = glyphs[k].Cluster;
+        }
+
+        Array.Sort(sorted);
+        int textLength = text.Length;
+        int EndOf(int cluster)
+        {
+            int at = Array.BinarySearch(sorted, cluster);
+            while (at >= 0 && at < n && sorted[at] == cluster)
+            {
+                at++;
+            }
+
+            return at < n && at >= 0 ? sorted[at] : textLength;
+        }
+
+        PdfShapedGlyph[] one = new PdfShapedGlyph[1];
+        int plain = 0;
+        int i = 0;
+        while (i < n)
+        {
+            int cluster = glyphs[i].Cluster;
+            int j = i + 1;
+            while (j < n && glyphs[j].Cluster == cluster)
+            {
+                j++;
+            }
+
+            bool coloured = false;
+            for (int k = i; k < j && !coloured; k++)
+            {
+                coloured = c.TryGetLayers(glyphs[k].GlyphId, out _, out _);
+            }
+
+            if (!coloured)
+            {
+                i = j;
+                continue;
+            }
+
+            pen += DrawPlain(b, glyphs[plain..i], text, pen, baseline, EndOf);
+            ReadOnlySpan<char> groupText = text[cluster..EndOf(cluster)];
+            b.BeginSpan(actualText: groupText.ToString());
+            double fillR = foreground.R;
+            double fillG = foreground.G;
+            double fillB = foreground.B;
+            for (int k = i; k < j; k++)
+            {
+                PdfShapedGlyph g = glyphs[k];
+                double gx = pen + (g.OffsetX * size / 1000.0);
+                double gy = baseline + (g.OffsetY * size / 1000.0);
+                if (c.TryGetLayers(g.GlyphId, out int first, out int count))
+                {
+                    for (int l = 0; l < count; l++)
+                    {
+                        c.GetLayer(first + l, out int layerGlyph, out int entry);
+                        (double r, double gr, double bl) = ColorGlyphs.IsForeground(entry) ? (foreground.R, foreground.G, foreground.B) : c.GetColor(palette, entry);
+                        if (r != fillR || gr != fillG || bl != fillB)
+                        {
+                            b.SetFillRgb(r, gr, bl);
+                            (fillR, fillG, fillB) = (r, gr, bl);
+                        }
+
+                        one[0] = new PdfShapedGlyph(layerGlyph, 0, 0);
+                        b.DrawGlyphRun(gx, gy, one, groupText);
+                    }
+                }
+                else
+                {
+                    if (fillR != foreground.R || fillG != foreground.G || fillB != foreground.B)
+                    {
+                        b.SetFillRgb(foreground.R, foreground.G, foreground.B);
+                        (fillR, fillG, fillB) = (foreground.R, foreground.G, foreground.B);
+                    }
+
+                    one[0] = new PdfShapedGlyph(g.GlyphId, 0, 0);
+                    b.DrawGlyphRun(gx, gy, one, groupText);
+                }
+
+                pen += g.Advance * size / 1000.0;
+            }
+
+            b.EndMarkedContent();
+            if (fillR != foreground.R || fillG != foreground.G || fillB != foreground.B)
+            {
+                b.SetFillRgb(foreground.R, foreground.G, foreground.B);
+            }
+
+            plain = j;
+            i = j;
+        }
+
+        DrawPlain(b, glyphs[plain..n], text, pen, baseline, EndOf);
+    }
+
+    // The stretch between colour glyphs. One call when its clusters only go up (the usual left-to-right case), with the text cut after the
+    // last cluster so that the last glyph does not claim the rest of the run; otherwise one call per cluster, each with its own text.
+    private static double DrawPlain(PdfContentBuilder b, ReadOnlySpan<PdfShapedGlyph> glyphs, ReadOnlySpan<char> text, double pen, double baseline, Func<int, int> endOf)
+    {
+        if (glyphs.Length == 0)
+        {
+            return 0;
+        }
+
+        bool ascending = true;
+        for (int k = 1; k < glyphs.Length && ascending; k++)
+        {
+            ascending = glyphs[k].Cluster >= glyphs[k - 1].Cluster;
+        }
+
+        if (ascending)
+        {
+            return b.DrawGlyphRun(pen, baseline, glyphs, text[..endOf(glyphs[^1].Cluster)]);
+        }
+
+        double moved = 0;
+        var one = new PdfShapedGlyph[1];
+        int i = 0;
+        while (i < glyphs.Length)
+        {
+            int cluster = glyphs[i].Cluster;
+            int j = i + 1;
+            while (j < glyphs.Length && glyphs[j].Cluster == cluster)
+            {
+                j++;
+            }
+
+            ReadOnlySpan<char> part = text[cluster..endOf(cluster)];
+            if (j - i == 1)
+            {
+                one[0] = glyphs[i] with { Cluster = 0 };
+                moved += b.DrawGlyphRun(pen + moved, baseline, one, part);
+            }
+            else
+            {
+                var group = new PdfShapedGlyph[j - i];
+                for (int k = i; k < j; k++)
+                {
+                    group[k - i] = glyphs[k] with { Cluster = 0 };
+                }
+
+                moved += b.DrawGlyphRun(pen + moved, baseline, group, part);
+            }
+
+            i = j;
+        }
+
+        return moved;
+    }
+
 
     private static double Thousandths(double points, double size) => points / size * 1000.0;
 
