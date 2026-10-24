@@ -126,6 +126,7 @@ internal sealed class PdfAChecker
 
         Drain();
         CheckEmbeddedSpecs();
+        CheckLevelA();
         CheckColourUse();
         CheckCreatedFonts();
         CheckTransparency();
@@ -135,6 +136,21 @@ internal sealed class PdfAChecker
         }
 
         return _violations;
+    }
+
+    // Level A adds a tagged logical structure (ISO 19005-2, 6.7). The structure checks are shared with PDF/UA; only those that
+    // ISO 19005 itself states are made here.
+    private void CheckLevelA()
+    {
+        if (_options.Conformance != PdfAConformance.A)
+        {
+            return;
+        }
+
+        foreach (PdfUAViolation v in new PdfUA.PdfUAChecker(_doc, structureOnly: true, _ct).Run())
+        {
+            Add(v.Clause, v.Message, v.ObjectNumber, v.PageIndex);
+        }
     }
 
     private void Add(string clause, string message, int owner, int page)
@@ -968,7 +984,7 @@ internal sealed class PdfAChecker
             CheckSimpleFont(f, subtype, baseFont, owner, page);
         }
 
-        if (_options.Conformance == PdfAConformance.U)
+        if (_options.Conformance != PdfAConformance.B)
         {
             CheckUnicode(f, subtype, baseFont, owner, page);
         }
@@ -1348,7 +1364,7 @@ internal sealed class PdfAChecker
             return;
         }
 
-        string wantConf = _options.Conformance == PdfAConformance.B ? "B" : "U";
+        string wantConf = PdfAPreparer.ConformanceLetter(_options.Conformance);
         if (xmp.PdfAPart != (int)_options.Part || xmp.PdfAConformance != wantConf)
         {
             Add("6.6.4", $"The XMP packet does not identify the file as {_options.Name} (pdfaid:part={xmp.PdfAPart?.ToString() ?? "-"}, pdfaid:conformance={xmp.PdfAConformance ?? "-"}).", num, -1);

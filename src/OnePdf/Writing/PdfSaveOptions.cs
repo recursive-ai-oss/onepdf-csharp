@@ -91,6 +91,17 @@ public sealed class PdfSaveOptions
     /// </summary>
     public PdfAOptions? PdfA { get; init; }
 
+    /// <summary>
+    /// Write the file as PDF/UA-1 (ISO 14289-1), alone or together with <see cref="PdfA"/>. A full save then first repairs what needs no
+    /// judgement (<see cref="PdfDocument.PreparePdfUA"/>: tagged marker, language, title display, tab order, link descriptions, XMP
+    /// identification, library fonts) and checks the rest; if anything is still wrong it throws <see cref="PdfUAException"/> (or
+    /// <see cref="PdfAException"/> when PDF/A is also requested) listing every violation, and writes nothing. The document must be
+    /// editable and the changes stay in it. This is offered for documents OnePDF laid out or created with tags; it never tags existing
+    /// content, and a clean result is not proof of conformance. Not supported with <see cref="PdfDocument.SaveIncremental(Stream, PdfSaveOptions?, CancellationToken)"/>.
+    /// Default null.
+    /// </summary>
+    public PdfUAOptions? PdfUA { get; init; }
+
     // The header version a PDF/A save writes whatever the source says (ISO 19005-2 6.1.2 allows 1.0 to 1.7).
     internal string? ExactVersion { get; init; }
 }

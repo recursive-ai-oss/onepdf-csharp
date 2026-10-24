@@ -5,9 +5,9 @@ using OnePdf;
 namespace OnePdf.Fuzz;
 
 /// <summary>
-/// PDF/A target: opens the bytes as an editable document, checks it, prepares it and saves it as PDF/A (part and level chosen from
-/// the first byte). A save that succeeds must read back as a document the checker finds nothing wrong with. Only the library's
-/// typed exceptions may escape.
+/// PDF/A and PDF/UA target: opens the bytes as an editable document, checks it, prepares it and saves it as PDF/A, PDF/UA-1 or both
+/// (part, level and profile chosen from the first byte). A save that succeeds must read back as a document the checkers find nothing
+/// wrong with. Only the library's typed exceptions may escape.
 /// </summary>
 internal static class PdfATarget
 {
@@ -15,13 +15,17 @@ internal static class PdfATarget
     {
         int sel = data.Length > 0 ? data[0] : 0;
         var limits = PdfLimits.Default with { MaxDecodedStreamBytes = 8 << 20, MaxObjects = 200_000 };
-        var options = new PdfAOptions { Part = (sel & 1) == 0 ? PdfAPart.Part2 : PdfAPart.Part3, Conformance = (sel & 2) == 0 ? PdfAConformance.B : PdfAConformance.U };
+        var options = new PdfAOptions { Part = (sel & 1) == 0 ? PdfAPart.Part2 : PdfAPart.Part3, Conformance = (sel & 16) != 0 ? PdfAConformance.A : (sel & 2) == 0 ? PdfAConformance.B : PdfAConformance.U };
+        bool uaOnly = (sel & 64) != 0;
+        PdfUAOptions? ua = (sel & 32) != 0 || uaOnly ? new PdfUAOptions { Language = "en" } : null;
+        PdfAOptions? pdfa = uaOnly ? null : options;
         byte[] input = data.ToArray();
         try
         {
             using (PdfDocument ro = PdfDocument.Open(input, new PdfOpenOptions { Limits = limits }))
             {
                 _ = ro.CheckPdfA(options);
+                _ = ro.CheckPdfUA();
             }
 
             using PdfDocument doc = PdfDocument.Open(input, new PdfOpenOptions { Limits = limits, AllowEditing = true });
@@ -37,8 +41,18 @@ internal static class PdfATarget
                 {
                     XrefFormat = (sel & 8) != 0 ? PdfXrefFormat.Table : PdfXrefFormat.Stream,
                     Encryption = doc.IsEncrypted ? PdfEncryptionAction.Remove : PdfEncryptionAction.Keep,
-                    PdfA = options,
+                    PdfA = pdfa,
+                    PdfUA = ua,
                 });
+            }
+            catch (PdfUAException ex)
+            {
+                if (ex.Violations.Count == 0 || ms.Length != 0)
+                {
+                    throw new InvalidOperationException("a refusal must list violations and write nothing");
+                }
+
+                return;
             }
             catch (PdfAException ex)
             {
@@ -51,11 +65,25 @@ internal static class PdfATarget
             }
 
             using PdfDocument back = PdfDocument.Open(ms.ToArray(), new PdfOpenOptions { Limits = limits });
-            foreach (PdfAViolation v in back.CheckPdfA(options))
+            if (pdfa is not null)
             {
-                if (!v.Message.Contains("cannot be read", StringComparison.Ordinal))
+                foreach (PdfAViolation v in back.CheckPdfA(pdfa))
                 {
-                    throw new InvalidOperationException("a written PDF/A file fails the checker: " + v);
+                    if (!v.Message.Contains("cannot be read", StringComparison.Ordinal))
+                    {
+                        throw new InvalidOperationException("a written PDF/A file fails the checker: " + v);
+                    }
+                }
+            }
+
+            if (ua is not null)
+            {
+                foreach (PdfUAViolation v in back.CheckPdfUA())
+                {
+                    if (!v.Message.Contains("cannot be read", StringComparison.Ordinal))
+                    {
+                        throw new InvalidOperationException("a written PDF/UA file fails the checker: " + v);
+                    }
                 }
             }
         }

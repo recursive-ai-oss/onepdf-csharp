@@ -56,6 +56,12 @@ are read through safe, bounds-checked code with size limits on by default.
   taken care of, and a document that cannot be written as PDF/A is refused with every violation listed, by object. PDF/A-3 files can
   carry attachments. It is not a validator and does not convert arbitrary files
   ([PDF/A](https://github.com/recursive-ai-oss/onepdf-csharp/blob/main/docs/pdfa.md)).
+- **PDF/UA-1 and PDF/A level A.** Write PDF/UA-1 (ISO 14289-1) and PDF/A-2a/3a, alone or combined, from documents OnePDF laid out or
+  created with tags. `PdfSaveOptions.PdfUA` repairs the clerical parts (language, title display, tab order, link descriptions, XMP
+  identification) and refuses what the document must provide (title, alternate text for figures, heading levels, table header
+  cells, untagged content, unembedded fonts, ...) with every violation listed; `CheckPdfUA` only reports. It never tags untagged
+  files or guesses alternate text, and a clean result is not proof of conformance
+  ([PDF/UA](https://github.com/recursive-ai-oss/onepdf-csharp/blob/main/docs/pdfua.md)).
 - **Concurrent.** Objects parse lazily into a byte-budgeted cache with single-flight parsing; any number of threads can read pages
   of one document at once.
 

@@ -36,6 +36,12 @@ if (OnePdf.AotSmoke.PdfASmoke.Run() is { } pdfaFailure)
     return 1;
 }
 
+if (OnePdf.AotSmoke.PdfUASmoke.Run() is { } pdfuaFailure)
+{
+    Console.Error.WriteLine("PDF/UA: " + pdfuaFailure);
+    return 1;
+}
+
 if (OnePdf.AotSmoke.RedactionSmoke.Run() is { } redactionFailure)
 {
     Console.Error.WriteLine("redaction: " + redactionFailure);

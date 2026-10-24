@@ -11,8 +11,12 @@ namespace OnePdf.PdfA;
 /// </summary>
 internal static class XmpWriter
 {
-    /// <summary>The XMP packet for <paramref name="info"/> and the PDF/A identification <paramref name="part"/> and <paramref name="conformance"/>.</summary>
-    public static byte[] Write(DocumentInfo? info, int part, string conformance)
+    /// <summary>
+    /// The XMP packet for <paramref name="info"/> with the PDF/A identification <paramref name="part"/> and <paramref name="conformance"/>
+    /// (part 0: none) and, when <paramref name="pdfUA"/> is set, the PDF/UA-1 identification (ISO 14289-1 5). A PDF/A file that also
+    /// claims PDF/UA declares the pdfuaid schema as an extension schema (ISO 19005-2, 6.6.2.3).
+    /// </summary>
+    public static byte[] Write(DocumentInfo? info, int part, string conformance, bool pdfUA = false)
     {
         var sb = new StringBuilder(1024);
         // The id value is fixed by the XMP specification; the BOM goes in the begin attribute as U+FEFF (6.6.2.1: UTF-8 only,
@@ -21,10 +25,24 @@ internal static class XmpWriter
         sb.Append("<x:xmpmeta xmlns:x=\"adobe:ns:meta/\">\n");
         sb.Append(" <rdf:RDF xmlns:rdf=\"http://www.w3.org/1999/02/22-rdf-syntax-ns#\">\n");
 
-        sb.Append("  <rdf:Description rdf:about=\"\" xmlns:pdfaid=\"http://www.aiim.org/pdfa/ns/id/\">\n");
-        sb.Append("   <pdfaid:part>").Append(part.ToString(CultureInfo.InvariantCulture)).Append("</pdfaid:part>\n");
-        sb.Append("   <pdfaid:conformance>").Append(conformance).Append("</pdfaid:conformance>\n");
-        sb.Append("  </rdf:Description>\n");
+        if (part > 0)
+        {
+            sb.Append("  <rdf:Description rdf:about=\"\" xmlns:pdfaid=\"http://www.aiim.org/pdfa/ns/id/\">\n");
+            sb.Append("   <pdfaid:part>").Append(part.ToString(CultureInfo.InvariantCulture)).Append("</pdfaid:part>\n");
+            sb.Append("   <pdfaid:conformance>").Append(conformance).Append("</pdfaid:conformance>\n");
+            sb.Append("  </rdf:Description>\n");
+        }
+
+        if (pdfUA)
+        {
+            sb.Append("  <rdf:Description rdf:about=\"\" xmlns:pdfuaid=\"http://www.aiim.org/pdfua/ns/id/\">\n");
+            sb.Append("   <pdfuaid:part>1</pdfuaid:part>\n");
+            sb.Append("  </rdf:Description>\n");
+            if (part > 0)
+            {
+                sb.Append(UaExtensionSchema);
+            }
+        }
 
         string? title = info?.Title;
         string? author = info?.Author;
@@ -97,6 +115,19 @@ internal static class XmpWriter
         sb.Append("<?xpacket end=\"w\"?>");
         return new UTF8Encoding(false).GetBytes(sb.ToString());
     }
+
+    private const string UaExtensionSchema =
+        "  <rdf:Description rdf:about=\"\" xmlns:pdfaExtension=\"http://www.aiim.org/pdfa/ns/extension/\" xmlns:pdfaSchema=\"http://www.aiim.org/pdfa/ns/schema#\" xmlns:pdfaProperty=\"http://www.aiim.org/pdfa/ns/property#\">\n"
+        + "   <pdfaExtension:schemas>\n    <rdf:Bag>\n     <rdf:li rdf:parseType=\"Resource\">\n"
+        + "      <pdfaSchema:schema>PDF/UA identification schema</pdfaSchema:schema>\n"
+        + "      <pdfaSchema:namespaceURI>http://www.aiim.org/pdfua/ns/id/</pdfaSchema:namespaceURI>\n"
+        + "      <pdfaSchema:prefix>pdfuaid</pdfaSchema:prefix>\n"
+        + "      <pdfaSchema:property>\n       <rdf:Seq>\n        <rdf:li rdf:parseType=\"Resource\">\n"
+        + "         <pdfaProperty:name>part</pdfaProperty:name>\n"
+        + "         <pdfaProperty:valueType>Integer</pdfaProperty:valueType>\n"
+        + "         <pdfaProperty:category>internal</pdfaProperty:category>\n"
+        + "         <pdfaProperty:description>Indicates which part of ISO 14289 the file follows</pdfaProperty:description>\n"
+        + "        </rdf:li>\n       </rdf:Seq>\n      </pdfaSchema:property>\n     </rdf:li>\n    </rdf:Bag>\n   </pdfaExtension:schemas>\n  </rdf:Description>\n";
 
     // XMP date (a profile of ISO 8601, XMP Specification part 1, "Date"): seconds precision with a zone offset.
     private static string Date(DateTimeOffset d) => d.ToString("yyyy-MM-dd'T'HH:mm:sszzz", CultureInfo.InvariantCulture);
