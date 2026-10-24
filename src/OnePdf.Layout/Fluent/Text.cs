@@ -56,6 +56,7 @@ internal sealed class SpanFormat
     public string[]? Families;
     public double? Size;
     public LayoutColor? Color;
+    public ColorPalette? Palette;
     public int? Weight;
     public bool? Italic;
     public bool? Underline;
@@ -67,7 +68,7 @@ internal sealed class SpanFormat
     public int? ReservedDigits;
     public InlineDescriptor? Inline;
 
-    public bool HasStyle => Families is not null || Size is not null || Color is not null || Weight is not null || Italic is not null
+    public bool HasStyle => Families is not null || Size is not null || Color is not null || Palette is not null || Weight is not null || Italic is not null
         || Underline is not null || Strike is not null || LetterSpacing is not null || Position is not null || Language is not null || LineHeight is not null;
 }
 
@@ -95,6 +96,12 @@ public abstract class TextFormatDescriptor<TSelf>
 
     /// <summary>The text colour. Default black.</summary>
     public TSelf FontColor(LayoutColor color) => Set(f => f.Color = color);
+
+    /// <summary>
+    /// The palette colour glyphs (colour emoji, colour icon fonts) are drawn with; <see cref="LayoutOptions.ColorPalette"/> when not set.
+    /// Glyphs of fonts without OpenType <c>COLR</c> layers are not affected.
+    /// </summary>
+    public TSelf Palette(ColorPalette palette) => Set(f => f.Palette = palette);
 
     /// <summary>Weight 700.</summary>
     public TSelf Bold() => Set(f => f.Weight = 700);
@@ -335,6 +342,7 @@ public sealed class TextDescriptor : TextFormatDescriptor<TextDescriptor>
             Families = span.Families ?? d.Families,
             Size = span.Size ?? d.Size,
             Color = span.Color ?? d.Color,
+            Palette = span.Palette ?? d.Palette,
             Weight = span.Weight ?? d.Weight,
             Italic = span.Italic ?? d.Italic,
             Underline = span.Underline ?? d.Underline,
@@ -353,6 +361,7 @@ public sealed class TextDescriptor : TextFormatDescriptor<TextDescriptor>
         Families = merged.Families ?? [],
         Size = merged.Size ?? 11,
         Color = merged.Color ?? LayoutColor.Black,
+        Palette = merged.Palette,
         Weight = merged.Weight ?? 400,
         Italic = merged.Italic ?? false,
         Underline = merged.Underline ?? false,
@@ -393,6 +402,7 @@ public sealed class TextDescriptor : TextFormatDescriptor<TextDescriptor>
             FontName = d.Families is { Length: > 0 } fam ? fam[0] : null,
             Size = d.Size ?? 11,
             Color = d.Color ?? LayoutColor.Black,
+            Palette = d.Palette,
             Weight = d.Weight ?? 400,
             Italic = d.Italic ?? false,
             LineSpacing = d.LineHeight ?? 1.2,

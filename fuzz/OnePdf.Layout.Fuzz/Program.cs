@@ -15,7 +15,9 @@ namespace OnePdf.Layout.Fuzz;
 //                       bit 4 landscape, bit 5 debug overlay
 //   bytes 1-2    length of the script
 //   script       bytes that choose a random element tree, its text and its settings (read in a loop, so every input is valid)
-//   rest         with flag 0: a font file (TrueType/OpenType) registered as a family and used as the first fallback
+//   rest         with bit 6 (64): a colour test font built in code, whose COLR and CPAL tables are these bytes (the first byte
+//                       places the split between the two; bit 7 makes the valid default table version 1)
+//                with flag 0: a font file (TrueType/OpenType) registered as a family and used as the first fallback
 //
 // Invariants: only the library's typed exceptions come out; laying the same tree out twice gives the same bytes; the file opens;
 // every text leaf's token appears exactly once in the content-order text.

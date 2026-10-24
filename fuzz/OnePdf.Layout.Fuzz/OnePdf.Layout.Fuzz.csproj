@@ -13,6 +13,11 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- The colour test font is built from code, so the fuzz input can replace its COLR and CPAL tables. -->
+    <Compile Include="../../tests/OnePdf.Layout.Tests/ColorFont.cs" Link="ColorFont.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="../../src/OnePdf/OnePdf.csproj" />
     <ProjectReference Include="../../src/OnePdf.Layout/OnePdf.Layout.csproj" />
   </ItemGroup>

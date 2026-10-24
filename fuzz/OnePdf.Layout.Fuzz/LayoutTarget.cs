@@ -6,6 +6,7 @@ using System.Linq;
 using System.Text;
 using OneFont;
 using OnePdf;
+using OnePdf.Layout.Tests;
 using OnePdf.Text;
 
 namespace OnePdf.Layout.Fuzz;
@@ -27,7 +28,7 @@ internal static class LayoutTarget
         ["\u0928\u092E\u0938\u094D\u0924\u0947", "\u0915\u094D\u0937", "\u0939\u093F\u0928\u094D\u0926\u0940"],
         ["\u0E2A\u0E27\u0E31\u0E2A\u0E14\u0E35", "\u0E01\u0E32\u0E23"],
         ["\u6F22\u5B57\u3068\u3072\u3089\u304C\u306A", "\u4E2D\u6587\u6587\u672C", "\uD55C\uAE00"],
-        ["\uD83D\uDE00", "e\u0301", "\u202B", "\u202C", "\u2067x\u2069", "\u200D", "\u00AD", "\u2028"],
+        ["\uD83D\uDE00", "\uD83D\uDE01", "\uD83D\uDE02", "e\u0301", "\u202B", "\u202C", "\u2067x\u2069", "\u200D", "\u00AD", "\u2028"],
     ];
 
     private static readonly string[] Families = [null!, "Serif", "Mono", "Helvetica", "Times-Bold", "Fz", "Nope"];
@@ -367,6 +368,25 @@ internal static class LayoutTarget
         var script = new Script(data.Slice(3, scriptLength));
         ReadOnlySpan<byte> fontBytes = data[(3 + scriptLength)..];
         bool hostile = (flags & 1) != 0 && fontBytes.Length >= 12;
+        if ((flags & 64) != 0)
+        {
+            // A colour font whose COLR and CPAL tables are the input: the first byte says where the COLR bytes end and the CPAL bytes begin
+            // (empty input keeps the valid tables).
+            ReadOnlySpan<byte> tables = fontBytes.Length > 1 ? fontBytes[1..] : default;
+            int cut = fontBytes.Length > 1 ? fontBytes[0] * tables.Length / 256 : 0;
+            byte[] colr = tables[..cut].ToArray();
+            byte[] cpal = tables[cut..].ToArray();
+            bool replace = tables.Length > 0;
+            fontBytes = ColorFont.Build(version1: (flags & 128) != 0, edit: p =>
+            {
+                if (replace)
+                {
+                    p.Colr = colr;
+                    p.Cpal = cpal;
+                }
+            });
+            hostile = true;
+        }
 
         var doc = new LayoutDocument { Title = "Fuzz", Language = "en" };
         doc.Options.Tagged = (flags & 4) == 0;
