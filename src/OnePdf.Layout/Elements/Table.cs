@@ -17,7 +17,7 @@ namespace OnePdf.Layout;
 /// <para><b>Borders</b> are collapsed: two cells that meet share one line, centred on the grid line. The wider of the two borders wins; at equal
 /// width solid beats dashed beats dotted; if those are equal too, the cell before (above or at the start side) wins. Lines at the outer edge
 /// of the table, and at the top and bottom of each page's piece of it, are drawn inside the table.</para>
-/// <para><b>Cost.</b> The grid and the column widths are worked out once, when the table starts; each page then costs the rows on it plus the
+/// <para><b>Cost.</b> The grid and the column widths (from the header, footer and first <see cref="MeasuredRows"/> body rows, all by default) are worked out once, when the table starts; each page then costs the rows on it plus the
 /// header and footer rows, so a 10,000-row table takes time in proportion to its rows.</para>
 /// </remarks>
 public sealed class Table : Element
@@ -36,6 +36,14 @@ public sealed class Table : Element
 
     /// <summary>Space around cell content unless the cell sets its own. Default 4 points on every side.</summary>
     public Insets CellPadding { get; set; } = Insets.All(4);
+
+    /// <summary>
+    /// How many body rows (counting from the first) are measured to size automatic and relative columns; the header and footer rows are
+    /// always measured. The default measures every row, so no cell is wider than its column. Measuring a very large table costs about as
+    /// much as laying it out; set a limit to trade that for columns sized from the first rows only, where content that turns out wider in
+    /// a later row wraps within its column.
+    /// </summary>
+    public int MeasuredRows { get; set; } = int.MaxValue;
 
     /// <summary>Border of every cell edge unless the cell sets its own. Default none.</summary>
     public Border CellBorder { get; set; }

@@ -226,8 +226,13 @@ public sealed class ItemList : Element
         return page.Complete ? FlowFit.Complete(page.Height, node) : FlowFit.Partial(page.Height, node, new ListResume(page.Next, markerColumn));
     }
 
-    private sealed class Source(ItemList list, LayoutContext ctx, Constraint c, double markerColumn) : IFlowSource
+    private sealed class Source(ItemList list, LayoutContext ctx, Constraint c, double measuredMarkerColumn) : IFlowSource
     {
+        // In a column too narrow for its markers the marker column takes at most half the width and the gap a quarter, so content keeps some room.
+        private readonly double markerColumn = c.WidthBounded ? Math.Min(measuredMarkerColumn, c.Width / 2) : measuredMarkerColumn;
+
+        private double Gap => c.WidthBounded ? Math.Min(Math.Max(0, list.MarkerGap), c.Width / 4) : Math.Max(0, list.MarkerGap);
+
         public int Count => list.Items.Count;
 
         public bool KeepWithNext(int index) => false;
@@ -236,7 +241,7 @@ public sealed class ItemList : Element
         {
             ListItem item = list.Items[index];
             bool rtl = ctx.Direction == LayoutDirection.RightToLeft;
-            double indent = markerColumn + Math.Max(0, list.MarkerGap);
+            double indent = markerColumn + Gap;
             double contentWidth = c.WidthBounded ? Math.Max(0, c.Width - indent) : double.PositiveInfinity;
             ctx.PushItem(index);
             try

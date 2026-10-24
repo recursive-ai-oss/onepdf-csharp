@@ -332,6 +332,11 @@ internal static class TableWidths
             for (int s = 0; s < g.Slots.Length; s++)
             {
                 TableSlot slot = g.Slots[s];
+                if (slot.Top >= header && slot.Top < header + body && slot.Top - header >= t.MeasuredRows)
+                {
+                    continue;
+                }
+
                 bool single = slot.ColSpan == 1;
                 if (single != (pass == 0))
                 {
