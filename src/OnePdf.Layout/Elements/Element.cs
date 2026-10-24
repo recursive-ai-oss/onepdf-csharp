@@ -18,6 +18,9 @@ public sealed class LayoutOptions
     public int Widows { get; set; } = 2;
 }
 
+/// <summary>The narrowest and widest width of an element's content, in points.</summary>
+internal readonly record struct WidthRange(double Min, double Max);
+
 /// <summary>The space offered to an element.</summary>
 /// <param name="Width">Width in points; infinity when unbounded.</param>
 /// <param name="Height">Height in points; infinity when unbounded.</param>
@@ -187,6 +190,9 @@ public abstract class Element
     /// <summary>The content direction for this element and everything inside it; inherited when null.</summary>
     public LayoutDirection? Direction { get; set; }
 
+    /// <summary>True when this element, or the chain of transparent wrappers around the real content, asks to stay with what follows it.</summary>
+    internal virtual bool EffectiveKeepWithNext => KeepWithNext;
+
     internal virtual string TypeName => GetType().Name;
 
     internal string Label => Name ?? TypeName;
@@ -209,6 +215,40 @@ public abstract class Element
             ctx.Direction = saved;
             ctx.Pop();
         }
+    }
+
+    /// <summary>
+    /// The narrowest and the widest width the element can take: the width it needs when every possible line break is taken, and when none is.
+    /// Tables use it for automatic column widths.
+    /// </summary>
+    internal WidthRange MeasureWidths(LayoutContext ctx)
+    {
+        ctx.Push(Label);
+        LayoutDirection saved = ctx.Direction;
+        if (Direction is { } d)
+        {
+            ctx.Direction = d;
+        }
+
+        try
+        {
+            return WidthsCore(ctx);
+        }
+        finally
+        {
+            ctx.Direction = saved;
+            ctx.Pop();
+        }
+    }
+
+    /// <summary>Elements that cannot be made narrower by wrapping take the width of an unbounded layout for both ends.</summary>
+    internal virtual WidthRange WidthsCore(LayoutContext ctx) => UnboundedWidth(ctx);
+
+    internal WidthRange UnboundedWidth(LayoutContext ctx)
+    {
+        FlowFit f = LayoutCore(ctx, new Constraint(double.PositiveInfinity, double.PositiveInfinity, false), null);
+        double w = f.Placed is Placed p ? p.Width : 0;
+        return new WidthRange(w, w);
     }
 
     internal void Draw(in DrawContext d, Placed p)

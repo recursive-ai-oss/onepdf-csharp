@@ -8,6 +8,10 @@ public abstract class SingleChildElement : Element
     /// <summary>The wrapped element.</summary>
     public Element? Child { get; set; }
 
+    internal override bool EffectiveKeepWithNext => KeepWithNext || (Child?.EffectiveKeepWithNext ?? false);
+
+    internal override WidthRange WidthsCore(LayoutContext ctx) => Child is null ? new WidthRange(0, 0) : Child.MeasureWidths(ctx);
+
     internal FlowFit LayoutChild(LayoutContext ctx, in Constraint c, object? resume)
     {
         if (Child is null)
@@ -115,6 +119,32 @@ public sealed class Box : SingleChildElement
 
     /// <summary>Where the child sits when shorter than the box (only for a box on one page). Default <see cref="VerticalAlignment.Top"/>.</summary>
     public VerticalAlignment VerticalAlignment { get; set; }
+
+    internal override WidthRange WidthsCore(LayoutContext ctx)
+    {
+        bool ltr = ctx.Direction == LayoutDirection.LeftToRight;
+        double ml = Math.Max(0, ltr ? MarginStart ?? Margin.Left : MarginEnd ?? Margin.Left);
+        double mr = Math.Max(0, ltr ? MarginEnd ?? Margin.Right : MarginStart ?? Margin.Right);
+        double pl = Math.Max(0, ltr ? PaddingStart ?? Padding.Left : PaddingEnd ?? Padding.Left);
+        double pr = Math.Max(0, ltr ? PaddingEnd ?? Padding.Right : PaddingStart ?? Padding.Right);
+        double blw = Math.Max(0, ((ltr ? BorderStart : BorderEnd) ?? BorderLeft).Width);
+        double brw = Math.Max(0, ((ltr ? BorderEnd : BorderStart) ?? BorderRight).Width);
+        double extra = ml + mr + pl + pr + blw + brw;
+        WidthRange inner = base.WidthsCore(ctx);
+        double lo = inner.Min + extra;
+        double hi = inner.Max + extra;
+        if (Width is { } fw)
+        {
+            lo = hi = fw + ml + mr;
+        }
+
+        // Minimum and maximum widths describe the bordered box, without margin.
+        double min = (MinWidth ?? 0) + ml + mr;
+        double max = (MaxWidth ?? double.PositiveInfinity) + ml + mr;
+        lo = Math.Min(Math.Max(lo, min), max);
+        hi = Math.Min(Math.Max(hi, min), max);
+        return new WidthRange(lo, hi);
+    }
 
     private sealed record BoxResume(object? Inner);
 
