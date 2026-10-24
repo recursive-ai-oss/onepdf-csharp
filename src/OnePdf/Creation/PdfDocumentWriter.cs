@@ -72,6 +72,8 @@ public sealed partial class PdfDocumentWriter : IDisposable
     private readonly List<(string Title, int Level, int PageIndex, double Top)> _bookmarks = [];
     private readonly List<PdfPageLabelRange> _labelRanges = [];
     private Dictionary<string, (int PageIndex, double Top)>? _destinations; // created on first use
+    private Dictionary<string, PdfStructureElement>? _destinationElements; // structure destinations (PDF 2.0), by name
+    private Dictionary<int, PdfStructureElement>? _bookmarkElements; // structure destinations (PDF 2.0), by bookmark index
     private PdfStreamPageBuilder? _openPage;
     private bool _finished;
     private bool _disposed;
@@ -391,6 +393,56 @@ public sealed partial class PdfDocumentWriter : IDisposable
         if (!_destinations.TryAdd(name, (pageIndex, top)))
         {
             throw new ArgumentException($"The destination '{name}' is already defined.", nameof(name));
+        }
+    }
+
+    /// <summary>The number of bookmarks added so far; the index of the next one.</summary>
+    public int BookmarkCount => _bookmarks.Count;
+
+    /// <summary>
+    /// Ties a bookmark to the structure element its target lies in. In a file written as PDF 2.0 (<see cref="PdfDocumentWriterOptions.Version"/>
+    /// 2.0 or later) the bookmark then goes to a structure destination (ISO 32000-2 12.3.2.3: the destination array names the element
+    /// instead of the page), as PDF/UA-2 requires of every destination inside the document; in earlier versions the page destination is
+    /// kept and this has no effect.
+    /// </summary>
+    /// <param name="bookmarkIndex">Zero-based index of a bookmark already added.</param>
+    /// <param name="element">An element of this writer's structure tree.</param>
+    /// <exception cref="ArgumentOutOfRangeException">There is no such bookmark.</exception>
+    /// <exception cref="ArgumentException">The element belongs to another writer.</exception>
+    public void SetBookmarkElement(int bookmarkIndex, PdfStructureElement element)
+    {
+        ArgumentNullException.ThrowIfNull(element);
+        CheckNotFinished();
+        ArgumentOutOfRangeException.ThrowIfNegative(bookmarkIndex);
+        ArgumentOutOfRangeException.ThrowIfGreaterThanOrEqual(bookmarkIndex, _bookmarks.Count);
+        CheckOwned(element);
+        (_bookmarkElements ??= [])[bookmarkIndex] = element;
+    }
+
+    /// <summary>
+    /// Ties a named destination to the structure element its target lies in, like <see cref="SetBookmarkElement"/>: a file written as PDF 2.0
+    /// then gets a structure destination for the name.
+    /// </summary>
+    /// <exception cref="ArgumentException">There is no destination of that name, or the element belongs to another writer.</exception>
+    public void SetDestinationElement(string name, PdfStructureElement element)
+    {
+        ArgumentNullException.ThrowIfNull(name);
+        ArgumentNullException.ThrowIfNull(element);
+        CheckNotFinished();
+        if (_destinations is null || !_destinations.ContainsKey(name))
+        {
+            throw new ArgumentException($"There is no destination named '{name}'.", nameof(name));
+        }
+
+        CheckOwned(element);
+        (_destinationElements ??= new Dictionary<string, PdfStructureElement>(StringComparer.Ordinal))[name] = element;
+    }
+
+    private void CheckOwned(PdfStructureElement element)
+    {
+        if (!ReferenceEquals(element.Owner, this))
+        {
+            throw new ArgumentException("The element belongs to another writer.", nameof(element));
         }
     }
 
@@ -741,7 +793,7 @@ public sealed partial class PdfDocumentWriter : IDisposable
                 d.SetEntry("Count", new PdfInteger(descendants[i]));
             }
 
-            d.SetEntry("Dest", Destination(pageIndex, top));
+            d.SetEntry("Dest", Destination(pageIndex, top, _bookmarkElements is not null && _bookmarkElements.TryGetValue(i, out PdfStructureElement? be) ? be : null));
         }
 
         root.SetEntry("First", refs[firstChild[-1]]);
@@ -750,10 +802,11 @@ public sealed partial class PdfDocumentWriter : IDisposable
         return rootRef;
     }
 
-    private PdfArray Destination(int pageIndex, double top)
+    private PdfArray Destination(int pageIndex, double top, PdfStructureElement? element = null)
     {
         var dest = new PdfArray();
-        dest.Append(new PdfReference(_pageNumbers[pageIndex], 0));
+        // A structure destination (ISO 32000-2 12.3.2.3) is PDF 2.0; before that the first item can only be a page.
+        dest.Append(element is not null && _options.Version[0] >= '2' ? element.Reference : new PdfReference(_pageNumbers[pageIndex], 0));
         dest.Append(new PdfName("XYZ"));
         dest.Append(null);
         dest.Append(new PdfReal(top));
@@ -781,7 +834,7 @@ public sealed partial class PdfDocumentWriter : IDisposable
         var entries = new List<(PdfObject Key, PdfObject Value)>(_destinations.Count);
         foreach (KeyValuePair<string, (int PageIndex, double Top)> kv in _destinations)
         {
-            entries.Add((new PdfString(Encoding.UTF8.GetBytes(kv.Key)), Destination(kv.Value.PageIndex, kv.Value.Top)));
+            entries.Add((new PdfString(Encoding.UTF8.GetBytes(kv.Key)), Destination(kv.Value.PageIndex, kv.Value.Top, _destinationElements is not null && _destinationElements.TryGetValue(kv.Key, out PdfStructureElement? de) ? de : null)));
         }
 
         // Keys sort as byte strings (ISO 32000-2 7.9.6), which the ordinal sort of UTF-8 text equals up to surrogates; sort on bytes to be exact.

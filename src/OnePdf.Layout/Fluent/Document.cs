@@ -105,6 +105,21 @@ public sealed partial class LayoutDocument
     {
         ArgumentNullException.ThrowIfNull(output);
         ArgumentNullException.ThrowIfNull(save);
+        if (save.PdfUA?.Part == PdfUAPart.Part2)
+        {
+            // The intermediate file is PDF 2.0 too, so anchors and bookmarks are written as structure destinations (ISO 32000-2 12.3.2.3).
+            options = new PdfDocumentWriterOptions
+            {
+                CompressStreams = options?.CompressStreams ?? true,
+                Version = options is not null && string.CompareOrdinal(options.Version, "2.0") > 0 ? options.Version : "2.0",
+                XrefFormat = options?.XrefFormat ?? default,
+                DocumentId = options?.DocumentId,
+                Language = options?.Language,
+                DisplayDocumentTitle = options?.DisplayDocumentTitle ?? false,
+                Limits = options?.Limits ?? PdfLimits.Default,
+            };
+        }
+
         using PdfDocument doc = ToPdfDocument(options);
         doc.Save(output, save);
     }

@@ -95,6 +95,7 @@ public sealed class XmpMetadata
     private static readonly XName XmlLang = XNamespace.Xml + "lang";
     private static readonly XName PdfaidPart = (XNamespace)"http://www.aiim.org/pdfa/ns/id/" + "part";
     private static readonly XName PdfuaidPart = (XNamespace)"http://www.aiim.org/pdfua/ns/id/" + "part";
+    private static readonly XName PdfuaidRev = (XNamespace)"http://www.aiim.org/pdfua/ns/id/" + "rev";
     private static readonly XName PdfaidConformance = (XNamespace)"http://www.aiim.org/pdfa/ns/id/" + "conformance";
 
     internal XmpMetadata(ReadOnlyMemory<byte> raw)
@@ -139,6 +140,7 @@ public sealed class XmpMetadata
         MetadataDate = Date(Simple(descriptions, XmpMetadataDate));
         PdfAConformance = Simple(descriptions, PdfaidConformance);
         PdfUAPart = int.TryParse(Simple(descriptions, PdfuaidPart), System.Globalization.NumberStyles.None, System.Globalization.CultureInfo.InvariantCulture, out int uaPart) ? uaPart : null;
+        PdfUARevision = int.TryParse(Simple(descriptions, PdfuaidRev), System.Globalization.NumberStyles.None, System.Globalization.CultureInfo.InvariantCulture, out int uaRev) ? uaRev : null;
         PdfAPart = int.TryParse(Simple(descriptions, PdfaidPart), System.Globalization.NumberStyles.None, System.Globalization.CultureInfo.InvariantCulture, out int part) ? part : null;
     }
 
@@ -183,6 +185,9 @@ public sealed class XmpMetadata
 
     /// <summary><c>pdfuaid:part</c>, the part of ISO 14289 the packet claims (1 for PDF/UA-1), or null.</summary>
     public int? PdfUAPart { get; }
+
+    /// <summary><c>pdfuaid:rev</c>, the revision year of the part of ISO 14289 the packet claims (2024 for PDF/UA-2), or null.</summary>
+    public int? PdfUARevision { get; }
 
     /// <summary><c>pdfaid:conformance</c> (<c>A</c>, <c>B</c> or <c>U</c>), or null.</summary>
     public string? PdfAConformance { get; }

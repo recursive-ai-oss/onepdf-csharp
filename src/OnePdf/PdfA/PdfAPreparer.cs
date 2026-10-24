@@ -582,7 +582,7 @@ internal static class PdfAPreparer
     /// Writes the XMP packet for a PDF/A save (<paramref name="options"/>), a PDF/UA save (<paramref name="pdfUA"/>) or both. A packet that
     /// already makes every requested claim is kept as it is; any other packet is replaced by one built from the Info dictionary.
     /// </summary>
-    internal static void WriteMetadata(PdfDocument doc, PdfAOptions? options, bool pdfUA)
+    internal static void WriteMetadata(PdfDocument doc, PdfAOptions? options, bool pdfUA, int uaPart = 1)
     {
         string conf = options is null ? string.Empty : ConformanceLetter(options.Conformance);
         PdfStream? current = doc.Catalog.GetStream("Metadata");
@@ -590,7 +590,7 @@ internal static class PdfAPreparer
         {
             XmpMetadata? xmp = doc.Xmp;
             bool aOk = options is null || (xmp is { IsWellFormed: true } && xmp.PdfAPart == (int)options.Part && xmp.PdfAConformance == conf);
-            bool uaOk = !pdfUA || (xmp is { IsWellFormed: true, PdfUAPart: 1 } && !string.IsNullOrWhiteSpace(xmp.Title)
+            bool uaOk = !pdfUA || (xmp is { IsWellFormed: true, PdfUAPart: var havePart } && havePart == uaPart && (uaPart == 1 || xmp.PdfUARevision == PdfUA.PdfUA2.Revision) && !string.IsNullOrWhiteSpace(xmp.Title)
                 && (options is null || Encoding.UTF8.GetString(xmp.RawBytes.Span).Contains("<pdfaSchema:namespaceURI>http://www.aiim.org/pdfua/ns/id/", StringComparison.Ordinal)));
             if (aOk && uaOk)
             {
@@ -599,7 +599,7 @@ internal static class PdfAPreparer
         }
 
         // doc.Info is created before the first SetInfo, so it reflects the dictionary as it stands now.
-        byte[] packet = XmpWriter.Write(doc.Info, options is null ? 0 : (int)options.Part, conf, pdfUA);
+        byte[] packet = XmpWriter.Write(doc.Info, options is null ? 0 : (int)options.Part, conf, pdfUA, uaPart);
         doc.SetXmp(packet);
         PdfStream meta = doc.Catalog.GetStream("Metadata")!;
         meta.Dictionary.SetEntry("Filter", null);

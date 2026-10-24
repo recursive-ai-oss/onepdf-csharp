@@ -5,7 +5,7 @@ using OnePdf.Tests.Creation;
 
 namespace OnePdf.AotSmoke;
 
-/// <summary>Writes a tagged file with the streaming writer, saves it as PDF/UA-1 and as PDF/A-2a, reads both back and checks them; a figure without alternate text is refused.</summary>
+/// <summary>Writes a tagged file with the streaming writer, saves it as PDF/UA-1, PDF/UA-2 and PDF/A-2a, reads both back and checks them; a figure without alternate text is refused.</summary>
 internal static class PdfUASmoke
 {
     public static string? Run()
@@ -25,6 +25,27 @@ internal static class PdfUASmoke
             if (back.CheckPdfUA().Count != 0 || back.Xmp?.PdfUAPart != 1 || (both && (back.CheckPdfA(new PdfAOptions { Conformance = PdfAConformance.A }).Count != 0 || back.Xmp.PdfAConformance != "A")))
             {
                 return "PDF/UA output did not read back as expected";
+            }
+        }
+
+        // Part 2: PDF 2.0, the namespace on every element, the revision in the XMP, and the combination with PDF/A refused.
+        using (PdfDocument two = PdfDocument.Open(good, new PdfOpenOptions { AllowEditing = true }))
+        {
+            using var ms = new MemoryStream();
+            two.Save(ms, new PdfSaveOptions { DocumentId = new byte[16], PdfUA = new PdfUAOptions { Part = PdfUAPart.Part2 } });
+            using PdfDocument back = PdfDocument.Open(ms.ToArray());
+            if (back.Version != "2.0" || back.CheckPdfUA(PdfUAPart.Part2).Count != 0 || back.Xmp?.PdfUAPart != 2 || back.Xmp.PdfUARevision != 2024)
+            {
+                return "PDF/UA-2 output did not read back as expected";
+            }
+
+            try
+            {
+                two.Save(new MemoryStream(), new PdfSaveOptions { PdfUA = new PdfUAOptions { Part = PdfUAPart.Part2 }, PdfA = new PdfAOptions { Conformance = PdfAConformance.A } });
+                return "PDF/A with PDF/UA-2 was not refused";
+            }
+            catch (PdfAException)
+            {
             }
         }
 

@@ -45,6 +45,15 @@ internal interface ILayoutTarget
 
     void AddNamedDestination(string name, int pageIndex, double top);
 
+    /// <summary>The number of bookmarks added; the index of the next one.</summary>
+    int BookmarkCount { get; }
+
+    /// <summary>Ties a bookmark to the structure element its target lies in (a structure destination in a PDF 2.0 file).</summary>
+    void SetBookmarkElement(int bookmarkIndex, PdfStructureElement element);
+
+    /// <summary>Ties a named destination to the structure element its target lies in.</summary>
+    void SetDestinationElement(string name, PdfStructureElement element);
+
     void AddPageLabelRange(int firstPageIndex, PdfPageLabelStyle style, string prefix, int start);
 
     /// <summary>
@@ -73,6 +82,12 @@ internal sealed class DocumentTarget(PdfDocument document, int[]? sectionTotals 
     public void AddBookmark(string title, int level, int pageIndex, double top) { }
 
     public void AddNamedDestination(string name, int pageIndex, double top) { }
+
+    public int BookmarkCount => 0;
+
+    public void SetBookmarkElement(int bookmarkIndex, PdfStructureElement element) { }
+
+    public void SetDestinationElement(string name, PdfStructureElement element) { }
 
     public void AddPageLabelRange(int firstPageIndex, PdfPageLabelStyle style, string prefix, int start) { }
 
@@ -133,6 +148,12 @@ internal sealed class WriterTarget(PdfDocumentWriter writer) : ILayoutTarget
     public void AddBookmark(string title, int level, int pageIndex, double top) => writer.AddBookmark(title, level, pageIndex, top);
 
     public void AddNamedDestination(string name, int pageIndex, double top) => writer.AddNamedDestination(name, pageIndex, top);
+
+    public int BookmarkCount => writer.BookmarkCount;
+
+    public void SetBookmarkElement(int bookmarkIndex, PdfStructureElement element) => writer.SetBookmarkElement(bookmarkIndex, element);
+
+    public void SetDestinationElement(string name, PdfStructureElement element) => writer.SetDestinationElement(name, element);
 
     public void AddPageLabelRange(int firstPageIndex, PdfPageLabelStyle style, string prefix, int start) => writer.AddPageLabelRange(firstPageIndex, style, prefix, start);
 

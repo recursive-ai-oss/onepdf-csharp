@@ -192,6 +192,25 @@ if (taggedRoot is null
     return 1;
 }
 
+// PDF/UA-2: an aside and a bookmark go through the layout save path; the file is PDF 2.0 with namespaced elements and structure destinations.
+LayoutDocument ua2 = LayoutDocument.Compose(d =>
+{
+    d.Title("Smoke").Language("en");
+    d.Page(p => p.Content().Column(col =>
+    {
+        col.Item().Bookmark("Top").Heading(1).Text("Top");
+        col.Item().Aside().Text("An aside");
+    }));
+});
+using var ua2Out = new MemoryStream();
+ua2.Save(ua2Out, new PdfSaveOptions { PdfUA = new PdfUAOptions { Part = PdfUAPart.Part2 } });
+using PdfDocument ua2Back = PdfDocument.Open(ua2Out.ToArray());
+if (ua2Back.Version != "2.0" || ua2Back.CheckPdfUA(PdfUAPart.Part2).Count != 0 || ua2Back.Outline.Count != 1 || ua2Back.Outline[0].Destination?.PageIndex != -1)
+{
+    Console.WriteLine("FAIL PDF/UA-2: " + string.Join("; ", ua2Back.CheckPdfUA(PdfUAPart.Part2)));
+    return 1;
+}
+
 // Hyphenation: a narrow column breaks long words at pattern points, and joined extraction gives the words back whole.
 const string hyphText = "Internationalization of hyphenation algorithms characterizes extraordinarily comprehensive documentation.";
 LayoutDocument hyph = LayoutDocument.Compose(d => d.Page(p =>

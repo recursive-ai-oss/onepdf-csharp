@@ -379,6 +379,19 @@ public partial class Slot
     /// <summary>Makes the content a heading of the given level (1 to 6; it becomes the structure type <c>H1</c> to <c>H6</c>). A heading is kept with what follows it.</summary>
     public Slot Heading(int level) => Wrap(new Heading { Level = level });
 
+    /// <summary>Marks the content as an aside: material apart from the main flow, such as a sidebar or a call-out (structure type <c>Aside</c>, PDF 2.0). See <see cref="StructureGroup"/> for what it needs to be saved.</summary>
+    public Slot Aside() => Wrap(new StructureGroup { Type = "Aside" });
+
+    /// <summary>Marks the content as a footnote or endnote (structure type <c>FENote</c>, PDF 2.0). See <see cref="StructureGroup"/> for what it needs to be saved.</summary>
+    public Slot Footnote() => Wrap(new StructureGroup { Type = "FENote" });
+
+    /// <summary>Marks the content as a title, for example on a cover page (structure type <c>Title</c>, PDF 2.0). See <see cref="StructureGroup"/> for what it needs to be saved.</summary>
+    public Slot Title() => Wrap(new StructureGroup { Type = "Title" });
+
+    /// <summary>Groups the content in a structure element of the given type, one of <c>Sect</c>, <c>Div</c>, <c>Part</c>, <c>BlockQuote</c>, <c>Aside</c>, <c>FENote</c> or <c>Title</c> (see <see cref="StructureGroup"/>).</summary>
+    /// <exception cref="ArgumentException">The type is not one of those.</exception>
+    public Slot Group(string type) => Wrap(new StructureGroup { Type = type });
+
     /// <summary>A heading that a <see cref="TableOfContents(Action{TocDescriptor}?)"/> lists under another text (a shorter title, no number) or leaves out.</summary>
     /// <param name="level">1 to 6, as in <see cref="Heading(int)"/>.</param>
     /// <param name="inToc">False keeps the heading out of every table of contents.</param>

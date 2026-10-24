@@ -10,7 +10,7 @@ namespace OnePdf.Tests.PdfUA;
 public class PdfUATests
 {
     /// <summary>What goes into a generated tagged document; the defaults are a document that meets PDF/UA.</summary>
-    private sealed class Spec
+    internal sealed class Spec
     {
         // Heading levels in order; 0 stands for the unnumbered H.
         public bool Title = true;
@@ -24,12 +24,16 @@ public class PdfUATests
         public bool LinkInTree = true;
         public bool ListWrongChildren;
         public bool IrregularTable;
+        public bool ListNumbering = true;
+
+        // 0: no bookmark; 1: a bookmark with a page destination; 2: a bookmark with a structure destination (the file is then PDF 2.0).
+        public int Bookmark;
     }
 
-    private static byte[] Build(Spec s)
+    internal static byte[] Build(Spec s)
     {
         using var ms = new MemoryStream();
-        using (var w = new PdfDocumentWriter(ms, new PdfDocumentWriterOptions { DocumentId = new byte[16], LeaveOpen = true, Language = s.Language }))
+        using (var w = new PdfDocumentWriter(ms, new PdfDocumentWriterOptions { DocumentId = new byte[16], LeaveOpen = true, Language = s.Language, Version = s.Bookmark == 2 ? "2.0" : "1.7" }))
         {
             if (s.Title)
             {
@@ -52,14 +56,25 @@ public class PdfUATests
             PdfStreamPageBuilder p = w.BeginPage(300, 400);
             p.SetFont(font, 11);
             double y = 370;
+            PdfStructureElement? firstHeading = null;
             foreach (int level in s.Headings)
             {
                 PdfStructureElement h = w.BeginStructureElement(level == 0 ? "H" : "H" + level);
+                firstHeading ??= h;
                 p.BeginTaggedContent(h);
                 p.DrawText("Heading " + level, 20, y);
                 p.EndMarkedContent();
                 w.EndStructureElement();
                 y -= 20;
+            }
+
+            if (s.Bookmark != 0)
+            {
+                w.AddBookmark("Heading", 0, 0, 370);
+                if (s.Bookmark == 2)
+                {
+                    w.SetBookmarkElement(0, firstHeading!);
+                }
             }
 
             PdfStructureElement para = w.BeginStructureElement(s.UnmappedType ? "Callout" : "P");
@@ -69,7 +84,7 @@ public class PdfUATests
             w.EndStructureElement();
             y -= 20;
 
-            PdfStructureElement list = w.BeginStructureElement("L");
+            PdfStructureElement list = w.BeginStructureElement("L", s.ListNumbering ? new PdfStructureElementOptions { Attributes = PdfStructureAttributes.List("Ordered") } : null);
             for (int i = 0; i < 2; i++)
             {
                 PdfStructureElement li = w.BeginStructureElement(s.ListWrongChildren ? "P" : "LI");
@@ -137,7 +152,7 @@ public class PdfUATests
         return ms.ToArray();
     }
 
-    private static PdfDocument Editable(byte[] pdf) => PdfDocument.Open(pdf, new PdfOpenOptions { AllowEditing = true });
+    internal static PdfDocument Editable(byte[] pdf) => PdfDocument.Open(pdf, new PdfOpenOptions { AllowEditing = true });
 
     private static byte[] Save(byte[] built, PdfSaveOptions options)
     {

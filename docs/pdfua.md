@@ -1,6 +1,6 @@
 # PDF/UA and PDF/A level A
 
-OnePDF can write **PDF/UA-1** (ISO 14289-1) and **PDF/A-2a / 3a** (ISO 19005-2 and -3, level A: tagged), alone or in one file, and can check a document against the requirements it is able to verify.
+OnePDF can write **PDF/UA-1** (ISO 14289-1), **PDF/UA-2** (ISO 14289-2, on PDF 2.0; see [PDF/UA-2](#pdfua-2)) and **PDF/A-2a / 3a** (ISO 19005-2 and -3, level A: tagged), alone or in one file, and can check a document against the requirements it is able to verify.
 
 ## What is promised, and what is not
 
@@ -70,10 +70,61 @@ Each finding names the Matterhorn checkpoint and the ISO 14289-1 clause.
 
 Not checked: reading order, contrast and colour use, the meaning of alternate text, heading semantics beyond the level sequence, `Headers`/`ID` association of complex tables, scope attributes, optional content names, embedded file descriptions, media and flicker rules, XFA and JavaScript rules, fonts used only in invisible text, the Unicode mapping of foreign symbolic fonts, forms inside XObjects. Bookmarks for long documents (ISO 14289-1 7.17) are not required by this check.
 
+## PDF/UA-2
+
+PDF/UA-2 (ISO 14289-2) is built on PDF 2.0. Choose it with `PdfUAOptions.Part`:
+
+```csharp
+layout.Save(file, new PdfSaveOptions { PdfUA = new PdfUAOptions { Part = PdfUAPart.Part2 } });
+```
+
+The promises are those of part 1 (above): tagged documents laid out or created by OnePDF only, no tagging of untagged content, no invented titles, alternate text or language, **and a clean check is not proof of conformance**. A part-2 save is checked with veraPDF's `ua2` flavour as a black box in the tests; passing it is evidence, not certification.
+
+| | |
+|---|---|
+| `PdfUAOptions.Part` | `PdfUAPart.Part1` (default) or `PdfUAPart.Part2`. Part 1 output is unchanged. |
+| `PdfDocument.CheckPdfUA(PdfUAPart part, ct)` | The check against the given part. A part-2 check of a file that is not PDF 2.0, or whose elements name no namespace, says so. |
+| `PdfDocument.PreparePdfUA(options)` | With `Part2`, also makes the namespace repairs below (the version is written by the save). |
+| `PdfUAViolation.Part`, `.Clause` | 1 or 2, and the clause of that part. |
+| `PdfDocumentWriter.SetBookmarkElement`, `.SetDestinationElement` | Tie a bookmark or named destination to the structure element its target is in; a writer producing PDF 2.0 (`Version` "2.0") then writes structure destinations. |
+| `StructureGroup`, `Slot.Aside()`, `.Footnote()`, `.Title()`, `.Group(type)` | Layout: group content in a `Sect`, `Div`, `Part`, `BlockQuote`, `Aside`, `FENote` or `Title` element. |
+
+**Repairs for part 2** (no judgement):
+
+| Repair | Requirement |
+|---|---|
+| The file is written as PDF 2.0 (`%PDF-2.0`) | ISO 14289-2 requires a PDF 2.0 file |
+| `/Namespaces` on the structure tree root and `/NS` on every element: the PDF 2.0 namespace (`http://iso.org/pdf2/ssn`) for the types it defines, the PDF 1.7 namespace for the 1.7 types it lacks (`TOC`, `TOCI`, `Reference`, `Art`, `BlockQuote`, `Code`, `Index`, `Quote`, `BibEntry`, `Private`) | 8.2.4 (ISO 32000-2 14.7.4.2) |
+| `Note` becomes `FENote` | ISO 32000-2 14.8.4.4.2 |
+| `/Ref` on a `TOCI` taken from the structure destination of the link inside it | 8.2.5.8 |
+| XMP `pdfuaid:part` 2 and `pdfuaid:rev` 2024, with the title | 5, 8.11.1 |
+| Everything the part-1 repairs do that part 2 also asks for: `/MarkInfo`, `/Lang` from `PdfUAOptions.Language`, `DisplayDocTitle`, `/Tabs /S`, link `/Contents`, Liberation faces for standard fonts | 6.2, 8.4.4, 8.11.2, 8.9.3.3 |
+
+**Refused for part 2** (each finding names the clause of ISO 14289-2; the clause numbers are those that veraPDF's `ua2` profile reports the rule under, and a rule it does not check is filed under the nearest heading):
+
+- **Tagging (8.2.2):** real content outside marked content or an artifact; MCIDs missing from the tree; a missing `/StructParents` (and the part-1 tagging findings).
+- **Namespaces (8.2.4):** an element naming no namespace or a namespace that is neither the PDF 2.0 nor the PDF 1.7 one; a type its namespace does not define. Custom types and namespace role maps are not written: they are refused.
+- **Headings (8.2.5.12):** the unnumbered `H` is not allowed; use `H1`…`H6`. Heading level order is **not** checked for part 2 (neither does veraPDF's profile): that is a person's judgement.
+- **Table of contents (8.2.5.8):** a `TOCI` with no `/Ref` that cannot be filled from its link.
+- **Links (8.2.5.20):** a link annotation inside a `Link` or `Reference` element; no `/Contents` demand (the repair supplies it).
+- **Lists (8.2.5.25):** a list with labels names its numbering (`ListNumbering` other than `None`). Nesting rules of the structure table (`L` contains `LI`, `LI` contains `Lbl` and `LBody`, rows in tables) are checked as in part 1.
+- **Tables (8.2.5.26):** regular tables (rows cover the same number of columns). A header cell is **not** demanded (veraPDF's profile does not demand it; layout tables still write one).
+- **Figures (8.2.5.28.2):** `Figure` has `/Alt` or `/ActualText`; `Formula` as in part 1.
+- **Destinations (8.8):** every link, GoTo action and outline item that goes inside the document is a structure destination, not a page. OnePDF cannot choose the element for an existing page destination, so a file with one is refused; layout and `PdfDocumentWriter` (version 2.0, `SetBookmarkElement`/`SetDestinationElement`) write structure destinations.
+- **Language, metadata, viewer preferences, fonts (8.4.4, 8.11, 8.4.5.5.1):** as in part 1, with `pdfuaid:rev`.
+- **Pages with annotations (8.9.3.3):** a `/Tabs` entry (A, W or S; the repair writes S).
+- **PDF 2.0 file (general):** a check of a file that is not PDF 2.0 says so; a save always writes 2.0.
+
+**With PDF/A:** PDF/A-2 and PDF/A-3 are PDF 1.7 formats, so `PdfA` together with `Part2` throws `PdfAException` (one violation) and writes nothing. PDF/A-4 is not supported.
+
+**Layout.** A layout document saved with `Part2` is laid out as PDF 2.0: bookmarks, anchors and table-of-contents links go to the structure element they point at (for an anchor around a heading, the heading; for content with no element of its own, the element around it). Headings are `H1`…`H6` as before. `Aside()`, `Footnote()` and `Title()` write the 2.0-only types `Aside`, `FENote` and `Title`, which part 1 refuses (they have no ISO 32000-1 equivalent and OnePDF writes no role map for them). Layout has no inline `Em`/`Strong`. Author-supplied things stay the author's: title, language, alternate text.
+
+Not checked for part 2 beyond what is listed: MathML, `Ruby`/`Warichu` internals, `Caption` position, associated files, and everything in "Not checked" above.
+
 ## PDF/A level A
 
 Level A is level U plus a tagged logical structure (ISO 19005-2, 6.7). A save as 2a or 3a repairs `/MarkInfo` and the language fallback, and checks: `/MarkInfo` (6.7.2.2), a structure tree (6.7.3.3), standard or role-mapped types and no circular or remapped types (6.7.3.4), a language (6.7.4), content that is tagged or an artifact, and alternate text for figures. Everything in [pdfa.md](pdfa.md) applies too. XMP carries `pdfaid:conformance` `A`.
 
 ## Verification
 
-`tests/OnePdf.Layout.Tests/PdfUATests.cs` lays out a document with headings, a multi-page table with header cells and spans, nested lists, figures with alternate text, internal and external links, a header and a footer with page totals, and saves it as PDF/UA-1, PDF/A-2a, PDF/A-3a, and 2a and 3a combined with PDF/UA-1; each file passes veraPDF (the combined ones under both profiles). `tests/OnePdf.Tests/PdfUA` does the same with documents made by `PdfDocumentWriter`, and has a test for every refusal above and for `CheckPdfUA` listing all violations of a deliberately bad document. veraPDF is run through `ONEPDF_VERAPDF`; the tests skip without it. The `pdfa` fuzz target also covers PDF/UA and level A: a file that is written must pass the checkers.
+`tests/OnePdf.Layout.Tests/PdfUATests.cs` lays out a document with headings, a multi-page table with header cells and spans, nested lists, figures with alternate text, internal and external links, a header and a footer with page totals, and saves it as PDF/UA-1, PDF/A-2a, PDF/A-3a, and 2a and 3a combined with PDF/UA-1; each file passes veraPDF (the combined ones under both profiles). `PdfUA2Tests.cs` in both test projects does the same for PDF/UA-2 under the `ua2` flavour: a richer layout document (title, table of contents, bookmarks, aside, footnote, inline objects, lists, a table with row and column headers, figures, links) and writer-made documents, a refusal for each rule above that veraPDF also reports, a check that a file damaged in each way veraPDF finds is also found by `CheckPdfUA`, and the committed reference `testdata/layout-references/documents/accessible-ua2.pdf`. `tests/OnePdf.Tests/PdfUA` does the same with documents made by `PdfDocumentWriter`, and has a test for every refusal above and for `CheckPdfUA` listing all violations of a deliberately bad document. veraPDF is run through `ONEPDF_VERAPDF`; the tests skip without it. The `pdfa` fuzz target also covers PDF/UA and level A: a file that is written must pass the checkers.
