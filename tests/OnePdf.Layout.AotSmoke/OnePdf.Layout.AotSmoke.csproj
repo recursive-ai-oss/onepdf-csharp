@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <RootNamespace>$(LibName).Layout.AotSmoke</RootNamespace>
+    <IsPackable>false</IsPackable>
+    <PublishAot>true</PublishAot>
+    <IsAotCompatible>true</IsAotCompatible>
+    <TrimmerSingleWarn>false</TrimmerSingleWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../../src/OnePdf/OnePdf.csproj" />
+    <ProjectReference Include="../../src/OnePdf.Layout/OnePdf.Layout.csproj" />
+  </ItemGroup>
+
+</Project>

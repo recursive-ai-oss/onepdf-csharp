@@ -1,0 +1,30 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <AssemblyName>$(LibName).Layout</AssemblyName>
+    <RootNamespace>$(LibName).Layout</RootNamespace>
+    <PackageId>$(PackagePrefix)$(LibName).Layout</PackageId>
+    <Description>Element-tree page layout for OnePDF: containers, boxes, images and text laid out over pages.</Description>
+    <!-- Not shipped yet: the package is switched on when the layout API is complete. -->
+    <IsPackable>false</IsPackable>
+    <IsAotCompatible>true</IsAotCompatible>
+    <IsTrimmable>true</IsTrimmable>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Using Include="System" />
+    <Using Include="System.Collections.Generic" />
+    <Using Include="System.IO" />
+    <Using Include="System.Threading" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="$(LibName).Layout.Tests" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../OnePdf/OnePdf.csproj" />
+  </ItemGroup>
+
+</Project>
