@@ -230,6 +230,43 @@ if (kpJoined != kpText)
     return 1;
 }
 
+// Multi-column flow: one page in two columns, balanced, with a rule; extraction returns column 1 and then column 2.
+LayoutDocument columns = LayoutDocument.Compose(d => d.Page(p =>
+{
+    p.Size(300, 300);
+    p.Margin(20);
+    p.Content().MultiColumn(c =>
+    {
+        c.Count(2).Gap(16).Rule(0.5);
+        for (int i = 0; i < 6; i++)
+        {
+            c.Item().Text("Para" + i + " some words that wrap inside a narrow column of the page").FontSize(10);
+        }
+    });
+}));
+using var columnsStream = new MemoryStream();
+columns.Save(columnsStream, new PdfDocumentWriterOptions { LeaveOpen = true });
+using PdfDocument columnsBack = PdfDocument.Open(columnsStream.ToArray());
+string columnsText = string.Join(" ", columnsBack.ExtractText().Select(t => t.Text).SelectMany(s => s.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries)));
+int columnsAt = -1;
+for (int i = 0; i < 6; i++)
+{
+    int found = columnsText.IndexOf("Para" + i, columnsAt + 1, StringComparison.Ordinal);
+    if (found <= columnsAt)
+    {
+        Console.WriteLine("FAIL columns: " + columnsText);
+        return 1;
+    }
+
+    columnsAt = found;
+}
+
+if (columnsBack.Pages.Count != 1)
+{
+    Console.WriteLine("FAIL columns: " + columnsBack.Pages.Count + " pages");
+    return 1;
+}
+
 Console.WriteLine("ok");
 return 0;
 

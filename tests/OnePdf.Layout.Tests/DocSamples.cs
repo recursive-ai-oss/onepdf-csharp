@@ -182,6 +182,41 @@ public class DocSamples
     }
     // end sample
 
+    // sample: columns
+    private static void Columns()
+    {
+        string text = string.Concat(Enumerable.Repeat("Text poured through columns breaks between them the way it breaks between pages. ", 12));
+
+        LayoutDocument.Compose(doc =>
+        {
+            doc.Title("Newsletter").Language("en");
+            doc.Page(page =>
+            {
+                page.Size(PageSize.A5);
+                page.Margin(28);
+                page.Content().Column(col =>
+                {
+                    col.Spacing(8);
+                    col.Item().Heading(1).Text("Harbour Gazette").FontSize(20).Bold();
+
+                    // Two columns that flow down, then across, then onto the next page. The last page is balanced.
+                    col.Item().MultiColumn(cols =>
+                    {
+                        cols.Count(2).Gap(16).Rule(0.5, Colors.Grey).Spacing(6);
+                        cols.Item().Heading(2).Text("Tides").FontSize(12).Bold();
+                        cols.Item().Text(text).FontSize(9).Justify();
+                        cols.ColumnBreak();
+                        cols.Item().Text("Starts the second column.").FontSize(9);
+                        cols.Item().Text(text).FontSize(9).Justify();
+                    });
+
+                    col.Item().Text("Back to full width.").FontSize(8);
+                });
+            });
+        }).Save("columns.pdf");
+    }
+    // end sample
+
     // sample: component
     sealed class Address(string name, string city) : IComponent
     {
@@ -292,6 +327,7 @@ public class DocSamples
             Report();
             Chain();
             Gradient();
+            Columns();
             Components();
             Navigation();
             Images();
@@ -307,6 +343,7 @@ public class DocSamples
     [InlineData("invoice", "docs/migrating-from-questpdf.md")]
     [InlineData("chain", "docs/layout.md")]
     [InlineData("gradient", "docs/layout.md")]
+    [InlineData("columns", "docs/layout.md")]
     [InlineData("component", "docs/layout.md")]
     [InlineData("navigation", "docs/layout.md")]
     [InlineData("images", "docs/layout.md")]

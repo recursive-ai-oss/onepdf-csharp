@@ -603,6 +603,53 @@ Write("line-breaking", "The same justified paragraphs set by first fit (left) an
     });
 }));
 
+Write("columns", "A newsletter page: a full-width title, a three-column article with a heading, a table, a picture and a rule between the columns, then a full-width note", LayoutDocument.Compose(doc =>
+{
+    doc.Title("Newsletter").Language("en");
+    doc.Page(page =>
+    {
+        page.Size(PageSize.A5);
+        page.Margin(28);
+        page.Content().Column(col =>
+        {
+            col.Spacing(8);
+            col.Item().Heading(1).Text("The Harbour Gazette").FontSize(20).Bold().FontColor(ink);
+            col.Item().MultiColumn(cols =>
+            {
+                cols.Count(3).Gap(14).Rule(0.5, Colors.LightGrey).Spacing(6);
+                cols.Item().Heading(2).Text("Tides and timetables").FontSize(12).Bold();
+                cols.Item().Text(Para(2)).FontSize(8.5).Justify();
+                cols.Item().Width(80).Height(80).Image(jpeg).Contain().AltText("A sample picture");
+                cols.Item().Text(Para(3)).FontSize(8.5).Justify();
+                cols.Item().Table(t =>
+                {
+                    t.Columns(c => { c.Relative(2); c.Relative(1); });
+                    t.CellPadding(3);
+                    t.CellBorder(0.4, Colors.LightGrey);
+                    t.HeaderRow(r =>
+                    {
+                        r.Cell().CellBackground(ink).Text("Day").FontSize(8).Bold().FontColor(Colors.White);
+                        r.Cell().CellBackground(ink).Text("High tide").FontSize(8).Bold().FontColor(Colors.White);
+                    });
+                    for (int i = 1; i <= 12; i++)
+                    {
+                        int day = i;
+                        t.Row(r =>
+                        {
+                            r.Cell().Text("October " + day).FontSize(8);
+                            r.Cell().Text(((5 + (day * 3 % 12)) % 24).ToString("00", CultureInfo.InvariantCulture) + ":" + ((day * 17) % 60).ToString("00", CultureInfo.InvariantCulture)).FontSize(8);
+                        });
+                    }
+                });
+                cols.Item().Heading(2).Text("Notices").FontSize(12).Bold();
+                cols.Item().Text(Para(2)).FontSize(8.5).Justify();
+                cols.Item().Text(Para(2)).FontSize(8.5).Justify();
+            });
+            col.Item().BorderTop(0.5, Colors.Grey).PaddingTop(4).Text("Set in three columns that flow down, then across, then onto the next page.").FontSize(8).FontColor(Colors.Grey);
+        });
+    });
+}));
+
 File.WriteAllText(Path.Combine(outDir, "index.csv"), index.ToString());
 return 0;
 
