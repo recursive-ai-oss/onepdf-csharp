@@ -242,7 +242,7 @@ public class FacadeTests
                         inner.Item().Text("Nested");
                     });
                 });
-                l.Item("★").Text("Custom marker");
+                l.Item("»").Text("Custom marker");
             });
         }));
         using PdfDocument d = Open(Save(layout));
@@ -602,6 +602,57 @@ public class FacadeTests
     }
 
     [Fact]
+    public void TextInAnAlignedSlotTakesTheAlignment()
+    {
+        LayoutDocument layout = LayoutDocument.Compose(doc => doc.Page(page =>
+        {
+            page.Size(300, 400);
+            page.Margin(20);
+            page.Content().Column(c =>
+            {
+                c.Item().AlignEnd().Text("flush end");
+                c.Item().AlignCenter().Padding(2).Text("centred");
+                c.Item().Text("flush start");
+                c.Item().AlignEnd().Text("overridden").AlignStart();
+            });
+        }));
+        using PdfDocument d = Open(Save(layout));
+        var words = d.ExtractText()[0].Words.ToList();
+        double Left(string w) => words.First(x => x.Text == w).Bounds.Left;
+        Assert.True(Left("flush") > 150);
+        Assert.InRange(Left("centred"), 100, 160);
+        Assert.True(Left("overridden") < 30);
+    }
+
+    [Fact]
+    public void DecoratorsShareABoxOnlyWhenTheOrderAllows()
+    {
+        Element? root = null;
+        new Slot(e => root = e).Border(1).Rounded(8).Background(Colors.Red).Padding(6).Width(50).Text("a");
+        // Border, rounding and background paint inside the margin and outside the padding: one box. Width is outside the padding, so it
+        // cannot join a box that already has padding and wraps it instead.
+        var box = Assert.IsType<Box>(root);
+        Assert.Equal(8, box.CornerRadius);
+        Assert.NotNull(box.Background);
+        Assert.Equal(6, box.Padding.Top);
+        Assert.Null(box.Width);
+        var outer = Assert.IsType<Box>(box.Child);
+        Assert.Equal(50, outer.Width);
+        Assert.IsType<Text>(outer.Child);
+
+        Element? padded = null;
+        new Slot(e => padded = e).Padding(8).Border(1).Text("b");
+        var space = Assert.IsType<Box>(padded);
+        Assert.Equal(8, space.Padding.Left);
+        Assert.Equal(0, space.BorderTop.Width);
+        Assert.Equal(1, Assert.IsType<Box>(space.Child).BorderTop.Width);
+
+        Element? twice = null;
+        new Slot(e => twice = e).Border(1).Border(3).Text("c");
+        Assert.IsType<Box>(Assert.IsType<Box>(twice).Child);
+    }
+
+    [Fact]
     public void UnitsAndColors()
     {
         Assert.Equal(72.0, 1.Inch(), 9);
@@ -697,7 +748,7 @@ public class FacadeTests
         list.Items.Add(new ListItem(new Text { Content = "one" }));
         list.Items.Add(new ListItem(new Text { Content = "two" }));
         body.Items.Add(list);
-        body.Items.Add(new Box { Width = 64, Child = new Box { Height = 64, Child = new Image { Jpeg = jpeg, Fit = ImageFit.Contain, AltText = "Square" } } });
+        body.Items.Add(new Box { Width = 64, Height = 64, Child = new Image { Jpeg = jpeg, Fit = ImageFit.Contain, AltText = "Square" } });
         body.Items.Add(new Link { Uri = "https://example.com/", Child = new Text { Content = "The end", Size = 12 } });
 
         double space = 0.278 * 9;

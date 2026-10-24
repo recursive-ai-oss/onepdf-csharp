@@ -1,0 +1,62 @@
+using System;
+using System.Collections.Generic;
+using System.Diagnostics;
+using System.IO;
+using System.Linq;
+using OnePdf;
+using OnePdf.Layout;
+using SharpFuzz;
+
+namespace OnePdf.Layout.Fuzz;
+
+// Fuzz harness for the layout package. One target, `layout`:
+//
+//   byte 0       flags: bit 0 a hostile font follows the script, bit 1 right-to-left, bit 2 untagged, bit 3 justified text,
+//                       bit 4 landscape, bit 5 debug overlay
+//   bytes 1-2    length of the script
+//   script       bytes that choose a random element tree, its text and its settings (read in a loop, so every input is valid)
+//   rest         with flag 0: a font file (TrueType/OpenType) registered as a family and used as the first fallback
+//
+// Invariants: only the library's typed exceptions come out; laying the same tree out twice gives the same bytes; the file opens;
+// every text leaf's token appears exactly once in the content-order text.
+internal static class Program
+{
+    private static int Main(string[] args)
+    {
+        if (args.Length > 1 && args[0] == "replay")
+        {
+            int failures = 0;
+            foreach (string f in args.Skip(1).Where(a => a != "layout"))
+            {
+                var sw = Stopwatch.StartNew();
+                try
+                {
+                    LayoutTarget.Run(File.ReadAllBytes(f));
+                    Console.WriteLine($"ok {f} ({sw.Elapsed.TotalSeconds:F2}s)");
+                }
+#pragma warning disable CA1031 // Replay reports any escaping exception as a failure.
+                catch (Exception ex)
+#pragma warning restore CA1031
+                {
+                    failures++;
+                    Console.WriteLine($"FAIL {f}: {ex}");
+                }
+            }
+
+            return failures == 0 ? 0 : 1;
+        }
+
+        if (args.Length > 1 && args[0] == "seeds")
+        {
+            return Seeds.Run(args[1], args.Length > 2 ? args[2] : null);
+        }
+
+        if (args.Length > 2 && args[0] == "mutate")
+        {
+            return Seeds.Mutate(double.Parse(args[1], System.Globalization.CultureInfo.InvariantCulture), args.Skip(2));
+        }
+
+        Fuzzer.LibFuzzer.Run(data => LayoutTarget.Run(data));
+        return 0;
+    }
+}

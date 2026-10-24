@@ -23,6 +23,12 @@ public sealed class Rotate : SingleChildElement
         // A quarter turn swaps the roles of width and height, so the child gets the page's height as its width.
         double offeredW = quarter ? c.Height : c.Width;
         FlowFit f = LayoutChild(ctx, new Constraint(offeredW, double.PositiveInfinity, true), null);
+        if (f.Kind == FlowKind.Partial)
+        {
+            // Only a page break can split content laid out with unbounded height. What follows it would be lost without a word.
+            throw new PdfLayoutException(ctx.PathText, c.Width, c.Height, double.NaN, double.NaN, "A rotated element cannot contain a page break");
+        }
+
         if (f.Placed is not Placed child)
         {
             return f;
@@ -84,6 +90,11 @@ public sealed class Scale : SingleChildElement
         }
 
         FlowFit f = LayoutChild(ctx, new Constraint(c.Width / X, double.PositiveInfinity, true), null);
+        if (f.Kind == FlowKind.Partial)
+        {
+            throw new PdfLayoutException(ctx.PathText, c.Width, c.Height, double.NaN, double.NaN, "A scaled element cannot contain a page break");
+        }
+
         if (f.Placed is not Placed child)
         {
             return f;

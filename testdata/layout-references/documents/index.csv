@@ -1,0 +1,12 @@
+document,pages,description
+invoice.pdf,1,"One-page invoice: header band, address blocks, a table with a footer row, page x of y"
+report.pdf,2,"Two-page report: headings with bookmarks, justified paragraphs that split across pages, a link and its anchor"
+table-pages.pdf,2,"A table over three pages: repeated header and footer, row and column spans, striped rows, collapsed borders"
+lists.pdf,1,"Bulleted, numbered, roman and lettered lists, a nested list and a custom marker"
+boxes.pdf,1,"Borders (solid, dashed, dotted, per side), rounded corners, backgrounds, opacity, padding and nine-point alignment"
+transforms.pdf,1,"Rotated, scaled and translated content, a watermark layer behind and over the page, and a canvas"
+images.pdf,1,"JPEG and PNG pictures: contain, cover, stretch, fit width and height, and a PNG with alpha over a background"
+rtl.pdf,1,"A right-to-left document: mirrored rows, start-aligned Arabic text, a mirrored list and table"
+scripts.pdf,1,"Latin, Hebrew, Devanagari, Thai and Japanese text in one document, with font fallback"
+text-styles.pdf,1,"Spans in different weights, sizes, colours and decorations; superscripts; letter spacing; alignment; justification and indent"
+sections.pdf,3,"Two sections: roman-numbered front matter with a first-page header, then a landscape body numbered from 1"

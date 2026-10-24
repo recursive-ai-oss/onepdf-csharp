@@ -12,7 +12,7 @@ public partial class Slot
     public TextDescriptor Text(string content)
     {
         ArgumentNullException.ThrowIfNull(content);
-        var d = new TextDescriptor(this);
+        var d = new TextDescriptor(this, InheritedAlignment);
         d.AddText(content);
         Put(d.Build());
         d.GoLive();
@@ -43,7 +43,7 @@ public partial class Slot
     public void Text(Action<TextDescriptor> compose)
     {
         ArgumentNullException.ThrowIfNull(compose);
-        var d = new TextDescriptor(this);
+        var d = new TextDescriptor(this, InheritedAlignment);
         compose(d);
         Put(d.Build());
         d.GoLive();
@@ -116,15 +116,18 @@ public sealed class TextDescriptor : TextFormatDescriptor<TextDescriptor>
     private readonly Slot _slot;
     private readonly List<(string? Text, SpanFormat Format, int Kind)> _segments = [];
     private HorizontalAlignment _alignment;
+    private readonly HorizontalAlignment _inheritedAlignment;
+    private bool _alignmentSet;
     private bool _justify;
     private double _indent;
     private IHyphenator? _hyphenator;
     private bool _live;
 
-    internal TextDescriptor(Slot slot)
+    internal TextDescriptor(Slot slot, HorizontalAlignment inherited)
         : base(new SpanFormat())
     {
         _slot = slot;
+        _inheritedAlignment = inherited;
     }
 
     private protected override void Changed() => Rebuild();
@@ -169,20 +172,20 @@ public sealed class TextDescriptor : TextFormatDescriptor<TextDescriptor>
     /// <summary>The language of the text, a BCP 47 tag such as <c>tr</c> or <c>ar</c>: selects language-specific glyph forms, is passed to the hyphenator and recorded in the structure tree.</summary>
     public TextDescriptor Language(string tag) => Edit(() => Format.Language = tag ?? throw new ArgumentNullException(nameof(tag)));
 
-    /// <summary>Lines start at the start edge (left in left-to-right text). This is the default.</summary>
-    public TextDescriptor AlignStart() => Edit(() => { _alignment = HorizontalAlignment.Start; _justify = false; });
+    /// <summary>Lines start at the start edge (left in left-to-right text). This is the default, unless the slot the text is in is aligned: <c>AlignCenter().Text(...)</c> centres the lines.</summary>
+    public TextDescriptor AlignStart() => Edit(() => { _alignment = HorizontalAlignment.Start; _alignmentSet = true; _justify = false; });
 
     /// <summary>Lines are centred.</summary>
-    public TextDescriptor AlignCenter() => Edit(() => { _alignment = HorizontalAlignment.Center; _justify = false; });
+    public TextDescriptor AlignCenter() => Edit(() => { _alignment = HorizontalAlignment.Center; _alignmentSet = true; _justify = false; });
 
     /// <summary>Lines end at the end edge.</summary>
-    public TextDescriptor AlignEnd() => Edit(() => { _alignment = HorizontalAlignment.End; _justify = false; });
+    public TextDescriptor AlignEnd() => Edit(() => { _alignment = HorizontalAlignment.End; _alignmentSet = true; _justify = false; });
 
     /// <summary>Lines start at the left edge whatever the direction.</summary>
-    public TextDescriptor AlignLeft() => Edit(() => { _alignment = HorizontalAlignment.Left; _justify = false; });
+    public TextDescriptor AlignLeft() => Edit(() => { _alignment = HorizontalAlignment.Left; _alignmentSet = true; _justify = false; });
 
     /// <summary>Lines end at the right edge whatever the direction.</summary>
-    public TextDescriptor AlignRight() => Edit(() => { _alignment = HorizontalAlignment.Right; _justify = false; });
+    public TextDescriptor AlignRight() => Edit(() => { _alignment = HorizontalAlignment.Right; _alignmentSet = true; _justify = false; });
 
     /// <summary>Widens the spaces of every line but the last of each paragraph so that lines fill the width.</summary>
     public TextDescriptor Justify() => Edit(() => _justify = true);
@@ -283,7 +286,7 @@ public sealed class TextDescriptor : TextFormatDescriptor<TextDescriptor>
             Weight = d.Weight ?? 400,
             Italic = d.Italic ?? false,
             LineSpacing = d.LineHeight ?? 1.2,
-            Alignment = _alignment,
+            Alignment = _alignmentSet ? _alignment : _inheritedAlignment,
             Justify = _justify,
             FirstLineIndent = _indent,
             Hyphenator = _hyphenator,

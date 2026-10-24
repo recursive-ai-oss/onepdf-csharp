@@ -57,6 +57,8 @@ public partial class Slot
 
     internal bool IsFilled => _filled;
 
+    internal HorizontalAlignment InheritedAlignment => _inherited;
+
     internal void Seal() => _sealed = true;
 
     internal void Put(Element element)
@@ -92,11 +94,50 @@ public partial class Slot
         return new Slot(c => wrapper.Child = c);
     }
 
-    private Slot Box(Action<Box> configure)
+    // The decorators below chain from the outside in. A Box paints in a fixed order, outside to inside: margin, then border and background
+    // (with the size rules), then padding, then the alignment of the child. Consecutive decorators share one Box when that order matches
+    // the order they are written in (so `Border(1).Rounded(8).Padding(6)` is one rounded, bordered, padded box); a decorator that would
+    // have to go outside one already applied, or that sets something already set, wraps in a new Box.
+    private Box? _merge;
+    private int _stage;
+
+    // The horizontal alignment of the nearest enclosing box. Text is as wide as the space it is offered, so a box around it cannot move it;
+    // text put in an aligned slot takes the alignment itself.
+    private HorizontalAlignment _inherited;
+
+    private Slot Box(int stage, Func<Box, bool> free, Action<Box> set)
+    {
+        if (_merge is { } open && !_filled && !_sealed && (stage < 0 || stage >= _stage) && free(open))
+        {
+            set(open);
+            _stage = Math.Max(_stage, stage);
+            if (open.HorizontalAlignment != HorizontalAlignment.Start)
+            {
+                _inherited = open.HorizontalAlignment;
+            }
+
+            return this;
+        }
+
+        var box = new Box();
+        set(box);
+        Slot inner = Wrap(box);
+        inner._merge = box;
+        inner._stage = stage;
+        inner._inherited = box.HorizontalAlignment != HorizontalAlignment.Start ? box.HorizontalAlignment : _inherited;
+        return inner;
+    }
+
+    // Attributes (language, direction, alternate text, ...) belong to a box of their own, so they cover exactly what is inside them.
+    private Slot Attribute(Action<Box> set)
     {
         var box = new Box();
-        configure(box);
-        return Wrap(box);
+        set(box);
+        Slot inner = Wrap(box);
+        inner._merge = box;
+        inner._stage = 0;
+        inner._inherited = _inherited;
+        return inner;
     }
 
     /// <summary>Puts an element object (from the lower layer) into this slot, for elements the facade has no method for or that you share between places.</summary>
@@ -128,146 +169,157 @@ public partial class Slot
     // ---- Boxes: padding, margin, border, background, size, alignment ----
 
     /// <summary>Space inside the box, around the content, on all four sides, in points. Use <see cref="UnitExtensions.Mm(double)"/> and friends for other units.</summary>
-    public Slot Padding(double value) => Box(b => b.Padding = Insets.All(value));
+    public Slot Padding(double value) => Box(2, b => b.Padding == default && b.PaddingStart is null && b.PaddingEnd is null, b => b.Padding = Insets.All(value));
 
     /// <summary>Space inside the box: <paramref name="horizontal"/> on left and right, <paramref name="vertical"/> on top and bottom.</summary>
-    public Slot Padding(double horizontal, double vertical) => Box(b => b.Padding = Insets.Symmetric(horizontal, vertical));
+    public Slot Padding(double horizontal, double vertical) => Box(2, b => b.Padding == default && b.PaddingStart is null && b.PaddingEnd is null, b => b.Padding = Insets.Symmetric(horizontal, vertical));
 
     /// <summary>Space inside the box, one value per side (physical sides).</summary>
-    public Slot Padding(double top, double right, double bottom, double left) => Box(b => b.Padding = new Insets(top, right, bottom, left));
+    public Slot Padding(double top, double right, double bottom, double left) => Box(2, b => b.Padding == default && b.PaddingStart is null && b.PaddingEnd is null, b => b.Padding = new Insets(top, right, bottom, left));
 
     /// <summary>Padding on the top.</summary>
-    public Slot PaddingTop(double value) => Box(b => b.Padding = b.Padding with { Top = value });
+    public Slot PaddingTop(double value) => Box(2, b => b.Padding.Top == 0, b => b.Padding = b.Padding with { Top = value });
 
     /// <summary>Padding on the bottom.</summary>
-    public Slot PaddingBottom(double value) => Box(b => b.Padding = b.Padding with { Bottom = value });
+    public Slot PaddingBottom(double value) => Box(2, b => b.Padding.Bottom == 0, b => b.Padding = b.Padding with { Bottom = value });
 
     /// <summary>Padding on the left, whatever the direction.</summary>
-    public Slot PaddingLeft(double value) => Box(b => b.Padding = b.Padding with { Left = value });
+    public Slot PaddingLeft(double value) => Box(2, b => b.Padding.Left == 0, b => b.Padding = b.Padding with { Left = value });
 
     /// <summary>Padding on the right, whatever the direction.</summary>
-    public Slot PaddingRight(double value) => Box(b => b.Padding = b.Padding with { Right = value });
+    public Slot PaddingRight(double value) => Box(2, b => b.Padding.Right == 0, b => b.Padding = b.Padding with { Right = value });
 
     /// <summary>Padding on the start side: the left in left-to-right documents, the right in right-to-left ones.</summary>
-    public Slot PaddingStart(double value) => Box(b => b.PaddingStart = value);
+    public Slot PaddingStart(double value) => Box(2, b => b.PaddingStart is null, b => b.PaddingStart = value);
 
     /// <summary>Padding on the end side: the right in left-to-right documents, the left in right-to-left ones.</summary>
-    public Slot PaddingEnd(double value) => Box(b => b.PaddingEnd = value);
+    public Slot PaddingEnd(double value) => Box(2, b => b.PaddingEnd is null, b => b.PaddingEnd = value);
 
     /// <summary>Space outside the box (before its border and background), on all four sides, in points.</summary>
-    public Slot Margin(double value) => Box(b => b.Margin = Insets.All(value));
+    public Slot Margin(double value) => Box(0, b => b.Margin == default && b.MarginStart is null && b.MarginEnd is null, b => b.Margin = Insets.All(value));
 
     /// <summary>Space outside the box: <paramref name="horizontal"/> on left and right, <paramref name="vertical"/> on top and bottom.</summary>
-    public Slot Margin(double horizontal, double vertical) => Box(b => b.Margin = Insets.Symmetric(horizontal, vertical));
+    public Slot Margin(double horizontal, double vertical) => Box(0, b => b.Margin == default && b.MarginStart is null && b.MarginEnd is null, b => b.Margin = Insets.Symmetric(horizontal, vertical));
 
     /// <summary>Space outside the box, one value per side (physical sides).</summary>
-    public Slot Margin(double top, double right, double bottom, double left) => Box(b => b.Margin = new Insets(top, right, bottom, left));
+    public Slot Margin(double top, double right, double bottom, double left) => Box(0, b => b.Margin == default && b.MarginStart is null && b.MarginEnd is null, b => b.Margin = new Insets(top, right, bottom, left));
 
     /// <summary>Margin on the top.</summary>
-    public Slot MarginTop(double value) => Box(b => b.Margin = b.Margin with { Top = value });
+    public Slot MarginTop(double value) => Box(0, b => b.Margin.Top == 0, b => b.Margin = b.Margin with { Top = value });
 
     /// <summary>Margin on the bottom.</summary>
-    public Slot MarginBottom(double value) => Box(b => b.Margin = b.Margin with { Bottom = value });
+    public Slot MarginBottom(double value) => Box(0, b => b.Margin.Bottom == 0, b => b.Margin = b.Margin with { Bottom = value });
 
     /// <summary>Margin on the left, whatever the direction.</summary>
-    public Slot MarginLeft(double value) => Box(b => b.Margin = b.Margin with { Left = value });
+    public Slot MarginLeft(double value) => Box(0, b => b.Margin.Left == 0, b => b.Margin = b.Margin with { Left = value });
 
     /// <summary>Margin on the right, whatever the direction.</summary>
-    public Slot MarginRight(double value) => Box(b => b.Margin = b.Margin with { Right = value });
+    public Slot MarginRight(double value) => Box(0, b => b.Margin.Right == 0, b => b.Margin = b.Margin with { Right = value });
 
     /// <summary>Margin on the start side.</summary>
-    public Slot MarginStart(double value) => Box(b => b.MarginStart = value);
+    public Slot MarginStart(double value) => Box(0, b => b.MarginStart is null, b => b.MarginStart = value);
 
     /// <summary>Margin on the end side.</summary>
-    public Slot MarginEnd(double value) => Box(b => b.MarginEnd = value);
+    public Slot MarginEnd(double value) => Box(0, b => b.MarginEnd is null, b => b.MarginEnd = value);
 
     /// <summary>A line around the box on all sides.</summary>
     /// <param name="width">Line width in points; zero draws nothing.</param>
     /// <param name="color">Line colour; black when null.</param>
     /// <param name="style">Solid (default), dashed or dotted.</param>
     public Slot Border(double width, LayoutColor? color = null, BorderStyle style = BorderStyle.Solid) =>
-        Box(b => b.SetBorders(new Border(width, color ?? LayoutColor.Black, style)));
+        Box(1, b => b.BorderTop == default && b.BorderRight == default && b.BorderBottom == default && b.BorderLeft == default && b.BorderStart is null && b.BorderEnd is null, b => b.SetBorders(new Border(width, color ?? LayoutColor.Black, style)));
 
     /// <summary>A line on the top edge.</summary>
     public Slot BorderTop(double width, LayoutColor? color = null, BorderStyle style = BorderStyle.Solid) =>
-        Box(b => b.BorderTop = new Border(width, color ?? LayoutColor.Black, style));
+        Box(1, b => b.BorderTop == default, b => b.BorderTop = new Border(width, color ?? LayoutColor.Black, style));
 
     /// <summary>A line on the bottom edge.</summary>
     public Slot BorderBottom(double width, LayoutColor? color = null, BorderStyle style = BorderStyle.Solid) =>
-        Box(b => b.BorderBottom = new Border(width, color ?? LayoutColor.Black, style));
+        Box(1, b => b.BorderBottom == default, b => b.BorderBottom = new Border(width, color ?? LayoutColor.Black, style));
 
     /// <summary>A line on the left edge, whatever the direction.</summary>
     public Slot BorderLeft(double width, LayoutColor? color = null, BorderStyle style = BorderStyle.Solid) =>
-        Box(b => b.BorderLeft = new Border(width, color ?? LayoutColor.Black, style));
+        Box(1, b => b.BorderLeft == default, b => b.BorderLeft = new Border(width, color ?? LayoutColor.Black, style));
 
     /// <summary>A line on the right edge, whatever the direction.</summary>
     public Slot BorderRight(double width, LayoutColor? color = null, BorderStyle style = BorderStyle.Solid) =>
-        Box(b => b.BorderRight = new Border(width, color ?? LayoutColor.Black, style));
+        Box(1, b => b.BorderRight == default, b => b.BorderRight = new Border(width, color ?? LayoutColor.Black, style));
 
     /// <summary>A line on the start edge (left in left-to-right documents).</summary>
     public Slot BorderStart(double width, LayoutColor? color = null, BorderStyle style = BorderStyle.Solid) =>
-        Box(b => b.BorderStart = new Border(width, color ?? LayoutColor.Black, style));
+        Box(1, b => b.BorderStart is null, b => b.BorderStart = new Border(width, color ?? LayoutColor.Black, style));
 
     /// <summary>A line on the end edge (right in left-to-right documents).</summary>
     public Slot BorderEnd(double width, LayoutColor? color = null, BorderStyle style = BorderStyle.Solid) =>
-        Box(b => b.BorderEnd = new Border(width, color ?? LayoutColor.Black, style));
+        Box(1, b => b.BorderEnd is null, b => b.BorderEnd = new Border(width, color ?? LayoutColor.Black, style));
 
     /// <summary>Fills the box's area (inside the margin) with a colour.</summary>
-    public Slot Background(LayoutColor color) => Box(b => b.Background = color);
+    public Slot Background(LayoutColor color) => Box(1, b => b.Background is null, b => b.Background = color);
 
     /// <summary>Rounds the corners of the background and border; the radius is in points.</summary>
-    public Slot Rounded(double radius) => Box(b => b.CornerRadius = radius);
+    public Slot Rounded(double radius) => Box(-1, b => true, b => b.CornerRadius = radius);
 
     /// <summary>Paints the box's background, border and content with this opacity, 0 (invisible) to 1 (the default).</summary>
-    public Slot Opacity(double value) => Box(b => b.Opacity = value);
+    public Slot Opacity(double value) => Box(1, b => b.Opacity == 1, b => b.Opacity = value);
 
     /// <summary>A fixed width in points. The content is cut off if it cannot be narrower; text wraps inside it.</summary>
-    public Slot Width(double value) => Box(b => b.Width = value);
+    public Slot Width(double value) => Box(1, b => b.Width is null, b => b.Width = value);
 
     /// <summary>A fixed height in points. A box with a fixed height never splits across pages and cuts off taller content (a note is recorded).</summary>
-    public Slot Height(double value) => Box(b => b.Height = value);
+    public Slot Height(double value) => Box(1, b => b.Height is null, b => b.Height = value);
 
     /// <summary>A least width in points.</summary>
-    public Slot MinWidth(double value) => Box(b => b.MinWidth = value);
+    public Slot MinWidth(double value) => Box(1, b => b.MinWidth is null, b => b.MinWidth = value);
 
     /// <summary>A least height in points.</summary>
-    public Slot MinHeight(double value) => Box(b => b.MinHeight = value);
+    public Slot MinHeight(double value) => Box(1, b => b.MinHeight is null, b => b.MinHeight = value);
 
     /// <summary>A greatest width in points.</summary>
-    public Slot MaxWidth(double value) => Box(b => b.MaxWidth = value);
+    public Slot MaxWidth(double value) => Box(1, b => b.MaxWidth is null, b => b.MaxWidth = value);
 
     /// <summary>A greatest height in points. Makes the box atomic like <see cref="Height(double)"/>.</summary>
-    public Slot MaxHeight(double value) => Box(b => b.MaxHeight = value);
+    public Slot MaxHeight(double value) => Box(1, b => b.MaxHeight is null, b => b.MaxHeight = value);
 
     /// <summary>Keeps width divided by height at this ratio.</summary>
-    public Slot AspectRatio(double ratio) => Box(b => b.AspectRatio = ratio);
+    public Slot AspectRatio(double ratio) => Box(1, b => b.AspectRatio is null, b => b.AspectRatio = ratio);
 
     /// <summary>Makes the box as tall as the space it is offered (useful for backgrounds in <see cref="Layers(Action{LayersDescriptor})"/>).</summary>
-    public Slot ExpandHeight() => Box(b => b.ExpandHeight = true);
+    public Slot ExpandHeight() => Box(3, b => !b.ExpandHeight, b => b.ExpandHeight = true);
 
     /// <summary>Aligns the content to the left edge whatever the direction.</summary>
-    public Slot AlignLeft() => Box(b => b.HorizontalAlignment = HorizontalAlignment.Left);
+    public Slot AlignLeft() => Box(3, b => b.HorizontalAlignment == HorizontalAlignment.Start, b => b.HorizontalAlignment = HorizontalAlignment.Left);
 
     /// <summary>Aligns the content to the right edge whatever the direction.</summary>
-    public Slot AlignRight() => Box(b => b.HorizontalAlignment = HorizontalAlignment.Right);
+    public Slot AlignRight() => Box(3, b => b.HorizontalAlignment == HorizontalAlignment.Start, b => b.HorizontalAlignment = HorizontalAlignment.Right);
 
     /// <summary>Centres the content horizontally.</summary>
-    public Slot AlignCenter() => Box(b => b.HorizontalAlignment = HorizontalAlignment.Center);
+    public Slot AlignCenter() => Box(3, b => b.HorizontalAlignment == HorizontalAlignment.Start, b => b.HorizontalAlignment = HorizontalAlignment.Center);
 
     /// <summary>Aligns the content to the start edge (left in left-to-right documents). This is the default.</summary>
-    public Slot AlignStart() => Box(b => b.HorizontalAlignment = HorizontalAlignment.Start);
+    public Slot AlignStart() => Box(3, b => b.HorizontalAlignment == HorizontalAlignment.Start, b => b.HorizontalAlignment = HorizontalAlignment.Start);
 
     /// <summary>Aligns the content to the end edge (right in left-to-right documents).</summary>
-    public Slot AlignEnd() => Box(b => b.HorizontalAlignment = HorizontalAlignment.End);
+    public Slot AlignEnd() => Box(3, b => b.HorizontalAlignment == HorizontalAlignment.Start, b => b.HorizontalAlignment = HorizontalAlignment.End);
 
-    /// <summary>Aligns the content to the top. This is the default. Only visible when the box is taller than its content.</summary>
-    public Slot AlignTop() => Box(b => b.VerticalAlignment = VerticalAlignment.Top);
+    /// <summary>Aligns the content to the top. This is the default; unlike <see cref="AlignMiddle"/> it does not make the box take the height it is offered.</summary>
+    public Slot AlignTop() => Box(3, b => b.VerticalAlignment == VerticalAlignment.Top && !b.ExpandHeight, b => b.VerticalAlignment = VerticalAlignment.Top);
 
-    /// <summary>Centres the content vertically in a box taller than it.</summary>
-    public Slot AlignMiddle() => Box(b => b.VerticalAlignment = VerticalAlignment.Middle);
+    /// <summary>
+    /// Centres the content vertically. The box takes all the height it is offered (the rest of the page, or the height of a box or row cell
+    /// around it), so give it a <see cref="Height(double)"/> above it or use it in a page-high slot.
+    /// </summary>
+    public Slot AlignMiddle() => Box(3, b => b.VerticalAlignment == VerticalAlignment.Top && !b.ExpandHeight, b =>
+    {
+        b.VerticalAlignment = VerticalAlignment.Middle;
+        b.ExpandHeight = true;
+    });
 
-    /// <summary>Aligns the content to the bottom of a box taller than it.</summary>
-    public Slot AlignBottom() => Box(b => b.VerticalAlignment = VerticalAlignment.Bottom);
+    /// <summary>Aligns the content to the bottom. Like <see cref="AlignMiddle"/>, the box takes all the height it is offered.</summary>
+    public Slot AlignBottom() => Box(3, b => b.VerticalAlignment == VerticalAlignment.Top && !b.ExpandHeight, b =>
+    {
+        b.VerticalAlignment = VerticalAlignment.Bottom;
+        b.ExpandHeight = true;
+    });
 
     // ---- Transforms ----
 
@@ -292,7 +344,7 @@ public partial class Slot
     public Slot EnsureSpace(double height) => Wrap(new EnsureSpace { Height = height });
 
     /// <summary>Keeps the content on the same page as the start of the item after it in its column. Chains of such items stay together.</summary>
-    public Slot KeepWithNext() => Box(b => b.KeepWithNext = true);
+    public Slot KeepWithNext() => Attribute(b => b.KeepWithNext = true);
 
     // ---- Navigation ----
 
@@ -317,16 +369,16 @@ public partial class Slot
     public Slot Heading(int level) => Wrap(new Heading { Level = level });
 
     /// <summary>Describes the content for readers who cannot see it. The content, and everything in it, becomes one figure with this description.</summary>
-    public Slot AltText(string description) => Box(b => b.AltText = description ?? throw new ArgumentNullException(nameof(description)));
+    public Slot AltText(string description) => Attribute(b => b.AltText = description ?? throw new ArgumentNullException(nameof(description)));
 
     /// <summary>Marks the content as decoration: it stays out of the structure tree and assistive technology skips it.</summary>
-    public Slot Artifact() => Box(b => b.Artifact = true);
+    public Slot Artifact() => Attribute(b => b.Artifact = true);
 
     /// <summary>Sets the language of the content, a BCP 47 tag such as <c>ar</c> or <c>de-CH</c>.</summary>
-    public Slot Language(string tag) => Box(b => b.Language = tag ?? throw new ArgumentNullException(nameof(tag)));
+    public Slot Language(string tag) => Attribute(b => b.Language = tag ?? throw new ArgumentNullException(nameof(tag)));
 
     /// <summary>Sets the content direction for the content and everything in it.</summary>
-    public Slot Direction(LayoutDirection direction) => Box(b => b.Direction = direction);
+    public Slot Direction(LayoutDirection direction) => Attribute(b => b.Direction = direction);
 
     /// <summary>Sets right-to-left direction for the content: rows, table columns and list markers mirror, and start/end alignment flip.</summary>
     public Slot RightToLeft() => Direction(LayoutDirection.RightToLeft);
@@ -335,5 +387,5 @@ public partial class Slot
     public Slot LeftToRight() => Direction(LayoutDirection.LeftToRight);
 
     /// <summary>Names the content in error paths and in the debug overlay.</summary>
-    public Slot Name(string name) => Box(b => b.Name = name ?? throw new ArgumentNullException(nameof(name)));
+    public Slot Name(string name) => Attribute(b => b.Name = name ?? throw new ArgumentNullException(nameof(name)));
 }

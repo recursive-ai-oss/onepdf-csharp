@@ -8,35 +8,41 @@ using OnePdf.Layout;
 // one-line pages to a file given as the second argument (a memory probe for the streaming path).
 if (args.Length >= 2 && int.TryParse(args[0], out int pages))
 {
-    var col = new Column();
-    for (int i = 0; i < pages; i++)
+    LayoutDocument big = LayoutDocument.Compose(d => d.Page(p => p.Content().Column(col =>
     {
-        col.Items.Add(new Text { Content = "Page " + i, Size = 14 });
-        if (i < pages - 1)
+        for (int i = 0; i < pages; i++)
         {
-            col.Items.Add(new PageBreak());
+            col.Item().Text("Page " + i).FontSize(14);
+            if (i < pages - 1)
+            {
+                col.Item().PageBreak();
+            }
         }
-    }
-
-    var big = new LayoutDocument();
-    big.Pages.Add(new LayoutPage { Content = col });
+    })));
     using FileStream file = File.Create(args[1]);
     big.Save(file);
     Console.WriteLine("ok " + pages);
     return 0;
 }
 
-var body = new Column { Spacing = 6 };
-body.Items.Add(new Text { Content = "Layout smoke", Size = 18, FontName = "Helvetica-Bold" });
-var row = new Row { Spacing = 8 };
-row.Items.Add(RowItem.Constant(80, new Box { Padding = Insets.All(4), Background = new LayoutColor(0.9, 0.9, 1), Child = new Text { Content = "left" } }));
-row.Items.Add(RowItem.Relative(1, new Box { Padding = Insets.All(4), BorderBottom = new Border(1, LayoutColor.Black, BorderStyle.Dashed), Child = new Text { Content = "right cell with a longer sentence that wraps over lines" } }));
-body.Items.Add(row);
-body.Items.Add(new Rotate { Degrees = 30, Child = new Spacer { Width = 40, Height = 10 } });
-body.Items.Add(new Canvas { Height = 20, Paint = s => { s.Builder.Rectangle(0, 0, s.Width, s.Height); s.Builder.Stroke(); } });
-
-var doc = new LayoutDocument();
-doc.Pages.Add(new LayoutPage { Size = PageSize.A5, Content = body, Footer = new Text { Content = "footer", Size = 8 } });
+LayoutDocument doc = LayoutDocument.Compose(d => d.Page(p =>
+{
+    p.Size(PageSize.A5);
+    p.Footer().Text("footer").FontSize(8);
+    p.Content().Column(col =>
+    {
+        col.Spacing(6);
+        col.Item().Text("Layout smoke").FontSize(18).FontFamily("Helvetica-Bold");
+        col.Item().Row(row =>
+        {
+            row.Spacing(8);
+            row.ConstantItem(80).Padding(4).Background(new LayoutColor(0.9, 0.9, 1)).Text("left");
+            row.RelativeItem().Padding(4).BorderBottom(1, null, BorderStyle.Dashed).Text("right cell with a longer sentence that wraps over lines");
+        });
+        col.Item().Rotate(30).Spacer(10, 40);
+        col.Item().Canvas(20, s => { s.Builder.Rectangle(0, 0, s.Width, s.Height); s.Builder.Stroke(); });
+    });
+}));
 using var ms = new MemoryStream();
 doc.Save(ms, new PdfDocumentWriterOptions { LeaveOpen = true });
 using PdfDocument back = PdfDocument.Open(ms.ToArray());
@@ -48,41 +54,46 @@ if (back.Pages.Count != 1 || !text.Contains("Layout smoke", StringComparison.Ord
 }
 
 // Document structure: a table with repeated header and footer rows and a span, a numbered list, "page N of M", a link and a bookmark.
-var table = new Table { CellBorder = new Border(0.5, LayoutColor.Black) };
-table.Columns.Add(TableColumn.Constant(40));
-table.Columns.Add(TableColumn.Auto());
-table.Columns.Add(TableColumn.Relative(1));
-table.HeaderRows.Add(new TableRow { Cells = { new TableCell(new Text { Content = "Head" }) { ColumnSpan = 3 } } });
-for (int i = 0; i < 60; i++)
+LayoutDocument structured = LayoutDocument.Compose(d => d.Page(p =>
 {
-    table.Rows.Add(new TableRow { Cells = { new TableCell(new Text { Content = "r" + i }), new TableCell(new Text { Content = "value " + i }), new TableCell(new Text { Content = "a few words in the last column" }) } });
-}
-
-table.FooterRows.Add(new TableRow { Cells = { new TableCell(new Text { Content = "Foot" }) { ColumnSpan = 3 } } });
-var list = new ItemList { Kind = ListKind.Numbered, NumberStyle = NumberingStyle.LowerRoman };
-list.Items.Add(new ListItem(new Text { Content = "first entry" }));
-list.Items.Add(new ListItem(new Text { Content = "second entry" }));
-var footer = new Row { Spacing = 3 };
-footer.Items.Add(new RowItem(new Text { Content = "Page" }));
-footer.Items.Add(new RowItem(new PageNumber()));
-footer.Items.Add(new RowItem(new Text { Content = "of" }));
-footer.Items.Add(new RowItem(new PageNumber { Kind = PageNumberKind.DocumentTotal }));
-var structured = new LayoutDocument();
-structured.Pages.Add(new LayoutPage
-{
-    Size = PageSize.A5,
-    Footer = footer,
-    Content = new Column
+    p.Size(PageSize.A5);
+    p.Footer().Text(t =>
     {
-        Items =
+        t.Span("Page ");
+        t.CurrentPageNumber();
+        t.Span(" of ");
+        t.TotalPages();
+    });
+    p.Content().Column(col =>
+    {
+        col.Item().Bookmark("Start").Anchor("top").Heading(1).Text("Structure");
+        col.Item().LinkToAnchor("top").Text("back to the top");
+        col.Item().List(l =>
         {
-            new Anchor { Id = "top", Child = new Bookmark { Title = "Start", Child = new Heading { Child = new Text { Content = "Structure" } } } },
-            new Link { Destination = "top", Child = new Text { Content = "back to the top" } },
-            list,
-            table,
-        },
-    },
-});
+            l.Numbered(NumberingStyle.LowerRoman);
+            l.Item().Text("first entry");
+            l.Item().Text("second entry");
+        });
+        col.Item().Table(t =>
+        {
+            t.CellBorder(0.5);
+            t.Columns(c => { c.Constant(40); c.Auto(); c.Relative(); });
+            t.HeaderRow(r => r.Cell().Span(3).Text("Head"));
+            for (int i = 0; i < 60; i++)
+            {
+                int n = i;
+                t.Row(r =>
+                {
+                    r.Cell().Text("r" + n);
+                    r.Cell().Text("value " + n);
+                    r.Cell().Text("a few words in the last column");
+                });
+            }
+
+            t.FooterRow(r => r.Cell().Span(3).Text("Foot"));
+        });
+    });
+}));
 using var structuredOut = new MemoryStream();
 structured.Save(structuredOut, new PdfDocumentWriterOptions { LeaveOpen = true });
 using PdfDocument structuredBack = PdfDocument.Open(structuredOut.ToArray());
@@ -135,12 +146,25 @@ if (!shapedText.Contains("Shaped Latin text", StringComparison.Ordinal) || !shap
 }
 
 // Tagging: the structure tree is written by default, and a right-to-left document mirrors its rows.
-var tagged = new LayoutDocument { Title = "Smoke", Language = "ar", Direction = LayoutDirection.RightToLeft };
-tagged.Options.Fonts = fonts;
-var taggedRow = new Row();
-taggedRow.Items.Add(RowItem.Constant(80, new Text { Content = arabic }));
-taggedRow.Items.Add(RowItem.Constant(80, new Text { Content = "second", Direction = LayoutDirection.LeftToRight }));
-tagged.Pages.Add(new LayoutPage { Size = PageSize.A5, Content = new Column { Items = { new Heading { Level = 2, Child = new Text { Content = "Tagged" } }, taggedRow } } });
+LayoutDocument tagged = LayoutDocument.Compose(d =>
+{
+    d.Title("Smoke").Language("ar").RightToLeft();
+    d.Fonts.Add(File.ReadAllBytes(arabicPath), "Noto Arabic");
+    d.Fonts.FallbackFamilies.Add("Noto Arabic");
+    d.Page(p =>
+    {
+        p.Size(PageSize.A5);
+        p.Content().Column(col =>
+        {
+            col.Item().Heading(2).Text("Tagged");
+            col.Item().Row(r =>
+            {
+                r.ConstantItem(80).Text(arabic);
+                r.ConstantItem(80).LeftToRight().Text("second");
+            });
+        });
+    });
+});
 using var taggedOut = new MemoryStream();
 tagged.Save(taggedOut, new PdfDocumentWriterOptions { LeaveOpen = true });
 using PdfDocument taggedBack = PdfDocument.Open(taggedOut.ToArray());

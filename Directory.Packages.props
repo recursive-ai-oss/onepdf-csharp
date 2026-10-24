@@ -8,6 +8,7 @@
     <PackageVersion Include="BenchmarkDotNet" Version="0.15.8" />
     <PackageVersion Include="SharpFuzz" Version="2.2.0" />
     <PackageVersion Include="RecursiveAI.OneImage" Version="1.1.0" />
+    <PackageVersion Include="RecursiveAI.OneImage.Pdf" Version="1.7.0" />
     <!-- Compared against as compiled packages in the benchmarks and the extraction-quality tool; black boxes. -->
     <PackageVersion Include="PdfPig" Version="0.1.16" />
     <PackageVersion Include="Docnet.Core" Version="2.6.0" />
