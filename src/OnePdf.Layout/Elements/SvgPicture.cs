@@ -31,7 +31,7 @@ public sealed class SvgPicture : Element
     internal override FlowFit LayoutCore(LayoutContext ctx, in Constraint c, object? resume)
     {
         SvgImage svg = Source ?? throw new PdfLayoutException(ctx.PathText, c.Width, c.Height, double.NaN, double.NaN, "The SVG picture has no source");
-        if (AltText is null && !Artifact && ctx.LayoutArtifactDepth == 0 && ctx.Options.Tagged)
+        if (FigureAltText is null && !Artifact && ctx.LayoutArtifactDepth == 0 && ctx.Options.Tagged)
         {
             ctx.NoteOnce(this, "The SVG has no alternate text (AltText) and no title or description; assistive technology cannot describe it. Set AltText, or Artifact for a decorative picture.");
         }
@@ -131,4 +131,6 @@ public sealed class SvgPicture : Element
     }
 
     internal override bool FigureByDefault => true;
+
+    internal override string? FigureAltText => AltText ?? Source?.Title ?? Source?.Description;
 }

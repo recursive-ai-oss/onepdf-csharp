@@ -432,6 +432,9 @@ public abstract class Element
     /// <summary>False where <see cref="AltText"/> means something else (a link's description).</summary>
     internal virtual bool AltTextIsFigure => true;
 
+    /// <summary>The alternate text a Figure gets: <see cref="AltText"/>, or what the element itself can offer in its place.</summary>
+    internal virtual string? FigureAltText => AltText;
+
     /// <summary>True for elements that are figures even without alternate text (which is then reported).</summary>
     internal virtual bool FigureByDefault => false;
 
@@ -546,7 +549,7 @@ public abstract class Element
         }
         else if ((AltText is not null && AltTextIsFigure) || FigureByDefault)
         {
-            figure = tag.Open(this, p.Continued, p.Continues, "Figure", AltText);
+            figure = tag.Open(this, p.Continued, p.Continues, "Figure", FigureAltText);
         }
 
         DrawCore(d, p);

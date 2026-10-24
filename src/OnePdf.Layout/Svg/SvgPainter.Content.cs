@@ -697,7 +697,7 @@ internal sealed partial class SvgPainter
                     prevSpace = false;
                 }
 
-                if (++chars > _lim.MaxTextCharacters)
+                if (++chars > _lim.MaxTextCharacters || ++_textTotal > _lim.MaxTextCharacters)
                 {
                     throw new PdfLimitException($"The SVG has more than {_lim.MaxTextCharacters} text characters.");
                 }

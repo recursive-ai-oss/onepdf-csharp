@@ -33,6 +33,8 @@ internal sealed partial class SvgPainter
     private readonly ISvgHost _host;
     private readonly CancellationToken _ct;
     private readonly HashSet<SvgElement> _active = [];
+    private long _textTotal;
+    private long _boundsWork;
     private readonly HashSet<string> _noted = new(StringComparer.Ordinal);
     private readonly List<string> _notes = [];
     private readonly Dictionary<SvgElement, SvgStyle> _styles = [];
@@ -1194,6 +1196,12 @@ internal sealed partial class SvgPainter
         if (depth > 24)
         {
             return false;
+        }
+
+        // Boxes of use targets are measured again at every use, so a fan-out of references would multiply the work; it shares the instance bound.
+        if (++_boundsWork > _lim.MaxInstances)
+        {
+            throw new PdfLimitException($"The SVG needs more than {_lim.MaxInstances} element visits to measure its bounding boxes.");
         }
 
         SvgStyle st = StyleOf(e);

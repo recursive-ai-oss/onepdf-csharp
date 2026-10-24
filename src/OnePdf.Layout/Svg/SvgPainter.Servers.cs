@@ -429,7 +429,7 @@ internal sealed partial class SvgPainter
         double last = 0;
         foreach (SvgElement stop in holder.Children)
         {
-            if (stop.Name != "stop" || g.Stops.Count >= 256)
+            if (stop.Name != "stop" || g.Stops.Count >= 250)
             {
                 continue;
             }
