@@ -4,6 +4,12 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ## [Unreleased]
 
+### Added
+
+- PDF/UA-1 (ISO 14289-1): `PdfSaveOptions.PdfUA` (`PdfUAOptions`), `PdfDocument.PreparePdfUA` and `CheckPdfUA`, `PdfUAException` and `PdfUAViolation` (Matterhorn checkpoint and ISO clause per finding). A save repairs `/MarkInfo`, `/Lang` (from `PdfUAOptions.Language`), `DisplayDocTitle`, `/Tabs /S`, link `/Contents` and the XMP identification, and refuses with every violation listed: missing title or language, figures without alternate text, untagged content, skipped heading levels, tables without header cells or with irregular rows, malformed lists, unmapped structure types, links and widgets outside their structure elements, unembedded fonts and encryption that blocks assistive technology. Only for documents that are already tagged; a clean result is not proof of conformance. See `docs/pdfua.md`.
+- PDF/A level A: `PdfAConformance.A` for parts 2 and 3 (PDF/A-2a, 3a), alone or combined with PDF/UA-1 (the `pdfuaid` schema is declared as an XMP extension schema); `PdfAOptions.Language`. `XmpMetadata.PdfUAPart`.
+- Layout: `LayoutDocument.Author`, `Subject` and `Keywords` (and the same on the fluent `DocumentComposer`); `LayoutDocument.Save(stream, PdfSaveOptions)` takes `PdfUA` and level A.
+
 ## [1.7.0] - 2026-10-24
 
 ### Added

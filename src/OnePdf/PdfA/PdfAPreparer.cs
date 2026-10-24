@@ -17,7 +17,7 @@ namespace OnePdf.PdfA;
 /// </summary>
 internal static class PdfAPreparer
 {
-    public static void Prepare(PdfDocument doc, PdfAOptions options, CancellationToken ct)
+    public static void Prepare(PdfDocument doc, PdfAOptions options, CancellationToken ct, bool pdfUA = false)
     {
         doc.EnsureEditable(0);
         CreationState.FinishFonts(doc);
@@ -30,7 +30,12 @@ internal static class PdfAPreparer
         }
 
         AddOutputIntent(doc);
-        WriteMetadata(doc, options);
+        WriteMetadata(doc, options, pdfUA);
+        if (options.Conformance == PdfAConformance.A)
+        {
+            PdfUA.PdfUAPreparer.Prepare(doc, null, options, ct);
+        }
+
         if (options.Part == PdfAPart.Part3)
         {
             DateAttachments(doc);
@@ -111,7 +116,7 @@ internal static class PdfAPreparer
 
     // ---- fonts ------------------------------------------------------------------------------------------------------------------
 
-    private static void EmbedLibraryFonts(PdfDocument doc, CancellationToken ct)
+    internal static void EmbedLibraryFonts(PdfDocument doc, CancellationToken ct)
     {
         CreationState state = CreationState.For(doc);
         var numbers = new SortedSet<int>(state.LibraryFonts);
@@ -557,24 +562,33 @@ internal static class PdfAPreparer
         }
     }
 
-    private static void WriteMetadata(PdfDocument doc, PdfAOptions options)
+    /// <summary>
+    /// Writes the XMP packet for a PDF/A save (<paramref name="options"/>), a PDF/UA save (<paramref name="pdfUA"/>) or both. A packet that
+    /// already makes every requested claim is kept as it is; any other packet is replaced by one built from the Info dictionary.
+    /// </summary>
+    internal static void WriteMetadata(PdfDocument doc, PdfAOptions? options, bool pdfUA)
     {
-        string conf = options.Conformance == PdfAConformance.B ? "B" : "U";
+        string conf = options is null ? string.Empty : ConformanceLetter(options.Conformance);
         PdfStream? current = doc.Catalog.GetStream("Metadata");
         if (current is not null && current.FilterNames.Count == 0 && current.Dictionary.GetName("Type") == "Metadata" && current.Dictionary.GetName("Subtype") == "XML")
         {
             XmpMetadata? xmp = doc.Xmp;
-            if (xmp is { IsWellFormed: true } && xmp.PdfAPart == (int)options.Part && xmp.PdfAConformance == conf)
+            bool aOk = options is null || (xmp is { IsWellFormed: true } && xmp.PdfAPart == (int)options.Part && xmp.PdfAConformance == conf);
+            bool uaOk = !pdfUA || (xmp is { IsWellFormed: true, PdfUAPart: 1 } && !string.IsNullOrWhiteSpace(xmp.Title)
+                && (options is null || Encoding.UTF8.GetString(xmp.RawBytes.Span).Contains("<pdfaSchema:namespaceURI>http://www.aiim.org/pdfua/ns/id/", StringComparison.Ordinal)));
+            if (aOk && uaOk)
             {
                 return; // already identifies the file; its other properties stay as they are
             }
         }
 
         // doc.Info is created before the first SetInfo, so it reflects the dictionary as it stands now.
-        byte[] packet = XmpWriter.Write(doc.Info, (int)options.Part, conf);
+        byte[] packet = XmpWriter.Write(doc.Info, options is null ? 0 : (int)options.Part, conf, pdfUA);
         doc.SetXmp(packet);
         PdfStream meta = doc.Catalog.GetStream("Metadata")!;
         meta.Dictionary.SetEntry("Filter", null);
         meta.Dictionary.SetEntry("DecodeParms", null);
     }
+
+    internal static string ConformanceLetter(PdfAConformance c) => c switch { PdfAConformance.A => "A", PdfAConformance.U => "U", _ => "B" };
 }

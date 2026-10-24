@@ -84,6 +84,15 @@ public sealed partial class LayoutDocument
     /// </summary>
     public string? Title { get; set; }
 
+    /// <summary>The information dictionary's <c>Author</c> (and, in a PDF/A or PDF/UA save, the XMP <c>dc:creator</c>). Null writes none.</summary>
+    public string? Author { get; set; }
+
+    /// <summary>The information dictionary's <c>Subject</c> (in a PDF/A or PDF/UA save, the XMP <c>dc:description</c>). Null writes none.</summary>
+    public string? Subject { get; set; }
+
+    /// <summary>The information dictionary's <c>Keywords</c> (in a PDF/A or PDF/UA save, the XMP <c>pdf:Keywords</c>). Null writes none.</summary>
+    public string? Keywords { get; set; }
+
     /// <summary>
     /// The language of the document, a BCP 47 tag such as <c>en-US</c>: the catalog's <c>/Lang</c> when written by <see cref="Save(Stream, PdfDocumentWriterOptions?)"/> (set it in the
     /// writer's options when you render into your own writer) and the language every structure element inherits. Elements override it with
@@ -120,6 +129,21 @@ public sealed partial class LayoutDocument
         if (Title is not null)
         {
             writer.SetInfo("Title", Title);
+        }
+
+        if (Author is not null)
+        {
+            writer.SetInfo("Author", Author);
+        }
+
+        if (Subject is not null)
+        {
+            writer.SetInfo("Subject", Subject);
+        }
+
+        if (Keywords is not null)
+        {
+            writer.SetInfo("Keywords", Keywords);
         }
 
         return RenderCore(new WriterTarget(writer), null);

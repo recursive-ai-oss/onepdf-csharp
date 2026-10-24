@@ -124,6 +124,27 @@ public sealed class DocumentComposer
         return this;
     }
 
+    /// <summary>The author: the information dictionary's <c>Author</c>.</summary>
+    public DocumentComposer Author(string author)
+    {
+        _document.Author = author;
+        return this;
+    }
+
+    /// <summary>The subject: the information dictionary's <c>Subject</c>.</summary>
+    public DocumentComposer Subject(string subject)
+    {
+        _document.Subject = subject;
+        return this;
+    }
+
+    /// <summary>The keywords: the information dictionary's <c>Keywords</c>, as one string.</summary>
+    public DocumentComposer Keywords(string keywords)
+    {
+        _document.Keywords = keywords;
+        return this;
+    }
+
     /// <summary>The document language, a BCP 47 tag such as <c>en-US</c>: the catalog's <c>/Lang</c> and the default for every structure element.</summary>
     public DocumentComposer Language(string tag)
     {

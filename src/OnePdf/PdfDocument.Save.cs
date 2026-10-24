@@ -32,7 +32,11 @@ public sealed partial class PdfDocument
         }
 
         options ??= new PdfSaveOptions();
-        if (options.PdfA is not null)
+        if (options.PdfUA is not null)
+        {
+            options = PdfUAProcessor.PrepareForSave(this, options, cancellationToken);
+        }
+        else if (options.PdfA is not null)
         {
             options = PdfAProcessor.PrepareForSave(this, options, cancellationToken);
         }
@@ -81,6 +85,11 @@ public sealed partial class PdfDocument
         if (!output.CanWrite)
         {
             throw new ArgumentException("The stream is not writable.", nameof(output));
+        }
+
+        if (options.PdfUA is not null)
+        {
+            throw new ArgumentException("An incremental save cannot make a PDF/UA file: it appends to the original bytes. Use Save.", nameof(options));
         }
 
         if (options.PdfA is not null)

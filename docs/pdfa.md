@@ -1,6 +1,6 @@
 # PDF/A
 
-OnePDF writes PDF/A-2b, 2u, 3b and 3u (ISO 19005-2 and -3, on ISO 32000-1) from a full save, and checks documents against the requirements it can verify from the file's structure.
+OnePDF writes PDF/A-2b, 2u, 2a, 3b, 3u and 3a (ISO 19005-2 and -3, on ISO 32000-1) from a full save, and checks documents against the requirements it can verify from the file's structure.
 
 ```csharp
 using var doc = PdfDocument.CreateEmpty();
@@ -25,7 +25,7 @@ doc.Save("out.pdf", new PdfSaveOptions
 
 ## What it is, and is not
 
-- **It writes PDF/A for documents made or edited with OnePDF**, and for existing files that already meet the requirements. Level B (visual reproducibility) and level U (B plus a Unicode mapping for all text) of parts 2 and 3. Level A (tagged structure) is not offered.
+- **It writes PDF/A for documents made or edited with OnePDF**, and for existing files that already meet the requirements. Level B (visual reproducibility) and level U (B plus a Unicode mapping for all text) of parts 2 and 3. Level A (tagged structure) is offered for documents that are already tagged: see [pdfua.md](pdfua.md).
 - **It is not a validator.** `CheckPdfA` verifies what is listed below and nothing else; a clean result does not prove conformance. The tests use the veraPDF command-line validator as a black box (see "Verification").
 - **It does not convert.** No fonts are embedded into foreign content, no transparency or colour is rewritten, nothing is flattened, no JavaScript is removed. A file that breaks a requirement is refused, and the violations tell you what to change.
 
@@ -33,7 +33,7 @@ doc.Save("out.pdf", new PdfSaveOptions
 
 | | |
 |---|---|
-| `PdfSaveOptions.PdfA` (`PdfAOptions`) | Target part (`Part2` default, `Part3`), level (`B` default, `U`), and `EmbedLibraryFonts` (default true). A full save then prepares, checks, and writes, or throws `PdfAException` and writes nothing. Needs an editable document (`AllowEditing`, or `CreateEmpty`). Not available for `SaveIncremental`. |
+| `PdfSaveOptions.PdfA` (`PdfAOptions`) | Target part (`Part2` default, `Part3`), level (`B` default, `U`, `A`: tagged, see [pdfua.md](pdfua.md)), `Language` (fallback `/Lang` for level A), and `EmbedLibraryFonts` (default true). A full save then prepares, checks, and writes, or throws `PdfAException` and writes nothing. Needs an editable document (`AllowEditing`, or `CreateEmpty`). Not available for `SaveIncremental`. |
 | `PdfDocument.PreparePdfA(options)` | Makes the repairs below in memory and returns what is still wrong. Calling it again changes nothing more. |
 | `PdfDocument.CheckPdfA(options)` | Reports every violation of the document as it stands, without changing it. Works on read-only documents. |
 | `PdfAException.Violations` | `PdfAViolation`: `Clause` (ISO 19005-2 clause number), `Message`, `ObjectNumber` (-1 for the file as a whole), `PageIndex` (-1 when not on a page). Large numbers of one kind (a hundred bad operators) are cut after twenty; at most 2000 violations are listed. |

@@ -364,8 +364,8 @@ public class TaggingTests
                 File.WriteAllLines(Path.Combine(dir, "ua1-failures.txt"), failures);
             }
 
-            // Information only: the list is read by a person. These rules belong to the PDF/UA unit (identification in the XMP metadata, a
-            // title in the XMP metadata) or to the document (the missing alternate text of the second figure is reported on purpose).
+            // Information only: the list is read by a person. The sample leaves out the XMP identification and title that a PdfUA save
+            // writes, and its second figure has no alternate text on purpose; PdfUATests covers the saved form.
             Assert.DoesNotContain(failures, f => f.StartsWith("7.1-", StringComparison.Ordinal) && f.Contains("untagged", StringComparison.OrdinalIgnoreCase));
         }
     }

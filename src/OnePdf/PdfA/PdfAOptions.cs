@@ -18,6 +18,13 @@ public enum PdfAConformance
 
     /// <summary>Level U (Unicode): level B, and every font maps its codes to Unicode (ISO 19005-2, 6.2.11.7), so text can be extracted reliably. OnePDF offers U only when that holds.</summary>
     U = 1,
+
+    /// <summary>
+    /// Level A (accessible): level U, and the document is tagged with a logical structure (ISO 19005-2, 6.7): <c>/MarkInfo</c>, a structure
+    /// tree with standard or role-mapped types, a document language, alternate text for figures, and every mark either tagged or an artifact.
+    /// OnePDF offers A for documents it laid out or created with tags; it does not tag existing files.
+    /// </summary>
+    A = 2,
 }
 
 /// <summary>What <see cref="PdfSaveOptions.PdfA"/>, <see cref="PdfDocument.PreparePdfA"/> and <see cref="PdfDocument.CheckPdfA"/> aim for.</summary>
@@ -26,7 +33,7 @@ public sealed class PdfAOptions
     /// <summary>The part of ISO 19005. Default <see cref="PdfAPart.Part2"/>.</summary>
     public PdfAPart Part { get; init; } = PdfAPart.Part2;
 
-    /// <summary>The conformance level. Default <see cref="PdfAConformance.B"/>. Level A (tagged structure) is not offered.</summary>
+    /// <summary>The conformance level. Default <see cref="PdfAConformance.B"/>.</summary>
     public PdfAConformance Conformance { get; init; } = PdfAConformance.B;
 
     /// <summary>
@@ -37,8 +44,14 @@ public sealed class PdfAOptions
     /// </summary>
     public bool EmbedLibraryFonts { get; init; } = true;
 
+    /// <summary>
+    /// For level A: the language to write as the catalog's <c>/Lang</c> (a BCP 47 tag such as <c>en-US</c>) when the document has none.
+    /// Default null: a missing language is reported. An existing <c>/Lang</c> is kept.
+    /// </summary>
+    public string? Language { get; init; }
+
     /// <summary>The identification written to the XMP packet, for example <c>PDF/A-2b</c>.</summary>
-    public string Name => $"PDF/A-{(int)Part}{(Conformance == PdfAConformance.B ? 'b' : 'u')}";
+    public string Name => $"PDF/A-{(int)Part}{(Conformance switch { PdfAConformance.A => 'a', PdfAConformance.U => 'u', _ => 'b' })}";
 }
 
 /// <summary>One requirement of ISO 19005 that a document does not meet.</summary>
