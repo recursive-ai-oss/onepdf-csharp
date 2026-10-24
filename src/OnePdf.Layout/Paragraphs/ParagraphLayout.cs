@@ -368,6 +368,7 @@ public sealed partial class ShapedParagraph
     internal Hyph HyphenFor(int itemIndex)
     {
         int fmtIndex = _items[itemIndex].Fmt;
+        _hyphens ??= [];
         if (_hyphens.TryGetValue(fmtIndex, out Hyph h))
         {
             return h;

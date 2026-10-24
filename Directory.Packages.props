@@ -4,7 +4,7 @@
   </PropertyGroup>
   <ItemGroup>
     <!-- The shaping package of the same family; Layout is the only library project that references it. -->
-    <PackageVersion Include="RecursiveAI.OneFont" Version="1.0.0" />
+    <PackageVersion Include="RecursiveAI.OneFont" Version="1.1.0" />
   </ItemGroup>
   <ItemGroup>
     <!-- Used by the test, benchmark and fuzz projects only. The libraries depend on nothing outside the shared framework. -->
@@ -17,6 +17,9 @@
     <PackageVersion Include="PdfPig" Version="0.1.16" />
     <PackageVersion Include="Docnet.Core" Version="2.6.0" />
     <PackageVersion Include="PDFsharp" Version="6.2.4" />
+    <!-- Layout comparison (bench/OnePdf.Layout.Benchmarks only): compiled packages, public API, black boxes. -->
+    <PackageVersion Include="PDFsharp-MigraDoc" Version="6.2.4" />
+    <PackageVersion Include="itext" Version="9.8.0" />
     <!-- PDFsharp pulls in an old, flagged copy of this package; the comparison tool pins a patched one. -->
     <PackageVersion Include="System.Security.Cryptography.Pkcs" Version="10.0.13" />
   </ItemGroup>

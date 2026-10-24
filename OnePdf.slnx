@@ -12,6 +12,8 @@
   </Folder>
   <Folder Name="/bench/">
     <Project Path="bench/OnePdf.Benchmarks/OnePdf.Benchmarks.csproj" />
+    <Project Path="bench/OnePdf.Layout.Benchmarks/OnePdf.Layout.Benchmarks.csproj" />
+    <Project Path="bench/OnePdf.Layout.Benchmarks.Aot/OnePdf.Layout.Benchmarks.Aot.csproj" />
   </Folder>
   <Folder Name="/tools/">
     <Project Path="tools/OnePdf.Quality/OnePdf.Quality.csproj" />

@@ -17,7 +17,7 @@ namespace OnePdf.Layout;
 /// <para><b>Borders</b> are collapsed: two cells that meet share one line, centred on the grid line. The wider of the two borders wins; at equal
 /// width solid beats dashed beats dotted; if those are equal too, the cell before (above or at the start side) wins. Lines at the outer edge
 /// of the table, and at the top and bottom of each page's piece of it, are drawn inside the table.</para>
-/// <para><b>Cost.</b> The grid and the column widths (from the header, footer and first <see cref="MeasuredRows"/> body rows, all by default) are worked out once, when the table starts; each page then costs the rows on it plus the
+/// <para><b>Cost.</b> The grid and the column widths (from the header, footer and the body rows <see cref="MeasuredRows"/> chooses) are worked out once, when the table starts; each page then costs the rows on it plus the
 /// header and footer rows, so a 10,000-row table takes time in proportion to its rows.</para>
 /// </remarks>
 public sealed class Table : Element
@@ -39,11 +39,13 @@ public sealed class Table : Element
 
     /// <summary>
     /// How many body rows (counting from the first) are measured to size automatic and relative columns; the header and footer rows are
-    /// always measured. The default measures every row, so no cell is wider than its column. Measuring a very large table costs about as
-    /// much as laying it out; set a limit to trade that for columns sized from the first rows only, where content that turns out wider in
-    /// a later row wraps within its column.
+    /// always measured. Null, the default, measures every row when some column is automatic (its width is the widest content), and the
+    /// first 100 body rows when every column is constant or relative: there the measuring only keeps a relative column from being narrower
+    /// than its longest word, which a sample of a hundred rows settles in practice. Measuring a very large table costs about as much as
+    /// laying it out. With a limit, content that turns out wider in a later row wraps within its column (a word that is too wide spills
+    /// over the cell's edge).
     /// </summary>
-    public int MeasuredRows { get; set; } = int.MaxValue;
+    public int? MeasuredRows { get; set; }
 
     /// <summary>Border of every cell edge unless the cell sets its own. Default none.</summary>
     public Border CellBorder { get; set; }
@@ -232,12 +234,21 @@ public sealed class Table : Element
         return next is null ? FlowFit.Complete(height, node) : FlowFit.Partial(height, node, next);
     }
 
-    private static string RowLabel(TableGrid g, int row) =>
-        row < g.HeaderCount
-            ? "Header Row " + row.ToString(CultureInfo.InvariantCulture)
-            : row < g.HeaderCount + g.BodyCount
-                ? "Row " + (row - g.HeaderCount).ToString(CultureInfo.InvariantCulture)
-                : "Footer Row " + (row - g.HeaderCount - g.BodyCount).ToString(CultureInfo.InvariantCulture);
+    private static void PushRow(LayoutContext ctx, TableGrid g, int row)
+    {
+        if (row < g.HeaderCount)
+        {
+            ctx.Push("Header Row ", row);
+        }
+        else if (row < g.HeaderCount + g.BodyCount)
+        {
+            ctx.Push("Row ", row - g.HeaderCount);
+        }
+        else
+        {
+            ctx.Push("Footer Row ", row - g.HeaderCount - g.BodyCount);
+        }
+    }
 
     private static double SpanWidth(State st, in TableSlot s) => st.ColumnX[s.Col + s.ColSpan] - st.ColumnX[s.Col];
 
@@ -292,7 +303,7 @@ public sealed class Table : Element
         var insets = new CellInsets[n];
         double height = 0;
         bool anyPartial = false;
-        ctx.Push(RowLabel(g, row));
+        PushRow(ctx, g, row);
         try
         {
             for (int i = 0; i < n; i++)
@@ -306,7 +317,7 @@ public sealed class Table : Element
                 insets[i] = g.InsetsOf(slot, rtl);
                 double vertical = insets[i].Top + insets[i].Bottom;
                 double cw = Math.Max(0, SpanWidth(st, slot) - insets[i].Left - insets[i].Right);
-                ctx.Push("Cell " + slot.CellIndex.ToString(CultureInfo.InvariantCulture));
+                ctx.Push("Cell ", slot.CellIndex);
                 try
                 {
                     fits[i] = slot.Cell.Content.Layout(ctx, new Constraint(cw, Math.Max(0, avail - vertical), atTop), inner?[i]);
@@ -406,8 +417,8 @@ public sealed class Table : Element
                 CellInsets ins = insets[s - s0];
                 double vertical = ins.Top + ins.Bottom;
                 double cw = Math.Max(0, SpanWidth(st, slot) - ins.Left - ins.Right);
-                ctx.Push(RowLabel(g, slot.Top));
-                ctx.Push("Cell " + slot.CellIndex.ToString(CultureInfo.InvariantCulture));
+                PushRow(ctx, g, slot.Top);
+                ctx.Push("Cell ", slot.CellIndex);
                 try
                 {
                     FlowFit f = slot.Cell.Content.Layout(ctx, new Constraint(cw, Math.Max(0, avail - vertical), atTop), null);
@@ -457,7 +468,7 @@ public sealed class Table : Element
 
         if (total > avail + 1e-9)
         {
-            ctx.Push(RowLabel(g, first));
+            PushRow(ctx, g, first);
             try
             {
                 return Fail(ctx, atTop, st.Width, avail, "Rows joined by a row span are taller than the space offered; they cannot be split", total);

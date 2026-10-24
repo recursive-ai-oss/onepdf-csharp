@@ -1,5 +1,4 @@
 using System.Globalization;
-using System.Security.Cryptography;
 using System.Text;
 using OnePdf.FontData;
 using OnePdf.FontPrograms;
@@ -201,6 +200,111 @@ internal sealed class StandardCreatedFont : PdfCreatedFont
     }
 }
 
+/// <summary>
+/// A TrueType or OpenType font file that has been read once and can be embedded in any number of documents, on any number of threads.
+/// Embedding from a source skips copying, parsing and hashing the file for every document, which is most of the cost of embedding a
+/// subset of a large font into a small document.
+/// </summary>
+/// <remarks>A source is immutable. It keeps its own copy of the bytes. Documents that embed the same source stay independent of each other.</remarks>
+public sealed class PdfFontSource
+{
+    private ulong _hash;
+
+    private PdfFontSource(byte[] data, int faceIndex, SfntFont font)
+    {
+        Data = data;
+        FaceIndex = faceIndex;
+        Font = font;
+    }
+
+    internal byte[] Data { get; }
+
+    internal int FaceIndex { get; }
+
+    internal SfntFont Font { get; }
+
+    /// <summary>True once an empty subset has been cut from this font, which shows its glyph tables can be read.</summary>
+    internal bool SubsetChecked { get; set; }
+
+    /// <summary>
+    /// A 64-bit hash of the file for subset tags, computed once (two threads may both compute it; the results are equal). It only has to
+    /// tell fonts apart and be the same every time, so it is a plain multiply-and-rotate mix and the cryptography library stays unloaded
+    /// for documents that do not need it.
+    /// </summary>
+    internal ulong Hash
+    {
+        get
+        {
+            ulong h = _hash;
+            if (h == 0)
+            {
+                h = Mix64(0x9E3779B97F4A7C15UL, Data) | 1;
+                _hash = h;
+            }
+
+            return h;
+        }
+    }
+
+    internal static ulong Mix64(ulong seed, ReadOnlySpan<byte> data)
+    {
+        const ulong k = 0x9FB21C651E98DF25UL;
+        ulong h = seed ^ ((ulong)data.Length * k);
+        int i = 0;
+        for (; i + 8 <= data.Length; i += 8)
+        {
+            h = System.Numerics.BitOperations.RotateLeft((h ^ System.Buffers.Binary.BinaryPrimitives.ReadUInt64LittleEndian(data[i..])) * k, 29) + 0x632BE59BD9B4E019UL;
+        }
+
+        for (; i < data.Length; i++)
+        {
+            h = System.Numerics.BitOperations.RotateLeft((h ^ data[i]) * k, 11);
+        }
+
+        h ^= h >> 32;
+        h *= k;
+        h ^= h >> 29;
+        return h;
+    }
+
+    /// <summary>Reads a font file.</summary>
+    /// <param name="fontData">The bytes of a TrueType, OpenType or TrueType Collection file. They are copied.</param>
+    /// <param name="faceIndex">Which face of a collection. Default 0.</param>
+    /// <exception cref="PdfFormatException">The data is not a usable TrueType or OpenType font.</exception>
+    /// <exception cref="PdfLimitException">The font file is larger than 256 MiB.</exception>
+    public static PdfFontSource Load(ReadOnlyMemory<byte> fontData, int faceIndex = 0)
+    {
+        if (fontData.Length > 1 << 28)
+        {
+            throw new PdfLimitException("The font file is larger than 256 MiB.");
+        }
+
+        byte[] data = fontData.ToArray();
+        // The sfnt version (OpenType spec, "Organization of an OpenType Font"): 1.0, 'true' (Apple), 'OTTO' (CFF) or a collection.
+        if (data.Length < 12 || System.Buffers.Binary.BinaryPrimitives.ReadUInt32BigEndian(data) is not (0x00010000 or 0x74727565 or 0x4F54544F or 0x74746366))
+        {
+            throw new PdfFormatException("The data is not a TrueType or OpenType font (unknown sfnt version).");
+        }
+
+        SfntFont font;
+        try
+        {
+            font = SfntFont.Parse(data, faceIndex, GlyphPrograms.Never);
+        }
+        catch (FontProgramException ex)
+        {
+            throw new PdfFormatException("The font data is not a usable TrueType or OpenType font: " + ex.Message, ex);
+        }
+
+        if (font.GlyphCount < 1)
+        {
+            throw new PdfFormatException("The font has no glyphs.");
+        }
+
+        return new PdfFontSource(data, faceIndex, font);
+    }
+}
+
 /// <summary>An embedded TrueType or OpenType font written as a Type 0 font with a CIDFontType2 or CIDFontType0 descendant and Identity-H.</summary>
 internal sealed class EmbeddedCreatedFont : PdfCreatedFont
 {
@@ -227,33 +331,17 @@ internal sealed class EmbeddedCreatedFont : PdfCreatedFont
     private readonly CmapSubtable? _cmap;
     private readonly CmapSubtable? _symbolCmap;
     private int _finishedGlyphCount = -1;
-    private byte[]? _hash;
     private string _currentName;
 
-    public EmbeddedCreatedFont(PdfDocument doc, byte[] copy, PdfEmbedFontOptions options)
+    private readonly PdfFontSource _source;
+
+    public EmbeddedCreatedFont(PdfDocument doc, PdfFontSource source, PdfEmbedFontOptions options)
         : base(doc, "Font")
     {
-        _data = copy;
-        _faceIndex = options.FaceIndex;
-        // The sfnt version (OpenType spec, "Organization of an OpenType Font"): 1.0, 'true' (Apple), 'OTTO' (CFF) or a collection.
-        if (_data.Length < 12 || System.Buffers.Binary.BinaryPrimitives.ReadUInt32BigEndian(_data) is not (0x00010000 or 0x74727565 or 0x4F54544F or 0x74746366))
-        {
-            throw new PdfFormatException("The data is not a TrueType or OpenType font (unknown sfnt version).");
-        }
-
-        try
-        {
-            _font = SfntFont.Parse(_data, options.FaceIndex, GlyphPrograms.Never);
-        }
-        catch (FontProgramException ex)
-        {
-            throw new PdfFormatException("The font data is not a usable TrueType or OpenType font: " + ex.Message, ex);
-        }
-
-        if (_font.GlyphCount < 1)
-        {
-            throw new PdfFormatException("The font has no glyphs.");
-        }
+        _source = source;
+        _data = source.Data;
+        _faceIndex = source.FaceIndex;
+        _font = source.Font;
 
         _isCff = _font.Kind == FontProgramKind.OpenTypeCff;
         _upem = _font.UnitsPerEm;
@@ -324,7 +412,15 @@ internal sealed class EmbeddedCreatedFont : PdfCreatedFont
         _type0.SetEntry("ToUnicode", toUnicodeRef);
         Reference = doc.AddObject(_type0);
         Describe();
-        FinishForSave();
+        UpdateNames();
+
+        // A font whose tables cannot be subset is refused here, not when the document is saved. Cutting an empty subset proves the tables
+        // can be read; it is done once per font source, whichever documents embed it.
+        if (_subset && !source.SubsetChecked)
+        {
+            _ = BuildSubset();
+            source.SubsetChecked = true;
+        }
     }
 
     public override string BaseFontName => _currentName;
@@ -520,7 +616,7 @@ internal sealed class EmbeddedCreatedFont : PdfCreatedFont
     /// text is <paramref name="text"/> when the glyph has none yet; <paramref name="conflict"/> is true when it already has a
     /// different one, so the caller must wrap this use in /ActualText.
     /// </summary>
-    internal int CodeForGlyph(int gid, string? text, out bool conflict, out int widthOfCode)
+    internal int CodeForGlyph(int gid, ReadOnlySpan<char> text, out bool conflict, out int widthOfCode)
     {
         if ((uint)gid >= (uint)_font.GlyphCount)
         {
@@ -537,14 +633,15 @@ internal sealed class EmbeddedCreatedFont : PdfCreatedFont
             return 0;
         }
 
-        int code = CodeFor(gid, text);
+        // The text is made into a string only for a glyph the font has not seen; the usual call finds it known and allocates nothing.
+        int code = _codeOfGlyph.TryGetValue(gid, out int existing) ? existing : CodeFor(gid, text.IsEmpty ? null : text.ToString());
         int index = _indexOfGlyph[gid];
         string? known = _unicodes[index];
-        if (known is null && !string.IsNullOrEmpty(text))
+        if (known is null && !text.IsEmpty)
         {
-            _unicodes[index] = text;
+            _unicodes[index] = text.ToString();
         }
-        else if (known is not null && text is not null && !string.Equals(known, text, StringComparison.Ordinal))
+        else if (known is not null && !text.IsEmpty && !text.SequenceEqual(known))
         {
             conflict = true;
         }
@@ -567,27 +664,8 @@ internal sealed class EmbeddedCreatedFont : PdfCreatedFont
         _finishedGlyphCount = _glyphs.Count;
 
         // ---- font program ----
-        string tag = _subset ? SubsetTag() : string.Empty;
-        _currentName = tag.Length > 0 ? tag + "+" + _postScriptName : _postScriptName;
-        BaseFont = _currentName;
-        byte[] program;
-        if (_subset)
-        {
-            try
-            {
-                program = _isCff
-                    ? CffSubsetter.Subset(_font.GetTable("CFF "), _glyphs, _currentName)
-                    : TrueTypeSubsetter.Subset(_font, _glyphs);
-            }
-            catch (FontProgramException ex)
-            {
-                throw new PdfFormatException("The font cannot be subset: " + ex.Message, ex);
-            }
-        }
-        else
-        {
-            program = _data;
-        }
+        UpdateNames();
+        byte[] program = _subset ? BuildSubset() : _data;
 
         _fontFile.SetData(program, compress: true);
         if (_isCff)
@@ -607,23 +685,45 @@ internal sealed class EmbeddedCreatedFont : PdfCreatedFont
         _toUnicode.SetData(BuildToUnicode(), compress: true);
     }
 
+    private byte[] BuildSubset()
+    {
+        try
+        {
+            return _isCff
+                ? CffSubsetter.Subset(_font.GetTable("CFF "), _glyphs, _currentName)
+                : TrueTypeSubsetter.Subset(_font, _glyphs);
+        }
+        catch (FontProgramException ex)
+        {
+            throw new PdfFormatException("The font cannot be subset: " + ex.Message, ex);
+        }
+    }
+
+    // The name carries the subset tag once glyphs are used (a tag for the empty set before that).
+    private void UpdateNames()
+    {
+        string tag = _subset ? SubsetTag() : string.Empty;
+        _currentName = tag.Length > 0 ? tag + "+" + _postScriptName : _postScriptName;
+        BaseFont = _currentName;
+    }
+
     private string SubsetTag()
     {
         // Six capital letters from a hash of the font and the glyphs, so the same inputs always give the same name (ISO 32000-2 9.6.4).
-        _hash ??= SHA256.HashData(_data);
-        using var sha = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
-        sha.AppendData(_hash);
-        sha.AppendData(BitConverter.GetBytes(_faceIndex));
+        ulong h = PdfFontSource.Mix64(_source.Hash ^ ((ulong)_faceIndex << 40), default);
         foreach (int g in _glyphs)
         {
-            sha.AppendData(BitConverter.GetBytes(g));
+            h = System.Numerics.BitOperations.RotateLeft((h ^ (uint)g) * 0x9FB21C651E98DF25UL, 23) + 0x632BE59BD9B4E019UL;
         }
 
-        byte[] h = sha.GetHashAndReset();
+        h ^= h >> 31;
+        h *= 0x9FB21C651E98DF25UL;
+        h ^= h >> 29;
         var chars = new char[6];
         for (int i = 0; i < 6; i++)
         {
-            chars[i] = (char)('A' + (h[i] % 26));
+            chars[i] = (char)('A' + (int)(h % 26));
+            h /= 26;
         }
 
         return new string(chars);
@@ -650,6 +750,13 @@ internal sealed class EmbeddedCreatedFont : PdfCreatedFont
         }
 
         return w;
+    }
+
+    // Four upper-case hex digits without a string per number.
+    private static void AppendHex4(StringBuilder sb, int value)
+    {
+        const string Digits = "0123456789ABCDEF";
+        sb.Append(Digits[(value >> 12) & 15]).Append(Digits[(value >> 8) & 15]).Append(Digits[(value >> 4) & 15]).Append(Digits[value & 15]);
     }
 
     private byte[] BuildToUnicode()
@@ -679,10 +786,12 @@ internal sealed class EmbeddedCreatedFont : PdfCreatedFont
             for (int j = 0; j < n; j++)
             {
                 (int code, string glyphText) = entries[i + j];
-                sb.Append('<').Append(code.ToString("X4", CultureInfo.InvariantCulture)).Append("> <");
+                sb.Append('<');
+                AppendHex4(sb, code);
+                sb.Append("> <");
                 foreach (char ch in glyphText)
                 {
-                    sb.Append(((int)ch).ToString("X4", CultureInfo.InvariantCulture));
+                    AppendHex4(sb, ch);
                 }
 
                 sb.Append(">\n");

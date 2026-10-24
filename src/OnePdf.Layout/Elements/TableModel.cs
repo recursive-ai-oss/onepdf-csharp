@@ -328,17 +328,34 @@ internal readonly record struct CellInsets(double Top, double Bottom, double Lef
 /// <summary>Column widths worked out from content and the width on offer.</summary>
 internal static class TableWidths
 {
+    /// <summary>Body rows measured when every column is constant or relative and the table does not say.</summary>
+    private const int SampledRows = 100;
+
+    private static bool HasAutomaticColumn(Table t, int cols)
+    {
+        for (int c = 0; c < cols; c++)
+        {
+            if (c >= t.Columns.Count || t.Columns[c].WidthKind == RowItemWidth.Auto)
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     public static void Measure(LayoutContext ctx, Table t, TableGrid g, double[] min, double[] max)
     {
         bool rtl = ctx.Direction == LayoutDirection.RightToLeft;
         int header = g.HeaderCount;
         int body = g.BodyCount;
+        int limit = t.MeasuredRows ?? (HasAutomaticColumn(t, g.Cols) ? int.MaxValue : SampledRows);
         for (int pass = 0; pass < 2; pass++)
         {
             for (int s = 0; s < g.Slots.Length; s++)
             {
                 TableSlot slot = g.Slots[s];
-                if (slot.Top >= header && slot.Top < header + body && slot.Top - header >= t.MeasuredRows)
+                if (slot.Top >= header && slot.Top < header + body && slot.Top - header >= limit)
                 {
                     continue;
                 }
@@ -360,8 +377,20 @@ internal static class TableWidths
                     continue;
                 }
 
-                ctx.Push(slot.Top < header ? $"Header Row {slot.Top}" : slot.Top < header + body ? $"Row {slot.Top - header}" : $"Footer Row {slot.Top - header - body}");
-                ctx.Push($"Cell {slot.CellIndex}");
+                if (slot.Top < header)
+                {
+                    ctx.Push("Header Row ", slot.Top);
+                }
+                else if (slot.Top < header + body)
+                {
+                    ctx.Push("Row ", slot.Top - header);
+                }
+                else
+                {
+                    ctx.Push("Footer Row ", slot.Top - header - body);
+                }
+
+                ctx.Push("Cell ", slot.CellIndex);
                 WidthRange w;
                 try
                 {

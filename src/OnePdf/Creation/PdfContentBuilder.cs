@@ -191,28 +191,115 @@ public abstract partial class PdfContentBuilder : IDisposable
 
     internal static string Num(double v)
     {
+        Span<char> buffer = stackalloc char[48];
+        int n = FormatNum(v, buffer);
+        return n == 1 && buffer[0] == '0' ? "0" : new string(buffer[..n]);
+    }
+
+    // The number as the stream writes it: rounded to four decimals (halves away from zero), no trailing zeros, "0" for zero (never "-0"),
+    // invariant culture. Values below 1e9 are formatted from the rounded integer count of ten-thousandths, which is exactly what the
+    // general double formatting gives for them (at most 13 significant digits) and is several times faster; larger ones take the
+    // general path.
+    internal static int FormatNum(double v, Span<char> dest)
+    {
         if (!double.IsFinite(v))
         {
             throw new ArgumentOutOfRangeException(nameof(v), "Numbers must be finite.");
         }
 
-        double r = Math.Round(Math.Clamp(v, -1e12, 1e12), 4, MidpointRounding.AwayFromZero);
-        return r == 0 ? "0" : r.ToString("0.####", CultureInfo.InvariantCulture);
+        double clamped = Math.Clamp(v, -1e12, 1e12);
+        if (Math.Abs(clamped) < 1e9)
+        {
+            double scaled = Math.Round(clamped * 10000.0, MidpointRounding.AwayFromZero);
+            long count = (long)Math.Abs(scaled);
+            if (count == 0)
+            {
+                dest[0] = '0';
+                return 1;
+            }
+
+            int pos = 0;
+            if (scaled < 0)
+            {
+                dest[pos++] = '-';
+            }
+
+            long whole = count / 10000;
+            int fraction = (int)(count % 10000);
+            whole.TryFormat(dest[pos..], out int written, default, CultureInfo.InvariantCulture);
+            pos += written;
+            if (fraction != 0)
+            {
+                dest[pos++] = '.';
+                int digits = 4;
+                while (fraction % 10 == 0)
+                {
+                    fraction /= 10;
+                    digits--;
+                }
+
+                for (int i = digits - 1; i >= 0; i--)
+                {
+                    dest[pos + i] = (char)('0' + (fraction % 10));
+                    fraction /= 10;
+                }
+
+                pos += digits;
+            }
+
+            return pos;
+        }
+
+        double r = Math.Round(clamped, 4, MidpointRounding.AwayFromZero);
+        if (r == 0)
+        {
+            dest[0] = '0';
+            return 1;
+        }
+
+        return r.TryFormat(dest, out int w, "0.####", CultureInfo.InvariantCulture) ? w : throw new InvalidOperationException("A number does not fit its buffer.");
     }
 
     private static string Unit(double v) => Num(Math.Clamp(double.IsFinite(v) ? v : throw new ArgumentOutOfRangeException(nameof(v), "Numbers must be finite."), 0, 1));
 
-    private void Op(string op, params double[] operands)
+    // Appends Num(v) without making the string. The text is the same, so output bytes do not change.
+    internal static void AppendNum(StringBuilder sb, double v)
+    {
+        Span<char> buffer = stackalloc char[48];
+        int n = FormatNum(v, buffer);
+        sb.Append(buffer[..n]);
+    }
+
+    // True when Num(v) would be "0".
+    internal static bool IsZeroNum(double v) => Math.Round(Math.Clamp(v, -1e12, 1e12), 4, MidpointRounding.AwayFromZero) == 0;
+
+    private void CheckContentSize()
+    {
+        if (_sb.Length > MaxContentBytes)
+        {
+            throw new PdfLimitException("The content stream would be larger than 256 MiB.");
+        }
+    }
+
+    private void Op(string op, params ReadOnlySpan<double> operands)
     {
         CheckOpen();
-        var sb = new StringBuilder();
         foreach (double d in operands)
         {
-            sb.Append(Num(d)).Append(' ');
+            if (!double.IsFinite(d))
+            {
+                throw new ArgumentOutOfRangeException(nameof(operands), "Numbers must be finite.");
+            }
         }
 
-        sb.Append(op).Append('\n');
-        Emit(sb.ToString());
+        CheckContentSize();
+        foreach (double d in operands)
+        {
+            AppendNum(_sb, d);
+            _sb.Append(' ');
+        }
+
+        _sb.Append(op).Append('\n');
     }
 
     // ---- graphics state ----

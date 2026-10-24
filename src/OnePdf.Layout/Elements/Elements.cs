@@ -510,11 +510,7 @@ public sealed class Text : Element
 
     internal sealed record Fragment(ITextBlock Block, int First, int Count);
 
-    internal override WidthRange WidthsCore(LayoutContext ctx)
-    {
-        ITextBlock block = ctx.Text.Prepare(this, 1e6, ctx);
-        return new WidthRange(block.MinContentWidth, block.NaturalWidth);
-    }
+    internal override WidthRange WidthsCore(LayoutContext ctx) => ctx.Text.Widths(this, ctx);
 
     internal override FlowFit LayoutCore(LayoutContext ctx, in Constraint c, object? resume)
     {
@@ -605,6 +601,9 @@ public sealed class Text : Element
 internal interface ITextEngine
 {
     ITextBlock Prepare(Text text, double width, LayoutContext ctx);
+
+    /// <summary>The narrowest and widest the text can be, without laying it out at any width.</summary>
+    WidthRange Widths(Text text, LayoutContext ctx);
 }
 
 /// <summary>Wrapped lines of one text element at one width.</summary>

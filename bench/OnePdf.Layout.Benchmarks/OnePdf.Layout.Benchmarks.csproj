@@ -1,0 +1,32 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <RootNamespace>LayoutBench</RootNamespace>
+    <IsPackable>false</IsPackable>
+    <!-- Competitor packages are pinned for comparison only; their security advisories do not affect what ships. -->
+    <NoWarn>$(NoWarn);NU1901;NU1902;NU1903;NU1904;NU1701</NoWarn>
+    <!-- BenchmarkDotNet and the competitor packages are not trim/AOT clean and run as plain managed code. -->
+    <InvariantGlobalization>false</InvariantGlobalization>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="BenchmarkDotNet" />
+    <!-- Competitors, compiled packages used through their public API; they exist in this project only. -->
+    <PackageReference Include="PDFsharp-MigraDoc" />
+    <PackageReference Include="itext" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../../src/OnePdf/OnePdf.csproj" />
+    <ProjectReference Include="../../src/OnePdf.Layout/OnePdf.Layout.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- The same font files for every engine: the Liberation faces of the Fonts package and two Noto test subsets. -->
+    <None Include="../../src/OnePdf.Fonts/Fonts/Liberation*.ttf" Link="fonts/%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../../testdata/fonts/NotoSansArabic-Subset-Regular.ttf" Link="fonts/%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../../testdata/fonts/NotoSansDevanagari-Subset-Regular.ttf" Link="fonts/%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+</Project>
