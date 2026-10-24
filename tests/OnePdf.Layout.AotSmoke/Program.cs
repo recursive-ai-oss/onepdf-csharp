@@ -181,6 +181,30 @@ if (taggedRoot is null
     return 1;
 }
 
+// Hyphenation: a narrow column breaks long words at pattern points, and joined extraction gives the words back whole.
+const string hyphText = "Internationalization of hyphenation algorithms characterizes extraordinarily comprehensive documentation.";
+LayoutDocument hyph = LayoutDocument.Compose(d => d.Page(p =>
+{
+    p.Size(130, 300);
+    p.Margin(10);
+    p.Content().Text(t =>
+    {
+        t.Language("en-US");
+        t.Hyphenator(OnePdf.Hyphenation.Hyphenators.Auto());
+        t.Span(hyphText);
+    });
+}));
+using var hyphStream = new MemoryStream();
+hyph.Save(hyphStream, new PdfDocumentWriterOptions { LeaveOpen = true });
+using PdfDocument hyphBack = PdfDocument.Open(hyphStream.ToArray());
+string hyphRaw = string.Concat(hyphBack.ExtractText().Select(t => t.Text));
+string hyphJoined = string.Join(" ", hyphBack.ExtractText(new OnePdf.Text.PdfTextOptions { JoinHyphenatedWords = true }).Select(t => t.Text).SelectMany(s => s.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries)));
+if (!hyphRaw.Contains('­', StringComparison.Ordinal) && !hyphRaw.Contains('-', StringComparison.Ordinal) || hyphJoined != hyphText)
+{
+    Console.WriteLine("FAIL hyphenation: " + hyphRaw + " | " + hyphJoined);
+    return 1;
+}
+
 Console.WriteLine("ok");
 return 0;
 

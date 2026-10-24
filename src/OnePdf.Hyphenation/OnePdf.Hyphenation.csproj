@@ -1,0 +1,46 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <AssemblyName>$(LibName).Hyphenation</AssemblyName>
+    <RootNamespace>$(LibName).Hyphenation</RootNamespace>
+    <PackageId>$(PackagePrefix)$(LibName).Hyphenation</PackageId>
+    <Description>Hyphenation for OnePDF layout: Liang's pattern algorithm with exceptions, and bundled patterns for 26 language variants (English, German, French, Spanish, Italian, Dutch, Portuguese, Polish, Danish, Norwegian and more), loaded lazily. Plugs into the layout package's IHyphenator hook.</Description>
+    <IsAotCompatible>true</IsAotCompatible>
+    <IsTrimmable>true</IsTrimmable>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageTags>pdf;hyphenation;layout;nativeaot;trimmable</PackageTags>
+    <PackageLicenseExpression>(MIT OR Apache-2.0) AND MIT AND BSD-3-Clause AND Unlicense</PackageLicenseExpression>
+    <IncludeSymbols>true</IncludeSymbols>
+    <SymbolPackageFormat>snupkg</SymbolPackageFormat>
+    <PublishRepositoryUrl>true</PublishRepositoryUrl>
+    <EmbedUntrackedSources>true</EmbedUntrackedSources>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Using Include="System" />
+    <Using Include="System.Collections.Generic" />
+    <Using Include="System.IO" />
+    <Using Include="System.Threading" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="$(LibName).Layout.Tests" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- IHyphenator lives in the layout package. -->
+    <ProjectReference Include="../OnePdf.Layout/OnePdf.Layout.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Compact pattern data made by tools/hyphenation/generate.py. Read with GetManifestResourceStream. -->
+    <EmbeddedResource Include="Patterns/*.bin" LogicalName="$(LibName).Hyphenation.%(Filename)%(Extension)" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="THIRD-PARTY-NOTICES.md" Pack="true" PackagePath="/" />
+    <None Include="../../README.md" Pack="true" PackagePath="/" />
+  </ItemGroup>
+
+</Project>

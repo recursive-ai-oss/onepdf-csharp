@@ -70,6 +70,7 @@ are read through safe, bounds-checked code with size limits on by default.
 ```sh
 dotnet add package RecursiveAI.OnePdf
 dotnet add package RecursiveAI.OnePdf.Fonts   # optional: substitute fonts for the standard 14
+dotnet add package RecursiveAI.OnePdf.Hyphenation   # optional: hyphenation patterns for layout
 ```
 
 The package is `RecursiveAI.OnePdf`; the namespace is `OnePdf` (`using OnePdf;`). Target framework `net10.0`. Moving from PdfPig?
@@ -267,6 +268,7 @@ local system fonts. The code is safe C# with no `unsafe`, `Unsafe.*` or `MemoryM
 |---|---|
 | `RecursiveAI.OnePdf` | The library (assembly and namespace `OnePdf`). `MIT OR Apache-2.0`. |
 | `RecursiveAI.OnePdf.Fonts` | Substitute outlines for the standard 14 fonts when a document does not embed them: Liberation Sans, Serif and Mono; Noto Sans Math and Noto Sans Symbols for Symbol and ZapfDingbats. |
+| `RecursiveAI.OnePdf.Hyphenation` | Hyphenation for layout: Liang patterns with exceptions for 26 language variants (English, German, French, Spanish, Italian, Dutch, Portuguese, Polish, Danish, Norwegian and more), loaded lazily. Opt-in: `Text(...).Hyphenator(Hyphenators.Auto())`. The pattern files keep their own permissive licences (MIT, BSD-3-Clause, Unlicense and two short copy permissions), so the license expression is `(MIT OR Apache-2.0) AND MIT AND BSD-3-Clause AND Unlicense`; the notices ship in the package. |
 
 Register the substitutes once at startup; documents that do not embed Helvetica, Times, Courier, Symbol or ZapfDingbats (or their
 Arial, Times New Roman and Courier New aliases) then get outlines from the package, behind any matching installed font:

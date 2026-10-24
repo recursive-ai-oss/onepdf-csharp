@@ -3,6 +3,7 @@
     <Project Path="src/OnePdf/OnePdf.csproj" />
     <Project Path="src/OnePdf.Fonts/OnePdf.Fonts.csproj" />
     <Project Path="src/OnePdf.Layout/OnePdf.Layout.csproj" />
+    <Project Path="src/OnePdf.Hyphenation/OnePdf.Hyphenation.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/OnePdf.Tests/OnePdf.Tests.csproj" />
