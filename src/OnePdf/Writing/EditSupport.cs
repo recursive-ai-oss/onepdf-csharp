@@ -64,63 +64,86 @@ internal static class EditSupport
     /// </summary>
     public static void Adopt(PdfObject root, PdfResolver? resolver, int owner)
     {
-        var stack = new Stack<PdfObject>();
-        HashSet<PdfObject>? seen = resolver is null ? null : new HashSet<PdfObject>(ReferenceEqualityComparer.Instance);
-        stack.Push(root);
-        while (stack.Count > 0)
+        // Most values are scalars or containers of scalars, which need neither a work stack nor a visited set; both are made when the
+        // first nested container turns up.
+        Stack<PdfObject>? stack = null;
+        HashSet<PdfObject>? seen = null;
+        PdfObject node = root;
+        while (true)
         {
-            PdfObject node = stack.Pop();
-            if (seen is not null && !seen.Add(node))
+            if (seen is null || seen.Add(node))
             {
-                continue;
+                node.OwnerPlusOne = owner + 1;
+                switch (node)
+                {
+                    case PdfStream s:
+                        Push(ref stack, ref seen, root, resolver, s.Dictionary);
+                        break;
+
+                    case PdfDictionary d:
+                        if (resolver is not null)
+                        {
+                            if (d.Resolver is null)
+                            {
+                                d.Resolver = resolver;
+                            }
+                            else if (d.Resolver.Doc != resolver.Doc)
+                            {
+                                throw new ArgumentException("The value belongs to another document. Copy it into this one first.");
+                            }
+                        }
+
+                        for (int i = 0; i < d.RawCount; i++)
+                        {
+                            Child(d.ValueAt(i), ref stack, ref seen, root, resolver);
+                        }
+
+                        break;
+
+                    case PdfArray a:
+                        if (resolver is not null)
+                        {
+                            if (a.Resolver is null)
+                            {
+                                a.Resolver = resolver;
+                            }
+                            else if (a.Resolver.Doc != resolver.Doc)
+                            {
+                                throw new ArgumentException("The value belongs to another document. Copy it into this one first.");
+                            }
+                        }
+
+                        for (int i = 0; i < a.Count; i++)
+                        {
+                            Child(a.GetRaw(i), ref stack, ref seen, root, resolver);
+                        }
+
+                        break;
+                }
             }
 
-            node.OwnerPlusOne = owner + 1;
-            switch (node)
+            if (stack is null || stack.Count == 0)
             {
-                case PdfStream s:
-                    stack.Push(s.Dictionary);
-                    break;
-
-                case PdfDictionary d:
-                    Bind(d.Resolver, resolver, v => d.Resolver = v);
-                    for (int i = 0; i < d.RawCount; i++)
-                    {
-                        Child(d.ValueAt(i), stack, resolver);
-                    }
-
-                    break;
-
-                case PdfArray a:
-                    Bind(a.Resolver, resolver, v => a.Resolver = v);
-                    for (int i = 0; i < a.Count; i++)
-                    {
-                        Child(a.GetRaw(i), stack, resolver);
-                    }
-
-                    break;
+                return;
             }
+
+            node = stack.Pop();
         }
     }
 
-    private static void Bind(PdfResolver? current, PdfResolver? wanted, Action<PdfResolver> set)
+    private static void Push(ref Stack<PdfObject>? stack, ref HashSet<PdfObject>? seen, PdfObject root, PdfResolver? resolver, PdfObject child)
     {
-        if (wanted is null)
+        stack ??= new Stack<PdfObject>();
+        if (seen is null && resolver is not null)
         {
-            return;
+            // Everything visited so far is the root alone.
+            seen = new HashSet<PdfObject>(ReferenceEqualityComparer.Instance) { root };
         }
 
-        if (current is null)
-        {
-            set(wanted);
-        }
-        else if (current.Doc != wanted.Doc)
-        {
-            throw new ArgumentException("The value belongs to another document. Copy it into this one first.");
-        }
+        stack.Push(child);
     }
 
-    private static void Child(PdfObject child, Stack<PdfObject> stack, PdfResolver? resolver)
+    private static void Child(PdfObject child, ref Stack<PdfObject>? stack, ref HashSet<PdfObject>? seen, PdfObject root, PdfResolver? resolver)
     {
         if (child is PdfStream)
         {
@@ -134,7 +157,7 @@ internal static class EditSupport
 
         if (child is PdfDictionary or PdfArray)
         {
-            stack.Push(child);
+            Push(ref stack, ref seen, root, resolver, child);
         }
     }
 }

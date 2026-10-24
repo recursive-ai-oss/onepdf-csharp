@@ -153,6 +153,14 @@ public sealed partial class PdfDocumentWriter : IDisposable
         return Hold(() => _workspace.AddFont(fontData, options));
     }
 
+    /// <summary>Adds a font read once with <see cref="PdfFontSource.Load"/>; see <see cref="PdfDocument.AddFont(PdfFontSource, PdfEmbedFontOptions?)"/>.</summary>
+    public PdfCreatedFont AddFont(PdfFontSource source, PdfEmbedFontOptions? options = null)
+    {
+        ArgumentNullException.ThrowIfNull(source);
+        CheckNotFinished();
+        return Hold(() => _workspace.AddFont(source, options));
+    }
+
     /// <summary>Adds a JPEG image, written at once; see <see cref="PdfDocument.AddJpegImage"/>.</summary>
     public PdfCreatedImage AddJpegImage(ReadOnlyMemory<byte> jpeg)
     {
