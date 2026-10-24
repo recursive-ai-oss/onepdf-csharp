@@ -1339,6 +1339,73 @@ internal static class TextLayout
         });
     }
 
+    /// <summary>
+    /// The word as a layout engine would have put it on the page, for <see cref="Reorder"/>. A single glyph that stands for several right-to-left
+    /// characters (an Arabic lam-alef or lam-yeh ligature) holds them in logical order in its text; the page shows them reversed with the
+    /// rest of the run, so their order inside the glyph is reversed here and the reordering restores it.
+    /// </summary>
+    private static string VisualWordText(PdfTextGlyph[] g, Item[] items, int[] ids, int start, int len)
+    {
+        var sb = new StringBuilder();
+        for (int k = 0; k < len; k++)
+        {
+            ref Item it = ref items[ids[start + k]];
+            if (it.Space)
+            {
+                continue;
+            }
+
+            string t = g[it.G].Text;
+            if (t.Length > 1 && IsAllRtl(t))
+            {
+                for (int i = t.Length - 1; i >= 0; i--)
+                {
+                    if (char.IsLowSurrogate(t[i]) && i > 0 && char.IsHighSurrogate(t[i - 1]))
+                    {
+                        sb.Append(t[i - 1]).Append(t[i]);
+                        i--;
+                    }
+                    else
+                    {
+                        sb.Append(t[i]);
+                    }
+                }
+            }
+            else
+            {
+                sb.Append(t);
+            }
+        }
+
+        return sb.ToString();
+    }
+
+    // True when every character with a direction of its own is right to left (marks and neutrals do not count) and there is at least one.
+    private static bool IsAllRtl(string t)
+    {
+        bool any = false;
+        for (int i = 0; i < t.Length; i++)
+        {
+            int cp = char.IsHighSurrogate(t[i]) && i + 1 < t.Length && char.IsLowSurrogate(t[i + 1]) ? char.ConvertToUtf32(t[i], t[i + 1]) : t[i];
+            if (cp > 0xFFFF)
+            {
+                i++;
+            }
+
+            BidiClass c = Bidi.GetClass(cp);
+            if (Bidi.IsRtl(c))
+            {
+                any = true;
+            }
+            else if (c is BidiClass.L or BidiClass.EN or BidiClass.AN)
+            {
+                return false;
+            }
+        }
+
+        return any;
+    }
+
     /// <summary>The length <see cref="WordText"/> would have, without building it.</summary>
     private static int WordTextLength(PdfTextGlyph[] g, Item[] items, int[] ids, int start, int len)
     {
@@ -1435,7 +1502,7 @@ internal static class TextLayout
             cellStart = new bool[wc];
             for (int i = 0; i < wc; i++)
             {
-                visual[i] = WordText(g, items, ids, wr[i].Start, wr[i].Len);
+                visual[i] = VisualWordText(g, items, ids, wr[i].Start, wr[i].Len);
                 cellStart[i] = wr[i].Cell;
             }
 

@@ -47,5 +47,53 @@ if (back.Pages.Count != 1 || !text.Contains("Layout smoke", StringComparison.Ord
     return 1;
 }
 
+// Shaped paragraphs: one Latin (Liberation, justified) and one Arabic (right to left, joined) through the text renderer.
+string? arabicPath = FindFont("NotoSansArabic-Subset-Regular.ttf");
+if (arabicPath is null)
+{
+    Console.WriteLine("FAIL: testdata/fonts/NotoSansArabic-Subset-Regular.ttf not found; run from inside the repository");
+    return 1;
+}
+
+var fonts = TextFontRegistry.CreateDefault();
+fonts.Add(File.ReadAllBytes(arabicPath), "Noto Arabic");
+fonts.FallbackFamilies.Add("Noto Arabic");
+const string arabic = "\u0645\u0631\u062D\u0628\u0627 \u0628\u0627\u0644\u0639\u0627\u0644\u0645";
+using PdfDocument shaped = PdfDocument.CreateEmpty();
+PdfPage shapedPage = shaped.InsertBlankPage(0, 300, 200);
+using (PdfPageContentBuilder pb = shapedPage.BeginContent())
+{
+    var renderer = new TextRenderer(shaped);
+    ParagraphLayout latin = new TextParagraph("Shaped Latin text that is justified over several short lines of the page.", new TextStyle { Size = 12 }) { Alignment = TextAlignment.Justify }.Shape(fonts).Layout(200);
+    ParagraphLayout rtl = new TextParagraph(arabic, new TextStyle { Size = 14 }).Shape(fonts).Layout(200);
+    renderer.Draw(pb, latin, 20, 180);
+    renderer.Draw(pb, rtl, 20, 180 - latin.Height - 10);
+    pb.Commit();
+}
+
+using var shapedOut = new MemoryStream();
+shaped.Save(shapedOut);
+using PdfDocument shapedBack = PdfDocument.Open(shapedOut.ToArray());
+string shapedText = string.Concat(shapedBack.ExtractText().Select(t => t.Text));
+if (!shapedText.Contains("Shaped Latin text", StringComparison.Ordinal) || !shapedText.Contains(arabic, StringComparison.Ordinal))
+{
+    Console.WriteLine("FAIL shaped: " + shapedText);
+    return 1;
+}
+
 Console.WriteLine("ok");
 return 0;
+
+static string? FindFont(string name)
+{
+    for (string? dir = Directory.GetCurrentDirectory(); dir is not null; dir = Path.GetDirectoryName(dir))
+    {
+        string candidate = Path.Combine(dir, "testdata", "fonts", name);
+        if (File.Exists(candidate))
+        {
+            return candidate;
+        }
+    }
+
+    return null;
+}
