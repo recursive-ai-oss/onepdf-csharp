@@ -11,6 +11,14 @@ public sealed class Column : Element
     /// <summary>The items, first at the top.</summary>
     public List<Element> Items { get; } = [];
 
+    internal override void PushChildren(Stack<Element> into)
+    {
+        foreach (Element e in Items)
+        {
+            into.Push(e);
+        }
+    }
+
     /// <summary>Space between neighbouring items on one page, in points. Default 0. Not added at the top of a page.</summary>
     public double Spacing { get; set; }
 
@@ -135,6 +143,14 @@ public sealed class Row : Element
 {
     /// <summary>The cells in logical order.</summary>
     public List<RowItem> Items { get; } = [];
+
+    internal override void PushChildren(Stack<Element> into)
+    {
+        foreach (RowItem i in Items)
+        {
+            into.Push(i.Content);
+        }
+    }
 
     /// <summary>Space between cells in points. Default 0.</summary>
     public double Spacing { get; set; }
@@ -306,6 +322,14 @@ public sealed class Layers : Element
 {
     /// <summary>The layers, back to front.</summary>
     public List<Element> Items { get; } = [];
+
+    internal override void PushChildren(Stack<Element> into)
+    {
+        foreach (Element e in Items)
+        {
+            into.Push(e);
+        }
+    }
 
     /// <summary>The index in <see cref="Items"/> of the layer that sets the size. Default 0.</summary>
     public int PrimaryIndex { get; set; }

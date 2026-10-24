@@ -25,6 +25,20 @@ public sealed class Table : Element
     /// <summary>The columns. May be empty: then all columns are automatic.</summary>
     public List<TableColumn> Columns { get; } = [];
 
+    internal override void PushChildren(Stack<Element> into)
+    {
+        foreach (List<TableRow> rows in new[] { HeaderRows, Rows, FooterRows })
+        {
+            foreach (TableRow row in rows)
+            {
+                foreach (TableCell cell in row.Cells)
+                {
+                    into.Push(cell.Content);
+                }
+            }
+        }
+    }
+
     /// <summary>Rows repeated at the top of every page the table spans.</summary>
     public List<TableRow> HeaderRows { get; } = [];
 

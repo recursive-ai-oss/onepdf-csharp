@@ -414,6 +414,74 @@ public class TableOfContentsTests
         Assert.DoesNotContain("Not listed", toc, StringComparison.Ordinal);
     }
 
+    private static MultiColumn TwoColumns(int chapters)
+    {
+        var mc = new MultiColumn { Count = 2, Gap = 12, Spacing = 6 };
+        for (int c = 1; c <= chapters; c++)
+        {
+            mc.Items.Add(H(1, $"Chapter {c}"));
+            for (int s = 1; s <= 2; s++)
+            {
+                mc.Items.Add(H(2, $"Section {c}.{s}"));
+                mc.Items.Add(new Text { Content = Paragraph(c * 10 + s, 45), Size = 10 });
+            }
+
+            if (c % 4 == 0)
+            {
+                mc.Items.Add(new PageBreak());
+            }
+        }
+
+        return mc;
+    }
+
+    [Fact]
+    public void HeadingsInsideAMultiColumnAreListedWithTheirPagesAndTargets()
+    {
+        var toc = new TableOfContents { MinLevel = 1, MaxLevel = 2 };
+        var doc = new LayoutDocument();
+        doc.Pages.Add(new LayoutPage { Size = new PageSize(300, 300), Margin = Insets.All(24), NumberStyle = NumberingStyle.LowerRoman, Content = new Column { Items = { new Text { Content = "Contents", Size = 18, Weight = 700 }, toc } } });
+        doc.Pages.Add(new LayoutPage { Size = new PageSize(300, 300), Margin = Insets.All(24), StartNumber = 1, Content = new Column { Items = { TwoColumns(12) } } });
+        (int front, string[] texts, PdfDocument pdf) = Open(doc);
+        using (pdf)
+        {
+            List<(string Title, string Label)> entries = TocLines(texts, front);
+            Assert.Equal(36, entries.Count);
+            foreach ((string title, string label) in entries)
+            {
+                Assert.Equal((PageOfHeading(texts, title, front) - front + 1).ToString(System.Globalization.CultureInfo.InvariantCulture), label);
+            }
+
+            // The page breaks put chapters 5 and 9 at the top of a page of their own.
+            Assert.NotEqual(entries.First(e => e.Title == "Chapter 4").Label, entries.First(e => e.Title == "Chapter 5").Label);
+            var links = pdf.Pages.Take(front).SelectMany(p => p.Links).ToList();
+            Assert.Equal(36, links.Count);
+            foreach (PdfAnnotation l in links)
+            {
+                Assert.Equal(PageOfHeading(texts, l.Contents!, front), l.Action!.Destination!.PageIndex);
+            }
+
+            // A heading in the second column has its target in that column: the target is below the page top by its own position.
+            PdfAnnotation link = links.First(l => l.Contents == "Section 2.2");
+            OnePdf.Text.PdfTextWord word = pdf.Pages[link.Action!.Destination!.PageIndex].ExtractText().Words.First(w => w.Text == "2.2");
+            Assert.InRange(link.Action.Destination.Top!.Value - word.Bounds.Top, -1, 12);
+        }
+    }
+
+    [Fact]
+    public void ATableInsideAMultiColumnIsFoundAndDrawn()
+    {
+        var doc = new LayoutDocument();
+        var mc = new MultiColumn { Count = 2, Gap = 12 };
+        mc.Items.Add(new TableOfContents { MinLevel = 1, MaxLevel = 1 });
+        doc.Pages.Add(new LayoutPage { Size = new PageSize(300, 300), Margin = Insets.All(24), Content = new Column { Items = { mc, new PageBreak(), H(1, "Chapter 1"), new Text { Content = "body" }, new PageBreak(), H(1, "Chapter 2") } } });
+        using PdfDocument pdf = PdfDocument.Open(Support.Save(doc));
+        string text = Support.Normalize(pdf.Pages[0].ExtractText().Text);
+        Assert.Matches(@"Chapter 1[ .]*2\b", text);
+        Assert.Matches(@"Chapter 2[ .]*3\b", text);
+        Assert.Equal(3, pdf.Pages.Count);
+    }
+
     [Fact]
     public void StructureIsTocTociReferenceLink()
     {

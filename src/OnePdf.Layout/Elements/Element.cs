@@ -423,6 +423,11 @@ public abstract class Element
     /// <summary>True when this element, or the chain of transparent wrappers around the real content, asks to stay with what follows it.</summary>
     internal virtual bool EffectiveKeepWithNext => KeepWithNext;
 
+    /// <summary>Pushes the elements this one holds, so a search of the tree (for a table of contents) can reach them. Leaves push nothing.</summary>
+    internal virtual void PushChildren(Stack<Element> into)
+    {
+    }
+
     internal virtual string TypeName => GetType().Name;
 
     internal string Label => Name ?? TypeName;

@@ -217,68 +217,14 @@ internal sealed class TocState
                 continue;
             }
 
-            switch (e)
+            if (e is TableOfContents)
             {
-                case TableOfContents:
-                    return true;
-                case SingleChildElement s:
-                    Push(stack, s.Child);
-                    break;
-                case Column c:
-                    foreach (Element i in c.Items)
-                    {
-                        stack.Push(i);
-                    }
-
-                    break;
-                case Row r:
-                    foreach (RowItem i in r.Items)
-                    {
-                        stack.Push(i.Content);
-                    }
-
-                    break;
-                case Layers l:
-                    foreach (Element i in l.Items)
-                    {
-                        stack.Push(i);
-                    }
-
-                    break;
-                case Component k:
-                    stack.Push(k.ComposedElement);
-                    break;
-                case ItemList il:
-                    foreach (ListItem i in il.Items)
-                    {
-                        stack.Push(i.Content);
-                    }
-
-                    break;
-                case Table t:
-                    foreach (List<TableRow> rows in new[] { t.HeaderRows, t.Rows, t.FooterRows })
-                    {
-                        foreach (TableRow row in rows)
-                        {
-                            foreach (TableCell cell in row.Cells)
-                            {
-                                stack.Push(cell.Content);
-                            }
-                        }
-                    }
-
-                    break;
+                return true;
             }
+
+            e.PushChildren(stack);
         }
 
         return false;
-    }
-
-    private static void Push(Stack<Element> stack, Element? e)
-    {
-        if (e is not null)
-        {
-            stack.Push(e);
-        }
     }
 }

@@ -299,7 +299,7 @@ public abstract class Component : Element
 
     internal override bool EffectiveKeepWithNext => KeepWithNext || Composed.EffectiveKeepWithNext;
 
-    internal Element ComposedElement => Composed;
+    internal override void PushChildren(Stack<Element> into) => into.Push(Composed);
 
     private Element Composed => _composed ??= Compose() ?? throw new InvalidOperationException("Compose returned null.");
 
