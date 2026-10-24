@@ -16,7 +16,7 @@ internal static class XmpWriter
     /// (part 0: none) and, when <paramref name="pdfUA"/> is set, the PDF/UA-1 identification (ISO 14289-1 5). A PDF/A file that also
     /// claims PDF/UA declares the pdfuaid schema as an extension schema (ISO 19005-2, 6.6.2.3).
     /// </summary>
-    public static byte[] Write(DocumentInfo? info, int part, string conformance, bool pdfUA = false)
+    public static byte[] Write(DocumentInfo? info, int part, string conformance, bool pdfUA = false, int uaPart = 1)
     {
         var sb = new StringBuilder(1024);
         // The id value is fixed by the XMP specification; the BOM goes in the begin attribute as U+FEFF (6.6.2.1: UTF-8 only,
@@ -36,7 +36,13 @@ internal static class XmpWriter
         if (pdfUA)
         {
             sb.Append("  <rdf:Description rdf:about=\"\" xmlns:pdfuaid=\"http://www.aiim.org/pdfua/ns/id/\">\n");
-            sb.Append("   <pdfuaid:part>1</pdfuaid:part>\n");
+            sb.Append("   <pdfuaid:part>").Append(uaPart.ToString(CultureInfo.InvariantCulture)).Append("</pdfuaid:part>\n");
+            if (uaPart == 2)
+            {
+                // ISO 14289-2 5: part 2 also names the revision of the standard, the year it was published.
+                sb.Append("   <pdfuaid:rev>").Append(PdfUA.PdfUA2.Revision.ToString(CultureInfo.InvariantCulture)).Append("</pdfuaid:rev>\n");
+            }
+
             sb.Append("  </rdf:Description>\n");
             if (part > 0)
             {

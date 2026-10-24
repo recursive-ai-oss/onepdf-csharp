@@ -6,7 +6,7 @@ namespace OnePdf.Fuzz;
 
 /// <summary>
 /// PDF/A and PDF/UA target: opens the bytes as an editable document, checks it, prepares it and saves it as PDF/A, PDF/UA-1 or both
-/// (part, level and profile chosen from the first byte). A save that succeeds must read back as a document the checkers find nothing
+/// (part, level and profile chosen from the first byte; PDF/UA-2 is one of the choices). A save that succeeds must read back as a document the checkers find nothing
 /// wrong with. Only the library's typed exceptions may escape.
 /// </summary>
 internal static class PdfATarget
@@ -17,7 +17,7 @@ internal static class PdfATarget
         var limits = PdfLimits.Default with { MaxDecodedStreamBytes = 8 << 20, MaxObjects = 200_000 };
         var options = new PdfAOptions { Part = (sel & 1) == 0 ? PdfAPart.Part2 : PdfAPart.Part3, Conformance = (sel & 16) != 0 ? PdfAConformance.A : (sel & 2) == 0 ? PdfAConformance.B : PdfAConformance.U };
         bool uaOnly = (sel & 64) != 0;
-        PdfUAOptions? ua = (sel & 32) != 0 || uaOnly ? new PdfUAOptions { Language = "en" } : null;
+        PdfUAOptions? ua = (sel & 32) != 0 || uaOnly ? new PdfUAOptions { Language = "en", Part = (sel & 128) != 0 ? PdfUAPart.Part2 : PdfUAPart.Part1 } : null;
         PdfAOptions? pdfa = uaOnly ? null : options;
         byte[] input = data.ToArray();
         try
@@ -26,6 +26,7 @@ internal static class PdfATarget
             {
                 _ = ro.CheckPdfA(options);
                 _ = ro.CheckPdfUA();
+                _ = ro.CheckPdfUA(PdfUAPart.Part2);
             }
 
             using PdfDocument doc = PdfDocument.Open(input, new PdfOpenOptions { Limits = limits, AllowEditing = true });
@@ -78,7 +79,7 @@ internal static class PdfATarget
 
             if (ua is not null)
             {
-                foreach (PdfUAViolation v in back.CheckPdfUA())
+                foreach (PdfUAViolation v in back.CheckPdfUA(ua.Part))
                 {
                     if (!v.Message.Contains("cannot be read", StringComparison.Ordinal))
                     {

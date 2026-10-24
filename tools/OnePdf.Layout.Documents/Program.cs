@@ -850,6 +850,74 @@ Write("inline-objects", "A paragraph with inline objects: drawn icons, a badge w
     });
 }));
 
+// The same kind of document saved as PDF/UA-2: PDF 2.0, structure elements in the PDF 2.0 namespace, structure destinations for the
+// bookmarks, anchors and table-of-contents links, and the revision in the XMP identification.
+{
+    LayoutDocument ua2 = LayoutDocument.Compose(doc =>
+    {
+        doc.Title("Field guide").Author("A. Writer").Language("en-US");
+        doc.Page(page =>
+        {
+            page.Size(PageSize.A5);
+            page.Margin(30);
+            page.Header().PaddingBottom(4).BorderBottom(0.5, Colors.Grey).Text("Field guide").FontSize(8).FontColor(Colors.Grey);
+            page.Footer().AlignEnd().Text(t => { t.FontSize(8); t.Span("Page "); t.CurrentPageNumber(); t.Span(" of "); t.TotalPages(); });
+            page.Content().Column(col =>
+            {
+                col.Spacing(8);
+                col.Item().Title().Text("The field guide").FontSize(22).Bold().FontColor(ink);
+                col.Item().TableOfContents(toc => toc.Levels(1, 2));
+                col.Item().PageBreak();
+                col.Item().Bookmark("Introduction").Anchor("intro").Heading(1).Text("Introduction").FontSize(16).Bold().FontColor(ink);
+                col.Item().Text(Para(3)).FontSize(10).Justify();
+                col.Item().Aside().Background(paper).Padding(6).Text("An aside stands apart from the main text, like this sidebar.").FontSize(9).Italic();
+                col.Item().Bookmark("Plants", 1).Heading(2).Text("Plants").FontSize(13).Bold();
+                col.Item().Text(t =>
+                {
+                    t.FontSize(10);
+                    t.Span("A leaf ");
+                    t.InlineImage(jpeg, 12, 12).AltText("a leaf").AlignTextBottom();
+                    t.Span(" sits inside the line, and a note follows.");
+                });
+                col.Item().Footnote().Text("1. A footnote is marked as a note, not as a paragraph.").FontSize(8);
+                col.Item().Column(c =>
+                {
+                    c.Spacing(4);
+                    c.Item().Heading(2).Text("Lists").FontSize(13).Bold();
+                    c.Item().List(list =>
+                    {
+                        list.Numbered();
+                        list.Item().Text("Look closely").FontSize(10);
+                        list.Item().Text("Write it down").FontSize(10);
+                    });
+                });
+                col.Item().Heading(1).Text("Species").FontSize(16).Bold().FontColor(ink);
+                col.Item().Table(table =>
+                {
+                    table.Columns(c => { c.Relative(2); c.Relative(1); });
+                    table.CellPadding(3);
+                    table.CellBorder(0.4, Colors.LightGrey);
+                    table.HeaderRow(r => { r.Cell().Text("Species").FontSize(10).Bold(); r.Cell().Text("Height").FontSize(10).Bold(); });
+                    for (int i = 0; i < 12; i++)
+                    {
+                        int n = i;
+                        table.Row(r => { r.Cell().RowHeader().Text($"Species {n + 1}").FontSize(10); r.Cell().Text($"{(n + 1) * 7} cm").FontSize(10); });
+                    }
+                });
+                col.Item().Hyperlink("https://example.com/guide").Text("The guide on the web").FontSize(10).Underline();
+                col.Item().LinkToAnchor("intro").Text("Back to the introduction").FontSize(10).Underline();
+            });
+        });
+    });
+    using var ms = new MemoryStream();
+    ua2.Save(ms, new PdfSaveOptions { DocumentId = new byte[16], PdfUA = new PdfUAOptions { Part = PdfUAPart.Part2 } }, options);
+    byte[] pdf = ms.ToArray();
+    File.WriteAllBytes(Path.Combine(outDir, "accessible-ua2.pdf"), pdf);
+    using PdfDocument back = PdfDocument.Open(pdf);
+    index.Append(CultureInfo.InvariantCulture, $"accessible-ua2.pdf,{back.Pages.Count},\"Tagged document saved as PDF/UA-2 (PDF 2.0): title, table of contents, aside, footnote, inline picture, list, table with column and row headers, links, bookmarks\"\n");
+    Console.WriteLine($"accessible-ua2.pdf  {back.Pages.Count} page(s)");
+}
+
 File.WriteAllText(Path.Combine(outDir, "index.csv"), index.ToString());
 return 0;
 

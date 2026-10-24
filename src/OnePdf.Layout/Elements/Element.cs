@@ -274,6 +274,7 @@ internal sealed class LayoutContext : IDisposable
         }
 
         Target.AddNamedDestination(name, Page.Index, d.PdfY(0));
+        Tag.NeedDestinationElement(e => Target.SetDestinationElement(name, e));
     }
 
     /// <summary>Adds an outline entry going to the top of the element being drawn. A level more than one below the previous entry is lifted.</summary>
@@ -291,7 +292,9 @@ internal sealed class LayoutContext : IDisposable
         }
 
         _lastBookmarkLevel = clamped;
+        int index = Target.BookmarkCount;
         Target.AddBookmark(title, clamped, Page.Index, d.PdfY(0));
+        Tag.NeedDestinationElement(e => Target.SetBookmarkElement(index, e));
     }
 
     /// <summary>Adds a link annotation over the box of the element being drawn.</summary>

@@ -64,10 +64,40 @@ internal sealed class Tagger
     public TagNode? Current { get; private set; }
 
     /// <summary>True when the innermost element is one whose text is its own content: a paragraph does not need a second paragraph inside it.</summary>
-    public bool TextIsDirect => Current is { Type: "P" or "Lbl" or "Link" or "H" or "H1" or "H2" or "H3" or "H4" or "H5" or "H6" or "Figure" };
+    public bool TextIsDirect => Current is { Type: "P" or "Lbl" or "Link" or "Title" or "H" or "H1" or "H2" or "H3" or "H4" or "H5" or "H6" or "Figure" };
 
     /// <summary>True inside an artifact: nothing is tagged.</summary>
     public bool InArtifact => _artifactDepth > 0;
+
+    // Destinations (anchors, bookmarks) wait here for the structure element their target lies in: the first one opened after they were
+    // defined, or the enclosing one when nothing opens before the flush (ISO 32000-2 12.3.2.3 structure destinations).
+    private readonly List<Action<PdfStructureElement>> _pendingDestinations = [];
+
+    /// <summary>Asks for the structure element the destination just defined lies in; <paramref name="assign"/> gets it. Does nothing when tagging is off.</summary>
+    public void NeedDestinationElement(Action<PdfStructureElement> assign)
+    {
+        if (Enabled && _root is not null && _artifactDepth == 0)
+        {
+            _pendingDestinations.Add(assign);
+        }
+    }
+
+    /// <summary>Gives destinations that no element claimed the element that is current now.</summary>
+    public void FlushDestinations()
+    {
+        if (_pendingDestinations.Count == 0 || _root is null)
+        {
+            return;
+        }
+
+        PdfStructureElement e = (Current ?? _root).Element;
+        foreach (Action<PdfStructureElement> assign in _pendingDestinations)
+        {
+            assign(e);
+        }
+
+        _pendingDestinations.Clear();
+    }
 
     /// <summary>Opens the <c>Document</c> element that holds everything.</summary>
     public void Start(string? language)
@@ -91,6 +121,7 @@ internal sealed class Tagger
             return;
         }
 
+        FlushDestinations();
         for (int i = _openList.Count - 1; i >= 0; i--)
         {
             _target.EndStructure(_openList[i].Element);
@@ -130,6 +161,16 @@ internal sealed class Tagger
             PdfStructureElement e = _target.BeginStructure(parent.Element, type, options);
             node = new TagNode(e, type, lang ?? parent.Language, parent);
             _openList.Add(node);
+            if (_pendingDestinations.Count > 0)
+            {
+                foreach (Action<PdfStructureElement> assign in _pendingDestinations)
+                {
+                    assign(e);
+                }
+
+                _pendingDestinations.Clear();
+            }
+
             if (continues)
             {
                 _open[(owner, parent)] = node;

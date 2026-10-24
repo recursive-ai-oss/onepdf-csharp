@@ -222,7 +222,7 @@ LayoutDocument.Compose(doc =>
 
 ### Pagination, links, structure
 
-`KeepTogether`, `KeepWithNext`, `EnsureSpace(height)` and `PageBreak()` control breaks (rules and defaults under [Pagination core](#pagination-core)). `Hyperlink(uri)`, `LinkToAnchor(id)`, `Anchor(id)` and `Bookmark(title, level)` make links and the outline. `Heading(level)`, `AltText`, `Language` and `Artifact` set the tags; tagging is on by default.
+`KeepTogether`, `KeepWithNext`, `EnsureSpace(height)` and `PageBreak()` control breaks (rules and defaults under [Pagination core](#pagination-core)). `Hyperlink(uri)`, `LinkToAnchor(id)`, `Anchor(id)` and `Bookmark(title, level)` make links and the outline. `Heading(level)`, `AltText`, `Language` and `Artifact` set the tags; tagging is on by default. `Aside()`, `Footnote()`, `Title()` and `Group(type)` add the PDF 2.0 grouping types `Aside`, `FENote`, `Title`, `Sect`, `Div`, `Part` and `BlockQuote` (`StructureGroup`); the 2.0-only ones can be saved as PDF/UA-2 but not as PDF/UA-1 (see [pdfua.md](pdfua.md)).
 
 ```csharp
 LayoutDocument.Compose(doc => doc.Page(page =>

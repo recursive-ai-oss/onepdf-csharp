@@ -67,10 +67,15 @@ internal static class PdfUAPreparer
         }
 
         PrepareAnnotations(doc, ct);
+        if (ua.Part == PdfUAPart.Part2)
+        {
+            PdfUA2.ConvertStructure(doc, ct);
+        }
+
         if (pdfA is null)
         {
             // With PDF/A the packet is written by the PDF/A preparer, which knows both identifications.
-            PdfAPreparer.WriteMetadata(doc, null, pdfUA: true);
+            PdfAPreparer.WriteMetadata(doc, null, pdfUA: true, (int)ua.Part);
         }
     }
 

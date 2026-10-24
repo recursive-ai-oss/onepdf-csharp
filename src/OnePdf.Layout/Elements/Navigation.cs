@@ -93,6 +93,7 @@ public sealed class Anchor : SingleChildElement
         }
 
         DrawChildren(d, p);
+        d.Ctx.Tag.FlushDestinations();
     }
 }
 
@@ -120,6 +121,7 @@ public sealed class Bookmark : SingleChildElement
         }
 
         DrawChildren(d, p);
+        d.Ctx.Tag.FlushDestinations();
     }
 }
 
@@ -149,6 +151,49 @@ public sealed class Heading : SingleChildElement
     {
         TocState.DefineTarget(d, p);
         TagScope scope = d.Ctx.Tag.Open(this, p.Continued, p.Continues, Types[Math.Clamp(Level, 1, 6) - 1]);
+        DrawChildren(d, p);
+        d.Ctx.Tag.Close(scope);
+        d.Ctx.Tag.FlushDestinations();
+    }
+}
+
+/// <summary>
+/// Gives its child a structure element of its own in the tagged output, for the grouping and note types that PDF 2.0 adds or keeps
+/// (ISO 32000-2 14.8.4): <c>Sect</c>, <c>Div</c>, <c>Part</c>, <c>BlockQuote</c>, <c>Aside</c> (content apart from the main flow),
+/// <c>FENote</c> (a footnote or endnote) and <c>Title</c> (a document or section title, as on a cover page). Nothing changes on the page.
+/// </summary>
+/// <remarks>
+/// <c>Aside</c>, <c>FENote</c> and <c>Title</c> are structure types of PDF 2.0 only. They are written without a role map, so a file that
+/// contains them can be saved as PDF/UA-2 (<see cref="PdfUAPart.Part2"/>) but not as PDF/UA-1, which refuses types it cannot map to
+/// an ISO 32000-1 standard type. Nothing is tagged when <see cref="LayoutOptions.Tagged"/> is false.
+/// </remarks>
+public sealed class StructureGroup : SingleChildElement
+{
+    private static readonly string[] Allowed = ["Sect", "Div", "Part", "BlockQuote", "Aside", "FENote", "Title"];
+    private string _type = "Sect";
+
+    /// <summary>The structure type: one of <c>Sect</c> (the default), <c>Div</c>, <c>Part</c>, <c>BlockQuote</c>, <c>Aside</c>, <c>FENote</c> or <c>Title</c>.</summary>
+    /// <exception cref="ArgumentException">Any other value.</exception>
+    public string Type
+    {
+        get => _type;
+        set
+        {
+            ArgumentNullException.ThrowIfNull(value);
+            if (Array.IndexOf(Allowed, value) < 0)
+            {
+                throw new ArgumentException("The structure type must be one of: " + string.Join(", ", Allowed) + ".", nameof(value));
+            }
+
+            _type = value;
+        }
+    }
+
+    internal override FlowFit LayoutCore(LayoutContext ctx, in Constraint c, object? resume) => Wrap(LayoutChild(ctx, c, resume), null);
+
+    internal override void DrawCore(in DrawContext d, Placed p)
+    {
+        TagScope scope = d.Ctx.Tag.Open(this, p.Continued, p.Continues, _type);
         DrawChildren(d, p);
         d.Ctx.Tag.Close(scope);
     }

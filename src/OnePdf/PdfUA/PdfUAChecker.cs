@@ -22,6 +22,8 @@ internal sealed class PdfUAChecker
     };
 
     private readonly PdfDocument _doc;
+    private readonly bool _part2;
+    private readonly bool _saving;
     private readonly bool _structureOnly;
     private readonly CancellationToken _ct;
     private readonly List<PdfUAViolation> _violations = [];
@@ -46,8 +48,12 @@ internal sealed class PdfUAChecker
     /// <param name="doc">The document.</param>
     /// <param name="structureOnly">Only the findings PDF/A level A shares with PDF/UA (tagging, structure types, figures, language).</param>
     /// <param name="ct">Checked between pages and nodes.</param>
-    public PdfUAChecker(PdfDocument doc, bool structureOnly, CancellationToken ct)
+    /// <param name="part">The part of ISO 14289 to check against.</param>
+    /// <param name="saving">True when the document is being prepared for a save, which writes the PDF 2.0 header that part 2 needs.</param>
+    public PdfUAChecker(PdfDocument doc, bool structureOnly, CancellationToken ct, PdfUAPart part = PdfUAPart.Part1, bool saving = false)
     {
+        _part2 = part == PdfUAPart.Part2;
+        _saving = saving;
         _doc = doc;
         _structureOnly = structureOnly;
         _ct = ct;
@@ -64,6 +70,11 @@ internal sealed class PdfUAChecker
         }
 
         CheckPages(hasTree);
+        if (_part2)
+        {
+            CheckDestinations();
+        }
+
         if (!_structureOnly)
         {
             CheckSecurity();
@@ -94,7 +105,7 @@ internal sealed class PdfUAChecker
         return _objrParent.TryGetValue(annotationObject, out int node) ? Text(_nodes[node].Dict, "Alt") ?? Text(_nodes[node].Dict, "ActualText") : null;
     }
 
-    private void Add(string checkpoint, string clause, string message, int owner = -1, int page = -1, string? aClause = null)
+    private void Add(string checkpoint, string clause, string message, int owner = -1, int page = -1, string? aClause = null, string? c2 = null)
     {
         if (_violations.Count >= MaxViolations)
         {
@@ -107,8 +118,28 @@ internal sealed class PdfUAChecker
             return;
         }
 
-        _violations.Add(new PdfUAViolation(checkpoint, _structureOnly ? aClause ?? clause : clause, message, owner, page));
+        string shown = _part2 ? c2 ?? Part2Clause(checkpoint) : _structureOnly ? aClause ?? clause : clause;
+        _violations.Add(new PdfUAViolation(checkpoint, shown, message, owner, page) { Part = _part2 ? 2 : 1 });
     }
+
+    // The clause of ISO 14289-2 for a finding. Numbers come from the clause each rule is reported under by veraPDF's ua2 profile where it
+    // checks the rule; a rule it does not check is filed under the nearest heading.
+    private static string Part2Clause(string checkpoint) => checkpoint switch
+    {
+        "01" => "8.2.2",
+        "02" or "09" => "8.2.4",
+        "06" => "8.11.1",
+        "07" => "8.11.2",
+        "11" => "8.4.4",
+        "13" => "8.2.5.28.2",
+        "15" => "8.2.5.26",
+        "16" => "Table 5",
+        "26" => "8",
+        "28" => "8.9",
+        "31" => "8.4.5.5.1",
+        "10" => "8.4.5",
+        _ => "8",
+    };
 
     // The same kind of problem a hundred times would bury the list: list the first few and count the rest.
     private bool Limited(string kind)
@@ -125,16 +156,16 @@ internal sealed class PdfUAChecker
         PdfDictionary? mark = catalog.GetDictionary("MarkInfo");
         if (mark is null || !mark.GetBool("Marked"))
         {
-            Add("06", "7.1", "The catalog has no /MarkInfo dictionary with /Marked true: the document is not declared as tagged.", aClause: "6.7.2.2");
+            Add("06", "7.1", "The catalog has no /MarkInfo dictionary with /Marked true: the document is not declared as tagged.", aClause: "6.7.2.2", c2: "6.2");
         }
         else if (mark.GetBool("Suspects"))
         {
-            Add("06", "7.1", "The /MarkInfo dictionary has /Suspects true.");
+            Add("06", "7.1", "The /MarkInfo dictionary has /Suspects true.", c2: "6.2");
         }
 
         if (!hasTree)
         {
-            Add("01", "7.1", "The document has no logical structure tree (/StructTreeRoot): its content is not tagged.", aClause: "6.7.3.3");
+            Add("01", "7.1", "The document has no logical structure tree (/StructTreeRoot): its content is not tagged.", aClause: "6.7.3.3", c2: "8.2");
         }
 
         string? lang = catalog.GetString("Lang")?.GetText();
@@ -152,6 +183,11 @@ internal sealed class PdfUAChecker
             return;
         }
 
+        if (_part2 && !_saving && !IsPdf20(_doc.Version))
+        {
+            Add("-", "5", $"The file is PDF {_doc.Version ?? "?"}, but PDF/UA-2 builds on PDF 2.0 (ISO 32000-2).", c2: "-");
+        }
+
         PdfStream? meta = catalog.GetStream("Metadata");
         if (meta is null)
         {
@@ -166,9 +202,14 @@ internal sealed class PdfUAChecker
             }
             else
             {
-                if (xmp.PdfUAPart != 1)
+                int wantPart = _part2 ? 2 : 1;
+                if (xmp.PdfUAPart != wantPart)
                 {
-                    Add("06", "7.1", $"The XMP packet does not carry pdfuaid:part 1 (found {xmp.PdfUAPart?.ToString() ?? "none"}).", meta.Reference?.Number ?? -1);
+                    Add("06", "7.1", $"The XMP packet does not carry pdfuaid:part {wantPart} (found {xmp.PdfUAPart?.ToString() ?? "none"}).", meta.Reference?.Number ?? -1, c2: "5");
+                }
+                else if (_part2 && xmp.PdfUARevision != PdfUA2.Revision)
+                {
+                    Add("06", "7.1", $"The XMP packet does not carry pdfuaid:rev {PdfUA2.Revision} (found {xmp.PdfUARevision?.ToString() ?? "none"}).", meta.Reference?.Number ?? -1, c2: "5");
                 }
 
                 if (string.IsNullOrWhiteSpace(xmp.Title))
@@ -183,6 +224,101 @@ internal sealed class PdfUAChecker
             Add("07", "7.1", "The catalog's /ViewerPreferences does not set /DisplayDocTitle true, so viewers would show the file name instead of the title.");
         }
     }
+
+    // ISO 14289-2 8.8: every destination inside the document is a structure destination (ISO 32000-2 12.3.2.3), whose first item is a
+    // structure element rather than a page. Only the destinations the document uses are looked at: link annotations, GoTo actions and
+    // outline items, named or explicit.
+    private void CheckDestinations()
+    {
+        int reported = 0;
+
+        void Check(PdfObject? dest, int owner, int pageIndex)
+        {
+            if (dest is null || reported >= MaxIssuesPerKind)
+            {
+                return;
+            }
+
+            PdfDestination? d = _doc.ResolveDestination(dest, 0);
+            if (d is { IsRemotePage: false, PageIndex: >= 0 })
+            {
+                reported++;
+                Add("28", "7.18.1", "A link or outline item goes to a page, but PDF/UA-2 needs a structure destination (the destination names the structure element, not the page).", owner, pageIndex, c2: "8.8");
+            }
+        }
+
+        void CheckAction(PdfDictionary? action, int owner, int pageIndex)
+        {
+            for (int depth = 0; action is not null && depth < 8; depth++)
+            {
+                if (action.GetName("S") == "GoTo" && action.GetRaw("SD") is null)
+                {
+                    Check(action.GetRaw("D"), owner, pageIndex);
+                }
+
+                action = action.GetDictionary("Next");
+            }
+        }
+
+        PdfPageCollection pages = _doc.Pages;
+        for (int p = 0; p < pages.Count; p++)
+        {
+            _ct.ThrowIfCancellationRequested();
+            PdfDictionary pd;
+            try
+            {
+                pd = pages[p].Dictionary;
+            }
+            catch (PdfFormatException)
+            {
+                continue; // already reported by CheckPages
+            }
+
+            if (pd.Get("Annots") is not PdfArray annots)
+            {
+                continue;
+            }
+
+            for (int i = 0; i < annots.Count; i++)
+            {
+                if (annots[i] is PdfDictionary a && a.GetName("Subtype") == "Link")
+                {
+                    int num = a.Reference?.Number ?? -1;
+                    Check(a.GetRaw("Dest"), num, p);
+                    CheckAction(a.GetDictionary("A"), num, p);
+                }
+            }
+        }
+
+        foreach (PdfOutlineItem item in OutlineItems())
+        {
+            Check(item.Dictionary.GetRaw("Dest"), item.Dictionary.Reference?.Number ?? -1, -1);
+            CheckAction(item.Dictionary.GetDictionary("A"), item.Dictionary.Reference?.Number ?? -1, -1);
+        }
+    }
+
+    // Every outline item, parents before children, without recursion.
+    private IEnumerable<PdfOutlineItem> OutlineItems()
+    {
+        var stack = new Stack<PdfOutlineItem>();
+        IReadOnlyList<PdfOutlineItem> top = _doc.Outline;
+        for (int i = top.Count - 1; i >= 0; i--)
+        {
+            stack.Push(top[i]);
+        }
+
+        while (stack.Count > 0)
+        {
+            PdfOutlineItem item = stack.Pop();
+            yield return item;
+            for (int i = item.Children.Count - 1; i >= 0; i--)
+            {
+                stack.Push(item.Children[i]);
+            }
+        }
+    }
+
+    private static bool IsPdf20(string? version) => version is not null && version.StartsWith("2.", StringComparison.Ordinal);
 
     private static bool IsLanguageTag(string s)
     {
@@ -314,7 +450,8 @@ internal sealed class PdfUAChecker
 
                     string type = d.GetName("S") ?? string.Empty;
                     var node = new Node { Dict = d, Type = type, Parent = parent, PageObject = pg, Number = d.Reference?.Number ?? -1 };
-                    node.Role = Resolve(type, roleMap, roleCache);
+                    string ns = _part2 ? PdfUA2.NamespaceOf(d) : string.Empty;
+                    node.Role = _part2 ? (PdfUA2.IsStandard(ns, type) ? type : null) : Resolve(type, roleMap, roleCache);
                     int index = _nodes.Count;
                     _nodes.Add(node);
                     if (parent >= 0)
@@ -326,7 +463,13 @@ internal sealed class PdfUAChecker
                     {
                         Add("02", "7.1", type.Length == 0
                             ? "A structure element has no /S structure type."
-                            : $"The structure type '{type}' is not a standard type and is not mapped to one by the /RoleMap (or its mapping is circular).", node.Number, aClause: "6.7.3.4");
+                            : _part2
+                                ? ns.Length == 0
+                                    ? $"The structure element of type '{type}' names no structure namespace (/NS); PDF/UA-2 needs the PDF 2.0 namespace (or the PDF 1.7 one for the types only it has)."
+                                    : ns is PdfUA2.Namespace20 or PdfUA2.Namespace17
+                                        ? $"The structure type '{type}' is not a standard type of the namespace {ns}."
+                                        : $"The structure element of type '{type}' is in the namespace {ns}, which is not the PDF 2.0 or PDF 1.7 structure namespace."
+                                : $"The structure type '{type}' is not a standard type and is not mapped to one by the /RoleMap (or its mapping is circular).", node.Number, aClause: "6.7.3.4");
                     }
 
                     if (d.Get("K") is { } kids)
@@ -374,7 +517,7 @@ internal sealed class PdfUAChecker
     private void CheckStructure()
     {
         // Standard types are not allowed to be remapped (ISO 14289-1 7.1).
-        if (_doc.Catalog.GetDictionary("StructTreeRoot")?.GetDictionary("RoleMap") is { } map)
+        if (!_part2 && _doc.Catalog.GetDictionary("StructTreeRoot")?.GetDictionary("RoleMap") is { } map)
         {
             foreach (string key in map.Keys)
             {
@@ -414,11 +557,28 @@ internal sealed class PdfUAChecker
 
                     break;
                 case "H":
+                    if (_part2)
+                    {
+                        // ISO 14289-2 8.2.5.12: the unnumbered H is not used; headings are H1, H2, ... .
+                        if (!Limited("plainH"))
+                        {
+                            Add("14", "7.4.4", "A heading uses the structure type H, which PDF/UA-2 does not allow; use H1 to H6.", n.Number, c2: "8.2.5.12");
+                        }
+
+                        break;
+                    }
+
                     sawPlainH = true;
                     break;
                 case "H1" or "H2" or "H3" or "H4" or "H5" or "H6":
                     sawNumbered = true;
                     int level = role[1] - '0';
+                    if (_part2)
+                    {
+                        // The order of heading levels is a judgement the standard leaves to people; it is not checked for part 2.
+                        break;
+                    }
+
                     if (lastHeading == 0 && level != 1 && !Limited("heading"))
                     {
                         Add("14", "7.4.2", $"The first heading is {role}; the heading hierarchy has to start at H1.", n.Number);
@@ -430,13 +590,21 @@ internal sealed class PdfUAChecker
 
                     lastHeading = level;
                     break;
+                case "TOCI":
+                    if (_part2 && !PdfUA2.HasRef(n.Dict) && !Limited("toci"))
+                    {
+                        // ISO 14289-2 8.2.5.8: a table-of-contents item says what it points at with /Ref.
+                        Add("-", "-", "A TOCI structure element, and nothing in it, has a /Ref entry naming the element it points at.", n.Number, c2: "8.2.5.8");
+                    }
+
+                    break;
                 case "Table":
                     CheckTable(i);
                     break;
                 case "TR":
                     if (parentRole is not ("Table" or "THead" or "TBody" or "TFoot") && !Limited("tr"))
                     {
-                        Add("15", "7.5", "A TR structure element is not a child of Table, THead, TBody or TFoot.", n.Number);
+                        Add("15", "7.5", "A TR structure element is not a child of Table, THead, TBody or TFoot.", n.Number, c2: "Table 5");
                     }
 
                     break;
@@ -444,18 +612,24 @@ internal sealed class PdfUAChecker
                 case "TD":
                     if (parentRole != "TR" && !Limited("td"))
                     {
-                        Add("15", "7.5", $"A {role} structure element is not a child of TR.", n.Number);
+                        Add("15", "7.5", $"A {role} structure element is not a child of TR.", n.Number, c2: "Table 5");
                     }
 
                     break;
                 case "THead" or "TBody" or "TFoot":
                     if (parentRole != "Table" && !Limited("tbody"))
                     {
-                        Add("15", "7.5", $"A {role} structure element is not a child of Table.", n.Number);
+                        Add("15", "7.5", $"A {role} structure element is not a child of Table.", n.Number, c2: "Table 5");
                     }
 
                     break;
                 case "L":
+                    if (_part2 && n.Kids.Exists(k => _nodes[k].Role == "LI" && _nodes[k].Kids.Exists(c => _nodes[c].Role == "Lbl")) && !HasListNumbering(n.Dict) && !Limited("listnumbering"))
+                    {
+                        // ISO 14289-2 8.2.5.25: a list with labels says how they are numbered, and not 'None'.
+                        Add("16", "7.6", "A list with labels (Lbl) has no ListNumbering attribute, or it is None.", n.Number, c2: "8.2.5.25");
+                    }
+
                     foreach (int k in n.Kids)
                     {
                         string? kr = _nodes[k].Role;
@@ -483,10 +657,57 @@ internal sealed class PdfUAChecker
             }
         }
 
-        if (!_structureOnly && sawPlainH && sawNumbered)
+        if (!_structureOnly && !_part2 && sawPlainH && sawNumbered)
         {
             Add("14", "7.4.4", "The document mixes the unnumbered heading H with the numbered headings H1 to H6.");
         }
+    }
+
+    // The /ListNumbering of an L element's own attribute objects or of the classes it names (ISO 32000-2 14.8.5.4.2); true when it has a value other than None.
+    private bool HasListNumbering(PdfDictionary element)
+    {
+        PdfDictionary? classMap = _doc.Catalog.GetDictionary("StructTreeRoot")?.GetDictionary("ClassMap");
+        var owners = new List<PdfObject?>();
+        void Collect(PdfObject? o)
+        {
+            if (o is PdfArray arr)
+            {
+                for (int i = 0; i < arr.Count && i < 64; i++)
+                {
+                    Collect(arr[i]);
+                }
+            }
+            else if (o is PdfDictionary || o is PdfName)
+            {
+                owners.Add(o);
+            }
+        }
+
+        Collect(element.Get("A"));
+        if (classMap is not null)
+        {
+            Collect(element.Get("C") is PdfName cn ? classMap.Get(cn.Value) : null);
+            if (element.Get("C") is PdfArray ca)
+            {
+                for (int i = 0; i < ca.Count && i < 64; i++)
+                {
+                    if (ca[i] is PdfName n)
+                    {
+                        Collect(classMap.Get(n.Value));
+                    }
+                }
+            }
+        }
+
+        foreach (PdfObject? o in owners)
+        {
+            if (o is PdfDictionary d && d.GetName("O") == "List" && d.GetName("ListNumbering") is { } ln)
+            {
+                return ln != "None";
+            }
+        }
+
+        return false;
     }
 
     private static string? Text(PdfDictionary d, string key) => d.GetString(key)?.GetText();
@@ -581,7 +802,7 @@ internal sealed class PdfUAChecker
             }
         }
 
-        if (!header && !Limited("th"))
+        if (!header && !_part2 && !Limited("th"))
         {
             Add("15", "7.5", "A table has no header cells (TH).", table.Number);
         }
@@ -867,7 +1088,7 @@ internal sealed class PdfUAChecker
             string? parentRole = inTree ? _nodes[_objrParent[num]].Role : null;
             if (subtype == "Link")
             {
-                if (!inTree || parentRole != "Link")
+                if (!inTree || (_part2 ? parentRole is not ("Link" or "Reference") : parentRole != "Link"))
                 {
                     if (!Limited("link"))
                     {
@@ -876,7 +1097,10 @@ internal sealed class PdfUAChecker
                 }
                 else if (string.IsNullOrWhiteSpace(a.GetString("Contents")?.GetText()) && string.IsNullOrWhiteSpace(Text(_nodes[_objrParent[num]].Dict, "Alt")) && !Limited("link-contents"))
                 {
-                    Add("28", "7.18.5", "A link annotation has no /Contents describing it.", num, pageIndex);
+                    if (!_part2)
+                    {
+                        Add("28", "7.18.5", "A link annotation has no /Contents describing it.", num, pageIndex);
+                    }
                 }
             }
             else if (subtype == "Widget")
@@ -913,9 +1137,9 @@ internal sealed class PdfUAChecker
             }
         }
 
-        if (any && page.GetName("Tabs") != "S")
+        if (any && (_part2 ? page.GetName("Tabs") is not ("S" or "A" or "W") : page.GetName("Tabs") != "S"))
         {
-            Add("28", "7.18.3", "The page has annotations but its /Tabs entry is not /S (structure order).", page.Reference?.Number ?? -1, pageIndex);
+            Add("28", "7.18.3", _part2 ? "The page has annotations but no /Tabs entry (A, W or S)." : "The page has annotations but its /Tabs entry is not /S (structure order).", page.Reference?.Number ?? -1, pageIndex, c2: "8.9.3.3");
         }
     }
 
