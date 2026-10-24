@@ -67,6 +67,12 @@ public sealed class TextParagraph
     /// </summary>
     public bool JustifyWithLetterSpacing { get; init; }
 
+    /// <summary>How lines are broken. Default <see cref="LineBreakMode.Greedy"/>, which is also what <see cref="LineBreakMode.KnuthPlass"/> falls back to when it gives up.</summary>
+    public LineBreakMode LineBreakMode { get; init; }
+
+    /// <summary>The knobs of <see cref="LineBreakMode.KnuthPlass"/>; null means <see cref="KnuthPlassOptions.Default"/>. Ignored for greedy breaking.</summary>
+    public KnuthPlassOptions? KnuthPlass { get; init; }
+
     /// <summary>Shapes the text: chooses faces, shapes clusters, finds break opportunities. The result lays out at any width.</summary>
     /// <param name="fonts">The fonts to resolve families against.</param>
     /// <exception cref="ArgumentNullException"><paramref name="fonts"/> is null.</exception>
@@ -82,6 +88,12 @@ public sealed class TextParagraph
         }
 
         DefaultStyle.Validate();
+        if (!Enum.IsDefined(LineBreakMode))
+        {
+            throw new ArgumentException("Unknown line break mode.");
+        }
+
+        KnuthPlass?.Validate();
         return new ShapedParagraph(this, fonts);
     }
 }

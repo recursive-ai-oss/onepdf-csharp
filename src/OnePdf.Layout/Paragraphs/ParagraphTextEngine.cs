@@ -67,6 +67,8 @@ internal sealed class ParagraphTextEngine : ITextEngine
             },
             FirstLineIndent = text.FirstLineIndent,
             Hyphenator = text.Hyphenator,
+            LineBreakMode = text.LineBreakMode ?? ctx.Options.LineBreakMode,
+            KnuthPlass = text.KnuthPlass ?? ctx.Options.KnuthPlass,
         };
         ShapedParagraph shaped = paragraph.Shape(_fonts);
         if (e is null || e.Direction != dir)

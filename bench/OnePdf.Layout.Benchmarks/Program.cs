@@ -17,6 +17,7 @@ internal static class Program
     public static IEngine Engine(string name) => name switch
     {
         "onepdf" => new OnePdfEngine(),
+        "onepdf-kp" => new OnePdfEngine(OnePdf.Layout.LineBreakMode.KnuthPlass),
         "migradoc" => new MigraDocEngine(),
         "itext" => new ITextEngine(),
         _ => throw new ArgumentException("unknown engine " + name),
@@ -50,7 +51,7 @@ internal static class Program
     {
         if (args.Length < 3)
         {
-            Console.Error.WriteLine("usage: rss <onepdf|migradoc|itext> <invoice|report50|table10k|book500|mixed20|throughput32>");
+            Console.Error.WriteLine("usage: rss <onepdf|onepdf-kp|migradoc|itext> <invoice|report50|table10k|book500|mixed20|throughput32>");
             return 2;
         }
 

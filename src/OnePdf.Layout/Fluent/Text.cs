@@ -121,6 +121,8 @@ public sealed class TextDescriptor : TextFormatDescriptor<TextDescriptor>
     private bool _justify;
     private double _indent;
     private IHyphenator? _hyphenator;
+    private LineBreakMode? _lineBreakMode;
+    private KnuthPlassOptions? _knuthPlass;
     private bool _live;
 
     internal TextDescriptor(Slot slot, HorizontalAlignment inherited)
@@ -195,6 +197,16 @@ public sealed class TextDescriptor : TextFormatDescriptor<TextDescriptor>
 
     /// <summary>Plugs in hyphenation points besides soft hyphens (U+00AD). There is no bundled data.</summary>
     public TextDescriptor Hyphenator(IHyphenator hyphenator) => Edit(() => _hyphenator = hyphenator);
+
+    /// <summary>
+    /// Breaks this text's lines by total fit (Knuth and Plass) instead of first fit, which looks better for justified text and with
+    /// hyphenation, at a higher cost on long paragraphs. See <see cref="KnuthPlassOptions"/> for the knobs and their defaults.
+    /// </summary>
+    /// <param name="options">The knobs, or null for the document's (and then the default) ones.</param>
+    public TextDescriptor OptimalLineBreaks(KnuthPlassOptions? options = null) => Edit(() => { _lineBreakMode = LineBreakMode.KnuthPlass; _knuthPlass = options; });
+
+    /// <summary>Breaks this text's lines by first fit, whatever the document default is.</summary>
+    public TextDescriptor GreedyLineBreaks() => Edit(() => { _lineBreakMode = LineBreakMode.Greedy; _knuthPlass = null; });
 
     /// <summary>Adds a piece of text that can differ in style from the rest.</summary>
     /// <returns>The span's own settings.</returns>
@@ -290,6 +302,8 @@ public sealed class TextDescriptor : TextFormatDescriptor<TextDescriptor>
             Justify = _justify,
             FirstLineIndent = _indent,
             Hyphenator = _hyphenator,
+            LineBreakMode = _lineBreakMode,
+            KnuthPlass = _knuthPlass,
             Language = d.Language,
         };
 

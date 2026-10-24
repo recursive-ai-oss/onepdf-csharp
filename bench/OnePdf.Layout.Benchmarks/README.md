@@ -55,6 +55,20 @@ Every engine gets the same Liberation Sans/Serif files (regular, bold, italic, b
 The `table10k` file is the one that stands out. OnePDF writes it tagged (the default): every cell is a `TD` with a `P` inside, so 10,000 rows of 5 cells make about 90,000 structure elements, each a small dictionary. Written as plain objects they were 8.0 MB; the streaming writer now packs dictionaries and arrays into compressed object streams, and the file is 2.0 MB: 1.17 MB of that is the structure tree (about 13 bytes per element), 0.76 MB the 250 page content streams, the rest fonts and page dictionaries. MigraDoc's 1.17 MB file carries no structure tree at all. Removing the `P` inside single-paragraph cells would shave the tree further but would change the tags a screen reader sees, so it stays. The untagged form (`Tagged(false)`) is smaller still. Output size is an information row, not part of the gate.
 - **Correctness of the comparison:** `check <dir>` writes every engine's every document and opens it with OnePDF's reader. It prints page count, size and how many probe strings (headings, numbers, the first and last words of a paragraph) the extracted text contains.
 
+### Knuth–Plass line breaking (information row)
+
+`BookBenchmarks.OnePdfKnuthPlass` and `rss onepdf-kp book500` set the same 500-page justified book with `LineBreakMode.KnuthPlass` for every paragraph (no hyphenation, default options). It is not part of the gate, and no competitor does this. Greedy rows are the same code as before: the greedy output is byte-identical (1,567,035 bytes) and the greedy row did not slow down.
+
+Measured locally, not on the benchmark host: AMD Ryzen 9 7950X3D (32 threads), .NET SDK 10.0.400, runtime 10.0.11, BenchmarkDotNet 0.15.8 (6 iterations, 1 warm-up). The machine was shared and busy (load average 15 to 25 on 32 threads, one other engineer building), so the times are noisy: the two BenchmarkDotNet runs of the pair differ by up to 20 %. Read the allocation and the ratios, not the milliseconds.
+
+| Row | Mean, run 1 | Mean, run 2 | Allocated | Peak RSS (3 cold runs) | Output |
+|---|---:|---:|---:|---:|---:|
+| greedy, before this change | 409.7 ms | 381.3 ms | 215.46 MB | 107–110 MB | 1,567,035 B |
+| greedy, after | 506.1 ms | 417.6 ms | 215.51 MB | 106–110 MB | 1,567,035 B |
+| Knuth–Plass | 584.0 ms | 419.9 ms | 261.43 MB | 110–112 MB | 1,553,276 B |
+
+Knuth–Plass costs about 21 % more allocation (arrays of the paragraph's stretch and shrink, and the search nodes) and between no measurable and about 15 % more time on this host. It is a paragraph-local search, so a longer book costs proportionally more and the memory stays flat per paragraph. Re-measure on the benchmark host before quoting the milliseconds.
+
 ## Running
 
     dotnet build -c Release bench/OnePdf.Layout.Benchmarks
