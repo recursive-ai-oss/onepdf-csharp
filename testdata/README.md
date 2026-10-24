@@ -9,6 +9,7 @@
 | `repros/` | Minimized files that reproduced a bug, rebuilt by hand or with a black-box tool from our own generated files | our own work (`MIT OR Apache-2.0`) | below |
 | `realworld/` | Real-world PDFs for the extraction-quality set, **unmodified**, with reference text (public-domain and CC BY sources only) | US government works and CC BY 4.0, per file | `MANIFEST.csv`, `realworld/README.md` |
 | `govdocs/` | A small selection from GovDocs1 whose original URL is a US federal site, **unmodified** | US government works (17 U.S.C. 105) | `MANIFEST.csv` (URL and SHA-1 per file) |
+| `layout-references/` | Documents written by the layout package and PNG pictures of their pages, for noticing layout changes | our own work (`MIT OR Apache-2.0`) | `layout-references/png/manifest.csv`, `layout-references/README.md` |
 
 Rules:
 

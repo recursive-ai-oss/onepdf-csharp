@@ -14,6 +14,13 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 - `PdfDocumentWriter.BeginStructureElement(parent, type, options)` and `EndStructureElement(element)`: begin a structure element under an explicit parent and end any open element once its own children have ended, so a producer whose content continues on later pages (a table row split over pages) can keep several branches open at once. The earlier overloads are unchanged.
 
+- `OnePdf.Layout` (in `OnePdf.Layout.slnx`, not packed yet): a fluent layout layer. `LayoutDocument.Compose` takes nested delegates for pages, header, content and footer slots, decorators (padding, border, background, rounded corners, size limits, alignment, rotate/scale/translate), columns, rows, layers, lists, tables with spans and repeated header and footer rows, images, canvas, shaped rich text with page numbers and totals, links, bookmarks, tagging and right-to-left documents; `IComponent` for reuse; `Save` streams page by page, `Save(stream, PdfSaveOptions)` adds PDF/A and encryption, `ToPdfDocument` hands the result to the core API. The element objects stay public as the lower layer. See `docs/layout.md` and `docs/migrating-from-questpdf.md`.
+- `layout` fuzz target and a set of layout reference documents with page images (`testdata/layout-references`, `tools/OnePdf.Layout.References`).
+
+### Changed
+
+- Layout: page totals ("page X of Y") are shaped and drawn with the embedded font, so documents with totals pass PDF/A-2b and PDF/UA-1 font checks. `Row.Compact` makes a row as wide as its items. `Rotate` and `Scale` throw `PdfLayoutException` when their child would need a page break, instead of dropping the content after it.
+
 ## [1.6.0] - 2026-10-23
 
 ### Highlights

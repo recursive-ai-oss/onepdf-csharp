@@ -216,6 +216,25 @@ doc.Redact([new PdfRedactionRegion(0, new PdfRectangle(72, 600, 300, 620))], new
 doc.Save("out.pdf");
 ```
 
+## Layout
+
+`OnePdf.Layout` generates documents from code: nested delegates describe pages, and it lays out shaped text (Latin, Arabic, Indic and more), tables, lists, images, headers, footers and "page X of Y", then streams a tagged PDF page by page. It is pure managed, BCL-only and NativeAOT-clean like the rest, and it is not packed yet. It lives in `OnePdf.Layout.slnx` in the repository.
+
+```csharp
+LayoutDocument.Compose(doc =>
+{
+    doc.Title("Hello");
+    doc.Page(page =>
+    {
+        page.Size(PageSize.A4);
+        page.Margin(36);
+        page.Content().Text("Hello, world").FontSize(24);
+    });
+}).Save("hello.pdf");
+```
+
+See the [layout guide](https://github.com/recursive-ai-oss/onepdf-csharp/blob/main/docs/layout.md), and [Migrating from QuestPDF](https://github.com/recursive-ai-oss/onepdf-csharp/blob/main/docs/migrating-from-questpdf.md) if you know a library of that style.
+
 ## Security
 
 **OnePDF never runs code or touches the network.** JavaScript, actions and URIs in a document are data that you can read, never
