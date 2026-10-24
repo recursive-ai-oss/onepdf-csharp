@@ -139,6 +139,49 @@ LayoutDocument.Compose(doc => doc.Page(page =>
 })).Save("images.pdf");
 ```
 
+### Multi-column flow
+
+`MultiColumn(cols => ...)` pours its items through equal columns: down the first, then down the next, and onto the next page after the last column. It goes anywhere a container does: the page's content slot, a section, a box, or between full-width items of a `Column`, as in the sample below.
+
+```csharp
+string text = string.Concat(Enumerable.Repeat("Text poured through columns breaks between them the way it breaks between pages. ", 12));
+
+LayoutDocument.Compose(doc =>
+{
+    doc.Title("Newsletter").Language("en");
+    doc.Page(page =>
+    {
+        page.Size(PageSize.A5);
+        page.Margin(28);
+        page.Content().Column(col =>
+        {
+            col.Spacing(8);
+            col.Item().Heading(1).Text("Harbour Gazette").FontSize(20).Bold();
+
+            // Two columns that flow down, then across, then onto the next page. The last page is balanced.
+            col.Item().MultiColumn(cols =>
+            {
+                cols.Count(2).Gap(16).Rule(0.5, Colors.Grey).Spacing(6);
+                cols.Item().Heading(2).Text("Tides").FontSize(12).Bold();
+                cols.Item().Text(text).FontSize(9).Justify();
+                cols.ColumnBreak();
+                cols.Item().Text("Starts the second column.").FontSize(9);
+                cols.Item().Text(text).FontSize(9).Justify();
+            });
+
+            col.Item().Text("Back to full width.").FontSize(8);
+        });
+    });
+}).Save("columns.pdf");
+```
+
+- **Set-up:** `Count` (1 to 32, default 2), `Gap` (default 12 pt), `Rule(width, colour)` for a line in the middle of each gap (decoration, drawn only between columns that have content), `Spacing` between items inside a column, `Item()` for content and `ColumnBreak()` to end the column (ignored at the top of a column, so no empty column appears; after the last column it moves on to the next page). The element objects are `MultiColumn` and `ColumnBreak`.
+- **Breaking:** a column plays the part of a page. Paragraphs split with the widow and orphan rules, tables split between rows and repeat header rows in every column they reach, `KeepTogether`, `KeepWithNext` and `EnsureSpace` apply, and a heading never ends a column. An element taller than a column splits or raises `PdfLayoutException` exactly as it would on a page.
+- **Fill:** `Balanced()` (the default) shortens the columns of the last region, where the content ends, to the least height that still holds it, so they end at about the same level. Regions that run to the bottom of the page are unaffected. `Sequential()` fills each column to the bottom before starting the next. The search is a bisection with at most 12 trial layouts of the remaining content and a resolution of a quarter of a point, whatever the content. Content that cannot be divided (a paragraph shorter than the widow and orphan rules need, one tall picture) stays in as few columns as it needs and the others stay empty; balancing never breaks a rule to even the columns out.
+- **Direction:** in a right-to-left document the first column is the rightmost; the flow still reads column 1, 2, 3.
+- **Tagging and extraction:** the structure tree and the content order follow the flow, column by column. A paragraph that splits across columns is one `P` with content in both. Text extraction returns the flow order.
+- **Limits:** with unbounded width a flow has one column (a note is recorded). A `PageBreak` placed directly in the flow ends the column like a `ColumnBreak`.
+
 ### Tables
 
 `Table(t => ...)` takes `Columns` (`Auto`, `Constant`, `Relative`), `HeaderRow`, `Row` and `FooterRow`, `CellPadding`, `CellBorder`, `RowBackground` for striping and `MeasuredRows`. Each row has `Cell()` slots; a cell can `Span(columns, rows)`, set its own padding, background, borders and vertical alignment, and mark itself a row header (`RowHeader`). Header and footer rows repeat on every page. The sample at the top of this page has a small table; the layout rules (column widths, splitting, collapsed borders) are in [Tables](#tables-1) below.
@@ -246,6 +289,7 @@ A tree of plain element objects. Elements hold properties and no layout state, s
 - **Leaves:** `Text` (shaped paragraphs on OneFont: fonts with fallback, rich spans, bidi, justification, hyphenation hook (bundled patterns in `RecursiveAI.OnePdf.Hyphenation`), widow/orphan control; see [layout-text.md](layout-text.md)), `Image` (JPEG or PNG; fit width, fit height, contain, cover, stretch), `Canvas` (a callback with the content builder inside a clipped box), `Spacer`.
 - **Structure:** `Table` and `ItemList` (below), `Heading`, `PageNumber`, and the navigation wrappers `Link`, `Anchor` and `Bookmark`.
 - **Flow rules:** `PageBreak`, `KeepTogether`, `EnsureSpace`, and `Element.KeepWithNext`. A wrapper that only adds something to its child (`Box`, `Link`, `Anchor`, `Bookmark`, `Heading`, `KeepTogether`, `Component`) passes a keep-with-next request on, so it is enough to set it on the heading's text.
+- **Columns:** `MultiColumn` pours items through equal columns with a gap, an optional rule and balanced or sequential fill; `ColumnBreak` ends a column (see [Multi-column flow](#multi-column-flow)).
 - **Reuse:** derive from `Component` and return a composed tree from `Compose`.
 - **Pages:** `LayoutDocument.Pages` holds `LayoutPage` sections. Each has size, orientation, margin, direction, `Header`, `Footer`, `Background`, `Foreground` and `Content`, and starts on a new page. Header and footer are laid out on every page and their height comes off the content area; background and foreground use the whole page. They are written as artifacts (see below). `FirstHeader`/`FirstFooter` replace the ordinary ones on a section's first page, `EvenHeader`/`EvenFooter` on pages with an even displayed number (a first page counts as first); an empty `Spacer` gives no header.
 - **Direction:** `LayoutDocument.Direction`, `LayoutPage.Direction` (null: the document's) and `Element.Direction`; see [Tagging and direction](#tagging-and-direction).
