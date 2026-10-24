@@ -21,7 +21,7 @@ public sealed partial class PdfDocument : IDisposable
     private Lazy<int> _pageCount;
     private int _disposed;
 
-    private PdfDocument(IPdfSource source, PdfOpenOptions options)
+    private PdfDocument(IPdfSource source, PdfOpenOptions options, bool emptyTemplate = false)
     {
         _source = source;
         _options = options;
@@ -30,10 +30,18 @@ public sealed partial class PdfDocument : IDisposable
         Cache = new ObjectCache(Math.Max(0, options.ObjectCacheBytes));
         _scan = new Lazy<ScanResult>(ScanFile, LazyThreadSafetyMode.ExecutionAndPublication);
         _pageCount = new Lazy<int>(CountPagesLean, LazyThreadSafetyMode.ExecutionAndPublication);
-        Initialize();
+        if (emptyTemplate)
+        {
+            InitializeEmptyTemplate();
+        }
+        else
+        {
+            Initialize();
+        }
+
         if (options.AllowEditing)
         {
-            _pinned = new System.Collections.Concurrent.ConcurrentDictionary<int, PdfObject>();
+            _pinned = new PinTable();
             _nextObjectNumber = Math.Max(1, ObjectCount); // object 0 is the free-list head, never an object
         }
     }
@@ -178,12 +186,12 @@ public sealed partial class PdfDocument : IDisposable
         return false;
     }
 
-    private static PdfDocument Create(IPdfSource source, PdfOpenOptions? options)
+    private static PdfDocument Create(IPdfSource source, PdfOpenOptions? options, bool emptyTemplate = false)
     {
         bool ok = false;
         try
         {
-            var doc = new PdfDocument(source, options ?? new PdfOpenOptions());
+            var doc = new PdfDocument(source, options ?? new PdfOpenOptions(), emptyTemplate);
             ok = true;
             return doc;
         }

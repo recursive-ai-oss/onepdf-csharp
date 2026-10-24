@@ -4,6 +4,10 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ## [Unreleased]
 
+### Changed
+
+- Faster first document in a managed process (JIT included): about 16 ms less for the layout invoice (about 130 to 114 ms on the benchmark host). `PdfDocument.CreateEmpty` (and with it every `PdfDocumentWriter`) builds its cross-reference data directly instead of reading a generated file back, and the first document no longer compiles struct-keyed concurrent and sorted collections: the editable document's object table, the layout font-chain and shaping-option caches, the writer's information, destination and role maps, and the TrueType subsetter's table set and composite check now use plain dictionaries, arrays and snapshots. Output is byte-identical. Peak memory of the first document is about 1 MB lower.
+
 ## [1.8.0] - 2026-10-24
 
 ### Added

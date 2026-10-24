@@ -1,5 +1,4 @@
 using System.Buffers;
-using System.Collections.Concurrent;
 using System.Globalization;
 using OneFont;
 
@@ -461,20 +460,31 @@ public sealed partial class ShapedParagraph
         }
     }
 
-    // Shaping only reads its options, so one instance per language and script position is shared by every call and thread.
-    private static readonly ConcurrentDictionary<(string Language, ScriptPosition Position), ShapingOptions> OptionCache = new();
+    // Shaping only reads its options, so one instance per language and script position is shared by every call and thread. One small table
+    // per position, keyed by language: dictionaries of reference types are precompiled in the runtime, which a struct-keyed concurrent
+    // dictionary is not, and the first document pays for every method the JIT has to compile.
+    private static readonly Dictionary<string, ShapingOptions>[] OptionCache = [new(StringComparer.Ordinal), new(StringComparer.Ordinal), new(StringComparer.Ordinal)];
 
-    private static ShapingOptions OptionsFor(string? language, ScriptPosition position) =>
-        OptionCache.GetOrAdd((language ?? string.Empty, position), static (key, lang) =>
+    private static ShapingOptions OptionsFor(string? language, ScriptPosition position)
+    {
+        string lang = language ?? string.Empty;
+        Dictionary<string, ShapingOptions> table = OptionCache[(int)position];
+        lock (table)
         {
-            var o = new ShapingOptions { Language = lang };
-            if (key.Position != ScriptPosition.Normal)
+            if (!table.TryGetValue(lang, out ShapingOptions? o))
             {
-                o.Features.Add(FontFeature.On(key.Position == ScriptPosition.Superscript ? "sups" : "subs"));
+                o = new ShapingOptions { Language = language };
+                if (position != ScriptPosition.Normal)
+                {
+                    o.Features.Add(FontFeature.On(position == ScriptPosition.Superscript ? "sups" : "subs"));
+                }
+
+                table[lang] = o;
             }
 
             return o;
-        }, language);
+        }
+    }
 
     // The buffers the shaper fills, one pair per thread: shaping output is copied into the paragraph's own arrays at once.
     [ThreadStatic]

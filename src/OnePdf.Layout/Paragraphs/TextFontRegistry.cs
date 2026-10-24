@@ -141,7 +141,9 @@ public sealed class TextFontRegistry
     private readonly List<FontEntry> _entries = [];
     private readonly Dictionary<string, string> _aliases = new(StringComparer.OrdinalIgnoreCase);
     // Read on every paragraph from any thread without a lock; written (and cleared) under the gate.
-    private readonly System.Collections.Concurrent.ConcurrentDictionary<(string Families, int Weight, bool Italic, int Width), ResolvedChain> _chains = new();
+    // An immutable snapshot: families -> the few chains resolved for it (by weight, italic, width). A miss publishes a new snapshot under the
+    // gate. A reference-keyed dictionary is precompiled in the runtime; a struct-keyed concurrent one is compiled by the JIT on first use.
+    private volatile Dictionary<string, ChainSlot[]> _chains = new(StringComparer.Ordinal);
     private readonly Dictionary<string, FontEntry?> _systemCache = new(StringComparer.Ordinal);
     private readonly Dictionary<string, FontEntry> _standard = new(StringComparer.Ordinal);
     private IPdfFontProvider? _system;
@@ -199,7 +201,7 @@ public sealed class TextFontRegistry
         lock (_gate)
         {
             _entries.Add(entry);
-            _chains.Clear();
+            _chains = new(StringComparer.Ordinal);
         }
     }
 
@@ -211,7 +213,7 @@ public sealed class TextFontRegistry
         lock (_gate)
         {
             _aliases[alias.Trim()] = family.Trim();
-            _chains.Clear();
+            _chains = new(StringComparer.Ordinal);
         }
     }
 
@@ -225,8 +227,32 @@ public sealed class TextFontRegistry
         lock (_gate)
         {
             _system = provider;
-            _chains.Clear();
+            _chains = new(StringComparer.Ordinal);
         }
+    }
+
+    private sealed class ChainSlot(int weight, bool italic, int width, ResolvedChain chain)
+    {
+        public int Weight { get; } = weight;
+
+        public bool Italic { get; } = italic;
+
+        public int Width { get; } = width;
+
+        public ResolvedChain Chain { get; } = chain;
+    }
+
+    private static ResolvedChain? Find(ChainSlot[] slots, int weight, bool italic, int width)
+    {
+        foreach (ChainSlot s in slots)
+        {
+            if (s.Weight == weight && s.Italic == italic && s.Width == width)
+            {
+                return s.Chain;
+            }
+        }
+
+        return null;
     }
 
     internal ResolvedChain Resolve(TextStyle style)
@@ -234,21 +260,32 @@ public sealed class TextFontRegistry
         // A single family name is its own key, so the usual paragraph resolves its fonts without building a string.
         IReadOnlyList<string> families = style.Families;
         string fam = families.Count == 0 ? string.Empty : families.Count == 1 ? families[0] : string.Join('|', families);
-        var key = (fam, style.Weight, style.Italic, style.Width);
-        if (_chains.TryGetValue(key, out ResolvedChain? cached))
+        int weight = style.Weight;
+        bool italic = style.Italic;
+        int width = style.Width;
+        Dictionary<string, ChainSlot[]> snapshot = _chains;
+        if (snapshot.TryGetValue(fam, out ChainSlot[]? slots) && Find(slots, weight, italic, width) is { } cached)
         {
             return cached;
         }
 
         lock (_gate)
         {
-            if (_chains.TryGetValue(key, out cached))
+            snapshot = _chains;
+            slots = snapshot.GetValueOrDefault(fam);
+            if (slots is not null && Find(slots, weight, italic, width) is { } again)
             {
-                return cached;
+                return again;
             }
 
             ResolvedChain made = Build(style);
-            _chains[key] = made;
+            var next = new Dictionary<string, ChainSlot[]>(snapshot, StringComparer.Ordinal);
+            ChainSlot[] old = slots ?? [];
+            var grown = new ChainSlot[old.Length + 1];
+            old.CopyTo(grown, 0);
+            grown[old.Length] = new ChainSlot(weight, italic, width, made);
+            next[fam] = grown;
+            _chains = next;
             return made;
         }
     }

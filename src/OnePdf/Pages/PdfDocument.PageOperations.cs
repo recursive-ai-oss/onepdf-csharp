@@ -61,26 +61,39 @@ public sealed partial class PdfDocument
     /// <see cref="InsertBlankPage"/> or <see cref="ImportPages"/> and write it with <see cref="Save(Stream, PdfSaveOptions?, CancellationToken)"/>.
     /// </summary>
     /// <param name="options">Limits and other options; editing is always enabled. Null for the defaults.</param>
-    public static PdfDocument CreateEmpty(PdfOpenOptions? options = null)
+    public static PdfDocument CreateEmpty(PdfOpenOptions? options = null) =>
+        Create(new MemorySource(EmptyTemplate), (options ?? new PdfOpenOptions()) with { AllowEditing = true }, emptyTemplate: true);
+
+    // The file behind an empty document: a catalog, an empty page tree and a classic cross-reference table. Its offsets are written out
+    // (object 1 at 9, object 2 at 58, the table at 110) and InitializeEmptyTemplate builds the cross-reference data from them directly
+    // instead of reading the table back, which would make every first document compile the whole reader. A test opens the same bytes the
+    // ordinary way and compares.
+    internal static readonly byte[] EmptyTemplate = Encoding.Latin1.GetBytes(
+        "%PDF-1.7\n" +
+        "1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n" +
+        "2 0 obj\n<< /Type /Pages /Kids [] /Count 0 >>\nendobj\n" +
+        "xref\n0 3\n0000000000 65535 f \n0000000009 00000 n \n0000000058 00000 n \n" +
+        "trailer\n<< /Size 3 /Root 1 0 R >>\nstartxref\n110\n%%EOF\n");
+
+    private void InitializeEmptyTemplate()
     {
-        var sb = new StringBuilder("%PDF-1.7\n");
-        var offsets = new List<int>();
-        string[] bodies = ["<< /Type /Catalog /Pages 2 0 R >>", "<< /Type /Pages /Kids [] /Count 0 >>"];
-        for (int i = 0; i < bodies.Length; i++)
+        Version = "1.7";
+        var resolver = new PdfResolver(this, 0);
+        var trailer = new PdfDictionary(resolver);
+        trailer.Set("Size", new PdfInteger(3));
+        trailer.Set("Root", new PdfReference(1, 0));
+        var entries = new Dictionary<int, XrefEntry>(3)
         {
-            offsets.Add(sb.Length);
-            sb.Append(CultureInfo.InvariantCulture, $"{i + 1} 0 obj\n{bodies[i]}\nendobj\n");
-        }
-
-        int xref = sb.Length;
-        sb.Append("xref\n0 3\n0000000000 65535 f \n");
-        foreach (int o in offsets)
-        {
-            sb.Append(CultureInfo.InvariantCulture, $"{o:D10} 00000 n \n");
-        }
-
-        sb.Append(CultureInfo.InvariantCulture, $"trailer\n<< /Size 3 /Root 1 0 R >>\nstartxref\n{xref}\n%%EOF\n");
-        return Open(Encoding.Latin1.GetBytes(sb.ToString()), (options ?? new PdfOpenOptions()) with { AllowEditing = true });
+            [0] = new XrefEntry(0, 0, 65535),
+            [1] = new XrefEntry(1, 9, 0),
+            [2] = new XrefEntry(1, 58, 0),
+        };
+        _declaredEntries = 3;
+        _sections = [new XrefSection { Offset = 110, Entries = entries, Trailer = trailer }];
+        _resolvers = [resolver];
+        _merged = new Dictionary<int, XrefEntry>(entries);
+        Trailer = trailer;
+        BuildRevisions();
     }
 
     private List<PageEntry> CurrentPages()
