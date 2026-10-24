@@ -88,10 +88,23 @@ internal sealed partial class SvgPainter
                 }
                 else if (orient is not null)
                 {
-                    ReadOnlySpan<char> o = orient.EndsWith("deg", StringComparison.Ordinal) ? orient.AsSpan(0, orient.Length - 3) : orient;
-                    if (double.TryParse(o, NumberStyles.Float, CultureInfo.InvariantCulture, out double deg) && double.IsFinite(deg))
+                    // An angle is degrees by default, or with a unit: deg, grad (400 per turn), rad or turn (CSS Values 4 angles).
+                    (string suffix, double perUnit)[] units = [("deg", 1), ("grad", 0.9), ("rad", 180 / Math.PI), ("turn", 360)];
+                    ReadOnlySpan<char> o = orient;
+                    double angleScale = 1;
+                    foreach ((string suffix, double perUnit) in units)
                     {
-                        angle = deg;
+                        if (orient.EndsWith(suffix, StringComparison.Ordinal))
+                        {
+                            o = orient.AsSpan(0, orient.Length - suffix.Length);
+                            angleScale = perUnit;
+                            break;
+                        }
+                    }
+
+                    if (double.TryParse(o, NumberStyles.Float, CultureInfo.InvariantCulture, out double deg) && double.IsFinite(deg * angleScale))
+                    {
+                        angle = deg * angleScale;
                     }
                 }
 

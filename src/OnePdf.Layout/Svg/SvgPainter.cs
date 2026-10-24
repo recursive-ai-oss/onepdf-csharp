@@ -812,7 +812,7 @@ internal sealed partial class SvgPainter
 
         try
         {
-            Affine m = TransformOf(clipEl);
+            Affine m = TransformOf(clipEl, StyleOf(clipEl), vp, false);
             if (clipEl.Attr("clipPathUnits") == "objectBoundingBox")
             {
                 if (!TryBoundsOf(target, vp, 0, out double bx0, out double by0, out double bx1, out double by1) || !(bx1 > bx0) || !(by1 > by0))
@@ -821,7 +821,8 @@ internal sealed partial class SvgPainter
                     return;
                 }
 
-                m = new Affine(bx1 - bx0, 0, 0, by1 - by0, bx0, by0).Multiply(m);
+                // The clipPath's own transform acts in the user space of the clipped element, after the box mapping (as viewers do).
+                m = m.Multiply(new Affine(bx1 - bx0, 0, 0, by1 - by0, bx0, by0));
             }
 
             if (NeedsMaskClip(clipEl))
@@ -870,6 +871,24 @@ internal sealed partial class SvgPainter
     // Text and children with a clip-path of their own cannot be a union of paths, so such a clip is made as a mask.
     private bool NeedsMaskClip(SvgElement clipEl)
     {
+        // The clip is the union of its shapes, each filled by its own clip-rule. One combined path with even-odd would cancel
+        // the overlaps (and one rule cannot serve mixed rules), so such a clip is made as a mask too.
+        int shapes = 0;
+        bool evenOdd = false;
+        foreach (SvgElement c in clipEl.Children)
+        {
+            if (c.Name is "rect" or "circle" or "ellipse" or "line" or "polyline" or "polygon" or "path" or "use")
+            {
+                shapes++;
+                evenOdd |= StyleOf(c).ClipEvenOdd;
+            }
+        }
+
+        if (shapes > 1 && evenOdd)
+        {
+            return true;
+        }
+
         foreach (SvgElement c in clipEl.Children)
         {
             if (c.Name == "text" || (c.Prop("clip-path") is { } cp && !cp.AsSpan().Trim().SequenceEqual("none")))

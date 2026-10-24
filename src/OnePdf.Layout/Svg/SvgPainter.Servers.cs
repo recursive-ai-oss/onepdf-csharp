@@ -263,6 +263,17 @@ internal sealed partial class SvgPainter
             double off = Math.Clamp(g.Stops[i].Offset, prev, 1);
             prev = off;
             Rgba32 c = g.Stops[i].Color;
+            // Two stops at the very start (or end) make a hard edge there; what lies outside the gradient takes the outer stop's colour,
+            // which an extended PDF shading only does when the outer stop has a sliver of its own.
+            if (i == 1 && off == 0 && list[0].Position == 0)
+            {
+                off = prev = 1e-6;
+            }
+            else if (i == list.Length - 2 && off == 1 && g.Stops[i + 1].Offset >= 1 && list.Length > 2)
+            {
+                off = prev = 1 - 1e-6;
+            }
+
             list[i] = new PdfGradientStop(off, alpha ? PdfGradientColor.Gray(c.A / 255.0) : PdfGradientColor.Rgb(c.R / 255.0, c.G / 255.0, c.B / 255.0));
         }
 
@@ -436,17 +447,25 @@ internal sealed partial class SvgPainter
 
             string? o = stop.Attr("offset");
             double off = 0;
-            if (o is not null && Length.TryParse(o, out Length ol))
+            // A stop offset is a number or a percentage; a length with a unit is invalid and counts as 0 (SVG 1.1 13.2.4).
+            if (o is not null)
             {
-                off = ol.Unit == LengthUnit.Percent ? ol.Value / 100 : ol.Value;
+                ReadOnlySpan<char> ot = o.AsSpan().Trim();
+                bool pct = ot.EndsWith("%");
+                if (double.TryParse(pct ? ot[..^1] : ot, NumberStyles.Float, CultureInfo.InvariantCulture, out double ov))
+                {
+                    off = pct ? ov / 100 : ov;
+                }
             }
 
             off = Math.Clamp(double.IsNaN(off) ? 0 : off, last, 1);
             last = off;
             SvgStyle stopStyle = StyleOf(stop);
             Rgba32 color = new(0, 0, 0, 255);
-            if (stop.Prop("stop-color") is { } sc)
+            if (stop.Prop("stop-color") is { } sc0)
             {
+                // inherit takes the value from the gradient element the stop sits in.
+                string sc = sc0.Trim().Equals("inherit", StringComparison.OrdinalIgnoreCase) ? holder.Prop("stop-color") ?? "black" : sc0;
                 if (sc.Trim().Equals("currentColor", StringComparison.OrdinalIgnoreCase))
                 {
                     color = stopStyle.Color;
