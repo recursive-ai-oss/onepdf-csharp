@@ -43,7 +43,8 @@ internal static class VeraPdf
         File.WriteAllBytes(file, pdf);
         try
         {
-            var psi = new ProcessStartInfo(exe) { RedirectStandardOutput = true, RedirectStandardError = true };
+            // Its own working directory: a parallel test may switch the process to a temporary directory and delete it, and a JVM started there cannot start.
+            var psi = new ProcessStartInfo(exe) { RedirectStandardOutput = true, RedirectStandardError = true, WorkingDirectory = dir };
             psi.ArgumentList.Add("--flavour");
             psi.ArgumentList.Add(flavour);
             psi.ArgumentList.Add("--format");
@@ -80,7 +81,7 @@ internal static class VeraPdf
     public static string Version()
     {
         string exe = Require();
-        var psi = new ProcessStartInfo(exe) { RedirectStandardOutput = true };
+        var psi = new ProcessStartInfo(exe) { RedirectStandardOutput = true, WorkingDirectory = System.IO.Path.GetTempPath() };
         psi.ArgumentList.Add("--version");
         using Process p = Process.Start(psi)!;
         string o = p.StandardOutput.ReadToEnd();
