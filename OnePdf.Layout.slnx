@@ -1,0 +1,10 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/OnePdf/OnePdf.csproj" />
+    <Project Path="src/OnePdf.Fonts/OnePdf.Fonts.csproj" />
+    <Project Path="src/OnePdf.Layout/OnePdf.Layout.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/OnePdf.Layout.Tests/OnePdf.Layout.Tests.csproj" />
+  </Folder>
+</Solution>
