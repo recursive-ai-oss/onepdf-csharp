@@ -74,9 +74,9 @@ internal static class OnePdfSeams
 }
 
 /// <summary>OnePDF Layout: element objects, laid out and written through the streaming writer.</summary>
-internal sealed class OnePdfEngine : IEngine
+internal sealed class OnePdfEngine(LineBreakMode lineBreaks = LineBreakMode.Greedy) : IEngine
 {
-    public string Name => "OnePDF";
+    public string Name => lineBreaks == LineBreakMode.Greedy ? "OnePDF" : "OnePDF (Knuth-Plass)";
 
     internal static readonly TextFontRegistry Fonts = MakeFonts();
 
@@ -104,6 +104,7 @@ internal sealed class OnePdfEngine : IEngine
             _ => throw new ArgumentOutOfRangeException(nameof(row)),
         };
         doc.Options.Fonts = Fonts;
+        doc.Options.LineBreakMode = lineBreaks;
         doc.Save(output, SaveOptions);
         return 0;
     }

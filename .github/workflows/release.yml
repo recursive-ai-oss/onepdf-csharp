@@ -102,12 +102,13 @@ jobs:
         run: dotnet test --solution OnePdf.slnx -c Release --no-build --results-directory "$ONEPDF_ARTIFACTS/TestResults"
 
       - name: Pack
-        # The shipped packages (the library, the substitute fonts and the layout package), from the binaries the tests ran on.
+        # The shipped packages (the library, the substitute fonts, the layout package and the hyphenation patterns), from the binaries the tests ran on.
         # They share one version. Symbols come out as .snupkg files.
         run: |
           dotnet pack src/OnePdf -c Release --no-build -o "$RUNNER_TEMP/packages"
           dotnet pack src/OnePdf.Fonts -c Release --no-build -o "$RUNNER_TEMP/packages"
           dotnet pack src/OnePdf.Layout -c Release --no-build -o "$RUNNER_TEMP/packages"
+          dotnet pack src/OnePdf.Hyphenation -c Release --no-build -o "$RUNNER_TEMP/packages"
           ls -l "$RUNNER_TEMP/packages"
 
       - name: Attest build provenance

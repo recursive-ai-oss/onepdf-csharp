@@ -181,6 +181,55 @@ if (taggedRoot is null
     return 1;
 }
 
+// Hyphenation: a narrow column breaks long words at pattern points, and joined extraction gives the words back whole.
+const string hyphText = "Internationalization of hyphenation algorithms characterizes extraordinarily comprehensive documentation.";
+LayoutDocument hyph = LayoutDocument.Compose(d => d.Page(p =>
+{
+    p.Size(130, 300);
+    p.Margin(10);
+    p.Content().Text(t =>
+    {
+        t.Language("en-US");
+        t.Hyphenator(OnePdf.Hyphenation.Hyphenators.Auto());
+        t.Span(hyphText);
+    });
+}));
+using var hyphStream = new MemoryStream();
+hyph.Save(hyphStream, new PdfDocumentWriterOptions { LeaveOpen = true });
+using PdfDocument hyphBack = PdfDocument.Open(hyphStream.ToArray());
+string hyphRaw = string.Concat(hyphBack.ExtractText().Select(t => t.Text));
+string hyphJoined = string.Join(" ", hyphBack.ExtractText(new OnePdf.Text.PdfTextOptions { JoinHyphenatedWords = true }).Select(t => t.Text).SelectMany(s => s.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries)));
+if (!hyphRaw.Contains('­', StringComparison.Ordinal) && !hyphRaw.Contains('-', StringComparison.Ordinal) || hyphJoined != hyphText)
+{
+    Console.WriteLine("FAIL hyphenation: " + hyphRaw + " | " + hyphJoined);
+    return 1;
+}
+
+// Knuth-Plass line breaking: one justified paragraph with a hyphenator, broken by total fit, reads back whole.
+const string kpText = "Typesetting a paragraph well means looking at all of it at once, so that a loose line is not the price of a tight one that comes later in the same paragraph.";
+LayoutDocument kp = LayoutDocument.Compose(d => d.Page(p =>
+{
+    p.Size(190, 300);
+    p.Margin(10);
+    p.Content().Text(t =>
+    {
+        t.Language("en-US");
+        t.Justify();
+        t.Hyphenator(OnePdf.Hyphenation.Hyphenators.Auto());
+        t.OptimalLineBreaks(new KnuthPlassOptions { Looseness = 0 });
+        t.Span(kpText);
+    });
+}));
+using var kpStream = new MemoryStream();
+kp.Save(kpStream, new PdfDocumentWriterOptions { LeaveOpen = true });
+using PdfDocument kpBack = PdfDocument.Open(kpStream.ToArray());
+string kpJoined = string.Join(" ", kpBack.ExtractText(new OnePdf.Text.PdfTextOptions { JoinHyphenatedWords = true }).Select(t => t.Text).SelectMany(s => s.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries)));
+if (kpJoined != kpText)
+{
+    Console.WriteLine("FAIL knuth-plass: " + kpJoined);
+    return 1;
+}
+
 Console.WriteLine("ok");
 return 0;
 

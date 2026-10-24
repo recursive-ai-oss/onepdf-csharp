@@ -191,6 +191,18 @@ public sealed class DocumentComposer
         return this;
     }
 
+    /// <summary>
+    /// How text breaks its lines unless a text chooses for itself (<see cref="TextDescriptor.OptimalLineBreaks"/>). Default greedy.
+    /// </summary>
+    /// <param name="mode">The mode.</param>
+    /// <param name="options">The knobs of <see cref="LineBreakMode.KnuthPlass"/>; null for the defaults.</param>
+    public DocumentComposer LineBreaking(LineBreakMode mode, KnuthPlassOptions? options = null)
+    {
+        _document.Options.LineBreakMode = mode;
+        _document.Options.KnuthPlass = options;
+        return this;
+    }
+
     /// <summary>The most pages the document may produce before layout stops with <see cref="PdfLayoutException"/>. Default 100000.</summary>
     public DocumentComposer MaxPages(int pages)
     {

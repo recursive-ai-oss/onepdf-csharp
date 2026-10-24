@@ -48,7 +48,19 @@ public class TableBenchmarks() : RowBenchmarks(Workload.Table10k);
 [MemoryDiagnoser]
 [BenchmarkCategory("layout", "book")]
 [SimpleJob(warmupCount: 1, iterationCount: 6)]
-public class BookBenchmarks() : RowBenchmarks(Workload.Book500);
+public class BookBenchmarks() : RowBenchmarks(Workload.Book500)
+{
+    private readonly OnePdfEngine _knuthPlass = new(global::OnePdf.Layout.LineBreakMode.KnuthPlass);
+
+    /// <summary>Information row: the same book with every paragraph broken by total fit.</summary>
+    [Benchmark]
+    public long OnePdfKnuthPlass()
+    {
+        var s = new CountingStream();
+        _knuthPlass.Render(Workload.Book500, s);
+        return s.Count;
+    }
+}
 
 [MemoryDiagnoser]
 [BenchmarkCategory("layout", "mixed")]

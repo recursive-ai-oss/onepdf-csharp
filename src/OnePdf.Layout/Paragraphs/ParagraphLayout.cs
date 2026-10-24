@@ -197,11 +197,13 @@ public sealed partial class ShapedParagraph
             int end = seg.First + seg.Count;
             int i = seg.First;
             bool rtl = (seg.ParaLevel & 1) == 1;
+            List<(int Cut, bool Hyphen)>? optimal = UseKnuthPlass ? BreakOptimal(seg, firstLine ? _source.FirstLineIndent : 0, width) : null;
+            int optimalNext = 0;
             while (i < end)
             {
                 double indent = firstLine ? _source.FirstLineIndent : 0;
                 double avail = width - indent;
-                (int cut, bool hyphen, bool overflow) = FindBreak(seg, i, end, avail);
+                (int cut, bool hyphen, bool overflow) = optimal is null ? FindBreak(seg, i, end, avail) : (optimal[optimalNext].Cut, optimal[optimalNext++].Hyphen, false);
 
                 int lineEnd = cut;
                 while (lineEnd > i && _items[lineEnd - 1].TrimSpace)
@@ -224,6 +226,13 @@ public sealed partial class ShapedParagraph
                     IsParagraphEnd = paragraphEnd,
                     Overflows = overflow || content > avail + Eps,
                 };
+                bool squeezed = false;
+                if (optimal is not null && !overflow && !paragraphEnd && content > avail + Eps && _source.Alignment == TextAlignment.Justify && content - avail <= ShrinkRoom(i, lineEnd) + Eps)
+                {
+                    // A line the total-fit breaker chose to squeeze: its spaces narrow instead of widen.
+                    line.Overflows = false;
+                    squeezed = true;
+                }
                 if (line.Overflows && !overflowNoted)
                 {
                     overflowNoted = true;
@@ -234,7 +243,7 @@ public sealed partial class ShapedParagraph
                 TextAlignment align = _source.Alignment;
                 if (align == TextAlignment.Justify)
                 {
-                    if (!paragraphEnd && !line.Overflows && avail - content > Eps)
+                    if (!paragraphEnd && !line.Overflows && (avail - content > Eps || squeezed))
                     {
                         double extra = avail - content;
                         int stretch = 0;

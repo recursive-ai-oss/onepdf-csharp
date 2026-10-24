@@ -240,7 +240,8 @@ internal static class TagSupport
         File.WriteAllBytes(file, pdf);
         try
         {
-            var psi = new ProcessStartInfo(exe!) { RedirectStandardOutput = true, RedirectStandardError = true };
+            // Its own working directory: a parallel test may switch the process to a temporary directory and delete it, and a JVM started there cannot start.
+            var psi = new ProcessStartInfo(exe!) { RedirectStandardOutput = true, RedirectStandardError = true, WorkingDirectory = dir };
             psi.ArgumentList.Add("--flavour");
             psi.ArgumentList.Add(flavour);
             psi.ArgumentList.Add("--format");

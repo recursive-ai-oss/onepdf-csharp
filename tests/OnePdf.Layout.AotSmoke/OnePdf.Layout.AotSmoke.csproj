@@ -12,6 +12,7 @@
   <ItemGroup>
     <ProjectReference Include="../../src/OnePdf/OnePdf.csproj" />
     <ProjectReference Include="../../src/OnePdf.Layout/OnePdf.Layout.csproj" />
+    <ProjectReference Include="../../src/OnePdf.Hyphenation/OnePdf.Hyphenation.csproj" />
   </ItemGroup>
 
 </Project>
