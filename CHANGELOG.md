@@ -4,6 +4,8 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ## [Unreleased]
 
+## [1.7.0] - 2026-10-24
+
 ### Added
 
 - `PdfFontSource`: parses a font once and shares it between documents (`PdfDocument.AddFont` and `PdfDocumentWriter.AddFont` overloads), so producing many documents with the same face does not parse and validate it each time.
@@ -159,6 +161,7 @@ First release. Two packages, `RecursiveAI.OnePdf` (the library, `net10.0`, no de
 - Limits on by default (`PdfLimits`) and fuzzed parsers, filters and font readers; no `unsafe` code. OnePDF never runs code or touches the network.
 - `RecursiveAI.OnePdf.Fonts`: Liberation and Noto substitute outlines under the SIL Open Font License 1.1, registered with `FontsPackage.Register()`.
 
+[1.7.0]: https://github.com/recursive-ai-oss/onepdf-csharp/releases/tag/v1.7.0
 [1.6.0]: https://github.com/recursive-ai-oss/onepdf-csharp/releases/tag/v1.6.0
 [1.5.0]: https://github.com/recursive-ai-oss/onepdf-csharp/releases/tag/v1.5.0
 [1.4.0]: https://github.com/recursive-ai-oss/onepdf-csharp/releases/tag/v1.4.0
