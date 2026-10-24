@@ -116,6 +116,78 @@ internal static class CompressedFilters
         }
     }
 
+    /// <summary>
+    /// Inflates <paramref name="input"/> once, keeping nothing, and returns the size of the whole result, so a large stream can
+    /// be decoded straight into one array of exactly that size instead of growing segments that are joined and thrown away.
+    /// Returns 0 when the stream does not decode cleanly to its end within the limits (the normal path then decodes and
+    /// reports it as before).
+    /// </summary>
+    public static long MeasureFlate(ReadOnlySpan<byte> input, in DecodeLimits limits, CancellationToken ct)
+    {
+        if (input.IsEmpty)
+        {
+            return 0;
+        }
+
+        bool zlib = SniffZlibHeader(input, out int skip, out bool badHeader);
+        if (badHeader)
+        {
+            return 0;
+        }
+
+        ReadOnlySpan<byte> rest = input.Slice(skip);
+        Inflater inf = t_inflater ?? new Inflater(zlib, limits.MaxDecodedBytes, limits.MaxExpansionRatio, limits.RatioAppliesAfterBytes);
+        t_inflater = null;
+        byte[] scratch = System.Buffers.ArrayPool<byte>.Shared.Rent(Slice);
+        try
+        {
+            inf.Reset(zlib, limits.MaxDecodedBytes, limits.MaxExpansionRatio, limits.RatioAppliesAfterBytes);
+            long total = 0;
+            int pos = 0;
+            while (true)
+            {
+                ct.ThrowIfCancellationRequested();
+                InflateStatus st;
+                int consumed;
+                int written;
+                try
+                {
+                    st = inf.Inflate(rest.Slice(pos), scratch.AsSpan(0, Slice), out consumed, out written);
+                }
+                catch (FilterDataException)
+                {
+                    return 0;
+                }
+                catch (FilterLimitException)
+                {
+                    return 0;
+                }
+
+                total += written;
+                pos += consumed;
+                if (total > limits.MaxDecodedBytes)
+                {
+                    return 0;
+                }
+
+                if (st == InflateStatus.Done)
+                {
+                    return total;
+                }
+
+                if (st != InflateStatus.NeedOutput)
+                {
+                    return 0;
+                }
+            }
+        }
+        finally
+        {
+            System.Buffers.ArrayPool<byte>.Shared.Return(scratch);
+            t_inflater = inf;
+        }
+    }
+
     private static void Salvage(Inflater inf, OutputBuffer output)
     {
         while (true)

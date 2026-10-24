@@ -87,7 +87,8 @@ public class FilterParametersAndSizeHintTests
         Assert.True(raw.AsSpan().SequenceEqual(a.Data.Span));
         Assert.True(raw.AsSpan().SequenceEqual(b.Data.Span));
         Assert.True(hinted < raw.Length * 1.05, $"hinted allocated {hinted} for {raw.Length}");
-        Assert.True(plain > hinted, $"plain {plain}, hinted {hinted}");
+        // A large stream is measured first when no size is given, so both end up allocating the result once.
+        Assert.True(plain <= hinted + 4096, $"plain {plain}, hinted {hinted}");
     }
 
     [Fact]
@@ -107,6 +108,31 @@ public class FilterParametersAndSizeHintTests
         long hinted = Allocated(() => StreamFilters.Decode("FlateDecode", z, p, Limits, image.Length), out FilterResult r);
         Assert.True(image.AsSpan().SequenceEqual(r.Data.Span));
         Assert.True(hinted < tagged.Length * 1.05, $"hinted allocated {hinted} for {tagged.Length}");
+    }
+
+    [Fact]
+    public void LargeStreamWithoutAHintIsMeasuredAndAllocatedOnce()
+    {
+        // Poorly compressible input, so the compressed side is above the measuring threshold and the result above the pooled size.
+        byte[] raw = FilterTestUtil.Texty(24 << 20, 5);
+        byte[] z = FilterTestUtil.Zlib(raw);
+        Assert.True(z.Length >= 128 << 10);
+        long bytes = Allocated(() => StreamFilters.Decode("FlateDecode", z, null, Limits), out FilterResult r);
+        Assert.Equal(FilterIssues.None, r.Issues);
+        Assert.True(raw.AsSpan().SequenceEqual(r.Data.Span));
+        Assert.True(bytes < raw.Length * 1.1, $"allocated {bytes} for {raw.Length}");
+    }
+
+    [Fact]
+    public void LargeDamagedStreamWithoutAHintStillKeepsWhatDecoded()
+    {
+        byte[] raw = FilterTestUtil.Texty(6 << 20, 6);
+        byte[] z = FilterTestUtil.Zlib(raw);
+        byte[] cut = z.AsSpan(0, z.Length * 2 / 3).ToArray();
+        FilterResult r = StreamFilters.Decode("FlateDecode", cut, null, Limits);
+        Assert.NotEqual(FilterIssues.None, r.Issues & FilterIssues.Truncated);
+        Assert.True(r.Data.Length > 1 << 20 && r.Data.Length < raw.Length);
+        Assert.True(raw.AsSpan(0, r.Data.Length).SequenceEqual(r.Data.Span));
     }
 
     [Theory]
