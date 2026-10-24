@@ -11,10 +11,10 @@ internal sealed partial class SvgPainter
     // pattern for a pattern element. The form is drawn in the current user space, which is the pattern space of what it holds.
 
     /// <summary>Strokes the path with a gradient or pattern; false when nothing of the kind could be made and the caller should use a solid colour instead.</summary>
-    private bool TryStrokeWithServer(SvgPath path, SvgElement server, in SvgStyle st, Viewport vp, double width, out Rgba32 flat)
+    private bool TryStrokeWithServer(SvgPath path, SvgElement server, in SvgStyle st, Viewport vp, double width, bool fromContext, Rgba32? fallback, out Rgba32 flat)
     {
         flat = default;
-        if (!path.TryBounds(Affine.Identity, out double bx0, out double by0, out double bx1, out double by1))
+        if (!ServerBox(path, fromContext, out double bx0, out double by0, out double bx1, out double by1, out Affine space))
         {
             return true;
         }
@@ -24,9 +24,9 @@ internal sealed partial class SvgPainter
         double alpha = 1;
         if (server.Name == "pattern")
         {
-            if (!TryTilingPattern(server, st, vp, bx0, by0, bx1, by1, out pattern))
+            if (!TryTilingPattern(server, st, vp, bx0, by0, bx1, by1, space, out pattern))
             {
-                return true;
+                return UseFallback(fallback, out flat);
             }
         }
         else
@@ -34,7 +34,7 @@ internal sealed partial class SvgPainter
             GradientPlan? plan = PlanGradient(server, st, vp, bx0, by0, bx1, by1);
             if (plan is null)
             {
-                return true;
+                return UseFallback(fallback, out flat);
             }
 
             if (plan.Flat is { } f)
@@ -52,7 +52,8 @@ internal sealed partial class SvgPainter
             var pd = new PdfDictionary();
             pd.SetEntry("Type", new PdfName("Pattern"));
             pd.SetEntry("PatternType", new PdfInteger(2));
-            pd.SetEntry("Matrix", Numbers(plan.M.A, plan.M.B, plan.M.C, plan.M.D, plan.M.E, plan.M.F));
+            Affine pm = space.IsIdentity ? plan.M : space.Multiply(plan.M);
+            pd.SetEntry("Matrix", Numbers(pm.A, pm.B, pm.C, pm.D, pm.E, pm.F));
             pd.SetEntry("Shading", ShadingOf(plan));
             pattern = doc.AddObject(pd);
         }
@@ -85,7 +86,14 @@ internal sealed partial class SvgPainter
         return true;
     }
 
-    private bool TryTilingPattern(SvgElement pattern, in SvgStyle st, Viewport vp, double bx0, double by0, double bx1, double by1, out PdfReference? reference)
+    // A server that cannot paint this shape (a zero-size box for objectBoundingBox units) gives way to the fallback colour, when there is one.
+    private static bool UseFallback(Rgba32? fallback, out Rgba32 flat)
+    {
+        flat = fallback ?? default;
+        return fallback is null;
+    }
+
+    private bool TryTilingPattern(SvgElement pattern, in SvgStyle st, Viewport vp, double bx0, double by0, double bx1, double by1, in Affine space, out PdfReference? reference)
     {
         reference = null;
         if (!_active.Add(pattern))
@@ -96,7 +104,7 @@ internal sealed partial class SvgPainter
 
         try
         {
-            if (!ReadPatternGeometry(pattern, vp, bx0, by0, bx1, by1, out PatternGeometry pg))
+            if (!ReadPatternGeometry(pattern, vp, bx0, by0, bx1, by1, space, null, out PatternGeometry pg))
             {
                 return false;
             }

@@ -50,6 +50,21 @@ internal sealed partial class SvgPainter
     private Paint? _ctxFill;
     private Paint? _ctxStroke;
 
+    // The element whose paints context-fill and context-stroke stand for. A gradient or pattern taken from it keeps its own box and
+    // coordinate system (SVG 2 13.5), so _rel records how the current user space sits inside the context element's space.
+    private sealed class ContextFrame(SvgElement? element, SvgPath? path, Viewport viewport)
+    {
+        public SvgElement? Element { get; } = element;
+
+        public SvgPath? Path { get; } = path;
+
+        public Viewport Viewport { get; } = viewport;
+    }
+
+    private ContextFrame? _ctxFrame;
+    private Affine _rel = Affine.Identity;
+    private readonly Stack<Affine> _relStack = [];
+
     public SvgPainter(SvgImage svg, ISvgHost host, CancellationToken ct)
     {
         _svg = svg;
@@ -107,13 +122,20 @@ internal sealed partial class SvgPainter
 
     // ---- bookkeeping ----
 
-    private void Note(string message)
+    private void Note(string message, bool perDocument = false)
     {
         if (_noted.Add(message))
         {
             _notes.Add(message);
-            _host.Note(message);
+            _host.Note(message, perDocument);
         }
+    }
+
+    /// <summary>Applies a matrix to the user space and keeps track of it for context paints.</summary>
+    private void Xf(in Affine t)
+    {
+        _b.Transform(t.A, t.B, t.C, t.D, Coord.D(t.E), Coord.D(t.F));
+        _rel = _rel.Multiply(t);
     }
 
     private bool Open()
@@ -126,6 +148,7 @@ internal sealed partial class SvgPainter
 
         _b.Save();
         _saved++;
+        _relStack.Push(_rel);
         return true;
     }
 
@@ -133,6 +156,7 @@ internal sealed partial class SvgPainter
     {
         _b.Restore();
         _saved--;
+        _rel = _relStack.Pop();
     }
 
     private bool Enter()
@@ -493,7 +517,7 @@ internal sealed partial class SvgPainter
         {
             if (!t.IsIdentity)
             {
-                _b.Transform(t.A, t.B, t.C, t.D, Coord.D(t.E), Coord.D(t.F));
+                Xf(t);
             }
 
             if (clipEl is not null)
@@ -707,7 +731,7 @@ internal sealed partial class SvgPainter
 
             if (!inner.IsIdentity)
             {
-                _b.Transform(inner.A, inner.B, inner.C, inner.D, Coord.D(inner.E), Coord.D(inner.F));
+                Xf(inner);
             }
 
             DrawChildren(e, st, nvp);
@@ -755,8 +779,12 @@ internal sealed partial class SvgPainter
 
         Paint? savedFill = _ctxFill;
         Paint? savedStroke = _ctxStroke;
+        ContextFrame? savedFrame = _ctxFrame;
+        Affine savedRel = _rel;
         // context-fill and context-stroke inside the referenced content mean the use element's own paints (SVG 2 13.5).
         (_ctxFill, _ctxStroke) = ContextPaints(st);
+        _ctxFrame = new ContextFrame(e, null, vp);
+        _rel = Affine.Identity;
         try
         {
             double x = Num(e, "x", Axis.X, st, vp);
@@ -776,7 +804,7 @@ internal sealed partial class SvgPainter
 
             try
             {
-                _b.Translate(x, y);
+                Xf(Affine.Translate(x, y));
                 DrawElement(target, st, vp, w, h, false, true);
             }
             finally
@@ -789,6 +817,8 @@ internal sealed partial class SvgPainter
             _active.Remove(target);
             _ctxFill = savedFill;
             _ctxStroke = savedStroke;
+            _ctxFrame = savedFrame;
+            _rel = savedRel;
         }
     }
 
@@ -1185,7 +1215,7 @@ internal sealed partial class SvgPainter
                 fb.Dispose();
             }
 
-            Note("Masks are luminosity masks with the PDF luminosity weights (a very small difference from the SVG weights).");
+            Note("Masks are luminosity masks with the PDF luminosity weights (a very small difference from the SVG weights).", perDocument: true);
             _b.SetSoftMask(form, maskEl.Prop("mask-type") == "alpha" ? PdfSoftMaskKind.Alpha : PdfSoftMaskKind.Luminosity);
         }
         finally
@@ -1209,6 +1239,10 @@ internal sealed partial class SvgPainter
 
     /// <summary>The bounding box of an element's geometry in its own user space (its transform not applied), without strokes.</summary>
     private bool TryBoundsOf(SvgElement e, Viewport vp, int depth, out double x0, out double y0, out double x1, out double y1)
+        => TryBoundsOf(e, vp, depth, Affine.Identity, out x0, out y0, out x1, out y1);
+
+    /// <summary>As above, with the geometry mapped through <paramref name="m"/> first, so nested transforms give the tight box and not a box of boxes.</summary>
+    private bool TryBoundsOf(SvgElement e, Viewport vp, int depth, in Affine m, out double x0, out double y0, out double x1, out double y1)
     {
         x0 = y0 = double.MaxValue;
         x1 = y1 = double.MinValue;
@@ -1224,7 +1258,8 @@ internal sealed partial class SvgPainter
         }
 
         SvgStyle st = StyleOf(e);
-        if (!st.Displayed || (!st.Visible && e.Name is not ("g" or "a" or "switch" or "svg" or "symbol" or "use")))
+        // Hidden elements (visibility, opacity 0) still count towards a bounding box; only display:none removes one.
+        if (!st.Displayed)
         {
             return false;
         }
@@ -1234,18 +1269,22 @@ internal sealed partial class SvgPainter
             case "rect" or "circle" or "ellipse" or "line" or "polyline" or "polygon" or "path":
             {
                 SvgPath? p = ShapePath(e, st, vp, null);
-                return p is not null && p.TryBounds(Affine.Identity, out x0, out y0, out x1, out y1);
+                return p is not null && p.TryBounds(m, out x0, out y0, out x1, out y1);
             }
 
             case "image":
             {
                 double x = Num(e, "x", Axis.X, st, vp);
                 double y = Num(e, "y", Axis.Y, st, vp);
-                x0 = x;
-                y0 = y;
-                x1 = x + Num(e, "width", Axis.X, st, vp);
-                y1 = y + Num(e, "height", Axis.Y, st, vp);
-                return x1 > x0 && y1 > y0;
+                double iw = Num(e, "width", Axis.X, st, vp);
+                double ih = Num(e, "height", Axis.Y, st, vp);
+                if (!(iw > 0 && ih > 0))
+                {
+                    return false;
+                }
+
+                (x0, y0, x1, y1) = m.TransformRect(x, y, x + iw, y + ih);
+                return true;
             }
 
             case "text":
@@ -1254,24 +1293,20 @@ internal sealed partial class SvgPainter
                 double x = FirstNumber(e.Attr("x"), 0);
                 double y = FirstNumber(e.Attr("y"), 0);
                 int chars = Math.Min(TextLength(e), 10_000);
-                x0 = x;
-                x1 = x + (chars * st.FontSize * 0.5);
-                y0 = y - st.FontSize;
-                y1 = y + (st.FontSize * 0.25);
+                (x0, y0, x1, y1) = m.TransformRect(x, y - st.FontSize, x + (chars * st.FontSize * 0.5), y + (st.FontSize * 0.25));
                 return chars > 0;
             }
 
             case "use":
             {
                 string? id = Href(e, out _);
-                if (id is null || !_doc.Ids.TryGetValue(id, out SvgElement? target) || target == e || !TryBoundsOf(target, vp, depth + 1, out double a, out double b, out double c, out double d))
+                if (id is null || !_doc.Ids.TryGetValue(id, out SvgElement? target) || target == e)
                 {
                     return false;
                 }
 
-                Affine m = Affine.Translate(Num(e, "x", Axis.X, st, vp), Num(e, "y", Axis.Y, st, vp)).Multiply(TransformOf(target));
-                (x0, y0, x1, y1) = m.TransformRect(a, b, c, d);
-                return true;
+                Affine um = m.Multiply(Affine.Translate(Num(e, "x", Axis.X, st, vp), Num(e, "y", Axis.Y, st, vp))).Multiply(TransformOf(target, StyleOf(target), vp, false));
+                return TryBoundsOf(target, vp, depth + 1, um, out x0, out y0, out x1, out y1);
             }
 
             case "g" or "a" or "switch" or "svg" or "symbol":
@@ -1279,12 +1314,11 @@ internal sealed partial class SvgPainter
                 bool any = false;
                 foreach (SvgElement c in e.Children)
                 {
-                    if (!TryBoundsOf(c, vp, depth + 1, out double a, out double b, out double cc, out double d))
+                    if (!TryBoundsOf(c, vp, depth + 1, m.Multiply(TransformOf(c, StyleOf(c), vp, false)), out double ax, out double ay, out double bx, out double by))
                     {
                         continue;
                     }
 
-                    (double ax, double ay, double bx, double by) = TransformOf(c).TransformRect(a, b, cc, d);
                     x0 = Math.Min(x0, ax);
                     y0 = Math.Min(y0, ay);
                     x1 = Math.Max(x1, bx);

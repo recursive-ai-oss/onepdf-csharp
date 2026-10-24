@@ -8,7 +8,7 @@ internal sealed partial class SvgPainter
 {
     // ---- markers (SVG 1.1 11.6) ----
 
-    private void DrawMarkers(SvgElement e, in SvgStyle st, Viewport vp, MarkerPath mp)
+    private void DrawMarkers(SvgElement e, in SvgStyle st, Viewport vp, MarkerPath mp, SvgPath shapePath)
     {
         MarkerRefs refs = st.Markers!;
         List<MarkerVertex> vertices = mp.Vertices();
@@ -26,7 +26,11 @@ internal sealed partial class SvgPainter
         double strokeWidth = Math.Max(0, Resolve(st.StrokeWidth, Axis.Other, st, vp));
         Paint? savedFill = _ctxFill;
         Paint? savedStroke = _ctxStroke;
+        ContextFrame? savedFrame = _ctxFrame;
+        Affine savedRel = _rel;
         (_ctxFill, _ctxStroke) = ContextPaints(st);
+        _ctxFrame = new ContextFrame(e, shapePath, vp);
+        _rel = Affine.Identity;
         try
         {
             for (int i = 0; i < vertices.Count; i++)
@@ -45,6 +49,8 @@ internal sealed partial class SvgPainter
         {
             _ctxFill = savedFill;
             _ctxStroke = savedStroke;
+            _ctxFrame = savedFrame;
+            _rel = savedRel;
         }
     }
 
@@ -130,6 +136,20 @@ internal sealed partial class SvgPainter
                 }
 
                 string? overflow = marker.Prop("overflow");
+                if (overflow == "inherit")
+                {
+                    // Taken from the nearest ancestor that sets it; with none, the property's initial value, visible.
+                    overflow = "visible";
+                    for (SvgElement? up = marker.Parent; up is not null; up = up.Parent)
+                    {
+                        if (up.Prop("overflow") is { } inherited && inherited != "inherit")
+                        {
+                            overflow = inherited;
+                            break;
+                        }
+                    }
+                }
+
                 if (!Open())
                 {
                     return;
@@ -137,7 +157,7 @@ internal sealed partial class SvgPainter
 
                 try
                 {
-                    _b.Transform(place.A, place.B, place.C, place.D, Coord.D(place.E), Coord.D(place.F));
+                    Xf(place);
                     if (overflow is not ("visible" or "auto"))
                     {
                         _b.Rectangle(0, 0, mw, mh);
@@ -147,7 +167,7 @@ internal sealed partial class SvgPainter
 
                     if (!vb.IsIdentity)
                     {
-                        _b.Transform(vb.A, vb.B, vb.C, vb.D, Coord.D(vb.E), Coord.D(vb.F));
+                        Xf(vb);
                     }
 
                     foreach (SvgElement c in marker.Children)
@@ -600,7 +620,21 @@ internal sealed partial class SvgPainter
     // The text of a <text> element as styled runs, in document order. Walks with an explicit stack; x, y, dx and dy lists are consumed per character.
     private void CollectText(SvgElement text, in SvgStyle st, Viewport vp, List<TextRun> runs)
     {
-        SvgTextStyle rootTs = SvgTextStyle.Compute(text, SvgTextStyle.Initial, st);
+        // Text properties (text-anchor, letter-spacing, direction ...) inherit from the ancestors of the text element too.
+        var ancestors = new Stack<SvgElement>();
+        for (SvgElement? a = text.Parent; a is not null; a = a.Parent)
+        {
+            ancestors.Push(a);
+        }
+
+        SvgTextStyle inheritedTs = SvgTextStyle.Initial;
+        while (ancestors.Count > 0)
+        {
+            SvgElement a = ancestors.Pop();
+            inheritedTs = SvgTextStyle.Compute(a, inheritedTs, StyleOf(a));
+        }
+
+        SvgTextStyle rootTs = SvgTextStyle.Compute(text, inheritedTs, st);
         var stack = new Stack<TextFrame>();
         var lists = new List<ListFrame>();
         int nextId = 0;

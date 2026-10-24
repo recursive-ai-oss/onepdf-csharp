@@ -37,22 +37,31 @@ internal sealed partial class SvgPainter
         public Rgba32? Flat;
     }
 
-    private void FillWithServer(SvgPath path, SvgElement server, in SvgStyle st, Viewport vp)
+    private void FillWithServer(SvgPath path, SvgElement server, in SvgStyle st, Viewport vp, bool fromContext, Rgba32? fallback)
     {
-        if (!path.TryBounds(Affine.Identity, out double bx0, out double by0, out double bx1, out double by1))
+        if (!ServerBox(path, fromContext, out double bx0, out double by0, out double bx1, out double by1, out Affine space))
         {
             return;
         }
 
         if (server.Name == "pattern")
         {
-            FillWithPattern(path, server, st, vp, bx0, by0, bx1, by1);
+            if (!FillWithPattern(path, server, st, vp, bx0, by0, bx1, by1, space) && fallback is { } pf)
+            {
+                FillSolid(path, st, pf);
+            }
+
             return;
         }
 
         GradientPlan? plan = PlanGradient(server, st, vp, bx0, by0, bx1, by1);
         if (plan is null)
         {
+            if (fallback is { } gf)
+            {
+                FillSolid(path, st, gf);
+            }
+
             return;
         }
 
@@ -62,7 +71,7 @@ internal sealed partial class SvgPainter
             return;
         }
 
-        Affine m = plan.M;
+        Affine m = space.IsIdentity ? plan.M : space.Multiply(plan.M);
         PdfGradient color = BuildPdfGradient(plan, alpha: false);
         PdfGradient? alpha = plan.VaryingAlpha ? BuildPdfGradient(plan, alpha: true) : null;
         double opacity = st.FillOpacity * plan.AlphaScale;
@@ -396,6 +405,12 @@ internal sealed partial class SvgPainter
             if (SvgValues.TryTransform(gt, out Affine a) && a.IsFinite)
             {
                 g.Transform = a;
+                // transform-origin (SVG 2) on the gradient: the reference box is the unit box for objectBoundingBox units, else the viewport.
+                if (server.Prop("transform-origin") is { } origin
+                    && (g.BoxUnits ? TryOrigin(origin, 0, 0, 1, 1, StyleOf(server), out double ox, out double oy) : TryOrigin(origin, vp.X, vp.Y, vp.Width, vp.Height, StyleOf(server), out ox, out oy)))
+                {
+                    g.Transform = Affine.Translate(ox, oy).Multiply(a).Multiply(Affine.Translate(-ox, -oy));
+                }
             }
         }
 
@@ -498,7 +513,7 @@ internal sealed partial class SvgPainter
     private sealed record PatternGeometry(double Tw, double Th, double Tx, double Ty, Affine Transform, Affine Content, SvgElement Holder, long I0, long I1, long J0, long J1);
 
     /// <summary>Reads a pattern's tile size, grid origin, matrices and the range of tiles a box touches; false when it paints nothing.</summary>
-    private bool ReadPatternGeometry(SvgElement pattern, Viewport vp, double bx0, double by0, double bx1, double by1, out PatternGeometry geometry)
+    private bool ReadPatternGeometry(SvgElement pattern, Viewport vp, double bx0, double by0, double bx1, double by1, in Affine space, SvgPath? cover, out PatternGeometry geometry)
     {
         geometry = null!;
         SvgStyle ps = StyleOf(pattern);
@@ -545,6 +560,11 @@ internal sealed partial class SvgPainter
         {
             pt = Affine.Identity;
         }
+        else if (!pt.IsIdentity && pattern.Prop("transform-origin") is { } origin
+            && (unitsBox ? TryOrigin(origin, bx0, by0, bw, bh, ps, out double ox, out double oy) : TryOrigin(origin, vp.X, vp.Y, vp.Width, vp.Height, ps, out ox, out oy)))
+        {
+            pt = Affine.Translate(ox, oy).Multiply(pt).Multiply(Affine.Translate(-ox, -oy));
+        }
 
         SvgElement? holder = PatternWithChildren(pattern);
         if (holder is null)
@@ -562,9 +582,24 @@ internal sealed partial class SvgPainter
             content = Affine.Scale(bw, bh);
         }
 
+        // The pattern space sits in the space of the element whose box it refers to, which may differ from the current user space.
+        if (!space.IsIdentity)
+        {
+            pt = space.Multiply(pt);
+        }
+
         // The tiles the shape's box touches, in pattern space (the grid starts at tx,ty).
+        double cx0 = bx0;
+        double cy0 = by0;
+        double cx1 = bx1;
+        double cy1 = by1;
+        if (cover is not null && !cover.TryBounds(Affine.Identity, out cx0, out cy0, out cx1, out cy1))
+        {
+            return false;
+        }
+
         Affine inv = Inverse(pt);
-        (double px0, double py0, double px1, double py1) = inv.TransformRect(bx0, by0, bx1, by1);
+        (double px0, double py0, double px1, double py1) = inv.TransformRect(cx0, cy0, cx1, cy1);
         long i0 = (long)Math.Floor(Math.Clamp((px0 - tx) / tw, -1e9, 1e9));
         long i1 = (long)Math.Ceiling(Math.Clamp((px1 - tx) / tw, -1e9, 1e9));
         long j0 = (long)Math.Floor(Math.Clamp((py0 - ty) / th, -1e9, 1e9));
@@ -573,19 +608,20 @@ internal sealed partial class SvgPainter
         return true;
     }
 
-    private void FillWithPattern(SvgPath path, SvgElement pattern, in SvgStyle st, Viewport vp, double bx0, double by0, double bx1, double by1)
+    /// <summary>Fills the path with the pattern; false when the pattern cannot paint this shape at all (so a fallback colour applies).</summary>
+    private bool FillWithPattern(SvgPath path, SvgElement pattern, in SvgStyle st, Viewport vp, double bx0, double by0, double bx1, double by1, in Affine space)
     {
         if (!_active.Add(pattern))
         {
             Note("patterns refer to each other in a cycle; the pattern is not drawn there.");
-            return;
+            return true;
         }
 
         try
         {
-            if (!ReadPatternGeometry(pattern, vp, bx0, by0, bx1, by1, out PatternGeometry pg))
+            if (!ReadPatternGeometry(pattern, vp, bx0, by0, bx1, by1, space, path, out PatternGeometry pg))
             {
-                return;
+                return false;
             }
 
             (double tw, double th, double tx, double ty, Affine pt, Affine content, SvgElement holder, long i0, long i1, long j0, long j1) = pg;
@@ -593,12 +629,12 @@ internal sealed partial class SvgPainter
             if (i1 - i0 > MaxTiles || j1 - j0 > MaxTiles || (i1 - i0) * (j1 - j0) > MaxTiles)
             {
                 Note("A pattern would need more than " + MaxTiles + " tiles for one shape; the shape is not filled.");
-                return;
+                return true;
             }
 
             if (!Open())
             {
-                return;
+                return true;
             }
 
             try
@@ -606,7 +642,7 @@ internal sealed partial class SvgPainter
                 PdfFormXObject? tile = BuildTile(holder, ps, tw, th, content, vp);
                 if (tile is null)
                 {
-                    return;
+                    return true;
                 }
 
                 EmitPath(path);
@@ -637,6 +673,8 @@ internal sealed partial class SvgPainter
             {
                 Close();
             }
+
+            return true;
         }
         finally
         {

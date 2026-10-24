@@ -15,7 +15,9 @@ internal interface ISvgHost
 
     PdfFormContentBuilder BeginForm(PdfRectangle box);
 
-    void Note(string message);
+    /// <param name="message">What was dropped or approximated.</param>
+    /// <param name="perDocument">True for a note that is the same everywhere, so a layout reports it once for the whole document.</param>
+    void Note(string message, bool perDocument = false);
 }
 
 /// <summary>The host for a plain content builder: its document takes the fonts, images and forms.</summary>
@@ -57,7 +59,7 @@ internal sealed class BuilderSvgHost : ISvgHost
     public PdfFormContentBuilder BeginForm(PdfRectangle box) => _document.BeginForm(box);
 
     // A plain builder has no diagnostics list; the notes come back from Draw.
-    public void Note(string message)
+    public void Note(string message, bool perDocument = false)
     {
     }
 }
@@ -93,7 +95,7 @@ internal sealed class LayoutSvgHost : ISvgHost
 
     public PdfFormContentBuilder BeginForm(PdfRectangle box) => _ctx.Target.BeginForm(box);
 
-    public void Note(string message) => _ctx.NoteOnce((_ctx.PathText, message), message);
+    public void Note(string message, bool perDocument = false) => _ctx.NoteOnce(perDocument ? message : (_ctx.PathText, message), message);
 }
 
 /// <summary>Gives a canvas the SVG host of the layout it is drawn in.</summary>

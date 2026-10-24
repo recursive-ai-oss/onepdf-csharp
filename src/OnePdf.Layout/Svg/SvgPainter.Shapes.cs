@@ -201,9 +201,15 @@ internal sealed partial class SvgPainter
 
     private void DrawShape(SvgElement e, in SvgStyle st, Viewport vp)
     {
-        bool wantMarkers = e.Name is "path" or "line" or "polyline" or "polygon" && st.Markers is { } mk && (mk.Start is not null || mk.Mid is not null || mk.End is not null);
+        bool wantMarkers = e.Name is "path" or "line" or "polyline" or "polygon" or "rect" or "circle" or "ellipse" && st.Markers is { } mk && (mk.Start is not null || mk.Mid is not null || mk.End is not null);
         MarkerPath? mp = wantMarkers ? new MarkerPath() : null;
         SvgPath? path = ShapePath(e, st, vp, mp);
+        if (path is not null && mp is not null && e.Name is "rect" or "circle" or "ellipse")
+        {
+            // SVG 2 11.6: markers sit on the vertices of every basic shape's path.
+            ReplayInto(mp, path);
+        }
+
         if (path is null || path.IsEmpty || !st.Visible)
         {
             return;
@@ -223,7 +229,7 @@ internal sealed partial class SvgPainter
                 default:
                     if (mp is not null)
                     {
-                        DrawMarkers(e, st, vp, mp);
+                        DrawMarkers(e, st, vp, mp, path);
                     }
 
                     break;
@@ -240,7 +246,7 @@ internal sealed partial class SvgPainter
         Server,
     }
 
-    private readonly record struct Resolved(ResolvedKind Kind, Rgba32 Color = default, SvgElement? Server = null);
+    private readonly record struct Resolved(ResolvedKind Kind, Rgba32 Color = default, SvgElement? Server = null, bool FromContext = false, Rgba32? Fallback = null);
 
     // The paints content drawn for this element sees as context-fill and context-stroke; a context paint on the element itself passes the outer one on.
     private (Paint?, Paint?) ContextPaints(in SvgStyle st)
@@ -261,15 +267,17 @@ internal sealed partial class SvgPainter
             case PaintKind.CurrentColor:
                 return new Resolved(ResolvedKind.Solid, st.Color);
             case PaintKind.ContextFill:
-                return _ctxFill is { Kind: not (PaintKind.ContextFill or PaintKind.ContextStroke) } cf ? ResolvePaint(cf, st) : default;
+                return _ctxFill is { Kind: not (PaintKind.ContextFill or PaintKind.ContextStroke) } cf ? ResolvePaint(cf, st) with { FromContext = true } : default;
             case PaintKind.ContextStroke:
-                return _ctxStroke is { Kind: not (PaintKind.ContextFill or PaintKind.ContextStroke) } cs ? ResolvePaint(cs, st) : default;
+                return _ctxStroke is { Kind: not (PaintKind.ContextFill or PaintKind.ContextStroke) } cs ? ResolvePaint(cs, st) with { FromContext = true } : default;
             default:
             {
                 // A gradient with no stops is not a usable paint server, so the fallback applies (as for a reference to nothing).
                 if (p.ServerId is { } id && _doc.Ids.TryGetValue(id, out SvgElement? s) && (s.Name == "pattern" || (s.Name is "linearGradient" or "radialGradient" && ChainWithChildren(s, e => e.Children.Exists(c => c.Name == "stop")) is not null)))
                 {
-                    return new Resolved(ResolvedKind.Server, default, s);
+                    // The fallback after the url() is used when the server cannot paint this shape (a zero-size box for objectBoundingBox units).
+                    Rgba32? fallback = p.Fallback switch { PaintKind.Color => p.FallbackColor, PaintKind.CurrentColor => st.Color, _ => null };
+                    return new Resolved(ResolvedKind.Server, default, s, false, fallback);
                 }
 
                 return p.Fallback switch
@@ -345,7 +353,7 @@ internal sealed partial class SvgPainter
             return;
         }
 
-        FillWithServer(path, r.Server!, st, vp);
+        FillWithServer(path, r.Server!, st, vp, r.FromContext, r.Fallback);
     }
 
     private void StrokePath(SvgPath path, in SvgStyle st, Viewport vp)
@@ -371,7 +379,7 @@ internal sealed partial class SvgPainter
         }
         else
         {
-            if (TryStrokeWithServer(path, r.Server!, st, vp, width, out color))
+            if (TryStrokeWithServer(path, r.Server!, st, vp, width, r.FromContext, r.Fallback, out color))
             {
                 return;
             }
@@ -400,6 +408,10 @@ internal sealed partial class SvgPainter
             ApplyDash(st, vp);
             EmitPath(path);
             _b.Stroke();
+            if (st.LineCap != 0 && st.DashArray is not { Length: > 0 })
+            {
+                DrawCapDots(path, st, color, width, opacity);
+            }
         }
         finally
         {
@@ -437,5 +449,147 @@ internal sealed partial class SvgPainter
         // A negative offset starts that far before the pattern; the PDF phase is the same offset into it.
         phase = ((phase % sum) + sum) % sum;
         _b.SetDash(lengths, phase);
+    }
+
+    // ---- helpers for markers, caps and context paints ----
+
+    private static void ReplayInto(MarkerPath markers, SvgPath path)
+    {
+        IReadOnlyList<SvgPath.Op> ops = path.Ops;
+        IReadOnlyList<double> pts = path.Points;
+        int k = 0;
+        foreach (SvgPath.Op op in ops)
+        {
+            switch (op)
+            {
+                case SvgPath.Op.Move:
+                    markers.MoveTo(pts[k], pts[k + 1]);
+                    k += 2;
+                    break;
+                case SvgPath.Op.Line:
+                    markers.LineTo(pts[k], pts[k + 1]);
+                    k += 2;
+                    break;
+                case SvgPath.Op.Cubic:
+                    markers.CubicTo(pts[k], pts[k + 1], pts[k + 2], pts[k + 3], pts[k + 4], pts[k + 5]);
+                    k += 6;
+                    break;
+                default:
+                    markers.Close();
+                    break;
+            }
+        }
+    }
+
+    /// <summary>
+    /// A subpath whose points are all equal is stroked as a dot under round and square caps (SVG 2 painting, 13.4); PDF paints such a
+    /// subpath only for round caps, and never a square, so the dots are drawn as filled shapes in the stroke colour.
+    /// </summary>
+    private void DrawCapDots(SvgPath path, in SvgStyle st, Rgba32 color, double width, double opacity)
+    {
+        IReadOnlyList<SvgPath.Op> ops = path.Ops;
+        IReadOnlyList<double> pts = path.Points;
+        int k = 0;
+        double sx = 0;
+        double sy = 0;
+        bool open = false;
+        bool degenerate = false;
+        bool segments = false;
+        var dots = new List<(double, double)>();
+
+        void End()
+        {
+            if (open && degenerate && segments)
+            {
+                dots.Add((sx, sy));
+            }
+
+            open = false;
+        }
+
+        foreach (SvgPath.Op op in ops)
+        {
+            switch (op)
+            {
+                case SvgPath.Op.Move:
+                    End();
+                    sx = pts[k];
+                    sy = pts[k + 1];
+                    open = true;
+                    degenerate = true;
+                    segments = false;
+                    k += 2;
+                    break;
+                case SvgPath.Op.Line:
+                    segments = true;
+                    degenerate &= pts[k] == sx && pts[k + 1] == sy;
+                    k += 2;
+                    break;
+                case SvgPath.Op.Cubic:
+                    segments = true;
+                    degenerate &= pts[k] == sx && pts[k + 1] == sy && pts[k + 2] == sx && pts[k + 3] == sy && pts[k + 4] == sx && pts[k + 5] == sy;
+                    k += 6;
+                    break;
+                default:
+                    // A closed zero-length subpath is a dot as well.
+                    segments = true;
+                    End();
+                    break;
+            }
+
+            if (dots.Count > 10_000)
+            {
+                break;
+            }
+        }
+
+        End();
+        if (dots.Count == 0)
+        {
+            return;
+        }
+
+        SetColor(color, false);
+        _b.SetFillOpacity(opacity);
+        foreach ((double x, double y) in dots)
+        {
+            if (st.LineCap == 1)
+            {
+                EmitPath(EllipsePath(x, y, width / 2, width / 2));
+            }
+            else
+            {
+                _b.Rectangle(Coord.D(x - (width / 2)), Coord.D(y - (width / 2)), width, width);
+            }
+
+            _b.Fill();
+        }
+    }
+
+    /// <summary>The box a gradient or pattern refers to, and the matrix that takes its coordinate system into the current user space.</summary>
+    private bool ServerBox(SvgPath path, bool fromContext, out double bx0, out double by0, out double bx1, out double by1, out Affine space)
+    {
+        space = Affine.Identity;
+        if (fromContext && _ctxFrame is { } f)
+        {
+            bool ok;
+            if (f.Path is not null)
+            {
+                ok = f.Path.TryBounds(Affine.Identity, out bx0, out by0, out bx1, out by1);
+            }
+            else
+            {
+                ok = TryBoundsOf(f.Element!, f.Viewport, 0, out bx0, out by0, out bx1, out by1);
+            }
+
+            if (_rel.IsInvertible)
+            {
+                space = Inverse(_rel);
+            }
+
+            return ok;
+        }
+
+        return path.TryBounds(Affine.Identity, out bx0, out by0, out bx1, out by1);
     }
 }

@@ -26,12 +26,12 @@ A tagged layout document writes an SVG picture as a `Figure`. Alternate text is 
 
 ## Supported
 
-- **Structure:** `svg` (nested too), `g`, `defs`, `use`, `symbol`, `switch`, `a`, `viewBox`, `preserveAspectRatio`, `transform`, `transform-origin`, `display`, `visibility`, `overflow`, root `background-color`.
+- **Structure:** `svg` (nested too), `g`, `defs`, `use`, `symbol`, `switch`, `a`, `viewBox`, `preserveAspectRatio`, `transform`, `transform-origin` (also on gradients and patterns), `display`, `visibility`, `overflow`, root `background-color`.
 - **Shapes:** `rect` (with rounded corners), `circle`, `ellipse`, `line`, `polyline`, `polygon`, `path` with every command including arcs (arcs and quadratics become cubics).
-- **Paint:** colours (hex, `rgb()`, `hsl()`, names, `currentColor`), `fill-rule`, `fill-opacity`, `stroke` width, dash and offset, caps, joins, miter limit, `stroke-opacity`, `paint-order`, `context-fill`/`context-stroke`, `opacity` (group opacity through a transparency group), `mix-blend-mode`, `isolation`.
+- **Paint:** colours (hex, `rgb()`, `hsl()`, names, `currentColor`), `fill-rule`, `fill-opacity`, `stroke` width, dash and offset, caps, joins, miter limit, `stroke-opacity`, `paint-order`, `context-fill`/`context-stroke` (a gradient or pattern keeps the context element's box and coordinate system), zero-length subpaths drawn as dots under round and square caps, the fallback colour after a `url()` when the server cannot paint a shape with no size, `opacity` (group opacity through a transparency group), `mix-blend-mode`, `isolation`.
 - **Paint servers:** linear and radial gradients (with `href` inheritance, `gradientTransform`, both unit systems, `fx`/`fy`/`fr`, stop opacity) as PDF shadings; patterns (`patternUnits`, `patternContentUnits`, `patternTransform`, `viewBox`); gradients and patterns on fills and on strokes.
 - **Clipping and masks:** `clipPath` (units, `transform`, `clip-path` on the element and on its children, `clip-rule` per child, text children). A clip of one non-even-odd shape is a PDF clip path; a clip with text, nested clips or several shapes with even-odd rules is built as a luminosity soft mask instead, `mask` (luminance, nested) as PDF soft masks.
-- **Markers:** `marker-start/mid/end`, `markerUnits`, `orient`, `refX/refY`, `viewBox`.
+- **Markers:** on `path`, `line`, `polyline`, `polygon` and the basic shapes (`rect`, `circle`, `ellipse`); `marker-start/mid/end`, `markerUnits`, `orient`, `refX/refY`, `viewBox`.
 - **Images:** `data:` URIs holding PNG or JPEG, through core's PNG reader and JPEG passthrough.
 - **Text:** `text`, `tspan`, `x/y/dx/dy` lists, `text-anchor`, `font-family/size/weight/style`, `letter-spacing`, `word-spacing`, `text-decoration`, `baseline-shift`, `dominant-baseline` (approximate), fill and stroke, `direction`/`unicode-bidi`.
 - **CSS:** presentation attributes, the `style` attribute and `<style>` sheets (type, class, id, attribute, descendant, child and sibling selectors, structural pseudo-classes such as `:first-child` and `:nth-child()`, `:not()`, `!important`) and `inherit`. CSS custom properties (`var()`) are not supported.

@@ -332,6 +332,36 @@ public class SvgTests
         }
     }
 
+    [Theory]
+    [InlineData("<linearGradient id='g'><stop offset='0' stop-color='red'/><stop offset='1' stop-color='blue'/></linearGradient><g id='k'><rect x='20' y='20' width='60' height='60' fill='context-fill' stroke='context-stroke' stroke-width='4'/></g><use href='#k' fill='url(#g)' stroke='url(#g)'/>")]
+    [InlineData("<marker id='m' markerWidth='10' markerHeight='10'><circle cx='5' cy='5' r='4' fill='context-stroke'/></marker><rect x='20' y='20' width='60' height='60' rx='8' fill='none' stroke='green' marker-start='url(#m)' marker-mid='url(#m)'/>")]
+    [InlineData("<path d='M50 50 L50 50 M100 50 Z' stroke='black' stroke-width='12' stroke-linecap='square'/><path d='M50 80 L50 80' stroke='black' stroke-width='12' stroke-linecap='round'/>")]
+    [InlineData("<linearGradient id='g'><stop offset='0' stop-color='red'/><stop offset='1' stop-color='blue'/></linearGradient><line x1='10' y1='50' x2='150' y2='50' stroke='url(#g) green' stroke-width='4'/>")]
+    public void ContextPaintsMarkersCapsAndFallbacksDraw(string body)
+    {
+        (byte[] pdf, _) = Render(Header + body + "</svg>");
+        using PdfDocument back = PdfDocument.Open(pdf);
+        Assert.Single(back.Pages);
+        Assert.Empty(back.Diagnostics);
+    }
+
+    [Fact]
+    public void TextAnchorIsInheritedFromAncestorsOfTheText()
+    {
+        static double Left(string svg)
+        {
+            (byte[] pdf, _) = Render(svg);
+            using PdfDocument d = PdfDocument.Open(pdf);
+            return d.Pages[0].ExtractText().Words.First().Bounds.Left;
+        }
+
+        double onGroup = Left(Header + "<g text-anchor='middle'><text x='100' y='50' font-size='20'>Centre</text></g></svg>");
+        double onText = Left(Header + "<text x='100' y='50' font-size='20' text-anchor='middle'>Centre</text></svg>");
+        double start = Left(Header + "<text x='100' y='50' font-size='20'>Centre</text></svg>");
+        Assert.Equal(onText, onGroup, 3);
+        Assert.True(onGroup < start - 5);
+    }
+
     [Fact]
     public void EveryFitModeLaysOut()
     {
