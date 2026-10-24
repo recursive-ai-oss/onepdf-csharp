@@ -4,6 +4,8 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ## [Unreleased]
 
+## [1.10.0] - 2026-10-24
+
 ### Fixed
 
 - Redaction reaches content that is not drawn by the page's own operators. Text, paths and image samples in the group of a soft mask are edited like page content, in the mask's own coordinate system, on copies of the graphics state and group. A tiling pattern's cell cannot be cut, so a path that meets an area and is painted with a tiling pattern is removed whole even with `PdfRedactionVectorMode.ClipOut`, and a pattern that no remaining paint uses is replaced by an empty cell. A Type 3 glyph is removed when anything its procedure paints meets an area, wherever the glyph stands, and the font is copied without the procedures of glyphs the page no longer shows (and the resources only they used). On a page something was removed from, fonts, XObjects, graphics states, patterns and shadings that the rewritten content no longer refers to are dropped from the page's resource dictionary and from the copies it makes; a font nothing remaining uses becomes a bare Helvetica reference, so its program is unreachable. Shared dictionaries and objects are copied, never changed. The Limits section of `docs/redaction.md` shrinks accordingly. A resource category stored as its own object (`/Font 7 0 R`) used to be dropped when redaction added an entry to it; it is now copied entry by entry.
@@ -216,6 +218,7 @@ First release. Two packages, `RecursiveAI.OnePdf` (the library, `net10.0`, no de
 - Limits on by default (`PdfLimits`) and fuzzed parsers, filters and font readers; no `unsafe` code. OnePDF never runs code or touches the network.
 - `RecursiveAI.OnePdf.Fonts`: Liberation and Noto substitute outlines under the SIL Open Font License 1.1, registered with `FontsPackage.Register()`.
 
+[1.10.0]: https://github.com/recursive-ai-oss/onepdf-csharp/releases/tag/v1.10.0
 [1.9.0]: https://github.com/recursive-ai-oss/onepdf-csharp/releases/tag/v1.9.0
 [1.8.0]: https://github.com/recursive-ai-oss/onepdf-csharp/releases/tag/v1.8.0
 [1.7.0]: https://github.com/recursive-ai-oss/onepdf-csharp/releases/tag/v1.7.0
