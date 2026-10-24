@@ -39,6 +39,8 @@ internal sealed class PdfUAChecker
         public List<int> Kids = [];
         public int PageObject = -1;
         public int Number = -1;
+        public string Ns = string.Empty;
+        public int ContentItems; // marked-content references and integer MCIDs held directly
     }
 
     private readonly List<Node> _nodes = [];
@@ -425,6 +427,11 @@ internal sealed class PdfUAChecker
 
                     break;
                 case PdfInteger mcid:
+                    if (parent >= 0)
+                    {
+                        _nodes[parent].ContentItems++;
+                    }
+
                     if (pageObject >= 0 && mcid.Value is >= 0 and <= int.MaxValue)
                     {
                         _treeMcids.Add((pageObject, (int)mcid.Value));
@@ -446,6 +453,11 @@ internal sealed class PdfUAChecker
                     int pg = d.GetRaw("Pg") is PdfReference pr ? pr.Number : pageObject;
                     if (kind == "MCR" || (kind is null && !d.ContainsKey("S") && d.ContainsKey("MCID")))
                     {
+                        if (parent >= 0)
+                        {
+                            _nodes[parent].ContentItems++;
+                        }
+
                         int page = d.GetRaw("Pg") is PdfReference mr ? mr.Number : pageObject;
                         if (!d.ContainsKey("Stm") && page >= 0 && d.GetInt("MCID", -1) is >= 0 and <= int.MaxValue and long m)
                         {
@@ -467,6 +479,7 @@ internal sealed class PdfUAChecker
 
                     string type = d.GetName("S") ?? string.Empty;
                     var node = new Node { Dict = d, Type = type, Parent = parent, PageObject = pg, Number = d.Reference?.Number ?? -1 };
+                    node.Ns = _part2 ? PdfUA2.NamespaceOf(d) : string.Empty;
                     string ns = _part2 ? PdfUA2.NamespaceOf(d) : string.Empty;
                     node.Role = _part2 ? (PdfUA2.IsStandard(ns, type) ? type : null) : Resolve(type, roleMap, roleCache);
                     int index = _nodes.Count;
@@ -674,9 +687,183 @@ internal sealed class PdfUAChecker
             }
         }
 
+        if (_part2 && !_structureOnly)
+        {
+            CheckPart2Structure();
+        }
+
         if (!_structureOnly && !_part2 && sawPlainH && sawNumbered)
         {
             Add("14", "7.4.4", "The document mixes the unnumbered heading H with the numbered headings H1 to H6.");
+        }
+    }
+
+    // The part-2 structure rules for inline, caption, ruby, warichu and MathML elements, and the parent/child table they sit in
+    // (ISO 14289-2 8.2.5 and its Table 5, from ISO/TS 32005). Only standard elements are compared; custom types are reported by the
+    // namespace check. Which rules need a person's judgement is listed in docs/pdfua.md.
+    private void CheckPart2Structure()
+    {
+        var kidRoles = new List<string>();
+        for (int i = 0; i < _nodes.Count; i++)
+        {
+            Node n = _nodes[i];
+            if (n.Role is null)
+            {
+                continue;
+            }
+
+            bool math = n.Ns == PdfUA2.NamespaceMathML;
+            if (n.Parent < 0 && !math && PdfUA2Table.Forbids("StructTreeRoot", PdfUA2Table.Normalize(n.Role)) && !Limited("table5-root"))
+            {
+                Add("-", "-", $"The structure tree root contains a {n.Role} element, which the structure type table does not allow.", n.Number, c2: "Table 5");
+            }
+
+            if (math)
+            {
+                // ISO 14289-2 8.2.5.29: MathML elements occur only below a Formula element (or below another MathML element).
+                bool ok = n.Parent >= 0 && (_nodes[n.Parent].Role == "Formula" || _nodes[n.Parent].Ns == PdfUA2.NamespaceMathML);
+                if (!ok && !Limited("mathml-parent"))
+                {
+                    Add("-", "-", $"A MathML element '{n.Type}' is not a child of a Formula structure element (or of another MathML element).", n.Number, c2: "8.2.5.29");
+                }
+
+                continue;
+            }
+
+            string role = PdfUA2Table.Normalize(n.Role);
+
+            // Kids that are standard elements of the PDF namespaces, in order.
+            kidRoles.Clear();
+            foreach (int k in n.Kids)
+            {
+                Node kid = _nodes[k];
+                kidRoles.Add(kid.Role is null || kid.Ns == PdfUA2.NamespaceMathML ? "?" : kid.Role);
+            }
+
+            switch (role)
+            {
+                case "Ruby":
+                    // ISO 14289-2 8.2.5.23: RB and RT, or RB, RP, RT, RP.
+                    if (!Matches(kidRoles, "RB", "RT") && !Matches(kidRoles, "RB", "RP", "RT", "RP") && !Limited("ruby"))
+                    {
+                        Add("-", "-", $"A Ruby element has the children ({string.Join(", ", kidRoles)}); it needs RB and RT, or RB, RP, RT and RP, in that order.", n.Number, c2: "8.2.5.23");
+                    }
+
+                    break;
+                case "Warichu":
+                    // ISO 14289-2 8.2.5.24: WP, WT, WP.
+                    if (!Matches(kidRoles, "WP", "WT", "WP") && !Limited("warichu"))
+                    {
+                        Add("-", "-", $"A Warichu element has the children ({string.Join(", ", kidRoles)}); it needs WP, WT and WP, in that order.", n.Number, c2: "8.2.5.24");
+                    }
+
+                    break;
+            }
+
+            // ISO 14289-2 8.2.5.27: a Caption is the first or the last child.
+            for (int k = 1; k < kidRoles.Count - 1; k++)
+            {
+                if (kidRoles[k] == "Caption")
+                {
+                    if (!Limited("caption"))
+                    {
+                        Add("-", "-", $"A Caption is neither the first nor the last child of its {n.Role} element.", _nodes[n.Kids[k]].Number, c2: "8.2.5.27");
+                    }
+
+                    break;
+                }
+            }
+
+            // Table 5: children a parent may not have, children it may have once, content it may not hold itself.
+            bool grouping = n.ContentItems == 0;
+            if (PdfUA2Table.ForbidsContent(role) && n.ContentItems > 0 && !Limited("table5-content"))
+            {
+                Add("-", "-", $"A {n.Role} element holds marked content directly; it may only hold other structure elements.", n.Number, c2: "Table 5");
+            }
+
+            var seenOnce = new HashSet<string>(StringComparer.Ordinal);
+            for (int k = 0; k < n.Kids.Count; k++)
+            {
+                Node kid = _nodes[n.Kids[k]];
+                if (kid.Role is null || kid.Ns == PdfUA2.NamespaceMathML)
+                {
+                    continue;
+                }
+
+                string child = PdfUA2Table.Normalize(kid.Role);
+                if (PdfUA2Table.Forbids(role, child) && !Limited("table5-pair"))
+                {
+                    Add("-", "-", $"A {n.Role} element contains a {kid.Role} element, which the structure type table does not allow.", kid.Number, c2: "Table 5");
+                }
+
+                if (PdfUA2Table.AtMostOne(role, child, grouping) && !seenOnce.Add(child) && !Limited("table5-once"))
+                {
+                    Add("-", "-", $"A {n.Role} element contains more than one {kid.Role} element; at most one is allowed.", kid.Number, c2: "Table 5");
+                }
+            }
+
+            if (role == "Formula")
+            {
+                CheckAssociatedFiles(n);
+            }
+        }
+
+    }
+
+    private static bool Matches(List<string> kids, params string[] expected)
+    {
+        if (kids.Count != expected.Length)
+        {
+            return false;
+        }
+
+        for (int i = 0; i < kids.Count; i++)
+        {
+            if (kids[i] != expected[i])
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    // ISO 32000-2 14.13 and 7.11.3 (Table 43): a file attached to a Formula as MathML (through /AF) is an associated file, so its file
+    // specification names the relationship (/AFRelationship) and holds the data in an embedded file stream (/EF).
+    private void CheckAssociatedFiles(Node formula)
+    {
+        if (formula.Dict.Get("AF") is not { } af)
+        {
+            return;
+        }
+
+        var specs = new List<PdfDictionary>();
+        if (af is PdfDictionary one)
+        {
+            specs.Add(one);
+        }
+        else if (af is PdfArray arr)
+        {
+            for (int i = 0; i < arr.Count && i < 64; i++)
+            {
+                if (arr[i] is PdfDictionary d)
+                {
+                    specs.Add(d);
+                }
+            }
+        }
+
+        foreach (PdfDictionary spec in specs)
+        {
+            if (spec.GetName("AFRelationship") is null && !Limited("af-relationship"))
+            {
+                Add("-", "-", "A file associated with a Formula element has no /AFRelationship entry.", formula.Number, c2: "8.2.5.29");
+            }
+
+            if (spec.GetDictionary("EF")?.Get("F") is not PdfStream && spec.GetDictionary("EF")?.Get("UF") is not PdfStream && !Limited("af-embedded"))
+            {
+                Add("-", "-", "A file associated with a Formula element does not embed its data (no /EF stream).", formula.Number, c2: "8.2.5.29");
+            }
         }
     }
 

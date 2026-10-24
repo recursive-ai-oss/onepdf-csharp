@@ -4,6 +4,10 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ## [Unreleased]
 
+### Added
+
+- `CheckPdfUA(PdfUAPart.Part2)` and the part-2 save check the structure rules for `Ruby` (ISO 14289-2 8.2.5.23), `Warichu` (8.2.5.24), `Caption` position (8.2.5.27), MathML placement and associated files (8.2.5.29), and the parent/child structure type table (Table 5), which keeps `Em` and `Strong` inline. The MathML namespace is accepted. Part 1 is unchanged. See `docs/pdfua.md` for what stays unchecked.
+
 ## [1.10.0] - 2026-10-24
 
 ### Fixed
