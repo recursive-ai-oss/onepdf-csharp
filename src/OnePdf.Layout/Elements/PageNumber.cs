@@ -153,10 +153,15 @@ public sealed class PageNumber : Element
     {
         var data = (Data)p.Data!;
         PdfContentBuilder b = d.B;
+        Tagger tag = d.Ctx.Tag;
+        TagScope scope = tag.TextIsDirect ? default : tag.Open(this, p.Continued, p.Continues, "P");
+        bool tagged = tag.BeginContent();
         double x = d.X + AlignX(Alignment, d.Ctx.Direction, p.Width - data.BoxWidth);
         b.Save();
         b.Translate(x, d.PdfY(p.Height));
         b.DrawForm(data.Form);
         b.Restore();
+        tag.EndContent(tagged);
+        tag.Close(scope);
     }
 }

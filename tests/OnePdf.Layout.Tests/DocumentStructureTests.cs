@@ -182,7 +182,7 @@ public class DocumentStructureTests
         Assert.Contains(links, l => l.Action?.Uri == "https://example.com/report?a=1");
         PdfAnnotation toAppendix = links.First(l => l.Action?.Destination is not null && l.Page.Index == 0);
         Assert.Equal(PageWith("Appendix") is var a && a >= firstLandscape ? a : -1, toAppendix.Action!.Destination!.PageIndex);
-        PdfAnnotation toIntro = links.First(l => l.Contents is null && l.Action?.Destination is { } d && d.PageIndex == 0 && l.Page.Index > 0);
+        PdfAnnotation toIntro = links.First(l => (l.Contents?.StartsWith("Back to the introduction", StringComparison.Ordinal) ?? false) && l.Action?.Destination is { } d && d.PageIndex == 0 && l.Page.Index > 0);
         Assert.True(toIntro.Page.Index < firstLandscape);
         PdfAnnotation toData = links.First(l => l.Page.Index >= firstLandscape && l.Action?.Destination is not null);
         Assert.Equal(PageWith("Data table"), toData.Action!.Destination!.PageIndex);

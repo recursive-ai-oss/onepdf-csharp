@@ -134,6 +134,27 @@ if (!shapedText.Contains("Shaped Latin text", StringComparison.Ordinal) || !shap
     return 1;
 }
 
+// Tagging: the structure tree is written by default, and a right-to-left document mirrors its rows.
+var tagged = new LayoutDocument { Title = "Smoke", Language = "ar", Direction = LayoutDirection.RightToLeft };
+tagged.Options.Fonts = fonts;
+var taggedRow = new Row();
+taggedRow.Items.Add(RowItem.Constant(80, new Text { Content = arabic }));
+taggedRow.Items.Add(RowItem.Constant(80, new Text { Content = "second", Direction = LayoutDirection.LeftToRight }));
+tagged.Pages.Add(new LayoutPage { Size = PageSize.A5, Content = new Column { Items = { new Heading { Level = 2, Child = new Text { Content = "Tagged" } }, taggedRow } } });
+using var taggedOut = new MemoryStream();
+tagged.Save(taggedOut, new PdfDocumentWriterOptions { LeaveOpen = true });
+using PdfDocument taggedBack = PdfDocument.Open(taggedOut.ToArray());
+PdfDictionary? taggedRoot = taggedBack.StructureTreeRoot;
+string taggedFlat = taggedBack.ExtractText().Select(t => t.Text).First();
+if (taggedRoot is null
+    || !taggedBack.Catalog!.GetDictionary("MarkInfo")!.GetBool("Marked")
+    || !taggedFlat.Contains(arabic, StringComparison.Ordinal)
+    || taggedFlat.IndexOf("Tagged", StringComparison.Ordinal) > taggedFlat.IndexOf(arabic, StringComparison.Ordinal))
+{
+    Console.WriteLine("FAIL tagging: " + taggedFlat);
+    return 1;
+}
+
 Console.WriteLine("ok");
 return 0;
 

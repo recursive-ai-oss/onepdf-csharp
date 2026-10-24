@@ -75,15 +75,16 @@ public static class PdfStructureAttributes
 
 /// <summary>
 /// A node of the structure tree being written by a <see cref="PdfDocumentWriter"/>. Make one with
-/// <see cref="PdfDocumentWriter.BeginStructureElement"/>, bind page content to it with
+/// <see cref="PdfDocumentWriter.BeginStructureElement(string, PdfStructureElementOptions)"/>, bind page content to it with
 /// <see cref="PdfStreamPageBuilder.BeginTaggedContent"/> or <see cref="PdfStreamPageBuilder.AddLink"/>, and end it with
-/// <see cref="PdfDocumentWriter.EndStructureElement"/>. The element is written when it ends.
+/// <see cref="PdfDocumentWriter.EndStructureElement()"/>. The element is written when it ends.
 /// </summary>
 public sealed class PdfStructureElement
 {
-    internal PdfStructureElement(PdfDocumentWriter owner, string type, PdfReference reference, PdfDictionary dictionary, PdfStructureElementOptions? options, int parentNumber)
+    internal PdfStructureElement(PdfDocumentWriter owner, string type, PdfReference reference, PdfDictionary dictionary, PdfStructureElementOptions? options, int parentNumber, PdfStructureElement? parent)
     {
         Owner = owner;
+        Parent = parent;
         Type = type;
         Reference = reference;
         Dictionary = dictionary;
@@ -97,7 +98,7 @@ public sealed class PdfStructureElement
     /// <summary>The indirect reference the element is written under.</summary>
     public PdfReference Reference { get; }
 
-    /// <summary>True once <see cref="PdfDocumentWriter.EndStructureElement"/> has written it.</summary>
+    /// <summary>True once <see cref="PdfDocumentWriter.EndStructureElement()"/> has written it.</summary>
     public bool IsEnded { get; internal set; }
 
     internal PdfDocumentWriter Owner { get; }
@@ -107,6 +108,11 @@ public sealed class PdfStructureElement
     internal PdfStructureElementOptions? Options { get; }
 
     internal int ParentNumber { get; }
+
+    internal PdfStructureElement? Parent { get; }
+
+    // Children begun under this element and not yet ended; an element cannot end before them.
+    internal int OpenChildren { get; set; }
 
     // The object number of the page the element's first content item is on (its /Pg), or -1.
     internal int PageNumber { get; set; } = -1;
@@ -145,7 +151,37 @@ public sealed partial class PdfDocumentWriter
     /// <param name="type">The structure type; a standard type (Table 365/ISO 32000-2 14.8.4) or a custom one mapped with <see cref="MapRole"/>.</param>
     /// <param name="options">Optional properties.</param>
     /// <exception cref="ArgumentException">The type is empty.</exception>
-    public PdfStructureElement BeginStructureElement(string type, PdfStructureElementOptions? options = null)
+    public PdfStructureElement BeginStructureElement(string type, PdfStructureElementOptions? options = null) => BeginStructureElementCore(CurrentStructureElement, type, options);
+
+    /// <summary>
+    /// Begins a structure element under an explicit parent instead of the innermost open element, so a producer whose content continues on
+    /// later pages can keep several elements open at once and end them in any order (an element still ends only after its own children).
+    /// Children are listed under their parent in the order they were begun.
+    /// </summary>
+    /// <param name="parent">An element of this writer that has not ended, or null for a top-level element.</param>
+    /// <param name="type">The structure type, as for <see cref="BeginStructureElement(string, PdfStructureElementOptions?)"/>.</param>
+    /// <param name="options">Optional properties.</param>
+    /// <exception cref="ArgumentException">The type is empty, or the parent belongs to another writer.</exception>
+    /// <exception cref="InvalidOperationException">The parent has ended.</exception>
+    public PdfStructureElement BeginStructureElement(PdfStructureElement? parent, string type, PdfStructureElementOptions? options = null)
+    {
+        if (parent is not null)
+        {
+            if (!ReferenceEquals(parent.Owner, this))
+            {
+                throw new ArgumentException("The parent belongs to another writer.", nameof(parent));
+            }
+
+            if (parent.IsEnded)
+            {
+                throw new InvalidOperationException("The parent structure element has ended.");
+            }
+        }
+
+        return BeginStructureElementCore(parent, type, options);
+    }
+
+    private PdfStructureElement BeginStructureElementCore(PdfStructureElement? parent, string type, PdfStructureElementOptions? options)
     {
         ArgumentException.ThrowIfNullOrEmpty(type);
         CheckNotFinished();
@@ -154,10 +190,9 @@ public sealed partial class PdfDocumentWriter
             _structureRoot = Reserve(new PdfDictionary());
         }
 
-        PdfStructureElement? parent = CurrentStructureElement;
         var dict = new PdfDictionary();
         PdfReference reference = Reserve(dict);
-        var element = new PdfStructureElement(this, type, reference, dict, options, parent?.Reference.Number ?? _structureRoot.Number);
+        var element = new PdfStructureElement(this, type, reference, dict, options, parent?.Reference.Number ?? _structureRoot.Number, parent);
         if (parent is null)
         {
             _topLevel.Add(reference.Number);
@@ -165,6 +200,7 @@ public sealed partial class PdfDocumentWriter
         else
         {
             parent.Kids.Add(new StructureKid(StructureKid.Child, reference.Number, 0));
+            parent.OpenChildren++;
         }
 
         _structureStack.Add(element);
@@ -181,8 +217,41 @@ public sealed partial class PdfDocumentWriter
             throw new InvalidOperationException("No structure element is open.");
         }
 
-        PdfStructureElement e = _structureStack[^1];
-        _structureStack.RemoveAt(_structureStack.Count - 1);
+        EndStructureElementCore(_structureStack[^1]);
+    }
+
+    /// <summary>Ends a specific open structure element and writes it. Its own children must have ended first.</summary>
+    /// <exception cref="ArgumentException">The element belongs to another writer.</exception>
+    /// <exception cref="InvalidOperationException">The element has already ended, or has children that have not.</exception>
+    public void EndStructureElement(PdfStructureElement element)
+    {
+        ArgumentNullException.ThrowIfNull(element);
+        CheckNotFinished();
+        if (!ReferenceEquals(element.Owner, this))
+        {
+            throw new ArgumentException("The element belongs to another writer.", nameof(element));
+        }
+
+        if (element.IsEnded)
+        {
+            throw new InvalidOperationException("The structure element has already ended.");
+        }
+
+        if (element.OpenChildren > 0)
+        {
+            throw new InvalidOperationException($"The structure element '{element.Type}' still has open children.");
+        }
+
+        EndStructureElementCore(element);
+    }
+
+    private void EndStructureElementCore(PdfStructureElement e)
+    {
+        _structureStack.RemoveAt(_structureStack.LastIndexOf(e));
+        if (e.Parent is { } parent)
+        {
+            parent.OpenChildren--;
+        }
         PdfDictionary d = e.Dictionary;
         d.SetEntry("Type", new PdfName("StructElem"));
         d.SetEntry("S", new PdfName(e.Type));

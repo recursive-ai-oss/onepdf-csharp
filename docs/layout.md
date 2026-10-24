@@ -13,8 +13,8 @@ A tree of plain element objects. Elements hold properties and no layout state, s
 - **Structure:** `Table` and `ItemList` (below), `Heading`, `PageNumber`, and the navigation wrappers `Link`, `Anchor` and `Bookmark`.
 - **Flow rules:** `PageBreak`, `KeepTogether`, `EnsureSpace`, and `Element.KeepWithNext`. A wrapper that only adds something to its child (`Box`, `Link`, `Anchor`, `Bookmark`, `Heading`, `KeepTogether`, `Component`) passes a keep-with-next request on, so it is enough to set it on the heading's text.
 - **Reuse:** derive from `Component` and return a composed tree from `Compose`.
-- **Pages:** `LayoutDocument.Pages` holds `LayoutPage` sections. Each has size, orientation, margin, direction, `Header`, `Footer`, `Background`, `Foreground` and `Content`, and starts on a new page. Header and footer are laid out on every page and their height comes off the content area; background and foreground use the whole page. They are written as artifacts. `FirstHeader`/`FirstFooter` replace the ordinary ones on a section's first page, `EvenHeader`/`EvenFooter` on pages with an even displayed number (a first page counts as first); an empty `Spacer` gives no header.
-- **Direction:** `LayoutPage.Direction` and `Element.Direction`. `Start`/`End` alignment and insets flip, and rows run right to left. Text paragraphs take the direction of the page or element and are reordered by UAX #9.
+- **Pages:** `LayoutDocument.Pages` holds `LayoutPage` sections. Each has size, orientation, margin, direction, `Header`, `Footer`, `Background`, `Foreground` and `Content`, and starts on a new page. Header and footer are laid out on every page and their height comes off the content area; background and foreground use the whole page. They are written as artifacts (see below). `FirstHeader`/`FirstFooter` replace the ordinary ones on a section's first page, `EvenHeader`/`EvenFooter` on pages with an even displayed number (a first page counts as first); an empty `Spacer` gives no header.
+- **Direction:** `LayoutDocument.Direction`, `LayoutPage.Direction` (null: the document's) and `Element.Direction`; see [Tagging and direction](#tagging-and-direction).
 
 ## Tables
 
@@ -34,6 +34,26 @@ A tree of plain element objects. Elements hold properties and no layout state, s
 - **Page numbers.** `PageNumber` shows the current number, or a total. A total is not known while pages are laid out: it is a form XObject reserved on first use and drawn on each page, filled once the document (or section) ends, with the number right-aligned inside a box of `ReservedDigits` digits. More digits than reserved are drawn condensed with a note. `Render(PdfDocument)` cannot fill a form later, so it lays the document out once into a throw-away writer to count pages, then renders. Put "Page N of M" in a `Row` with `Spacing`; a trailing space does not count towards a text's width.
 - **Numbering.** Each section has `NumberStyle`, `StartNumber` (default: continue) and `LabelPrefix`. The document gets page labels (ISO 32000-2 12.4.2) where numbering does not simply continue. `SectionTotal` counts a section's pages in its own style.
 - **Links and anchors.** `Link` covers its child's box (every piece of a split child) with a URI or the name of an `Anchor`; anchors are named destinations at the top of their child's first piece, and links may precede them. Undefined and duplicate names are noted. `Bookmark` adds an outline entry (levels lifted to one below the previous entry when they jump). Links and anchors inside `Rotate` or `Scale` are not recorded. Only the streaming writer can record links, destinations, bookmarks and labels; `Render(PdfDocument)` leaves them out with a note.
+
+## Tagging and direction
+
+**Tagged PDF is on by default** (`LayoutOptions.Tagged`; set it false for no structure tree and no marked content at all). The structure tree is written from the element tree while the pages are drawn (ISO 32000-2 14.7, 14.8):
+
+| Element | Structure |
+|---|---|
+| `Text`, `PageNumber` | `P` (inside a `Heading`, `Link` or list marker the text is that element's own content) |
+| `Heading` | `H1`–`H6` from `Level` |
+| `Table` | `Table` > `THead`, `TBody`, `TFoot` > `TR` > `TH`/`TD`; header-row cells are `TH` with `/Scope /Column`, `TableCell.IsHeader` makes a `TH` with `/Scope /Row`; spans become `/ColSpan` and `/RowSpan` |
+| `ItemList` | `L` (`/ListNumbering`) > `LI` > `Lbl`, `LBody`; nested lists sit in the `LBody` |
+| `Image` | `Figure` with `/Alt` from `AltText` |
+| `Link` | `Link` holding what it covers; its annotation is tied to it (`OBJR`) and its `/Contents` is `AltText` or the text it covers |
+| anything with `AltText` | one `Figure` with that description |
+
+Boxes, backgrounds, borders, rules, a `Canvas` without `AltText`, the debug overlay and anything with `Element.Artifact` set are artifacts. Header, footer, background and foreground are pagination artifacts. An element that splits over pages stays one structure element with content on each page: a paragraph, a table (`TBody`, a row and each cell too, so a row that splits is one `TR`), a list entry. **Repeated table rows:** the header rows are written as structure on the table's first page and as artifacts on the pages that repeat them, the footer rows as structure on the last page and artifacts before it, so a reader that follows the tree meets each row once (a single `THead` and `TFoot`, rather than one per page).
+
+`Element.AltText`, `Element.Language` (BCP 47; `/Lang` is written where it differs from the surrounding content) and `Element.Artifact` are plain properties; `LayoutDocument.Title` and `LayoutDocument.Language` set the information dictionary's title, `/ViewerPreferences /DisplayDocTitle` and the catalog's `/Lang` in `Save` (render into your own writer with `PdfDocumentWriterOptions.Language` and `DisplayDocumentTitle`). An image without `AltText` that is not an artifact is a `LayoutDiagnostic`, once per element. A document built in memory with `Render(PdfDocument)` cannot write a structure tree and is untagged. Tagging costs little time and memory and a good deal of file size. Measured on one run (Release, Ryzen 9 7950X3D, .NET 10.0.11, median of five): a 48-page report with a 500-row table took 145 ms tagged against 138 ms untagged, allocating 183 against 166 MiB, and its file grew from 125 KB to 523 KB (every table cell is a structure element); a 498-page justified book took 1.69 s against 1.68 s, allocating 2,572 against 2,558 MiB, and grew from 1.53 MB to 1.94 MB. Nothing is ever left untagged: every painted mark is tagged content or an artifact, which the tests check by interpreting the written pages. A clean veraPDF PDF/A-2b result is not a promise of PDF/UA conformance; that comes with the PDF/UA options.
+
+**Right to left.** `LayoutDocument.Direction` (or a section's or element's `Direction`) mirrors everything that has a start and an end: rows run right to left, table columns and cell borders, list markers hang on the right with the content to their left, `Start`/`End` alignment, `PaddingStart`/`End`, `MarginStart`/`End`, `BorderStart`/`End`, `Translate` and a paragraph's first-line indent. Paragraphs take their base direction from it and are reordered by UAX #9. An element marked `Direction = LeftToRight` inside a right-to-left document stays left to right. `Left` and `Right` stay physical, and so do page margins.
 
 ## Measure, then place
 

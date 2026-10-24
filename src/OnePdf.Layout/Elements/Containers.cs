@@ -371,6 +371,7 @@ public sealed class Layers : Element
                     if (f.Kind == FlowKind.Partial)
                     {
                         ctx.Note("The layer is taller than the primary layer and is cut off.");
+                        layer.Continues = false;
                     }
 
                     node.Children.Add(layer);

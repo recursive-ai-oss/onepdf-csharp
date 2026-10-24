@@ -97,7 +97,41 @@ public sealed class ItemList : Element
         internal override string TypeName => "ListItem";
 
         internal override FlowFit LayoutCore(LayoutContext ctx, in Constraint c, object? resume) => throw new InvalidOperationException();
+
+        // An entry is an LI holding a Lbl (the marker, on the first piece only) and an LBody (ISO 32000-2 14.8.4.3.3).
+        internal override void DrawCore(in DrawContext d, Placed p)
+        {
+            Tagger tag = d.Ctx.Tag;
+            TagScope item = tag.Open(this, p.Continued, p.Continues, "LI");
+            int next = 0;
+            if (p.Data is true && p.Children.Count > 0)
+            {
+                TagScope label = tag.Open(LabelKey, false, false, "Lbl");
+                Placed marker = p.Children[0];
+                marker.Element.Draw(d.At(marker.X, marker.Y), marker);
+                tag.Close(label);
+                next = 1;
+            }
+
+            if (next < p.Children.Count)
+            {
+                TagScope body = tag.Open(BodyKey, p.Continued, p.Continues, "LBody");
+                for (int i = next; i < p.Children.Count; i++)
+                {
+                    Placed child = p.Children[i];
+                    child.Element.Draw(d.At(child.X, child.Y), child);
+                }
+
+                tag.Close(body);
+            }
+
+            tag.Close(item);
+        }
     }
+
+    private static readonly object LabelKey = new();
+
+    private static readonly object BodyKey = new();
 
     private static readonly EntryElement Entry = new();
 
@@ -192,6 +226,26 @@ public sealed class ItemList : Element
         return new WidthRange(marker + lo, marker + hi);
     }
 
+    internal override void DrawCore(in DrawContext d, Placed p)
+    {
+        PdfDictionary? attributes = null;
+        if (!p.Continued && d.Ctx.Tag.Enabled)
+        {
+            attributes = PdfStructureAttributes.List(Kind == ListKind.Bulleted ? "Unordered" : NumberStyle switch
+            {
+                NumberingStyle.LowerLetters => "LowerAlpha",
+                NumberingStyle.UpperLetters => "UpperAlpha",
+                NumberingStyle.LowerRoman => "LowerRoman",
+                NumberingStyle.UpperRoman => "UpperRoman",
+                _ => "Decimal",
+            });
+        }
+
+        TagScope scope = d.Ctx.Tag.Open(this, p.Continued, p.Continues, "L", null, attributes);
+        DrawChildren(d, p);
+        d.Ctx.Tag.Close(scope);
+    }
+
     internal override FlowFit LayoutCore(LayoutContext ctx, in Constraint c, object? resume)
     {
         var r = (ListResume?)resume;
@@ -277,7 +331,7 @@ public sealed class ItemList : Element
                 }
 
                 double width = c.WidthBounded ? c.Width : indent + (contentNode?.Width ?? 0);
-                var node = new Placed(Entry, 0, 0, width, height);
+                var node = new Placed(Entry, 0, 0, width, height) { Data = marker is not null, Continued = resume is not null, Continues = content.Kind == FlowKind.Partial };
                 if (marker is not null)
                 {
                     // The marker column holds the marker at its end, so numbers of different lengths line up on their last digit.

@@ -385,8 +385,10 @@ public sealed class Box : SingleChildElement
     {
         var data = (BoxData)p.Data!;
         PdfContentBuilder b = d.B;
+        Tagger tag = d.Ctx.Tag;
         bool hasPaint = Background is not null || data.Top.Width > 0 || data.Right.Width > 0 || data.Bottom.Width > 0 || data.Left.Width > 0;
         bool faded = Opacity < 1 && hasPaint;
+        bool artifact = hasPaint && tag.BeginArtifact(b);
         if (faded)
         {
             b.Save();
@@ -422,8 +424,11 @@ public sealed class Box : SingleChildElement
             faded = false;
         }
 
+        tag.EndArtifact(b, artifact);
         DrawChildren(d, p);
+        artifact = hasPaint && tag.BeginArtifact(b);
         DrawBorders(d, data, x, y, w, h, radius, rTop, rBottom);
+        tag.EndArtifact(b, artifact);
     }
 
     private static void DrawBorders(in DrawContext d, BoxData data, double x, double y, double w, double h, double radius, double rTop, double rBottom)

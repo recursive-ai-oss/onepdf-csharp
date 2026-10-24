@@ -34,6 +34,13 @@ internal interface ILayoutTarget
     /// <summary>True when the target can record links, bookmarks, named destinations and page labels.</summary>
     bool SupportsNavigation { get; }
 
+    /// <summary>True when the target can write a structure tree and tagged content.</summary>
+    bool SupportsStructure { get; }
+
+    PdfStructureElement BeginStructure(PdfStructureElement? parent, string type, PdfStructureElementOptions? options);
+
+    void EndStructure(PdfStructureElement element);
+
     void AddBookmark(string title, int level, int pageIndex, double top);
 
     void AddNamedDestination(string name, int pageIndex, double top);
@@ -56,6 +63,12 @@ internal sealed class DocumentTarget(PdfDocument document, int[]? sectionTotals 
     private readonly int[] _sectionTotals = sectionTotals ?? [];
 
     public bool SupportsNavigation => false;
+
+    public bool SupportsStructure => false;
+
+    public PdfStructureElement BeginStructure(PdfStructureElement? parent, string type, PdfStructureElementOptions? options) => throw new NotSupportedException();
+
+    public void EndStructure(PdfStructureElement element) => throw new NotSupportedException();
 
     public void AddBookmark(string title, int level, int pageIndex, double top) { }
 
@@ -110,6 +123,12 @@ internal sealed class WriterTarget(PdfDocumentWriter writer) : ILayoutTarget
     private readonly List<(PdfFormXObject Form, int Section, Action<PdfFormContentBuilder, int> Paint)> _pending = [];
 
     public bool SupportsNavigation => true;
+
+    public bool SupportsStructure => true;
+
+    public PdfStructureElement BeginStructure(PdfStructureElement? parent, string type, PdfStructureElementOptions? options) => writer.BeginStructureElement(parent, type, options);
+
+    public void EndStructure(PdfStructureElement element) => writer.EndStructureElement(element);
 
     public void AddBookmark(string title, int level, int pageIndex, double top) => writer.AddBookmark(title, level, pageIndex, top);
 

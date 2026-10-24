@@ -58,6 +58,12 @@ public sealed class TableCell
     /// <summary>Border at the end edge. The table's <see cref="Table.CellBorder"/> when null.</summary>
     public Border? BorderEnd { get; set; }
 
+    /// <summary>
+    /// Marks a body or footer cell as a header for its row (a row header, <c>TH</c> with scope <c>Row</c> in the structure tree). Every cell of a
+    /// header row is a column header whatever this says. Default false.
+    /// </summary>
+    public bool IsHeader { get; set; }
+
     /// <summary>Where content shorter than its cell sits. Only a cell on one page can be aligned; a cell that splits starts at the top. Default <see cref="VerticalAlignment.Top"/>.</summary>
     public VerticalAlignment VerticalAlignment { get; set; }
 }

@@ -12,6 +12,8 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 - `PdfDocumentWriter`: streaming creation. Each page is written when committed, so a 10,000-page document needs a few hundred bytes of memory per page. It brings `PdfStreamPageBuilder`, reserved forms for "page X of Y" (`ReserveForm`), links, bookmarks and named destinations, and a tagged structure tree (`BeginStructureElement`, `PdfStructureElement`, `PdfStructureElementOptions`, `PdfStructureAttributes`, `MapRole`) with marked-content ids, `OBJR` entries for links, a parent tree and `/Tabs /S`.
 - `PdfDocumentWriter.AddPageLabelRange`: page labels (ISO 32000-2 12.4.2) for streamed documents: decimal, roman and letter styles, prefixes and start numbers.
 
+- `PdfDocumentWriter.BeginStructureElement(parent, type, options)` and `EndStructureElement(element)`: begin a structure element under an explicit parent and end any open element once its own children have ended, so a producer whose content continues on later pages (a table row split over pages) can keep several branches open at once. The earlier overloads are unchanged.
+
 ## [1.6.0] - 2026-10-23
 
 ### Highlights

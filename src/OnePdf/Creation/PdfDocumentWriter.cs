@@ -47,7 +47,7 @@ public sealed class PdfDocumentWriterOptions
 /// destinations, the structure tree's parent tree, the catalog and the information dictionary.</para>
 /// <para>Fonts, images and forms are made with this writer's methods and can be used on any page. Content is drawn with the same
 /// <see cref="PdfContentBuilder"/> API as for pages of an edited document, plus marked content and structure elements
-/// (<see cref="BeginStructureElement"/>, <see cref="PdfStreamPageBuilder.BeginTaggedContent"/>) for a tagged document (ISO 32000-2 14.7, 14.8).</para>
+/// (<see cref="BeginStructureElement(string, PdfStructureElementOptions)"/>, <see cref="PdfStreamPageBuilder.BeginTaggedContent"/>) for a tagged document (ISO 32000-2 14.7, 14.8).</para>
 /// <para>One page is open at a time. A writer is for one thread. Encryption is not supported on this path: write the file, then save
 /// it through <see cref="PdfDocument"/> with encryption if needed. If the writer is disposed without <see cref="Finish"/>, the output
 /// is an incomplete file.</para>
