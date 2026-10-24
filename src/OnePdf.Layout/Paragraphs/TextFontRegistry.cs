@@ -12,6 +12,7 @@ internal sealed class FontEntry
     private byte[]? _data;
     private FontFace? _face;
     private PdfFontSource? _source;
+    private readonly object _gate = new();
 
     public FontEntry(string family, int weight, int width, bool italic, Func<byte[]> loader, int faceIndex)
     {
@@ -56,12 +57,36 @@ internal sealed class FontEntry
                 return MetricFace.Data;
             }
 
-            return _data ??= _loader!();
+            if (Volatile.Read(ref _data) is { } ready)
+            {
+                return ready;
+            }
+
+            // One thread loads; the others wait. Thirty-two documents starting together would otherwise each read and parse the same file.
+            lock (_gate)
+            {
+                return _data ??= _loader!();
+            }
         }
     }
 
     /// <summary>The font file as the writer wants it, read once and shared by every document laid out with this entry.</summary>
-    public PdfFontSource Source => LazyInitializer.EnsureInitialized(ref _source, () => PdfFontSource.Load(Data, _faceIndex))!;
+    public PdfFontSource Source
+    {
+        get
+        {
+            if (Volatile.Read(ref _source) is { } ready)
+            {
+                return ready;
+            }
+
+            byte[] data = Data;
+            lock (_gate)
+            {
+                return _source ??= PdfFontSource.Load(data, _faceIndex);
+            }
+        }
+    }
 
     public FontFace Face
     {
@@ -72,7 +97,16 @@ internal sealed class FontEntry
                 return MetricFace.Face;
             }
 
-            return _face ??= FontFace.Load(Data, _faceIndex);
+            if (Volatile.Read(ref _face) is { } ready)
+            {
+                return ready;
+            }
+
+            byte[] data = Data;
+            lock (_gate)
+            {
+                return _face ??= FontFace.Load(data, _faceIndex);
+            }
         }
     }
 }
