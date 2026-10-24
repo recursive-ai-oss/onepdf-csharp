@@ -124,6 +124,18 @@ public readonly struct PdfPath
         Points = points;
     }
 
+    // Paths built by the library over arrays it never writes to again (cached glyph outlines) say so, so a recording can
+    // share them instead of copying them for every use.
+    internal PdfPath(ReadOnlyMemory<byte> verbs, ReadOnlyMemory<double> points, bool immutable)
+    {
+        VerbBytes = verbs;
+        Points = points;
+        IsImmutable = immutable;
+    }
+
+    /// <summary>True when the memory belongs to the library and is never modified or reused, so it stays valid after the call.</summary>
+    internal bool IsImmutable { get; }
+
     /// <summary>The verbs, one <see cref="PdfPathVerb"/> per byte.</summary>
     public ReadOnlyMemory<byte> VerbBytes { get; }
 
@@ -133,8 +145,8 @@ public readonly struct PdfPath
     /// <summary>True when the path has no segments.</summary>
     public bool IsEmpty => VerbBytes.IsEmpty;
 
-    /// <summary>A copy that owns its memory.</summary>
-    public PdfPath ToOwned() => new(VerbBytes.ToArray(), Points.ToArray());
+    /// <summary>A copy that owns its memory (a path whose memory the library never changes is returned as it is).</summary>
+    public PdfPath ToOwned() => IsImmutable ? this : new(VerbBytes.ToArray(), Points.ToArray());
 
     /// <summary>The bounds of all points, control points included (a conservative bound of the curve). Empty paths give a zero rectangle.</summary>
     public PdfBounds ControlBounds()

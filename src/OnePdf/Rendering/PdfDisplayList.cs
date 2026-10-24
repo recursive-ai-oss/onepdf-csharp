@@ -48,6 +48,8 @@ public sealed class PdfDisplayList : IPdfDevice
         public int B;
         public int C;
         public int D;
+        public int VerbChunk;
+        public int PointChunk;
         public int Match;
         public double X0;
         public double Y0;
@@ -67,27 +69,27 @@ public sealed class PdfDisplayList : IPdfDevice
         public double Rise;
         public PdfMatrix Tm;
         public bool Vertical;
+        public int CodeChunk;
         public int CodeStart;
         public int CodeLength;
+        public int GlyphChunk;
         public int GlyphStart;
         public int GlyphCount;
         public double AdvX;
         public double AdvY;
     }
 
-    private Item[] _items = new Item[256];
-    private int _count;
-    private byte[] _verbs = new byte[1024];
-    private int _verbCount;
-    private double[] _points = new double[2048];
-    private int _pointCount;
-    private byte[] _codes = new byte[1024];
-    private int _codeCount;
-    private PdfGlyph[] _glyphs = new PdfGlyph[256];
-    private int _glyphCount;
-    private readonly List<PdfGraphicsState> _states = [];
-    private readonly Dictionary<PdfGraphicsState, int> _stateIndex = [];
-    private readonly List<RunRecord> _runs = [];
+    // Storage grows in chunks (see ChunkedStorage.cs): a page with hundreds of thousands of items is recorded without
+    // copying earlier data or allocating large arrays that are thrown away on the next doubling.
+    private readonly ChunkedList<Item> _items = new(10, 256);
+    private readonly ChunkArena<byte> _verbs = new(1 << 16, 1024);
+    private readonly ChunkArena<double> _points = new(1 << 13, 2048);
+    private readonly ChunkArena<byte> _codes = new(1 << 16, 1024);
+    private readonly ChunkArena<PdfGlyph> _glyphs = new(1 << 9, 64);
+    private readonly ChunkedList<PdfGraphicsState> _states = new(7, 16);
+    private readonly StateComparer _stateComparer;
+    private readonly HashSet<int> _stateIndex;
+    private readonly ChunkedList<RunRecord> _runs = new(8, 64);
     private readonly List<PdfImage> _images = [];
     private readonly List<PdfShading> _shadings = [];
     private readonly List<PdfObject> _objects = [];
@@ -101,8 +103,28 @@ public sealed class PdfDisplayList : IPdfDevice
     private readonly List<int> _openOther = [];
     private int _lastState = -1;
 
+    /// <summary>Creates an empty recording.</summary>
+    public PdfDisplayList()
+    {
+        _stateComparer = new StateComparer(_states);
+        _stateIndex = new HashSet<int>(_stateComparer);
+    }
+
+    // Finds a state by value without storing it twice: the set holds indices into the state list, and a candidate that is not
+    // stored yet is compared through the probe slot (index -1).
+    private sealed class StateComparer(ChunkedList<PdfGraphicsState> states) : IEqualityComparer<int>
+    {
+        private PdfGraphicsState _probe;
+
+        public void SetProbe(in PdfGraphicsState s) => _probe = s;
+
+        public bool Equals(int a, int b) => (a < 0 ? _probe : states[a]).Equals(b < 0 ? _probe : states[b]);
+
+        public int GetHashCode(int a) => (a < 0 ? _probe : states[a]).GetHashCode();
+    }
+
     /// <summary>Number of recorded items (every device call is one item).</summary>
-    public int ItemCount => _count;
+    public int ItemCount => _items.Count;
 
     /// <summary>
     /// The bounding box, in output space, recorded for item <paramref name="index"/>. Items without geometry (brackets,
@@ -111,7 +133,7 @@ public sealed class PdfDisplayList : IPdfDevice
     public PdfBounds GetItemBounds(int index)
     {
         ArgumentOutOfRangeException.ThrowIfNegative(index);
-        ArgumentOutOfRangeException.ThrowIfGreaterThanOrEqual(index, _count);
+        ArgumentOutOfRangeException.ThrowIfGreaterThanOrEqual(index, _items.Count);
         ref Item it = ref _items[index];
         return new PdfBounds(it.X0, it.Y0, it.X1, it.Y1);
     }
@@ -120,7 +142,7 @@ public sealed class PdfDisplayList : IPdfDevice
     public string GetItemKind(int index)
     {
         ArgumentOutOfRangeException.ThrowIfNegative(index);
-        ArgumentOutOfRangeException.ThrowIfGreaterThanOrEqual(index, _count);
+        ArgumentOutOfRangeException.ThrowIfGreaterThanOrEqual(index, _items.Count);
         return _items[index].Kind.ToString();
     }
 
@@ -137,7 +159,7 @@ public sealed class PdfDisplayList : IPdfDevice
         PdfBounds clip = clipRect.GetValueOrDefault();
         PdfGraphicsState state = default;
         int stateLoaded = -1;
-        for (int i = 0; i < _count; i++)
+        for (int i = 0; i < _items.Count; i++)
         {
             ref readonly Item it = ref _items[i];
             switch (it.Kind)
@@ -169,7 +191,7 @@ public sealed class PdfDisplayList : IPdfDevice
                         }
 
                         Load(it.State, ref state, ref stateLoaded);
-                        var path = new PdfPath(_verbs.AsMemory(it.A, it.B), _points.AsMemory(it.C, it.D));
+                        var path = new PdfPath(_verbs.Memory(it.VerbChunk, it.A, it.B), _points.Memory(it.PointChunk, it.C, it.D));
                         if (it.Kind == Kind.Fill)
                         {
                             device.FillPath(in path, it.EvenOdd, in state);
@@ -208,7 +230,7 @@ public sealed class PdfDisplayList : IPdfDevice
                         RunRecord r = _runs[it.A];
                         var run = new PdfGlyphRun(
                             r.FontName, r.Font, r.FontSize, r.Mode, r.Tc, r.Tw, r.Th, r.Rise, r.Tm, r.Vertical,
-                            _codes.AsMemory(r.CodeStart, r.CodeLength), _glyphs.AsMemory(r.GlyphStart, r.GlyphCount), r.AdvX, r.AdvY);
+                            _codes.Memory(r.CodeChunk, r.CodeStart, r.CodeLength), _glyphs.Memory(r.GlyphChunk, r.GlyphStart, r.GlyphCount), r.AdvX, r.AdvY);
                         device.ShowGlyphRun(in run, in state);
                         break;
                     }
@@ -360,13 +382,7 @@ public sealed class PdfDisplayList : IPdfDevice
 
     private int Add(Kind kind, int state, in PdfBounds bounds)
     {
-        if (_count == _items.Length)
-        {
-            Array.Resize(ref _items, _items.Length * 2);
-        }
-
-        ref Item it = ref _items[_count];
-        it = default;
+        var it = default(Item);
         it.Kind = kind;
         it.State = state;
         it.Match = -1;
@@ -374,7 +390,7 @@ public sealed class PdfDisplayList : IPdfDevice
         it.Y0 = bounds.Bottom;
         it.X1 = bounds.Right;
         it.Y1 = bounds.Top;
-        return _count++;
+        return _items.Add(it);
     }
 
     private int StateIndex(in PdfGraphicsState s)
@@ -384,11 +400,11 @@ public sealed class PdfDisplayList : IPdfDevice
             return _lastState;
         }
 
-        if (!_stateIndex.TryGetValue(s, out int idx))
+        _stateComparer.SetProbe(s);
+        if (!_stateIndex.TryGetValue(-1, out int idx))
         {
-            idx = _states.Count;
-            _states.Add(s);
-            _stateIndex[s] = idx;
+            idx = _states.Add(s);
+            _stateIndex.Add(idx);
         }
 
         _lastState = idx;
@@ -409,39 +425,21 @@ public sealed class PdfDisplayList : IPdfDevice
 
     private static PdfBounds Unbounded => PdfBounds.Unbounded;
 
-    private (int VerbStart, int PointStart) StorePath(in PdfPath p)
+    private void StorePath(in PdfPath p, ref Item it)
     {
-        ReadOnlySpan<byte> v = p.VerbBytes.Span;
-        ReadOnlySpan<double> pts = p.Points.Span;
-        if (_verbCount + v.Length > _verbs.Length)
-        {
-            Array.Resize(ref _verbs, Math.Max(_verbs.Length * 2, _verbCount + v.Length));
-        }
-
-        if (_pointCount + pts.Length > _points.Length)
-        {
-            Array.Resize(ref _points, Math.Max(_points.Length * 2, _pointCount + pts.Length));
-        }
-
-        int vs = _verbCount, ps = _pointCount;
-        v.CopyTo(_verbs.AsSpan(_verbCount));
-        pts.CopyTo(_points.AsSpan(_pointCount));
-        _verbCount += v.Length;
-        _pointCount += pts.Length;
-        return (vs, ps);
+        p.VerbBytes.Span.CopyTo(_verbs.Reserve(p.VerbBytes.Length, out it.VerbChunk, out it.A));
+        p.Points.Span.CopyTo(_points.Reserve(p.Points.Length, out it.PointChunk, out it.C));
+        it.B = p.VerbBytes.Length;
+        it.D = p.Points.Length;
     }
 
     private int AddPathItem(Kind kind, in PdfPath path, bool evenOdd, in PdfGraphicsState state, double pad)
     {
         PdfBounds b = path.IsEmpty ? default : state.Ctm.TransformBounds(path.ControlBounds()).Inflate(pad);
-        (int vs, int ps) = StorePath(path);
         int idx = Add(kind, StateIndex(state), b);
         ref Item it = ref _items[idx];
         it.EvenOdd = evenOdd;
-        it.A = vs;
-        it.B = path.VerbBytes.Length;
-        it.C = ps;
-        it.D = path.Points.Length;
+        StorePath(path, ref it);
         return idx;
     }
 
@@ -539,23 +537,16 @@ public sealed class PdfDisplayList : IPdfDevice
         }
 
         ReadOnlySpan<byte> codes = run.Codes.Span;
-        if (_codeCount + codes.Length > _codes.Length)
-        {
-            Array.Resize(ref _codes, Math.Max(_codes.Length * 2, _codeCount + codes.Length));
-        }
-
-        codes.CopyTo(_codes.AsSpan(_codeCount));
+        codes.CopyTo(_codes.Reserve(codes.Length, out int codeChunk, out int codeStart));
         ReadOnlySpan<PdfGlyph> glyphs = run.Glyphs.Span;
-        if (_glyphCount + glyphs.Length > _glyphs.Length)
-        {
-            Array.Resize(ref _glyphs, Math.Max(_glyphs.Length * 2, _glyphCount + glyphs.Length));
-        }
+        Span<PdfGlyph> dest = _glyphs.Reserve(glyphs.Length, out int glyphChunk, out int glyphStart);
 
-        // Outlines handed over for the duration of the call are copied so the recording owns them.
+        // Outlines handed over for the duration of the call are copied so the recording owns them; ToOwned returns an
+        // immutable outline (a cached glyph shape) as it is, so every use of a glyph shares one copy.
         for (int i = 0; i < glyphs.Length; i++)
         {
             PdfGlyph g = glyphs[i];
-            _glyphs[_glyphCount + i] = g.Outline.IsEmpty ? g : g with { Outline = g.Outline.ToOwned() };
+            dest[i] = g.Outline.IsEmpty || g.Outline.IsImmutable ? g : g with { Outline = g.Outline.ToOwned() };
         }
 
         _runs.Add(new RunRecord
@@ -570,15 +561,15 @@ public sealed class PdfDisplayList : IPdfDevice
             Rise = run.Rise,
             Tm = run.TextMatrix,
             Vertical = run.IsVertical,
-            CodeStart = _codeCount,
+            CodeChunk = codeChunk,
+            CodeStart = codeStart,
             CodeLength = codes.Length,
-            GlyphStart = _glyphCount,
+            GlyphChunk = glyphChunk,
+            GlyphStart = glyphStart,
             GlyphCount = glyphs.Length,
             AdvX = run.AdvanceX,
             AdvY = run.AdvanceY,
         });
-        _codeCount += codes.Length;
-        _glyphCount += glyphs.Length;
         int idx = Add(Kind.Glyphs, StateIndex(state), b);
         _items[idx].A = _runs.Count - 1;
     }
