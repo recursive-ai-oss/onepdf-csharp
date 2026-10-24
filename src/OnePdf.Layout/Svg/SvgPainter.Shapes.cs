@@ -371,13 +371,11 @@ internal sealed partial class SvgPainter
         }
         else
         {
-            // A stroke is not an area the content builder can clip to, so a gradient or pattern stroke becomes one colour.
-            if (!TryRepresentativeColor(r.Server!, st, vp, out color))
+            if (TryStrokeWithServer(path, r.Server!, st, vp, width, out color))
             {
                 return;
             }
 
-            Note("Gradients and patterns on strokes are drawn as one solid colour (the middle of the gradient, the first colour in a pattern).");
             alpha = color.A / 255.0;
         }
 

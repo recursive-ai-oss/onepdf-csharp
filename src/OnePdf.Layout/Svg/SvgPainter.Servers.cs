@@ -476,6 +476,84 @@ internal sealed partial class SvgPainter
 
     // ---- patterns ----
 
+    private sealed record PatternGeometry(double Tw, double Th, double Tx, double Ty, Affine Transform, Affine Content, SvgElement Holder, long I0, long I1, long J0, long J1);
+
+    /// <summary>Reads a pattern's tile size, grid origin, matrices and the range of tiles a box touches; false when it paints nothing.</summary>
+    private bool ReadPatternGeometry(SvgElement pattern, Viewport vp, double bx0, double by0, double bx1, double by1, out PatternGeometry geometry)
+    {
+        geometry = null!;
+        SvgStyle ps = StyleOf(pattern);
+        bool unitsBox = ChainAttr(pattern, "patternUnits", false) != "userSpaceOnUse";
+        bool contentBox = ChainAttr(pattern, "patternContentUnits", false) == "objectBoundingBox";
+        double bw = bx1 - bx0;
+        double bh = by1 - by0;
+        if ((unitsBox || contentBox) && !(bw > 0 && bh > 0))
+        {
+            return false;
+        }
+
+        double PatternLength(string name, Axis axis)
+        {
+            string? v = ChainAttr(pattern, name, false);
+            Length l = v is not null && Length.TryParse(v, out Length parsed) ? parsed : Length.Zero;
+            if (unitsBox)
+            {
+                return l.Unit == LengthUnit.Percent ? l.Value / 100 : l.Value;
+            }
+
+            return Resolve(l, axis, ps, vp);
+        }
+
+        double tx = PatternLength("x", Axis.X);
+        double ty = PatternLength("y", Axis.Y);
+        double tw = PatternLength("width", Axis.X);
+        double th = PatternLength("height", Axis.Y);
+        if (unitsBox)
+        {
+            tx = bx0 + (tx * bw);
+            ty = by0 + (ty * bh);
+            tw *= bw;
+            th *= bh;
+        }
+
+        if (!(tw > 0 && th > 0) || !double.IsFinite(tx + ty + tw + th))
+        {
+            return false;
+        }
+
+        Affine pt = Affine.Identity;
+        if (ChainAttr(pattern, "patternTransform", false) is { } ptt && (!SvgValues.TryTransform(ptt, out pt) || !pt.IsInvertible))
+        {
+            pt = Affine.Identity;
+        }
+
+        SvgElement? holder = PatternWithChildren(pattern);
+        if (holder is null)
+        {
+            return false;
+        }
+
+        Affine content = Affine.Identity;
+        if (SvgValues.TryViewBox(ChainAttr(pattern, "viewBox", false), out double vx, out double vy, out double vw, out double vh))
+        {
+            content = AspectRatio.Parse(ChainAttr(pattern, "preserveAspectRatio", false)).Fit(vx, vy, vw, vh, tw, th);
+        }
+        else if (contentBox)
+        {
+            content = Affine.Scale(bw, bh);
+        }
+
+        // The tiles the shape's box touches, in pattern space (the grid starts at tx,ty).
+        Affine inv = Inverse(pt);
+        (double px0, double py0, double px1, double py1) = inv.TransformRect(bx0, by0, bx1, by1);
+        long i0 = (long)Math.Floor(Math.Clamp((px0 - tx) / tw, -1e9, 1e9));
+        long i1 = (long)Math.Ceiling(Math.Clamp((px1 - tx) / tw, -1e9, 1e9));
+        long j0 = (long)Math.Floor(Math.Clamp((py0 - ty) / th, -1e9, 1e9));
+        long j1 = (long)Math.Ceiling(Math.Clamp((py1 - ty) / th, -1e9, 1e9));
+        geometry = new PatternGeometry(tw, th, tx, ty, pt, content, holder, i0, i1, j0, j1);
+        return true;
+    }
+
     private void FillWithPattern(SvgPath path, SvgElement pattern, in SvgStyle st, Viewport vp, double bx0, double by0, double bx1, double by1)
     {
         if (!_active.Add(pattern))
@@ -486,74 +564,13 @@ internal sealed partial class SvgPainter
 
         try
         {
+            if (!ReadPatternGeometry(pattern, vp, bx0, by0, bx1, by1, out PatternGeometry pg))
+            {
+                return;
+            }
+
+            (double tw, double th, double tx, double ty, Affine pt, Affine content, SvgElement holder, long i0, long i1, long j0, long j1) = pg;
             SvgStyle ps = StyleOf(pattern);
-            bool unitsBox = ChainAttr(pattern, "patternUnits", false) != "userSpaceOnUse";
-            bool contentBox = ChainAttr(pattern, "patternContentUnits", false) == "objectBoundingBox";
-            double bw = bx1 - bx0;
-            double bh = by1 - by0;
-            if ((unitsBox || contentBox) && !(bw > 0 && bh > 0))
-            {
-                return;
-            }
-
-            double PatternLength(string name, Axis axis)
-            {
-                string? v = ChainAttr(pattern, name, false);
-                Length l = v is not null && Length.TryParse(v, out Length parsed) ? parsed : Length.Zero;
-                if (unitsBox)
-                {
-                    return l.Unit == LengthUnit.Percent ? l.Value / 100 : l.Value;
-                }
-
-                return Resolve(l, axis, ps, vp);
-            }
-
-            double tx = PatternLength("x", Axis.X);
-            double ty = PatternLength("y", Axis.Y);
-            double tw = PatternLength("width", Axis.X);
-            double th = PatternLength("height", Axis.Y);
-            if (unitsBox)
-            {
-                tx = bx0 + (tx * bw);
-                ty = by0 + (ty * bh);
-                tw *= bw;
-                th *= bh;
-            }
-
-            if (!(tw > 0 && th > 0) || !double.IsFinite(tx + ty + tw + th))
-            {
-                return;
-            }
-
-            Affine pt = Affine.Identity;
-            if (ChainAttr(pattern, "patternTransform", false) is { } ptt && (!SvgValues.TryTransform(ptt, out pt) || !pt.IsInvertible))
-            {
-                pt = Affine.Identity;
-            }
-
-            SvgElement? holder = PatternWithChildren(pattern);
-            if (holder is null)
-            {
-                return;
-            }
-
-            Affine content = Affine.Identity;
-            if (SvgValues.TryViewBox(ChainAttr(pattern, "viewBox", false), out double vx, out double vy, out double vw, out double vh))
-            {
-                content = AspectRatio.Parse(ChainAttr(pattern, "preserveAspectRatio", false)).Fit(vx, vy, vw, vh, tw, th);
-            }
-            else if (contentBox)
-            {
-                content = Affine.Scale(bw, bh);
-            }
-
-            // The tiles the shape's box touches, in pattern space (the grid starts at tx,ty).
-            Affine inv = Inverse(pt);
-            (double px0, double py0, double px1, double py1) = inv.TransformRect(bx0, by0, bx1, by1);
-            long i0 = (long)Math.Floor(Math.Clamp((px0 - tx) / tw, -1e9, 1e9));
-            long i1 = (long)Math.Ceiling(Math.Clamp((px1 - tx) / tw, -1e9, 1e9));
-            long j0 = (long)Math.Floor(Math.Clamp((py0 - ty) / th, -1e9, 1e9));
-            long j1 = (long)Math.Ceiling(Math.Clamp((py1 - ty) / th, -1e9, 1e9));
             if (i1 - i0 > MaxTiles || j1 - j0 > MaxTiles || (i1 - i0) * (j1 - j0) > MaxTiles)
             {
                 Note("A pattern would need more than " + MaxTiles + " tiles for one shape; the shape is not filled.");
