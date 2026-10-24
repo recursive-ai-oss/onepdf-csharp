@@ -213,8 +213,9 @@ internal sealed class EmbeddedCreatedFont : PdfCreatedFont
     private readonly string _postScriptName;
     private readonly int _faceIndex;
     private readonly List<int> _glyphs = []; // _glyphs[code - 1] = original glyph, subset numbering
-    private readonly List<int> _unicodes = [];
+    private readonly List<string?> _unicodes = []; // text of each glyph for /ToUnicode; null when none is known
     private readonly Dictionary<int, int> _codeOfGlyph = [];
+    private readonly Dictionary<int, int> _indexOfGlyph = []; // position in _glyphs / _unicodes
     private readonly HashSet<int> _reported = [];
     private readonly Dictionary<int, int> _widthOfCode = [];
     private readonly PdfDictionary _type0;
@@ -471,7 +472,7 @@ internal sealed class EmbeddedCreatedFont : PdfCreatedFont
             }
             else if (record)
             {
-                code = CodeFor(gid, rune.Value);
+                code = _codeOfGlyph.TryGetValue(gid, out int known) ? known : CodeFor(gid, rune.ToString());
             }
 
             if (record)
@@ -492,7 +493,7 @@ internal sealed class EmbeddedCreatedFont : PdfCreatedFont
         return new EncodedText { Codes = [.. list], TwoByte = true, GlyphCount = count, Spaces = [.. spaces], Width1000 = width };
     }
 
-    private int CodeFor(int gid, int rune)
+    private int CodeFor(int gid, string? text)
     {
         if (_codeOfGlyph.TryGetValue(gid, out int existing))
         {
@@ -506,10 +507,49 @@ internal sealed class EmbeddedCreatedFont : PdfCreatedFont
             throw new PdfLimitException("A font subset can hold at most 65535 different glyphs.");
         }
 
+        _indexOfGlyph[gid] = _glyphs.Count;
         _glyphs.Add(gid);
-        _unicodes.Add(rune);
+        _unicodes.Add(text);
         _codeOfGlyph[gid] = code;
         _widthOfCode[code] = (int)Math.Round(AdvanceUnits(gid));
+        return code;
+    }
+
+    /// <summary>
+    /// The code for glyph <paramref name="gid"/> chosen by a shaping engine rather than by the character map. The glyph's /ToUnicode
+    /// text is <paramref name="text"/> when the glyph has none yet; <paramref name="conflict"/> is true when it already has a
+    /// different one, so the caller must wrap this use in /ActualText.
+    /// </summary>
+    internal int CodeForGlyph(int gid, string? text, out bool conflict, out int widthOfCode)
+    {
+        if ((uint)gid >= (uint)_font.GlyphCount)
+        {
+            throw new ArgumentOutOfRangeException(nameof(gid), $"Glyph {gid} is not in the font (it has {_font.GlyphCount} glyphs).");
+        }
+
+        conflict = false;
+        if (gid == 0)
+        {
+            // The missing-glyph box is code 0 in both a subset and a whole font; it needs a width but no ToUnicode entry.
+            UsedNotdef = true;
+            widthOfCode = (int)Math.Round(AdvanceUnits(0));
+            _widthOfCode[0] = widthOfCode;
+            return 0;
+        }
+
+        int code = CodeFor(gid, text);
+        int index = _indexOfGlyph[gid];
+        string? known = _unicodes[index];
+        if (known is null && !string.IsNullOrEmpty(text))
+        {
+            _unicodes[index] = text;
+        }
+        else if (known is not null && text is not null && !string.Equals(known, text, StringComparison.Ordinal))
+        {
+            conflict = true;
+        }
+
+        widthOfCode = _widthOfCode[code];
         return code;
     }
 
@@ -614,11 +654,16 @@ internal sealed class EmbeddedCreatedFont : PdfCreatedFont
 
     private byte[] BuildToUnicode()
     {
-        var entries = new List<(int Code, int Rune)>();
+        var entries = new List<(int Code, string Text)>();
         for (int i = 0; i < _glyphs.Count; i++)
         {
+            if (_unicodes[i] is not { Length: > 0 } glyphText)
+            {
+                continue; // a glyph drawn only inside /ActualText sequences has no text of its own
+            }
+
             int code = _subset ? i + 1 : _codeOfGlyph[_glyphs[i]];
-            entries.Add((code, _unicodes[i]));
+            entries.Add((code, glyphText));
         }
 
         entries.Sort(static (a, b) => a.Code.CompareTo(b.Code));
@@ -633,9 +678,9 @@ internal sealed class EmbeddedCreatedFont : PdfCreatedFont
             sb.Append(n.ToString(CultureInfo.InvariantCulture)).Append(" beginbfchar\n");
             for (int j = 0; j < n; j++)
             {
-                (int code, int rune) = entries[i + j];
+                (int code, string glyphText) = entries[i + j];
                 sb.Append('<').Append(code.ToString("X4", CultureInfo.InvariantCulture)).Append("> <");
-                foreach (char ch in new Rune(rune).ToString())
+                foreach (char ch in glyphText)
                 {
                     sb.Append(((int)ch).ToString("X4", CultureInfo.InvariantCulture));
                 }

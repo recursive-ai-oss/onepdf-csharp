@@ -89,7 +89,7 @@ def main():
         listed = {x[0] for x in r}
         tracked = [os.path.relpath(os.path.join(dp, f), ROOT).replace(os.sep, "/") for dp, _, fs in os.walk(TD) for f in fs]
         for t in tracked:
-            if t in listed or t.startswith(("testdata/generated/", "testdata/repros/")) or (t.startswith("testdata/realworld/truth/") and t.endswith(".json")) or t.endswith(("MANIFEST.csv", "README.md", "LICENSE.md", "NOTICE.md")):
+            if t in listed or t.startswith(("testdata/generated/", "testdata/repros/", "testdata/fonts/")) or (t.startswith("testdata/realworld/truth/") and t.endswith(".json")) or t.endswith(("MANIFEST.csv", "README.md", "LICENSE.md", "NOTICE.md")):
                 continue
             print("not in manifest:", t); bad = 1
         print(f"{len(r)} manifest rows; problems: {bad}")

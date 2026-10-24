@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Globalization;
 using System.Text;
 
@@ -107,7 +108,7 @@ public enum PdfTextAlignment
 /// commit. Colours are DeviceGray, DeviceRGB and DeviceCMYK; components are clamped to 0..1. Non-finite numbers are refused with
 /// <see cref="ArgumentOutOfRangeException"/>.
 /// </remarks>
-public abstract class PdfContentBuilder : IDisposable
+public abstract partial class PdfContentBuilder : IDisposable
 {
     private const int MaxContentBytes = 1 << 28;
     private const int MaxDepth = 28;
@@ -120,6 +121,8 @@ public abstract class PdfContentBuilder : IDisposable
     private readonly Dictionary<string, string> _stateByKey = [];
     private readonly Dictionary<int, string> _nameByObject = [];
     private int _depth;
+    // What is open, innermost last: 'q' for a saved graphics state, 'M' for a marked-content sequence. They must nest (ISO 32000-2 14.6.1).
+    private readonly List<char> _open = [];
     private PdfCreatedFont? _font;
     private double _fontSize;
     private double _charSpacing;
@@ -161,11 +164,14 @@ public abstract class PdfContentBuilder : IDisposable
 
     private protected byte[] Finish()
     {
-        while (_depth > 0)
+        for (int i = _open.Count - 1; i >= 0; i--)
         {
-            _sb.Append("Q\n");
-            _depth--;
+            _sb.Append(_open[i] == 'q' ? "Q\n" : "EMC\n");
         }
+
+        _open.Clear();
+        _depth = 0;
+        MarkedContentDepth = 0;
 
         return Encoding.Latin1.GetBytes(_sb.ToString());
     }
@@ -219,6 +225,7 @@ public abstract class PdfContentBuilder : IDisposable
         }
 
         _depth++;
+        _open.Add('q');
         Emit("q\n");
     }
 
@@ -232,6 +239,12 @@ public abstract class PdfContentBuilder : IDisposable
             throw new InvalidOperationException("Restore without a matching Save.");
         }
 
+        if (_open[^1] != 'q')
+        {
+            throw new InvalidOperationException("Restore while a marked-content sequence begun after the matching Save is still open; end it first.");
+        }
+
+        _open.RemoveAt(_open.Count - 1);
         _depth--;
         Emit("Q\n");
     }
