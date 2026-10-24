@@ -96,12 +96,42 @@ internal sealed class NormalizedText
 
     public List<TextStyle> Styles { get; } = [];
 
+    private List<int>? _softHyphens;
+
     /// <summary>Indexes in <see cref="Text"/> before which a soft hyphen stood.</summary>
-    public List<int> SoftHyphens { get; } = [];
+    public IReadOnlyList<int> SoftHyphens => _softHyphens ?? (IReadOnlyList<int>)Array.Empty<int>();
+
+    // True when the normalising loop below would copy every character unchanged: no line ends other than the newline, no tabs, soft hyphens or controls.
+    private static bool IsClean(string t)
+    {
+        foreach (char c in t)
+        {
+            if (c < ' ' || c == '\u00AD' || c == '\u2028' || c == '\u2029' || (c >= '\u007F' && c <= '\u009F'))
+            {
+                if (c != '\n')
+                {
+                    return false;
+                }
+            }
+        }
+
+        return true;
+    }
 
     public static NormalizedText Create(TextParagraph p)
     {
         var n = new NormalizedText();
+        if (p.Spans.Count == 1 && p.Spans[0].Text.Length > 0 && IsClean(p.Spans[0].Text))
+        {
+            // Nothing to rewrite: the paragraph text is the span's text.
+            TextStyle only = p.Spans[0].Style ?? p.DefaultStyle;
+            only.Validate();
+            n.SpanStarts.Add(0);
+            n.Styles.Add(only);
+            n.Text = p.Spans[0].Text;
+            return n;
+        }
+
         var sb = new StringBuilder();
         foreach (TextSpan span in p.Spans)
         {
@@ -126,7 +156,7 @@ internal sealed class NormalizedText
                         sb.Append('\n');
                         break;
                     case '\u00AD':
-                        n.SoftHyphens.Add(sb.Length);
+                        (n._softHyphens ??= []).Add(sb.Length);
                         break;
                     case '\t':
                         sb.Append(' ');

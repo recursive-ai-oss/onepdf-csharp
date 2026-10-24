@@ -4,8 +4,12 @@ using OneFont;
 namespace OnePdf.Layout;
 
 /// <summary>A font, a style and an effective size: what an item of text is drawn with.</summary>
-internal sealed class Fmt(FontEntry entry, TextStyle style, double size, double rise)
+internal sealed class Fmt(FontEntry entry, TextStyle style, double size, double rise, int span = 0, bool synthesized = false)
 {
+    public int Span { get; } = span;
+
+    public bool Synthesized { get; } = synthesized;
+
     public FontEntry Entry { get; } = entry;
 
     public FontFace Face { get; } = entry.Face;
@@ -81,44 +85,63 @@ public sealed partial class ShapedParagraph
     private readonly TextParagraph _source;
     private readonly NormalizedText _norm;
     private readonly List<Fmt> _fmts = [];
-    private readonly Dictionary<(FontEntry, int, bool), int> _fmtIndex = [];
-    private readonly List<Item> _items = [];
-    private readonly List<GlyphRec> _glyphs = [];
+    private readonly List<Item> _items;
+    private readonly List<GlyphRec> _glyphs;
     private readonly List<Segment> _segments = [];
-    private readonly Dictionary<long, Hyph> _hyphens = [];
-    private readonly List<string> _warnings = [];
-    private readonly bool[] _discretionary;
+
+    // Built when the paragraph has more than a few formats, which a linear search no longer serves; null before.
+    private Dictionary<(FontEntry, int, bool), int>? _fmtIndex;
+    private Dictionary<long, Hyph>? _hyphens;
+    private List<string>? _warnings;
+
+    // Only paragraphs with soft hyphens or a hyphenator have break-with-hyphen places; null for the rest.
+    private bool[]? _discretionary;
 
     internal ShapedParagraph(TextParagraph source, TextFontRegistry fonts)
     {
         _source = source;
         _norm = NormalizedText.Create(source);
-        _discretionary = new bool[_norm.Text.Length + 1];
-        foreach (int p in _norm.SoftHyphens)
+        // About one item and one glyph per character; sizing the lists once avoids the garbage of doubling them.
+        int guess = _norm.Text.Length + 1;
+        _items = new List<Item>(guess);
+        _glyphs = new List<GlyphRec>(guess);
+        if (_norm.SoftHyphens.Count > 0 || source.Hyphenator is not null)
         {
-            _discretionary[p] = true;
+            _discretionary = new bool[_norm.Text.Length + 1];
+            foreach (int p in _norm.SoftHyphens)
+            {
+                _discretionary[p] = true;
+            }
         }
 
         // Spans that shape the same way (same faces, language and script position) are shaped together, so Arabic joining and kerning
         // continue across a change of colour or size.
         int spanCount = _norm.SpanStarts.Count;
         var groups = new int[spanCount];
-        var chains = new List<ResolvedChain>();
-        var groupStyles = new List<TextStyle>();
-        var groupKeys = new Dictionary<string, int>(StringComparer.Ordinal);
-        for (int s = 0; s < spanCount; s++)
+        var chains = new List<ResolvedChain>(1);
+        var groupStyles = new List<TextStyle>(1);
+        if (spanCount == 1)
         {
-            TextStyle st = _norm.Styles[s];
-            string key = string.Create(CultureInfo.InvariantCulture, $"{TextFontRegistry.ChainKey(st)}#{st.Language}#{(int)st.Position}");
-            if (!groupKeys.TryGetValue(key, out int g))
+            chains.Add(fonts.Resolve(_norm.Styles[0]));
+            groupStyles.Add(_norm.Styles[0]);
+        }
+        else
+        {
+            var groupKeys = new Dictionary<string, int>(StringComparer.Ordinal);
+            for (int s = 0; s < spanCount; s++)
             {
-                g = chains.Count;
-                groupKeys[key] = g;
-                chains.Add(fonts.Resolve(st));
-                groupStyles.Add(st);
-            }
+                TextStyle st = _norm.Styles[s];
+                string key = string.Create(CultureInfo.InvariantCulture, $"{TextFontRegistry.ChainKey(st)}#{st.Language}#{(int)st.Position}");
+                if (!groupKeys.TryGetValue(key, out int g))
+                {
+                    g = chains.Count;
+                    groupKeys[key] = g;
+                    chains.Add(fonts.Resolve(st));
+                    groupStyles.Add(st);
+                }
 
-            groups[s] = g;
+                groups[s] = g;
+            }
         }
 
         string text = _norm.Text;
@@ -142,7 +165,7 @@ public sealed partial class ShapedParagraph
     }
 
     /// <summary>Messages about things the layout could not do exactly (a character no face has, a word wider than the line).</summary>
-    public IReadOnlyList<string> Warnings => _warnings;
+    public IReadOnlyList<string> Warnings => _warnings ?? (IReadOnlyList<string>)Array.Empty<string>();
 
     /// <summary>
     /// The width of the widest piece that cannot be broken: the longest run between line break opportunities (UAX #14, soft hyphens and
@@ -183,7 +206,20 @@ public sealed partial class ShapedParagraph
                 ParagraphDirection.RightToLeft => TextDirection.RightToLeft,
                 _ => TextDirection.Auto,
             };
-            byte[] levels = TextShaping.GetBidiLevels(segText, dir, out int paraLevel);
+            byte[] levels;
+            int paraLevel;
+            if (dir != TextDirection.RightToLeft && IsBelowHebrew(segText))
+            {
+                // No character before U+0590 is right-to-left, an Arabic-number or a bidi control (those start at U+0590, U+0600, U+2000):
+                // every level is 0 and so is the paragraph level (UAX #9 P2/P3 with no strong right-to-left character).
+                levels = new byte[segText.Length];
+                paraLevel = 0;
+            }
+            else
+            {
+                levels = TextShaping.GetBidiLevels(segText, dir, out paraLevel);
+            }
+
             seg.ParaLevel = (byte)paraLevel;
             MarkHyphenation(s, e);
 
@@ -219,7 +255,7 @@ public sealed partial class ShapedParagraph
                 int rel = it.Start - s;
                 bool breakOk = k > seg.First && opp[rel] != LineBreakOpportunity.None;
                 it.BreakOk = breakOk;
-                it.HyphenOk = k > seg.First && !breakOk && _discretionary[it.Start];
+                it.HyphenOk = k > seg.First && !breakOk && _discretionary is not null && _discretionary[it.Start];
                 _items[k] = it;
             }
         }
@@ -236,6 +272,19 @@ public sealed partial class ShapedParagraph
         return seg;
     }
 
+    private static bool IsBelowHebrew(ReadOnlySpan<char> text)
+    {
+        foreach (char c in text)
+        {
+            if (c >= '\u0590')
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
     private int SpanOf(int pos, int from)
     {
         int k = from;
@@ -249,7 +298,18 @@ public sealed partial class ShapedParagraph
 
     private int GetFmt(FontEntry entry, int span, bool synthesized)
     {
-        if (_fmtIndex.TryGetValue((entry, span, synthesized), out int idx))
+        if (_fmtIndex is null)
+        {
+            for (int i = 0; i < _fmts.Count; i++)
+            {
+                Fmt f = _fmts[i];
+                if (ReferenceEquals(f.Entry, entry) && f.Span == span && f.Synthesized == synthesized)
+                {
+                    return i;
+                }
+            }
+        }
+        else if (_fmtIndex.TryGetValue((entry, span, synthesized), out int idx))
         {
             return idx;
         }
@@ -271,15 +331,27 @@ public sealed partial class ShapedParagraph
             }
         }
 
-        _fmts.Add(new Fmt(entry, st, size, rise));
-        _fmtIndex[(entry, span, synthesized)] = _fmts.Count - 1;
+        _fmts.Add(new Fmt(entry, st, size, rise, span, synthesized));
+        if (_fmtIndex is null && _fmts.Count > 8)
+        {
+            _fmtIndex = [];
+            for (int i = 0; i < _fmts.Count; i++)
+            {
+                _fmtIndex[(_fmts[i].Entry, _fmts[i].Span, _fmts[i].Synthesized)] = i;
+            }
+        }
+        else if (_fmtIndex is not null)
+        {
+            _fmtIndex[(entry, span, synthesized)] = _fmts.Count - 1;
+        }
+
         return _fmts.Count - 1;
     }
 
     private void MarkHyphenation(int s, int e)
     {
         IHyphenator? h = _source.Hyphenator;
-        if (h is null)
+        if (h is null || _discretionary is null)
         {
             return;
         }
@@ -469,6 +541,7 @@ public sealed partial class ShapedParagraph
 
     private void Warn(string message)
     {
+        _warnings ??= [];
         if (_warnings.Count < 32 && !_warnings.Contains(message))
         {
             _warnings.Add(message);

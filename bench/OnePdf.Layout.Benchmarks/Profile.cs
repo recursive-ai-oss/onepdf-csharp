@@ -136,8 +136,45 @@ internal static class Profile
                 break;
             }
 
+            case "invoice-loop":
+            {
+                // For a sampling profiler: many invoices in a row, so the per-document cost dominates.
+                var e = new OnePdfEngine();
+                for (int i = 0; i < 300; i++)
+                {
+                    e.Render(Workload.Invoice, new CountingStream());
+                }
+
+                long a0 = GC.GetAllocatedBytesForCurrentThread();
+                var sw = Stopwatch.StartNew();
+                for (int i = 0; i < 3000; i++)
+                {
+                    e.Render(Workload.Invoice, new CountingStream());
+                }
+
+                Console.WriteLine($"invoice: {sw.Elapsed.TotalMilliseconds / 3000:F3} ms, {(GC.GetAllocatedBytesForCurrentThread() - a0) / 3000 / 1024.0:F0} KB per document");
+
+                break;
+            }
+
+            case "alloc-table10k":
+            case "alloc-book500":
+            case "alloc-invoice":
+            {
+                Workload w = row switch { "alloc-table10k" => Workload.Table10k, "alloc-book500" => Workload.Book500, _ => Workload.Invoice };
+                int reps = w == Workload.Invoice ? 300 : 1;
+                using var listener = new AllocListener();
+                for (int i = 0; i < reps; i++)
+                {
+                    new OnePdfEngine().Render(w, new CountingStream());
+                }
+
+                listener.Print(45);
+                break;
+            }
+
             default:
-                Console.Error.WriteLine("usage: profile <invoice|table10k|book500>");
+                Console.Error.WriteLine("usage: profile <invoice|invoice-loop|table10k|book500>");
                 return 2;
         }
 

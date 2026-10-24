@@ -11,6 +11,7 @@ internal sealed class FontEntry
     private readonly int _faceIndex;
     private byte[]? _data;
     private FontFace? _face;
+    private PdfFontSource? _source;
 
     public FontEntry(string family, int weight, int width, bool italic, Func<byte[]> loader, int faceIndex)
     {
@@ -59,6 +60,9 @@ internal sealed class FontEntry
         }
     }
 
+    /// <summary>The font file as the writer wants it, read once and shared by every document laid out with this entry.</summary>
+    public PdfFontSource Source => LazyInitializer.EnsureInitialized(ref _source, () => PdfFontSource.Load(Data, _faceIndex))!;
+
     public FontFace Face
     {
         get
@@ -102,7 +106,8 @@ public sealed class TextFontRegistry
     private readonly object _gate = new();
     private readonly List<FontEntry> _entries = [];
     private readonly Dictionary<string, string> _aliases = new(StringComparer.OrdinalIgnoreCase);
-    private readonly Dictionary<string, ResolvedChain> _chains = new(StringComparer.Ordinal);
+    // Read on every paragraph from any thread without a lock; written (and cleared) under the gate.
+    private readonly System.Collections.Concurrent.ConcurrentDictionary<(string Families, int Weight, bool Italic, int Width), ResolvedChain> _chains = new();
     private readonly Dictionary<string, FontEntry?> _systemCache = new(StringComparer.Ordinal);
     private readonly Dictionary<string, FontEntry> _standard = new(StringComparer.Ordinal);
     private IPdfFontProvider? _system;
@@ -192,10 +197,18 @@ public sealed class TextFontRegistry
 
     internal ResolvedChain Resolve(TextStyle style)
     {
-        string key = ChainKey(style);
+        // A single family name is its own key, so the usual paragraph resolves its fonts without building a string.
+        IReadOnlyList<string> families = style.Families;
+        string fam = families.Count == 0 ? string.Empty : families.Count == 1 ? families[0] : string.Join('|', families);
+        var key = (fam, style.Weight, style.Italic, style.Width);
+        if (_chains.TryGetValue(key, out ResolvedChain? cached))
+        {
+            return cached;
+        }
+
         lock (_gate)
         {
-            if (_chains.TryGetValue(key, out ResolvedChain? cached))
+            if (_chains.TryGetValue(key, out cached))
             {
                 return cached;
             }
