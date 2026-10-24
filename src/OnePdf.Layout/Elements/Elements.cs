@@ -432,16 +432,29 @@ public sealed class Image : Element
 }
 
 /// <summary>
-/// Plain text in one standard font, wrapped greedily at spaces. It splits between lines with widow and orphan control. This element is
-/// measured with the standard fonts' own widths; it is the simple text path and will be superseded by a shaped paragraph element.
+/// Text laid out as a shaped paragraph: bidirectional, complex scripts, font fallback, greedy line breaking and optional justification and
+/// hyphenation. It splits between lines with widow and orphan control.
 /// </summary>
+/// <remarks>
+/// The default font is Liberation Sans from the fonts package, shaped and embedded as a subset of the glyphs used. A standard font name
+/// such as <c>Helvetica-Bold</c> selects an unshaped, unembedded standard font instead. Set <see cref="Spans"/> for mixed styles.
+/// </remarks>
 public sealed class Text : Element
 {
-    /// <summary>The text. '\n' starts a new paragraph.</summary>
+    /// <summary>The text. '\n' starts a new line and a new bidirectional paragraph. Ignored when <see cref="Spans"/> is not empty.</summary>
     public string Content { get; set; } = string.Empty;
 
-    /// <summary>A standard font name such as Helvetica, Times-Roman or Courier-Bold. Default Helvetica.</summary>
-    public string FontName { get; set; } = "Helvetica";
+    /// <summary>Styled pieces of text; when not empty they replace <see cref="Content"/>. Spans without a style take this element's font, size and colour.</summary>
+    public IList<TextSpan> Spans { get; } = [];
+
+    /// <summary>A font family (a registered family, Sans, Serif, Mono, or a standard font name such as Helvetica or Times-Roman). Null, the default, is Sans.</summary>
+    public string? FontName { get; set; }
+
+    /// <summary>Requested weight, 400 regular or 700 bold. Default 400.</summary>
+    public int Weight { get; set; } = 400;
+
+    /// <summary>Whether to use an italic face. Default false.</summary>
+    public bool Italic { get; set; }
 
     /// <summary>Font size in points. Default 11.</summary>
     public double Size { get; set; } = 11;
@@ -449,18 +462,29 @@ public sealed class Text : Element
     /// <summary>Text colour. Default black.</summary>
     public LayoutColor Color { get; set; }
 
+    /// <summary>A BCP 47 language tag for language-specific glyph forms and hyphenation. Default none.</summary>
+    public string? Language { get; set; }
+
     /// <summary>Line placement. Default <see cref="HorizontalAlignment.Start"/>.</summary>
     public HorizontalAlignment Alignment { get; set; }
+
+    /// <summary>Widens the spaces of every line but the last of each paragraph so that lines fill the width. Overrides <see cref="Alignment"/>. Default false.</summary>
+    public bool Justify { get; set; }
+
+    /// <summary>Indent of the first line on its start side, in points. Default 0.</summary>
+    public double FirstLineIndent { get; set; }
+
+    /// <summary>Hyphenation points besides soft hyphens. Default none.</summary>
+    public IHyphenator? Hyphenator { get; set; }
 
     /// <summary>Line distance as a multiple of the font size. Default 1.2.</summary>
     public double LineSpacing { get; set; } = 1.2;
 
-    internal sealed record Fragment(ITextBlock Block, int First, int Count, PdfCreatedFont Font);
+    internal sealed record Fragment(ITextBlock Block, int First, int Count);
 
     internal override FlowFit LayoutCore(LayoutContext ctx, in Constraint c, object? resume)
     {
-        PdfCreatedFont font = ctx.Font(FontName);
-        ITextBlock block = ctx.Text.Prepare(this, font, c.WidthBounded ? c.Width : 1e6, ctx);
+        ITextBlock block = ctx.Text.Prepare(this, c.WidthBounded ? c.Width : 1e6, ctx);
         int total = block.LineCount;
         int first = resume is int k ? k : 0;
         int left = total - first;
@@ -527,7 +551,7 @@ public sealed class Text : Element
             h += block.LineHeight(first + i);
         }
 
-        var node = new Placed(this, 0, 0, width, h) { Data = new Fragment(block, first, take, font) };
+        var node = new Placed(this, 0, 0, width, h) { Data = new Fragment(block, first, take) };
         return take == left ? FlowFit.Complete(h, node) : FlowFit.Partial(h, node, first + take);
     }
 
@@ -535,16 +559,14 @@ public sealed class Text : Element
     {
         var f = (Fragment)p.Data!;
         PdfContentBuilder b = d.B;
-        b.SetFont(f.Font, Size);
-        b.SetFillRgb(Color.R, Color.G, Color.B);
         f.Block.Draw(d, p, f.First, f.Count);
     }
 }
 
-/// <summary>Measures and draws wrapped text; the paragraph engine implements the same pair later.</summary>
+/// <summary>Measures and draws wrapped text; implemented by the paragraph engine.</summary>
 internal interface ITextEngine
 {
-    ITextBlock Prepare(Text text, PdfCreatedFont font, double width, LayoutContext ctx);
+    ITextBlock Prepare(Text text, double width, LayoutContext ctx);
 }
 
 /// <summary>Wrapped lines of one text element at one width.</summary>
@@ -557,55 +579,4 @@ internal interface ITextBlock
     double LineHeight(int line);
 
     void Draw(in DrawContext d, Placed p, int first, int count);
-}
-
-/// <summary>Greedy wrapping on the standard fonts through the content builder's own measurement.</summary>
-internal sealed class PlainTextEngine : ITextEngine
-{
-    public ITextBlock Prepare(Text text, PdfCreatedFont font, double width, LayoutContext ctx)
-    {
-        PdfContentBuilder m = ctx.Measurer;
-        m.SetFont(font, text.Size);
-        IReadOnlyList<string> lines = m.WrapText(text.Content ?? string.Empty, Math.Max(width, 1));
-        double natural = 0;
-        foreach (string line in lines)
-        {
-            natural = Math.Max(natural, m.MeasureText(line));
-        }
-
-        return new Block(text, font, lines, natural);
-    }
-
-    private sealed class Block(Text text, PdfCreatedFont font, IReadOnlyList<string> lines, double natural) : ITextBlock
-    {
-        public int LineCount => lines.Count;
-
-        public double NaturalWidth => natural;
-
-        public double LineHeight(int line) => text.Size * text.LineSpacing;
-
-        public void Draw(in DrawContext d, Placed p, int first, int count)
-        {
-            double lh = text.Size * text.LineSpacing;
-            double glyphs = (font.Ascent - font.Descent) * text.Size;
-            PdfTextAlignment align = text.Alignment switch
-            {
-                HorizontalAlignment.Center => PdfTextAlignment.Center,
-                HorizontalAlignment.Right => PdfTextAlignment.Right,
-                HorizontalAlignment.Left => PdfTextAlignment.Left,
-                HorizontalAlignment.End => d.Ctx.Direction == LayoutDirection.LeftToRight ? PdfTextAlignment.Right : PdfTextAlignment.Left,
-                _ => d.Ctx.Direction == LayoutDirection.LeftToRight ? PdfTextAlignment.Left : PdfTextAlignment.Right,
-            };
-            for (int i = 0; i < count; i++)
-            {
-                double top = i * lh;
-                double baseline = top + ((lh - glyphs) / 2) + (font.Ascent * text.Size);
-                string line = lines[first + i];
-                if (line.Length > 0)
-                {
-                    d.B.DrawTextAligned(line, d.X, d.PdfY(baseline), p.Width, align);
-                }
-            }
-        }
-    }
 }

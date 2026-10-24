@@ -16,6 +16,9 @@ public sealed class LayoutOptions
 
     /// <summary>Fewest lines of a split paragraph carried to the next page. Default 2.</summary>
     public int Widows { get; set; } = 2;
+
+    /// <summary>The fonts text can use. Null, the default, is a shared registry of the Liberation faces and the standard fonts; system fonts are never used unless the registry is told to.</summary>
+    public TextFontRegistry? Fonts { get; set; }
 }
 
 /// <summary>The space offered to an element.</summary>

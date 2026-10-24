@@ -9,11 +9,11 @@ A tree of plain element objects. Elements hold properties and no layout state, s
 - **Containers:** `Column` (top to bottom, spacing, item alignment), `Row` (constant, relative and automatic cell widths, spacing), `Layers` (one primary layer sets the size and may split; the others are laid out at its size on every page it occupies).
 - **Box:** margin, border (per side, solid/dashed/dotted), padding, background, corner radius, opacity, fixed/min/max width and height, aspect ratio, nine-point alignment of the child. Logical `Start`/`End` insets and borders sit beside the physical ones.
 - **Transforms:** `Rotate` (box = bounding box of the turned child), `Scale`, `Translate` (moves the drawing, not the layout space).
-- **Leaves:** `Text` (one standard font, greedy wrapping, widow/orphan control), `Image` (JPEG or PNG; fit width, fit height, contain, cover, stretch), `Canvas` (a callback with the content builder inside a clipped box), `Spacer`.
+- **Leaves:** `Text` (shaped paragraphs on OneFont: fonts with fallback, rich spans, bidi, justification, hyphenation hook, widow/orphan control; see [layout-text.md](layout-text.md)), `Image` (JPEG or PNG; fit width, fit height, contain, cover, stretch), `Canvas` (a callback with the content builder inside a clipped box), `Spacer`.
 - **Flow rules:** `PageBreak`, `KeepTogether`, `EnsureSpace`, and `Element.KeepWithNext`.
 - **Reuse:** derive from `Component` and return a composed tree from `Compose`.
 - **Pages:** `LayoutDocument.Pages` holds `LayoutPage` sections. Each has size, orientation, margin, direction, `Header`, `Footer`, `Background`, `Foreground` and `Content`. Header and footer are laid out on every page and their height comes off the content area; background and foreground use the whole page. They are written as artifacts.
-- **Direction:** `LayoutPage.Direction` and `Element.Direction`. `Start`/`End` alignment and insets flip, and rows run right to left. Text is not shaped or reordered yet.
+- **Direction:** `LayoutPage.Direction` and `Element.Direction`. `Start`/`End` alignment and insets flip, and rows run right to left. Text paragraphs take the direction of the page or element and are reordered by UAX #9.
 
 ## Measure, then place
 
