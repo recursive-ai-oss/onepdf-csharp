@@ -4,9 +4,15 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ## [Unreleased]
 
+### Added
+
+- `CheckPdfUA(PdfUAPart.Part2)` and the part-2 save check the structure rules for `Ruby` (ISO 14289-2 8.2.5.23), `Warichu` (8.2.5.24), `Caption` position (8.2.5.27), MathML placement and associated files (8.2.5.29), and the parent/child structure type table (Table 5), which keeps `Em` and `Strong` inline. The MathML namespace is accepted. Part 1 is unchanged. See `docs/pdfua.md` for what stays unchecked.
+
 ### Changed
 
 - Less memory when interpreting and extracting large documents; output is unchanged (display-list text, snapshots and extraction JSON are byte-identical). A `PdfDisplayList` stores glyph runs more compactly: glyphs keep only their own fields (vertical-writing fields and outlines live in side tables, and repeated library-owned outlines are shared), and the font, size, spacing and mode of a run are stored once and shared between runs. A large Flate stream with no known size (typically a content stream) is measured by a first inflate pass and then decoded into one array of exactly that size, instead of growing segments that were joined and discarded, so it allocates about once its size. Compressed input under 128 KiB is unaffected. On two large corpus files, whole-document extraction plus interpretation of every page into a display list allocated 12 % and 22 % less, and each phase's peak working set fell by 14 to 19 %.
+
+## [1.10.0] - 2026-10-24
 
 ### Fixed
 
@@ -219,6 +225,7 @@ First release. Two packages, `RecursiveAI.OnePdf` (the library, `net10.0`, no de
 - Limits on by default (`PdfLimits`) and fuzzed parsers, filters and font readers; no `unsafe` code. OnePDF never runs code or touches the network.
 - `RecursiveAI.OnePdf.Fonts`: Liberation and Noto substitute outlines under the SIL Open Font License 1.1, registered with `FontsPackage.Register()`.
 
+[1.10.0]: https://github.com/recursive-ai-oss/onepdf-csharp/releases/tag/v1.10.0
 [1.9.0]: https://github.com/recursive-ai-oss/onepdf-csharp/releases/tag/v1.9.0
 [1.8.0]: https://github.com/recursive-ai-oss/onepdf-csharp/releases/tag/v1.8.0
 [1.7.0]: https://github.com/recursive-ai-oss/onepdf-csharp/releases/tag/v1.7.0

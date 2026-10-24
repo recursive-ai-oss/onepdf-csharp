@@ -12,6 +12,9 @@ internal static class PdfUA2
     /// <summary>The namespace of the PDF 1.7 standard structure types, which is the default when an element has no <c>/NS</c>.</summary>
     public const string Namespace17 = "http://iso.org/pdf/ssn";
 
+    /// <summary>The MathML namespace (ISO 32000-2 14.8.6): elements in it form the MathML tree below a <c>Formula</c> element.</summary>
+    public const string NamespaceMathML = "http://www.w3.org/1998/Math/MathML";
+
     /// <summary>The revision written to <c>pdfuaid:rev</c>: the year ISO 14289-2 was published.</summary>
     public const int Revision = 2024;
 
@@ -38,7 +41,7 @@ internal static class PdfUA2
 
     /// <summary>True when an element of <paramref name="type"/> in namespace <paramref name="ns"/> is a standard structure element of that namespace.</summary>
     public static bool IsStandard(string ns, string type) =>
-        ns == Namespace20 ? IsStandardType20(type) : ns == Namespace17 && (IsOnly17(type) || IsStandardType20(type));
+        ns == Namespace20 ? IsStandardType20(type) : ns == NamespaceMathML ? type.Length > 0 : ns == Namespace17 && (IsOnly17(type) || IsStandardType20(type));
 
     /// <summary>True for <c>H1</c>, <c>H2</c>, ... (ISO 32000-2 14.8.4.3.3 allows any level); <paramref name="level"/> is the number.</summary>
     public static bool IsHeading(string type, out int level)

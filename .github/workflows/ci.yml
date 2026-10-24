@@ -19,12 +19,12 @@ jobs:
           - { os: macos-latest, rid: osx-arm64 }
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       # Build output goes outside the checkout, as it does locally; the runner context is only available inside steps.
       - name: Artifacts directory
         shell: bash
         run: echo "ONEPDF_ARTIFACTS=$RUNNER_TEMP/artifacts" >> "$GITHUB_ENV"
-      - uses: actions/setup-dotnet@v4
+      - uses: actions/setup-dotnet@v5
         with:
           global-json-file: global.json
       - name: Build
@@ -49,18 +49,18 @@ jobs:
     # Builds the packages as artifacts only; nothing is pushed anywhere.
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Artifacts directory
         shell: bash
         run: echo "ONEPDF_ARTIFACTS=$RUNNER_TEMP/artifacts" >> "$GITHUB_ENV"
-      - uses: actions/setup-dotnet@v4
+      - uses: actions/setup-dotnet@v5
         with:
           global-json-file: global.json
       - name: Pack
         run: dotnet pack OnePdf.slnx -c Release -o ${{ runner.temp }}/packages
       - name: Packages contain no test data
         run: bash tools/corpus/check_nupkg.sh ${{ runner.temp }}/packages
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         with:
           name: packages
           path: ${{ runner.temp }}/packages/*

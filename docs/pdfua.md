@@ -120,7 +120,20 @@ The promises are those of part 1 (above): tagged documents laid out or created b
 
 **Layout.** A layout document saved with `Part2` is laid out as PDF 2.0: bookmarks, anchors and table-of-contents links go to the structure element they point at (for an anchor around a heading, the heading; for content with no element of its own, the element around it). Headings are `H1`…`H6` as before. `Aside()`, `Footnote()` and `Title()` write the 2.0-only types `Aside`, `FENote` and `Title`, which part 1 refuses (they have no ISO 32000-1 equivalent and OnePDF writes no role map for them). Layout has no inline `Em`/`Strong`. Author-supplied things stay the author's: title, language, alternate text.
 
-Not checked for part 2 beyond what is listed: MathML, `Ruby`/`Warichu` internals, `Caption` position, associated files, and everything in "Not checked" above.
+**Inline, caption, ruby, warichu and MathML structure (part 2).** Each finding names its clause of ISO 14289-2; all but the associated-file rule are in veraPDF's `ua2` profile too, and the tests compare both.
+
+| Rule | Clause |
+|---|---|
+| `Ruby` has exactly `RB`, `RT` or `RB`, `RP`, `RT`, `RP`, in that order | 8.2.5.23 |
+| `Warichu` has exactly `WP`, `WT`, `WP` | 8.2.5.24 |
+| A `Caption` is the first or the last child of its parent | 8.2.5.27 |
+| MathML elements (namespace `http://www.w3.org/1998/Math/MathML`, accepted by the namespace check) occur only below a `Formula` or another MathML element | 8.2.5.29 |
+| A file in a `Formula`'s `/AF` has an `/AFRelationship` and embeds its data (`/EF`) | 8.2.5.29 (ISO 32000-2 7.11.3, 14.13) |
+| The structure type table (ISO 14289-2 / ISO/TS 32005 Table 5): a parent may not contain certain children (this is what keeps `Em` and `Strong` inline: they may not hold `P`, `L`, `Table`, `Sect` and the other block elements, and `Document`, `Sect`, `Table`, `L` and the like may not hold them directly); some children occur at most once (`Caption`, `THead`, `TFoot`, `H`, `Sect` below a heading); `Document`, `Sect`, `Table`, `TR`, `L`, `TOC` and similar do not hold marked content directly | Table 5 |
+
+The table is data in `PdfUA2Table.cs`. Only standard elements are compared (custom types are refused by the namespace rule). An element counts as a grouping element, for the `Link`/`Annot`/`FENote`/`Reference` caption rule, when it holds no marked content itself.
+
+Not checked, because they need a person's judgement or the clause text is not fixed enough to decide: whether `Em` and `Strong` express real emphasis; whether a `Caption` belongs to what it sits beside; whether ruby text is the reading of its base; whether MathML is a faithful or complete rendering of the formula, and whether the associated file is MathML at all; the 51 table rows that depend on whether an element is used as a grouping or non-grouping element (`Annot`, `Reference`, `Form`, `Link`, ... below), and `StructTreeRoot` holding exactly one `Document`; the rest of "Not checked" above.
 
 ## PDF/A level A
 
