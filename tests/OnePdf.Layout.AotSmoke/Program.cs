@@ -205,7 +205,7 @@ LayoutDocument ua2 = LayoutDocument.Compose(d =>
 using var ua2Out = new MemoryStream();
 ua2.Save(ua2Out, new PdfSaveOptions { PdfUA = new PdfUAOptions { Part = PdfUAPart.Part2 } });
 using PdfDocument ua2Back = PdfDocument.Open(ua2Out.ToArray());
-if (ua2Back.Version != "2.0" || ua2Back.CheckPdfUA(PdfUAPart.Part2).Count != 0 || ua2Back.Outline.Count != 1 || ua2Back.Outline[0].Destination?.PageIndex != -1)
+if (ua2Back.Version != "2.0" || ua2Back.CheckPdfUA(PdfUAPart.Part2).Count != 0 || ua2Back.Outline.Count != 1 || ua2Back.Outline[0].Destination?.IsStructureDestination != true || ua2Back.Outline[0].Destination?.PageIndex != 0)
 {
     Console.WriteLine("FAIL PDF/UA-2: " + string.Join("; ", ua2Back.CheckPdfUA(PdfUAPart.Part2)));
     return 1;
