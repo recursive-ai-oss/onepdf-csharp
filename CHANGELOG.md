@@ -10,6 +10,7 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 - `PdfContentBuilder.DrawGlyphRun` and `PdfShapedGlyph`: draw glyphs chosen by a shaping engine, by glyph index with advances, offsets and clusters, from an embedded font. Each cluster maps to text through the font's `/ToUnicode` map, or through `/ActualText` where one glyph cannot carry it (reordered or split clusters, a glyph reused for other text), so extraction returns the logical text.
 - Marked content on the content builder: `BeginMarkedContent`, `BeginSpan`, `BeginArtifact`, `EndMarkedContent`, `MarkedContentDepth`. Marked content and `Save`/`Restore` must nest.
 - `PdfDocumentWriter`: streaming creation. Each page is written when committed, so a 10,000-page document needs a few hundred bytes of memory per page. It brings `PdfStreamPageBuilder`, reserved forms for "page X of Y" (`ReserveForm`), links, bookmarks and named destinations, and a tagged structure tree (`BeginStructureElement`, `PdfStructureElement`, `PdfStructureElementOptions`, `PdfStructureAttributes`, `MapRole`) with marked-content ids, `OBJR` entries for links, a parent tree and `/Tabs /S`.
+- `PdfDocumentWriter.AddPageLabelRange`: page labels (ISO 32000-2 12.4.2) for streamed documents: decimal, roman and letter styles, prefixes and start numbers.
 
 ## [1.6.0] - 2026-10-23
 

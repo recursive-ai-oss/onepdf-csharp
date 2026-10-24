@@ -17,6 +17,28 @@ public sealed class Column : Element
     /// <summary>Where an item narrower than the column sits. Default <see cref="HorizontalAlignment.Start"/>.</summary>
     public HorizontalAlignment Alignment { get; set; }
 
+    internal override WidthRange WidthsCore(LayoutContext ctx)
+    {
+        double lo = 0;
+        double hi = 0;
+        for (int i = 0; i < Items.Count; i++)
+        {
+            ctx.PushItem(i);
+            try
+            {
+                WidthRange w = Items[i].MeasureWidths(ctx);
+                lo = Math.Max(lo, w.Min);
+                hi = Math.Max(hi, w.Max);
+            }
+            finally
+            {
+                ctx.Pop();
+            }
+        }
+
+        return new WidthRange(lo, hi);
+    }
+
     internal override FlowFit LayoutCore(LayoutContext ctx, in Constraint c, object? resume)
     {
         var start = resume is null ? new FlowCursor(0, null) : (FlowCursor)resume;
@@ -52,7 +74,7 @@ public sealed class Column : Element
     {
         public int Count => column.Items.Count;
 
-        public bool KeepWithNext(int index) => column.Items[index].KeepWithNext;
+        public bool KeepWithNext(int index) => column.Items[index].EffectiveKeepWithNext;
 
         public FlowFit Fit(int index, double available, bool atTop, object? resume, FlowRules rules)
         {
@@ -121,6 +143,36 @@ public sealed class Row : Element
     public VerticalAlignment Alignment { get; set; }
 
     private sealed record RowResume(object?[] Inner, bool[] Done);
+
+    internal override WidthRange WidthsCore(LayoutContext ctx)
+    {
+        double lo = Items.Count > 1 ? Spacing * (Items.Count - 1) : 0;
+        double hi = lo;
+        for (int i = 0; i < Items.Count; i++)
+        {
+            RowItem it = Items[i];
+            if (it.WidthKind == RowItemWidth.Constant)
+            {
+                lo += Math.Max(0, it.Value);
+                hi += Math.Max(0, it.Value);
+                continue;
+            }
+
+            ctx.PushItem(i);
+            try
+            {
+                WidthRange w = it.Content.MeasureWidths(ctx);
+                lo += w.Min;
+                hi += w.Max;
+            }
+            finally
+            {
+                ctx.Pop();
+            }
+        }
+
+        return new WidthRange(lo, hi);
+    }
 
     internal override FlowFit LayoutCore(LayoutContext ctx, in Constraint c, object? resume)
     {
@@ -250,6 +302,28 @@ public sealed class Layers : Element
 
     /// <summary>The index in <see cref="Items"/> of the layer that sets the size. Default 0.</summary>
     public int PrimaryIndex { get; set; }
+
+    internal override WidthRange WidthsCore(LayoutContext ctx)
+    {
+        double lo = 0;
+        double hi = 0;
+        for (int i = 0; i < Items.Count; i++)
+        {
+            ctx.PushItem(i);
+            try
+            {
+                WidthRange w = Items[i].MeasureWidths(ctx);
+                lo = Math.Max(lo, w.Min);
+                hi = Math.Max(hi, w.Max);
+            }
+            finally
+            {
+                ctx.Pop();
+            }
+        }
+
+        return new WidthRange(lo, hi);
+    }
 
     internal override FlowFit LayoutCore(LayoutContext ctx, in Constraint c, object? resume)
     {

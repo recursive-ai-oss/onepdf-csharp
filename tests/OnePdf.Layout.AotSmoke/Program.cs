@@ -47,6 +47,59 @@ if (back.Pages.Count != 1 || !text.Contains("Layout smoke", StringComparison.Ord
     return 1;
 }
 
+// Document structure: a table with repeated header and footer rows and a span, a numbered list, "page N of M", a link and a bookmark.
+var table = new Table { CellBorder = new Border(0.5, LayoutColor.Black) };
+table.Columns.Add(TableColumn.Constant(40));
+table.Columns.Add(TableColumn.Auto());
+table.Columns.Add(TableColumn.Relative(1));
+table.HeaderRows.Add(new TableRow { Cells = { new TableCell(new Text { Content = "Head" }) { ColumnSpan = 3 } } });
+for (int i = 0; i < 60; i++)
+{
+    table.Rows.Add(new TableRow { Cells = { new TableCell(new Text { Content = "r" + i }), new TableCell(new Text { Content = "value " + i }), new TableCell(new Text { Content = "a few words in the last column" }) } });
+}
+
+table.FooterRows.Add(new TableRow { Cells = { new TableCell(new Text { Content = "Foot" }) { ColumnSpan = 3 } } });
+var list = new ItemList { Kind = ListKind.Numbered, NumberStyle = NumberingStyle.LowerRoman };
+list.Items.Add(new ListItem(new Text { Content = "first entry" }));
+list.Items.Add(new ListItem(new Text { Content = "second entry" }));
+var footer = new Row { Spacing = 3 };
+footer.Items.Add(new RowItem(new Text { Content = "Page" }));
+footer.Items.Add(new RowItem(new PageNumber()));
+footer.Items.Add(new RowItem(new Text { Content = "of" }));
+footer.Items.Add(new RowItem(new PageNumber { Kind = PageNumberKind.DocumentTotal }));
+var structured = new LayoutDocument();
+structured.Pages.Add(new LayoutPage
+{
+    Size = PageSize.A5,
+    Footer = footer,
+    Content = new Column
+    {
+        Items =
+        {
+            new Anchor { Id = "top", Child = new Bookmark { Title = "Start", Child = new Heading { Child = new Text { Content = "Structure" } } } },
+            new Link { Destination = "top", Child = new Text { Content = "back to the top" } },
+            list,
+            table,
+        },
+    },
+});
+using var structuredOut = new MemoryStream();
+structured.Save(structuredOut, new PdfDocumentWriterOptions { LeaveOpen = true });
+using PdfDocument structuredBack = PdfDocument.Open(structuredOut.ToArray());
+string[] structuredText = [.. structuredBack.ExtractText().Select(t => t.Text)];
+string lastPage = structuredText[^1].Replace("\n", " ", StringComparison.Ordinal);
+if (structuredBack.Pages.Count < 2
+    || !structuredText[1].Contains("Head", StringComparison.Ordinal)
+    || !structuredText[1].Contains("Foot", StringComparison.Ordinal)
+    || !lastPage.Contains("Page " + structuredBack.Pages.Count + " of", StringComparison.Ordinal)
+    || !lastPage.TrimEnd().EndsWith(structuredBack.Pages.Count.ToString(), StringComparison.Ordinal)
+    || structuredBack.Outline.Count != 1
+    || structuredBack.Pages[0].Links.Count != 1)
+{
+    Console.WriteLine("FAIL structure: " + lastPage);
+    return 1;
+}
+
 // Shaped paragraphs: one Latin (Liberation, justified) and one Arabic (right to left, joined) through the text renderer.
 string? arabicPath = FindFont("NotoSansArabic-Subset-Regular.ttf");
 if (arabicPath is null)

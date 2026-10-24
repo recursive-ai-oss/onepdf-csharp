@@ -1,7 +1,7 @@
 namespace OnePdf.Layout.Tests;
 
 /// <summary>Builds random but valid element trees that always fit a page, and remembers what the layout must preserve.</summary>
-internal sealed class TreeGen
+internal sealed partial class TreeGen
 {
     private readonly Random _rng;
     private int _id;
@@ -56,7 +56,7 @@ internal sealed class TreeGen
 
     private Element Node(int depth, double w)
     {
-        int kind = depth >= 3 ? Pick(4) : Pick(14);
+        int kind = depth >= 3 ? Pick(4) : Pick(17);
         switch (kind)
         {
             case 0:
@@ -180,6 +180,13 @@ internal sealed class TreeGen
                 return layers;
             }
 
+            case 14:
+            case 15:
+                return w >= 160 ? TableNode(w) : Node(depth + 1, w);
+
+            case 16:
+                return ListNode(depth, w);
+
             default:
             {
                 double h = Next(5, 40);
@@ -233,6 +240,9 @@ public class PropertyTests
         int trees = 0;
         int pagesTotal = 0;
         int nodes = 0;
+        int tables = 0;
+        int pieces = 0;
+        int lists = 0;
         for (int seed = 1; seed <= Seeds; seed++)
         {
             LayoutDocument doc = Build(seed, out TreeGen gen);
@@ -268,6 +278,13 @@ public class PropertyTests
                     }
                 }
             }
+
+            bool rtl = doc.Pages[0].Direction == LayoutDirection.RightToLeft;
+            (int tc, int pc, int l) = StructureChecks.Check(gen, bodies, rtl, BodyH, who);
+            tables += tc;
+            pieces += pc;
+            lists += l;
+            StructureChecks.CheckWidowsAndOrphans(gen, bodies, doc.Diagnostics.Any(d => d.Message.Contains("widow", StringComparison.Ordinal)), who);
 
             // Every atom is placed exactly once.
             foreach (string atom in gen.Atoms.Keys)
@@ -314,7 +331,8 @@ public class PropertyTests
             pagesTotal += bodies.Count;
         }
 
-        TestContext.Current.SendDiagnosticMessage($"trees={trees} pages={pagesTotal} nodes={nodes}");
+        TestContext.Current.SendDiagnosticMessage($"trees={trees} pages={pagesTotal} nodes={nodes} tables={tables} table pieces={pieces} lists={lists}");
+        Assert.True(tables > 500 && pieces > tables && lists > 300, $"tables={tables} pieces={pieces} lists={lists}");
         Assert.Equal(Seeds, trees);
         Assert.True(pagesTotal > trees, "generated trees should span pages");
         Assert.True(nodes > 10_000);

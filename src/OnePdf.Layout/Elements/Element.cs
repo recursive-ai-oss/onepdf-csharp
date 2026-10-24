@@ -21,6 +21,9 @@ public sealed class LayoutOptions
     public TextFontRegistry? Fonts { get; set; }
 }
 
+/// <summary>The narrowest and widest width of an element's content, in points.</summary>
+internal readonly record struct WidthRange(double Min, double Max);
+
 /// <summary>The space offered to an element.</summary>
 /// <param name="Width">Width in points; infinity when unbounded.</param>
 /// <param name="Height">Height in points; infinity when unbounded.</param>
@@ -51,6 +54,14 @@ internal sealed class Placed(Element element, double x, double y, double width, 
     public object? Data { get; set; }
 }
 
+/// <summary>Which page is being laid out, for elements that depend on it (page numbers).</summary>
+/// <param name="Index">Zero-based index of the page in the document.</param>
+/// <param name="Section">Zero-based index of the section.</param>
+/// <param name="IndexInSection">Zero-based index of the page in its section.</param>
+/// <param name="Number">The displayed page number.</param>
+/// <param name="Style">How the number is written.</param>
+internal readonly record struct PageInfo(int Index, int Section, int IndexInSection, long Number, NumberingStyle Style);
+
 /// <summary>Everything an element needs while measuring: the document, fonts, text measurement, the element path for errors and notes.</summary>
 internal sealed class LayoutContext : IDisposable
 {
@@ -77,6 +88,24 @@ internal sealed class LayoutContext : IDisposable
     public FlowRules Rules { get; }
 
     public LayoutDirection Direction { get; set; }
+
+    /// <summary>True in the run that only counts pages: nothing is drawn.</summary>
+    public bool CountOnly { get; init; }
+
+    /// <summary>How many lists enclose the element being laid out.</summary>
+    public int ListDepth { get; set; }
+
+    /// <summary>The page being laid out and drawn.</summary>
+    public PageInfo Page { get; set; }
+
+    /// <summary>The page being drawn, so elements can add link annotations to it; null while measuring.</summary>
+    public TargetPage? OpenPage { get; set; }
+
+    private readonly HashSet<string> _destinations = new(StringComparer.Ordinal);
+    private readonly HashSet<string> _linkedNames = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, PdfFormXObject> _totals = new(StringComparer.Ordinal);
+    private int _lastBookmarkLevel = -1;
+    private bool _navigationNoted;
 
     public List<LayoutDiagnostic> Diagnostics { get; } = [];
 
@@ -136,6 +165,109 @@ internal sealed class LayoutContext : IDisposable
         return FlowFit.NoFit(requestedHeight);
     }
 
+    private bool CanNavigate(in DrawContext d)
+    {
+        if (d.Transformed)
+        {
+            Note("Links, anchors and bookmarks inside a rotated or scaled element are not recorded.");
+            return false;
+        }
+
+        if (!Target.SupportsNavigation || OpenPage?.Stream is null)
+        {
+            if (!_navigationNoted)
+            {
+                _navigationNoted = true;
+                Note("This target cannot record links, anchors, bookmarks or page labels; they are left out.");
+            }
+
+            return false;
+        }
+
+        return true;
+    }
+
+    /// <summary>Records a named destination at the top of the element being drawn.</summary>
+    public void DefineAnchor(in DrawContext d, string name)
+    {
+        if (!CanNavigate(d))
+        {
+            return;
+        }
+
+        if (!_destinations.Add(name))
+        {
+            Note($"The anchor '{name}' is defined more than once; the first one is used.");
+            return;
+        }
+
+        Target.AddNamedDestination(name, Page.Index, d.PdfY(0));
+    }
+
+    /// <summary>Adds an outline entry going to the top of the element being drawn. A level more than one below the previous entry is lifted.</summary>
+    public void AddBookmark(in DrawContext d, string title, int level)
+    {
+        if (!CanNavigate(d))
+        {
+            return;
+        }
+
+        int clamped = Math.Clamp(level, 0, _lastBookmarkLevel + 1);
+        if (clamped != level)
+        {
+            Note($"The bookmark '{title}' is at level {level} but the previous entry is at level {_lastBookmarkLevel}; it is placed at level {clamped}.");
+        }
+
+        _lastBookmarkLevel = clamped;
+        Target.AddBookmark(title, clamped, Page.Index, d.PdfY(0));
+    }
+
+    /// <summary>Adds a link annotation over the box of the element being drawn.</summary>
+    public void AddLink(in DrawContext d, double width, double height, string? uri, string? destination)
+    {
+        if (!(width > 0) || !(height > 0) || !CanNavigate(d))
+        {
+            return;
+        }
+
+        var area = new PdfRectangle(d.X, d.PdfY(height), d.X + width, d.PdfY(0));
+        if (uri is { Length: > 0 })
+        {
+            OpenPage!.Stream!.AddLink(area, uri);
+        }
+        else if (destination is { Length: > 0 })
+        {
+            _linkedNames.Add(destination);
+            OpenPage!.Stream!.AddLinkToDestination(area, destination);
+        }
+    }
+
+    /// <summary>Notes the links whose target was never defined.</summary>
+    public void CheckLinks()
+    {
+        var names = new List<string>(_linkedNames);
+        names.Sort(StringComparer.Ordinal);
+        foreach (string name in names)
+        {
+            if (!_destinations.Contains(name))
+            {
+                Diagnostics.Add(new LayoutDiagnostic(string.Empty, $"A link goes to the anchor '{name}', which is not defined."));
+            }
+        }
+    }
+
+    /// <summary>The shared form for a page count, made on first use.</summary>
+    public PdfFormXObject TotalForm(string key, PdfRectangle box, int section, Action<PdfFormContentBuilder, int> paint)
+    {
+        if (!_totals.TryGetValue(key, out PdfFormXObject? form))
+        {
+            form = Target.TotalForm(box, section, paint);
+            _totals[key] = form;
+        }
+
+        return form;
+    }
+
     public void Dispose()
     {
         _measurer?.Dispose();
@@ -144,8 +276,11 @@ internal sealed class LayoutContext : IDisposable
 }
 
 /// <summary>Where and on what an element draws. The origin is the element's own top-left corner in the frame (the page, or a transformed child frame).</summary>
-internal readonly struct DrawContext(PdfContentBuilder builder, LayoutContext context, double frameHeight, double x, double y)
+internal readonly struct DrawContext(PdfContentBuilder builder, LayoutContext context, double frameHeight, double x, double y, bool transformed = false)
 {
+    /// <summary>True inside a rotated or scaled frame, where positions are no longer page positions.</summary>
+    public bool Transformed { get; } = transformed;
+
     public PdfContentBuilder B { get; } = builder;
 
     public LayoutContext Ctx { get; } = context;
@@ -157,9 +292,9 @@ internal readonly struct DrawContext(PdfContentBuilder builder, LayoutContext co
 
     public double Y { get; } = y;
 
-    public DrawContext At(double dx, double dy) => new(B, Ctx, FrameHeight, X + dx, Y + dy);
+    public DrawContext At(double dx, double dy) => new(B, Ctx, FrameHeight, X + dx, Y + dy, Transformed);
 
-    public DrawContext InFrame(double height) => new(B, Ctx, height, 0, 0);
+    public DrawContext InFrame(double height) => new(B, Ctx, height, 0, 0, true);
 
     /// <summary>The PDF y of a point <paramref name="dy"/> below this element's top edge.</summary>
     public double PdfY(double dy) => FrameHeight - (Y + dy);
@@ -190,6 +325,9 @@ public abstract class Element
     /// <summary>The content direction for this element and everything inside it; inherited when null.</summary>
     public LayoutDirection? Direction { get; set; }
 
+    /// <summary>True when this element, or the chain of transparent wrappers around the real content, asks to stay with what follows it.</summary>
+    internal virtual bool EffectiveKeepWithNext => KeepWithNext;
+
     internal virtual string TypeName => GetType().Name;
 
     internal string Label => Name ?? TypeName;
@@ -212,6 +350,40 @@ public abstract class Element
             ctx.Direction = saved;
             ctx.Pop();
         }
+    }
+
+    /// <summary>
+    /// The narrowest and the widest width the element can take: the width it needs when every possible line break is taken, and when none is.
+    /// Tables use it for automatic column widths.
+    /// </summary>
+    internal WidthRange MeasureWidths(LayoutContext ctx)
+    {
+        ctx.Push(Label);
+        LayoutDirection saved = ctx.Direction;
+        if (Direction is { } d)
+        {
+            ctx.Direction = d;
+        }
+
+        try
+        {
+            return WidthsCore(ctx);
+        }
+        finally
+        {
+            ctx.Direction = saved;
+            ctx.Pop();
+        }
+    }
+
+    /// <summary>Elements that cannot be made narrower by wrapping take the width of an unbounded layout for both ends.</summary>
+    internal virtual WidthRange WidthsCore(LayoutContext ctx) => UnboundedWidth(ctx);
+
+    internal WidthRange UnboundedWidth(LayoutContext ctx)
+    {
+        FlowFit f = LayoutCore(ctx, new Constraint(double.PositiveInfinity, double.PositiveInfinity, false), null);
+        double w = f.Placed is Placed p ? p.Width : 0;
+        return new WidthRange(w, w);
     }
 
     internal void Draw(in DrawContext d, Placed p)

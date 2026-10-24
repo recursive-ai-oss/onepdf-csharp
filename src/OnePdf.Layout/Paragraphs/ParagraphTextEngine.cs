@@ -5,7 +5,8 @@ internal sealed class ParagraphTextEngine : ITextEngine
 {
     private readonly TextFontRegistry _fonts;
     private readonly TextRenderer _renderer;
-    private readonly Dictionary<Text, Entry> _cache = [];
+    // Weak, so text made on the fly (page numbers, list markers) does not stay for the whole document.
+    private readonly System.Runtime.CompilerServices.ConditionalWeakTable<Text, Entry> _cache = [];
 
     public ParagraphTextEngine(ILayoutTarget target, TextFontRegistry fonts)
     {
@@ -45,14 +46,14 @@ internal sealed class ParagraphTextEngine : ITextEngine
                 Hyphenator = text.Hyphenator,
             };
             e = new Entry(dir, paragraph.Shape(_fonts));
-            _cache[text] = e;
+            _cache.AddOrUpdate(text, e);
         }
 
         double w = Math.Max(width, 1);
         if (e.Block is null || e.Width != w)
         {
             e.Width = w;
-            e.Block = new Block(e.Shaped.Layout(w), _renderer, e.Shaped.MaxContentWidth);
+            e.Block = new Block(e.Shaped.Layout(w), _renderer, e.Shaped.MaxContentWidth, e.Shaped.MinContentWidth);
         }
 
         return e.Block;
@@ -69,11 +70,15 @@ internal sealed class ParagraphTextEngine : ITextEngine
         public Block? Block { get; set; }
     }
 
-    private sealed class Block(ParagraphLayout layout, TextRenderer renderer, double natural) : ITextBlock
+    private sealed class Block(ParagraphLayout layout, TextRenderer renderer, double natural, double minContent) : ITextBlock
     {
         public int LineCount => layout.Lines.Count;
 
         public double NaturalWidth => natural;
+
+        public double MinContentWidth => minContent;
+
+        public double FirstBaseline => layout.Lines.Count > 0 ? layout.Lines[0].Baseline : 0;
 
         public double LineHeight(int line) => layout.Lines[line].Height;
 

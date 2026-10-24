@@ -6,6 +6,8 @@ namespace OnePdf.Layout;
 /// <summary>Turns a child by an angle. The element's box is the bounding box of the turned child, which is laid out at its natural size and never splits.</summary>
 public sealed class Rotate : SingleChildElement
 {
+    internal override WidthRange WidthsCore(LayoutContext ctx) => UnboundedWidth(ctx);
+
     /// <summary>Clockwise angle in degrees. Default 0.</summary>
     public double Degrees { get; set; }
 
@@ -66,6 +68,8 @@ public sealed class Rotate : SingleChildElement
 /// <summary>Scales a child. The child is laid out in the space divided by the factors; the box is the scaled size. It never splits.</summary>
 public sealed class Scale : SingleChildElement
 {
+    internal override WidthRange WidthsCore(LayoutContext ctx) => UnboundedWidth(ctx);
+
     /// <summary>Horizontal factor, greater than zero. Default 1.</summary>
     public double X { get; set; } = 1;
 
@@ -278,11 +282,13 @@ public abstract class Component : Element
     /// <summary>Builds the elements this component stands for. Called once per component object.</summary>
     protected abstract Element Compose();
 
-    internal override FlowFit LayoutCore(LayoutContext ctx, in Constraint c, object? resume)
-    {
-        _composed ??= Compose() ?? throw new InvalidOperationException("Compose returned null.");
-        return _composed.Layout(ctx, c, resume);
-    }
+    internal override bool EffectiveKeepWithNext => KeepWithNext || Composed.EffectiveKeepWithNext;
+
+    private Element Composed => _composed ??= Compose() ?? throw new InvalidOperationException("Compose returned null.");
+
+    internal override WidthRange WidthsCore(LayoutContext ctx) => Composed.MeasureWidths(ctx);
+
+    internal override FlowFit LayoutCore(LayoutContext ctx, in Constraint c, object? resume) => Composed.Layout(ctx, c, resume);
 }
 
 /// <summary>
@@ -482,6 +488,12 @@ public sealed class Text : Element
 
     internal sealed record Fragment(ITextBlock Block, int First, int Count);
 
+    internal override WidthRange WidthsCore(LayoutContext ctx)
+    {
+        ITextBlock block = ctx.Text.Prepare(this, 1e6, ctx);
+        return new WidthRange(block.MinContentWidth, block.NaturalWidth);
+    }
+
     internal override FlowFit LayoutCore(LayoutContext ctx, in Constraint c, object? resume)
     {
         ITextBlock block = ctx.Text.Prepare(this, c.WidthBounded ? c.Width : 1e6, ctx);
@@ -575,6 +587,12 @@ internal interface ITextBlock
     int LineCount { get; }
 
     double NaturalWidth { get; }
+
+    /// <summary>Width of the widest unbreakable piece (the longest word): the narrowest width the text can wrap to without cutting a word.</summary>
+    double MinContentWidth { get; }
+
+    /// <summary>Distance from the top of the block down to the first line's baseline.</summary>
+    double FirstBaseline { get; }
 
     double LineHeight(int line);
 
