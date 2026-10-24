@@ -949,6 +949,49 @@ Write("colour-glyphs", "Colour glyphs from a COLR version 0 font built in code: 
     });
 }));
 
+Write("svg", "SVG pictures as vector content: a chart and an icon with their text, gradients, a clip, use and symbol, strokes, a pattern, markers, an opacity mask and a picture fitted three ways", LayoutDocument.Compose(doc =>
+{
+    doc.Title("SVG pictures").Language("en");
+    string svgDir = Path.Combine(root, "testdata", "layout-svg");
+    doc.Page(page =>
+    {
+        page.Size(PageSize.A5);
+        page.Margin(24);
+        page.Content().Column(col =>
+        {
+            col.Spacing(8);
+            col.Item().Text("SVG pictures").FontSize(16).Bold();
+            col.Item().Row(row =>
+            {
+                row.Spacing(8);
+                row.RelativeItem().Svg(File.ReadAllBytes(Path.Combine(svgDir, "chart.svg"))).FitWidth();
+                row.RelativeItem().Svg(File.ReadAllBytes(Path.Combine(svgDir, "gradients.svg"))).FitWidth();
+            });
+            col.Item().Row(row =>
+            {
+                row.Spacing(8);
+                row.RelativeItem().Svg(File.ReadAllBytes(Path.Combine(svgDir, "use-symbol.svg"))).FitWidth();
+                row.RelativeItem().Svg(File.ReadAllBytes(Path.Combine(svgDir, "strokes.svg"))).FitWidth();
+                row.RelativeItem().Svg(File.ReadAllBytes(Path.Combine(svgDir, "clip.svg"))).FitWidth();
+            });
+            col.Item().Row(row =>
+            {
+                row.Spacing(8);
+                row.RelativeItem().Svg(File.ReadAllBytes(Path.Combine(svgDir, "pattern.svg"))).FitWidth();
+                row.RelativeItem().Svg(File.ReadAllBytes(Path.Combine(svgDir, "markers.svg"))).FitWidth();
+                row.RelativeItem().Svg(File.ReadAllBytes(Path.Combine(svgDir, "opacity-mask.svg"))).FitWidth();
+            });
+            col.Item().Height(60).Row(row =>
+            {
+                row.Spacing(8);
+                row.RelativeItem().Background(paper).Svg(File.ReadAllBytes(Path.Combine(svgDir, "icon.svg"))).Contain();
+                row.RelativeItem().Background(paper).Svg(File.ReadAllBytes(Path.Combine(svgDir, "icon.svg"))).Cover();
+                row.RelativeItem().Background(paper).Svg(File.ReadAllBytes(Path.Combine(svgDir, "icon.svg"))).Stretch();
+            });
+        });
+    });
+}));
+
 File.WriteAllText(Path.Combine(outDir, "index.csv"), index.ToString());
 return 0;
 
