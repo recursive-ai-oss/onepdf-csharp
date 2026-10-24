@@ -87,6 +87,26 @@ internal static class Seeds
                     }
 
                     PutData("cs", "BT /F1 12 Tf 20 100 Td (Hello secret world) Tj ET q 1 0 0 rg 0 0 50 50 re f Q"u8, head);
+
+                    // Content drawn by a pattern cell, a soft-mask group and a Type 3 glyph procedure (files without a cross-reference table: repaired on open).
+                    byte[] nestedHead = [3, 14, 60, 40, 30, 100, 20, 40, 40, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+                    string font = "5 0 obj << /Type /Font /Subtype /Type1 /BaseFont /Helvetica >> endobj\n";
+                    PutData("pdf", Encoding.ASCII.GetBytes("%PDF-1.7\n1 0 obj << /Type /Catalog /Pages 2 0 R >> endobj\n2 0 obj << /Type /Pages /Kids [3 0 R] /Count 1 >> endobj\n" +
+                        "3 0 obj << /Type /Page /Parent 2 0 R /MediaBox [0 0 200 200] /Contents 4 0 R /Resources << /Font << /F1 5 0 R >> /Pattern << /P1 6 0 R >> >> >> endobj\n" +
+                        "4 0 obj << /Length 70 >> stream\n/Pattern cs /P1 scn 20 100 80 60 re f BT /F1 12 Tf 120 20 Td (visible) Tj ET\nendstream endobj\n" + font +
+                        "6 0 obj << /Type /Pattern /PatternType 1 /PaintType 1 /TilingType 1 /BBox [0 0 40 40] /XStep 40 /YStep 40 /Resources << /Font << /F1 5 0 R >> >> /Length 44 >> stream\nBT /F1 10 Tf 2 25 Td (PATTERNSECRET) Tj ET\nendstream endobj\ntrailer << /Root 1 0 R >>\n"), nestedHead);
+                    PutData("pdf", Encoding.ASCII.GetBytes("%PDF-1.7\n1 0 obj << /Type /Catalog /Pages 2 0 R >> endobj\n2 0 obj << /Type /Pages /Kids [3 0 R] /Count 1 >> endobj\n" +
+                        "3 0 obj << /Type /Page /Parent 2 0 R /MediaBox [0 0 200 200] /Contents 4 0 R /Resources << /Font << /F1 5 0 R >> /ExtGState << /GS1 6 0 R >> >> >> endobj\n" +
+                        "4 0 obj << /Length 60 >> stream\n/GS1 gs 0 0 1 rg 120 20 60 40 re f BT /F1 12 Tf 20 20 Td (visible) Tj ET\nendstream endobj\n" + font +
+                        "6 0 obj << /Type /ExtGState /SMask << /Type /Mask /S /Luminosity /G 7 0 R >> >> endobj\n" +
+                        "7 0 obj << /Type /XObject /Subtype /Form /BBox [0 0 200 200] /Group << /S /Transparency /CS /DeviceGray >> /Resources << /Font << /F1 5 0 R >> >> /Length 60 >> stream\n1 g BT /F1 14 Tf 30 120 Td (MASKSECRET) Tj ET 0.5 g 150 30 30 30 re f\nendstream endobj\ntrailer << /Root 1 0 R >>\n"), nestedHead);
+                    PutData("pdf", Encoding.ASCII.GetBytes("%PDF-1.7\n1 0 obj << /Type /Catalog /Pages 2 0 R >> endobj\n2 0 obj << /Type /Pages /Kids [3 0 R] /Count 1 >> endobj\n" +
+                        "3 0 obj << /Type /Page /Parent 2 0 R /MediaBox [0 0 200 200] /Contents 4 0 R /Resources << /Font << /T3 6 0 R >> >> >> endobj\n" +
+                        "4 0 obj << /Length 50 >> stream\nBT /T3 20 Tf 20 100 Td (ab) Tj 130 0 Td (c) Tj ET\nendstream endobj\n" + font +
+                        "6 0 obj << /Type /Font /Subtype /Type3 /FontBBox [0 0 1000 1000] /FontMatrix [0.001 0 0 0.001 0 0] /CharProcs << /a 7 0 R /b 8 0 R /c 9 0 R >> /Encoding << /Type /Encoding /Differences [97 /a /b /c] >> /FirstChar 97 /LastChar 99 /Widths [1000 1000 1000] /Resources << /Font << /F1 5 0 R >> >> >> endobj\n" +
+                        "7 0 obj << /Length 70 >> stream\n1000 0 d0 100 100 700 700 re f BT /F1 300 Tf 100 400 Td (GLYPHSECRET) Tj ET\nendstream endobj\n" +
+                        "8 0 obj << /Length 40 >> stream\n1000 0 0 0 1000 1000 d1 100 100 800 800 re f\nendstream endobj\n" +
+                        "9 0 obj << /Length 40 >> stream\n1000 0 d0 -6500 100 800 800 re f\nendstream endobj\ntrailer << /Root 1 0 R >>\n"), nestedHead);
                     PutData("cs", "q 1 0 0 1 10 10 cm /Fm Do Q BT /F1 10 Tf [(a) -120 (b)] TJ (c) ' 1 2 (d) \" ET BI /W 2 /H 2 /BPC 8 /CS /G ID abcd EI"u8, [255, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]);
                     break;
                 }

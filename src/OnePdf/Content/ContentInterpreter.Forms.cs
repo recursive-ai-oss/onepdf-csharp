@@ -198,15 +198,7 @@ internal sealed partial class ContentInterpreter
         _device.BeginSoftMask(in info, in state);
         try
         {
-            _tapSuspended++;
-            try
-            {
-                RunForm(g, string.Empty, true);
-            }
-            finally
-            {
-                _tapSuspended--;
-            }
+            RunForm(g, string.Empty, true);
         }
         finally
         {
