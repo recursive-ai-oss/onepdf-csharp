@@ -196,8 +196,8 @@ internal static class PdfUA2
             PdfDictionary d = stack.Pop();
             if (d.GetName("Type") == "OBJR" && d.GetDictionary("Obj") is { } annotation && annotation.GetName("Subtype") == "Link")
             {
-                PdfObject? dest = annotation.GetRaw("Dest") ?? annotation.GetDictionary("A")?.GetRaw("D");
-                if (doc.ResolveDestination(dest, 0) is { IsRemotePage: false, PageIndex: < 0, Page: { } element } && element.GetRaw("S") is not null && element.Reference is { } r)
+                PdfObject? dest = annotation.GetRaw("Dest") ?? (annotation.GetDictionary("A") is { } act ? act.GetRaw("SD") ?? act.GetRaw("D") : null);
+                if (doc.ResolveDestination(dest, 0) is { IsRemotePage: false, StructureElement: { } element } && element.GetRaw("S") is not null && element.Reference is { } r)
                 {
                     return r;
                 }

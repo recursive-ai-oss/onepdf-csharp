@@ -154,7 +154,8 @@ public class PdfUA2Tests
         Assert.Empty(VeraPdf.Validate(structure, "ua2"));
         using PdfDocument back = PdfDocument.Open(structure);
         Assert.Empty(back.CheckPdfUA(PdfUAPart.Part2));
-        Assert.Equal(-1, back.Outline[0].Destination!.PageIndex);
+        Assert.True(back.Outline[0].Destination!.IsStructureDestination);
+        Assert.Equal(0, back.Outline[0].Destination!.PageIndex);
     }
 
     public static IEnumerable<object[]> Defects()

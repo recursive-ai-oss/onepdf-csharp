@@ -257,7 +257,7 @@ internal sealed class PdfUAChecker
             }
 
             PdfDestination? d = _doc.ResolveDestination(dest, 0);
-            if (d is { IsRemotePage: false, PageIndex: >= 0 })
+            if (d is { IsRemotePage: false, PageIndex: >= 0, IsStructureDestination: false })
             {
                 reported++;
                 Add("28", "7.18.1", "A link or outline item goes to a page, but PDF/UA-2 needs a structure destination (the destination names the structure element, not the page).", owner, pageIndex, c2: "8.8");

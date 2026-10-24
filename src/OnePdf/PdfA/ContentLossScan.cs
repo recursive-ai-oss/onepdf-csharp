@@ -1,4 +1,5 @@
 using OnePdf.Internal;
+using OnePdf.Security;
 
 namespace OnePdf.PdfA;
 
@@ -183,6 +184,10 @@ internal static class ContentLossScan
                     break;
                 }
 
+                case PdfString { DecryptDamage: not DecryptIssues.None } damaged:
+                    losses.Add(DamagedString(damaged, item, owner));
+                    break;
+
                 case PdfDictionary d:
                     PushDictionary(stack, d, owner, item.Page, inStream: false, item.Key);
                     break;
@@ -203,7 +208,7 @@ internal static class ContentLossScan
         {
             string key = d.KeyAt(i);
             PdfObject raw = d.ValueAt(i);
-            if (raw is PdfName or PdfInteger or PdfReal or PdfBoolean or PdfString or PdfNull)
+            if (raw is PdfName or PdfInteger or PdfReal or PdfBoolean or PdfNull || raw is PdfString { DecryptDamage: DecryptIssues.None })
             {
                 continue;
             }
@@ -236,7 +241,7 @@ internal static class ContentLossScan
         for (int i = 0; i < a.Count; i++)
         {
             PdfObject raw = a.GetRaw(i);
-            if (raw is PdfName or PdfInteger or PdfReal or PdfBoolean or PdfString or PdfNull)
+            if (raw is PdfName or PdfInteger or PdfReal or PdfBoolean or PdfNull || raw is PdfString { DecryptDamage: DecryptIssues.None })
             {
                 continue;
             }
@@ -323,6 +328,15 @@ internal static class ContentLossScan
         LossKind kind = KindOf(what, item.Hint);
         int gen = s.Reference?.Generation ?? 0;
         return new ContentLoss(kind, owner, gen, item.Page, $"The {what} (object {owner} {gen}) cannot be saved without loss: {reason}.");
+    }
+
+    // A string whose ciphertext was damaged (bad padding, a partial last block) was kept as far as it decrypted. A plain save writes those bytes
+    // again; a conformance save must not, because the text it would claim to preserve is not the original.
+    private static ContentLoss DamagedString(PdfString s, Item item, int owner)
+    {
+        string where = item.Key is { } k ? $"string under /{k}" : "string";
+        LossKind kind = item.Hint is LossKind.Other ? LossKind.Other : item.Hint;
+        return new ContentLoss(kind, owner, 0, item.Page, $"The {where} (object {owner}) cannot be saved without loss: it cannot be decrypted cleanly ({s.DecryptDamage}).");
     }
 
     private static ContentLoss Missing(Item item, PdfReference reference)
