@@ -78,9 +78,26 @@ internal sealed class PdfUAChecker
         if (!_structureOnly)
         {
             CheckSecurity();
+            CheckContentLoss();
         }
 
         return _violations;
+    }
+
+    // A save must not drop what it cannot read (see ContentLossScan); the PDF/A checker reports the same findings.
+    private void CheckContentLoss()
+    {
+        foreach (PdfA.ContentLoss loss in PdfA.ContentLossScan.Run(_doc, _ct))
+        {
+            if (loss.Kind == PdfA.LossKind.Font)
+            {
+                Add("31", "7.21.4.1", loss.Message, loss.ObjectNumber, loss.PageIndex);
+            }
+            else
+            {
+                Add("01", "7.1", loss.Message, loss.ObjectNumber, loss.PageIndex);
+            }
+        }
     }
 
     private bool _walked;

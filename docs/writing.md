@@ -31,6 +31,8 @@ doc.Save("out-clean.pdf", new PdfSaveOptions { XrefFormat = PdfXrefFormat.Stream
 - **Repaired files** save as clean files; dangling references become `null`.
 - **Limits.** `PdfLimits.MaxObjects` bounds the output; a classic table beyond 10 digits of offset throws `PdfLimitException` (use `Stream`). A stream larger than `MaxDecodedStreamBytes` throws `PdfLimitException` as when reading it.
 
+A full save copies each stream as stored and writes `null` for a reference to an object that does not exist, so a damaged file stays as damaged as it was. A PDF/A or PDF/UA save does not: it refuses to write a file that has lost a part it could not read (see "A conformance save never drops content" in [pdfa.md](pdfa.md)).
+
 ## Incremental save
 
 `doc.SaveIncremental(Stream, PdfSaveOptions?, CancellationToken)` copies the original file byte for byte, then appends the objects changed, added or removed since the document was opened (changed objects keep number and generation; removed ones become free entries chained onto the existing free list), a cross-reference section for them only, and a trailer with `/Prev` to the previous section (ISO 32000-2 7.5.6). It continues the newest revision's form (table or stream; a hybrid file gets a table). The update is encrypted like the document. `/ID`'s first string stays and the second changes. Offsets are written relative to the header when the file has junk in front of it, as the file itself does. `doc.Revisions` shows the old and new revisions. Each call writes the changes since *open*, on top of the original file.
