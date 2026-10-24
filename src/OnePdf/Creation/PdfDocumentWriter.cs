@@ -70,6 +70,7 @@ public sealed partial class PdfDocumentWriter : IDisposable
     private PdfDictionary? _currentNodeDict;
     private readonly List<(PdfFormXObject Form, bool Done)> _reservedForms = [];
     private readonly List<(string Title, int Level, int PageIndex, double Top)> _bookmarks = [];
+    private readonly List<PdfPageLabelRange> _labelRanges = [];
     private readonly SortedDictionary<string, (int PageIndex, double Top)> _destinations = new(StringComparer.Ordinal);
     private PdfStreamPageBuilder? _openPage;
     private bool _finished;
@@ -384,6 +385,81 @@ public sealed partial class PdfDocumentWriter : IDisposable
         }
     }
 
+    /// <summary>
+    /// Starts a page label range (ISO 32000-2 12.4.2) at a page: from there on, viewers show the pages as the prefix followed by a number in the
+    /// given style, counting up from <paramref name="start"/>, until the next range begins. Ranges must be added in page order. If the first
+    /// range does not begin at page 0, pages before it are labelled with plain decimal numbers.
+    /// </summary>
+    /// <param name="firstPageIndex">Zero-based index of a page already begun (the open page counts), after the previous range's page.</param>
+    /// <param name="style">The numbering style; <see cref="PdfPageLabelStyle.None"/> gives the prefix alone.</param>
+    /// <param name="prefix">Text put before the number, or null for none.</param>
+    /// <param name="start">The number of the first page of the range, at least 1.</param>
+    /// <exception cref="ArgumentOutOfRangeException">The page does not exist yet, is not after the previous range, or <paramref name="start"/> is below 1.</exception>
+    public void AddPageLabelRange(int firstPageIndex, PdfPageLabelStyle style, string? prefix = null, int start = 1)
+    {
+        CheckNotFinished();
+        CheckPageExists(firstPageIndex);
+        if (_labelRanges.Count > 0 && firstPageIndex <= _labelRanges[^1].FirstPage)
+        {
+            throw new ArgumentOutOfRangeException(nameof(firstPageIndex), "Page label ranges are added in page order.");
+        }
+
+        ArgumentOutOfRangeException.ThrowIfLessThan(start, 1);
+        _labelRanges.Add(new PdfPageLabelRange(firstPageIndex, style, prefix ?? string.Empty, start));
+    }
+
+    private PdfDictionary? PageLabelsDictionary()
+    {
+        if (_labelRanges.Count == 0)
+        {
+            return null;
+        }
+
+        var nums = new PdfArray();
+        if (_labelRanges[0].FirstPage != 0)
+        {
+            nums.Append(new PdfInteger(0));
+            var plain = new PdfDictionary();
+            plain.SetEntry("S", new PdfName("D"));
+            nums.Append(plain);
+        }
+
+        foreach (PdfPageLabelRange r in _labelRanges)
+        {
+            nums.Append(new PdfInteger(r.FirstPage));
+            var d = new PdfDictionary();
+            string? code = r.Style switch
+            {
+                PdfPageLabelStyle.Arabic => "D",
+                PdfPageLabelStyle.UpperRoman => "R",
+                PdfPageLabelStyle.LowerRoman => "r",
+                PdfPageLabelStyle.UpperLetters => "A",
+                PdfPageLabelStyle.LowerLetters => "a",
+                _ => null,
+            };
+            if (code is not null)
+            {
+                d.SetEntry("S", new PdfName(code));
+            }
+
+            if (r.Prefix.Length > 0)
+            {
+                d.SetEntry("P", PdfString.FromText(r.Prefix));
+            }
+
+            if (code is not null && r.Start != 1)
+            {
+                d.SetEntry("St", new PdfInteger(r.Start));
+            }
+
+            nums.Append(d);
+        }
+
+        var tree = new PdfDictionary();
+        tree.SetEntry("Nums", nums);
+        return tree;
+    }
+
     private void CheckPageExists(int pageIndex)
     {
         int begun = _pageNumbers.Count + (_openPage is { IsClosed: false } ? 1 : 0);
@@ -446,6 +522,11 @@ public sealed partial class PdfDocumentWriter : IDisposable
         if (_options.Language is { } lang)
         {
             catalog.SetEntry("Lang", PdfString.FromText(lang));
+        }
+
+        if (PageLabelsDictionary() is { } labels)
+        {
+            catalog.SetEntry("PageLabels", labels);
         }
 
         if (outlines is not null)

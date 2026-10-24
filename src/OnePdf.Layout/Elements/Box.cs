@@ -21,6 +21,21 @@ public abstract class SingleChildElement : Element
 
         return Child.Layout(ctx, c, resume);
     }
+
+    /// <summary>Puts the child's result in a node of this element that takes the child's size. A continuation resumes as the child does.</summary>
+    internal FlowFit Wrap(FlowFit f, object? data)
+    {
+        if (f.Placed is not Placed child)
+        {
+            return f;
+        }
+
+        var node = new Placed(this, 0, 0, child.Width, child.Height) { Data = data };
+        child.X = 0;
+        child.Y = 0;
+        node.Children.Add(child);
+        return f.Kind == FlowKind.Partial ? FlowFit.Partial(f.Height, node, f.Resume) : FlowFit.Complete(f.Height, node);
+    }
 }
 
 /// <summary>

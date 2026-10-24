@@ -34,6 +34,30 @@ public sealed class LayoutPage
 
     /// <summary>The flowing content, usually a <see cref="Column"/>. Empty when null (one blank page).</summary>
     public Element? Content { get; set; }
+
+    /// <summary>Header of the first page of this section, instead of <see cref="Header"/>. The ordinary header is used when null; put an empty <see cref="Spacer"/> here for no header.</summary>
+    public Element? FirstHeader { get; set; }
+
+    /// <summary>Footer of the first page of this section, instead of <see cref="Footer"/>. The ordinary footer is used when null.</summary>
+    public Element? FirstFooter { get; set; }
+
+    /// <summary>Header of pages whose displayed number is even (and that are not the first page of the section), instead of <see cref="Header"/>. The ordinary header is used when null.</summary>
+    public Element? EvenHeader { get; set; }
+
+    /// <summary>Footer of pages whose displayed number is even (and that are not the first page of the section), instead of <see cref="Footer"/>. The ordinary footer is used when null.</summary>
+    public Element? EvenFooter { get; set; }
+
+    /// <summary>How page numbers of this section are written, in <see cref="PageNumber"/> and in the document's page labels. Default <see cref="NumberingStyle.Arabic"/>.</summary>
+    public NumberingStyle NumberStyle { get; set; }
+
+    /// <summary>
+    /// The number of the section's first page. When null the numbering continues from the section before (1 for the first section). A value
+    /// below 1 counts as 1.
+    /// </summary>
+    public int? StartNumber { get; set; }
+
+    /// <summary>Text put before the page number in the document's page labels, such as "A-" (not shown by <see cref="PageNumber"/>). Default none.</summary>
+    public string? LabelPrefix { get; set; }
 }
 
 /// <summary>
@@ -62,7 +86,7 @@ public sealed class LayoutDocument
     public int Render(PdfDocument target)
     {
         ArgumentNullException.ThrowIfNull(target);
-        return RenderCore(new DocumentTarget(target), null);
+        return RenderCore(target, null);
     }
 
     /// <summary>
@@ -88,26 +112,58 @@ public sealed class LayoutDocument
         writer.Finish();
     }
 
-    // Test hook with a document target.
-    internal int RenderCore(PdfDocument target, Action<int, LayoutPage, Placed?, Placed?, Placed?>? capture) => RenderCore(new DocumentTarget(target), capture);
+    // A document built in memory cannot fill a form after the pages that draw it are done, so the page counts come from a first run into a
+    // writer that throws its output away. Links, anchors, bookmarks and page labels need a streaming writer and are left out here.
+    internal int RenderCore(PdfDocument target, Action<int, LayoutPage, Placed?, Placed?, Placed?>? capture)
+    {
+        var counts = new int[Pages.Count];
+        using (var counter = new PdfDocumentWriter(Stream.Null, new PdfDocumentWriterOptions { CompressStreams = false, LeaveOpen = true }))
+        {
+            RenderCore(new WriterTarget(counter), null, counts, countOnly: true);
+        }
+
+        return RenderCore(new DocumentTarget(target, counts), capture, null);
+    }
 
     // When `capture` is set, each page's placed tree is handed to it as the page is finished.
-    internal int RenderCore(ILayoutTarget target, Action<int, LayoutPage, Placed?, Placed?, Placed?>? capture)
+    internal int RenderCore(ILayoutTarget target, Action<int, LayoutPage, Placed?, Placed?, Placed?>? capture, int[]? sectionCounts = null, bool countOnly = false)
     {
-        using var ctx = new LayoutContext(target, Options, new PlainTextEngine());
+        using var ctx = new LayoutContext(target, Options, new PlainTextEngine()) { CountOnly = countOnly };
         _diagnostics = ctx.Diagnostics;
         int pageNumber = 0;
+        long nextNumber = 1;
+        NumberingStyle previousStyle = NumberingStyle.Arabic;
+        string previousPrefix = string.Empty;
         for (int s = 0; s < Pages.Count; s++)
         {
             LayoutPage section = Pages[s];
             ctx.Direction = section.Direction;
-            pageNumber += RenderSection(ctx, target, section, s, pageNumber, capture);
+            long start = section.StartNumber is { } sn ? Math.Max(1, sn) : nextNumber;
+            string prefix = section.LabelPrefix ?? string.Empty;
+
+            // A page label range (ISO 32000-2 12.4.2) begins where the numbering does not simply carry on from the page before.
+            bool label = s == 0
+                ? section.NumberStyle != NumberingStyle.Arabic || prefix.Length > 0 || start != 1
+                : start != nextNumber || section.NumberStyle != previousStyle || prefix != previousPrefix;
+            int count = RenderSection(ctx, target, section, s, pageNumber, start, label, capture);
+            target.SetTotal(s, count);
+            if (sectionCounts is not null)
+            {
+                sectionCounts[s] = count;
+            }
+
+            pageNumber += count;
+            nextNumber = start + count;
+            previousStyle = section.NumberStyle;
+            previousPrefix = prefix;
         }
 
+        target.SetTotal(-1, pageNumber);
+        ctx.CheckLinks();
         return pageNumber;
     }
 
-    private int RenderSection(LayoutContext ctx, ILayoutTarget target, LayoutPage setup, int sectionIndex, int firstPage, Action<int, LayoutPage, Placed?, Placed?, Placed?>? capture)
+    private int RenderSection(LayoutContext ctx, ILayoutTarget target, LayoutPage setup, int sectionIndex, int firstPage, long startNumber, bool writeLabel, Action<int, LayoutPage, Placed?, Placed?, Placed?>? capture)
     {
         PageSize size = setup.Size.Oriented(setup.Orientation);
         Insets m = setup.Margin;
@@ -126,8 +182,14 @@ public sealed class LayoutDocument
         Placed? footer = null;
         double HeaderFooterHeight(int page)
         {
-            header = LayoutBand(ctx, setup.Header, "Header", sectionIndex, bodyW, bodyH);
-            footer = LayoutBand(ctx, setup.Footer, "Footer", sectionIndex, bodyW, bodyH - (header?.Height ?? 0));
+            long number = startNumber + page;
+            ctx.Page = new PageInfo(firstPage + page, sectionIndex, page, number, setup.NumberStyle);
+            bool first = page == 0;
+            bool even = number % 2 == 0;
+            Element? headerElement = first && setup.FirstHeader is not null ? setup.FirstHeader : even && setup.EvenHeader is not null ? setup.EvenHeader : setup.Header;
+            Element? footerElement = first && setup.FirstFooter is not null ? setup.FirstFooter : even && setup.EvenFooter is not null ? setup.EvenFooter : setup.Footer;
+            header = LayoutBand(ctx, headerElement, "Header", firstPage + page, bodyW, bodyH);
+            footer = LayoutBand(ctx, footerElement, "Footer", firstPage + page, bodyW, bodyH - (header?.Height ?? 0));
             return bodyH - (header?.Height ?? 0) - (footer?.Height ?? 0);
         }
 
@@ -148,7 +210,20 @@ public sealed class LayoutDocument
 
         void OnPage(int page, FlowFit fit)
         {
+            if (ctx.CountOnly)
+            {
+                // Only the number of pages matters; elements made for another document could not be drawn here anyway.
+                pagesDone++;
+                return;
+            }
+
             using TargetPage tp = target.BeginPage(size.Width, size.Height);
+            ctx.OpenPage = tp;
+            if (page == 0 && writeLabel && target.SupportsNavigation)
+            {
+                target.AddPageLabelRange(firstPage, Numbering.LabelStyle(setup.NumberStyle), setup.LabelPrefix ?? string.Empty, (int)Math.Min(startNumber, int.MaxValue));
+            }
+
             PdfContentBuilder b = tp.Builder;
             var d = new DrawContext(b, ctx, size.Height, 0, 0);
             Placed? background = LayoutFull(ctx, setup.Background, "Background", firstPage + page, size);
@@ -187,6 +262,7 @@ public sealed class LayoutDocument
                 b.EndMarkedContent();
             }
 
+            ctx.OpenPage = null;
             tp.Commit();
             capture?.Invoke(firstPage + page, setup, body, header, footer);
             pagesDone++;
@@ -202,14 +278,14 @@ public sealed class LayoutDocument
         return count;
     }
 
-    private static Placed? LayoutBand(LayoutContext ctx, Element? element, string slot, int section, double width, double maxHeight)
+    private static Placed? LayoutBand(LayoutContext ctx, Element? element, string slot, int page, double width, double maxHeight)
     {
         if (element is null)
         {
             return null;
         }
 
-        ctx.Push($"Page[{section}]");
+        ctx.Push($"Page[{page}]");
         ctx.Push(slot);
         try
         {
