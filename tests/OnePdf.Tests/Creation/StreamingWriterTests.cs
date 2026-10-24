@@ -4,6 +4,11 @@ using OnePdf.Text;
 
 namespace OnePdf.Tests.Creation;
 
+// Measures process-wide memory, so no other test may run beside it.
+[CollectionDefinition("Streaming memory", DisableParallelization = true)]
+public sealed class StreamingMemoryDefinition;
+
+[Collection("Streaming memory")]
 public class StreamingWriterTests
 {
     private static byte[] Serif => CreationSupport.RequireFont("LiberationSerif-Regular.ttf");
@@ -203,6 +208,7 @@ public class StreamingWriterTests
             GC.Collect();
             managedBefore = GC.GetTotalMemory(true);
             long maxManaged = 0;
+            long at2000 = 0;
             using (FileStream fs = File.Create(path))
             using (var w = new PdfDocumentWriter(fs, new PdfDocumentWriterOptions { Language = "en" }))
             {
@@ -236,6 +242,12 @@ public class StreamingWriterTests
                     {
                         maxManaged = Math.Max(maxManaged, GC.GetTotalMemory(false));
                     }
+
+                    if (i == 1999)
+                    {
+                        GC.Collect();
+                        at2000 = GC.GetTotalMemory(true);
+                    }
                 }
 
                 w.EndStructureElement();
@@ -248,7 +260,7 @@ public class StreamingWriterTests
                 w.Finish();
                 _ = doc;
                 peakWorkingSet = Process.GetCurrentProcess().PeakWorkingSet64;
-                TestContext.Current.SendDiagnosticMessage($"10,000 pages: file {fs.Length / 1048576.0:F1} MiB; managed heap before {managedBefore / 1048576.0:F1} MiB, after the last page {managedAfter / 1048576.0:F1} MiB, sampled max {maxManaged / 1048576.0:F1} MiB; process peak working set {peakWorkingSet / 1048576.0:F1} MiB");
+                TestContext.Current.SendDiagnosticMessage($"10,000 pages: file {fs.Length / 1048576.0:F1} MiB; managed heap before {managedBefore / 1048576.0:F1} MiB, after the last page {managedAfter / 1048576.0:F1} MiB, sampled max {maxManaged / 1048576.0:F1} MiB; live heap after page 2000 {at2000 / 1048576.0:F1} MiB, so {(managedAfter - at2000) / 8000.0:F0} bytes per added page; process peak working set {peakWorkingSet / 1048576.0:F1} MiB");
             }
 
             // Target: 64 MiB plus about 1 KiB per page, measured as live managed memory after the last page.
