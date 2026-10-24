@@ -48,6 +48,10 @@ Every engine gets the same Liberation Sans/Serif files (regular, bold, italic, b
 - **Time and allocation:** BenchmarkDotNet with `[MemoryDiagnoser]`. Each document is written to a stream that discards and counts. The managed allocation figure does not include native memory, which is why peak RSS is measured too.
 - **Peak RSS and cold time:** `rss.sh` runs each (engine, row) cell in a fresh process under `/usr/bin/time -v`, three repetitions. The wall time is the first document in the process, JIT included.
 - **Output size:** printed by every runner (`bytes=`).
+
+### Output size
+
+The `table10k` file is the one that stands out. OnePDF writes it tagged (the default): every cell is a `TD` with a `P` inside, so 10,000 rows of 5 cells make about 90,000 structure elements, each a small dictionary. Written as plain objects they were 8.0 MB; the streaming writer now packs dictionaries and arrays into compressed object streams, and the file is 2.0 MB: 1.17 MB of that is the structure tree (about 13 bytes per element), 0.76 MB the 250 page content streams, the rest fonts and page dictionaries. MigraDoc's 1.17 MB file carries no structure tree at all. Removing the `P` inside single-paragraph cells would shave the tree further but would change the tags a screen reader sees, so it stays. The untagged form (`Tagged(false)`) is smaller still. Output size is an information row, not part of the gate.
 - **Correctness of the comparison:** `check <dir>` writes every engine's every document and opens it with OnePDF's reader. It prints page count, size and how many probe strings (headings, numbers, the first and last words of a paragraph) the extracted text contains.
 
 ## Running

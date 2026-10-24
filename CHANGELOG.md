@@ -6,6 +6,9 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ### Added
 
+- `PdfFontSource`: parses a font once and shares it between documents (`PdfDocument.AddFont` and `PdfDocumentWriter.AddFont` overloads), so producing many documents with the same face does not parse and validate it each time.
+- `PdfDocumentWriter` packs dictionaries and arrays into compressed object streams (the catalog stays plain) unless the cross-reference format is a table. A tagged 250-page table went from 8.0 MB to 2.0 MB.
+
 - `PdfDocument.AddPngImage`: a minimal PNG reader for image XObjects. Plain non-interlaced PNGs (gray, RGB, palette, 1 to 16 bits) are passed through with their IDAT data unchanged (`FlateDecode`, `/Predictor 15`); interlaced PNGs and PNGs with alpha are decoded, alpha becoming a soft mask; `tRNS` becomes a colour-key mask where it can, and a matching `iCCP` profile becomes an `ICCBased` colour space. A `png` fuzz target covers it. See `docs/content-creation.md`.
 - `PdfContentBuilder.DrawGlyphRun` and `PdfShapedGlyph`: draw glyphs chosen by a shaping engine, by glyph index with advances, offsets and clusters, from an embedded font. Each cluster maps to text through the font's `/ToUnicode` map, or through `/ActualText` where one glyph cannot carry it (reordered or split clusters, a glyph reused for other text), so extraction returns the logical text.
 - Marked content on the content builder: `BeginMarkedContent`, `BeginSpan`, `BeginArtifact`, `EndMarkedContent`, `MarkedContentDepth`. Marked content and `Save`/`Restore` must nest.
@@ -19,6 +22,7 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ### Changed
 
+- Layout: shaping is done once per text and released after its last line; fonts are parsed once per face; `Table.MeasuredRows` is `int?` (null: every row when a column is automatic, otherwise the first 100 body rows). Producing documents is about twice as fast and allocates about half as much.
 - Layout: page totals ("page X of Y") are shaped and drawn with the embedded font, so documents with totals pass PDF/A-2b and PDF/UA-1 font checks. `Row.Compact` makes a row as wide as its items. `Rotate` and `Scale` throw `PdfLayoutException` when their child would need a page break, instead of dropping the content after it.
 
 ## [1.6.0] - 2026-10-23
