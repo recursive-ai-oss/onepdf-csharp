@@ -4,6 +4,11 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ## [Unreleased]
 
+### Added
+
+- Gradient backgrounds in layout: `LayoutGradient` (`Linear` at any angle, `Horizontal`, `Vertical`, `Circle` with a centre and `RadialExtent`) and `LayoutGradientStop`, taken by `Slot.Background`, `Box.BackgroundGradient`, table rows and cells (`TableRowDescriptor.Background`, `CellBackground`, `TableRow.BackgroundGradient`, `TableCell.BackgroundGradient`) and page backgrounds. Clipped to rounded corners, faded by opacity, carried by transforms, drawn as artifacts. A box split over pages paints the whole gradient in each piece. See `docs/layout.md`.
+- Content builder: `PdfGradient` (`Axial`, `Radial`), `PdfGradientStop`, `PdfGradientColor` (DeviceGray, DeviceRGB, DeviceCMYK), `PdfContentBuilder.PaintGradient` and `FillRectangle`. Written as axial and radial shadings with exponential and stitching functions. See `docs/content-creation.md`.
+
 ## [1.8.0] - 2026-10-24
 
 ### Added

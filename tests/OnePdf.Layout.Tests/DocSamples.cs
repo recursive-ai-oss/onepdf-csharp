@@ -153,6 +153,35 @@ public class DocSamples
     }
     // end sample
 
+    // sample: gradient
+    private static void Gradient()
+    {
+        LayoutDocument.Compose(doc => doc.Page(page =>
+        {
+            page.Content().Column(col =>
+            {
+                col.Spacing(10);
+
+                // 90 degrees runs left to right; the first stop is reached in one corner and the last in the opposite one.
+                col.Item().Height(60).Rounded(8)
+                    .Background(LayoutGradient.Linear(90, Colors.Blue, Colors.LightGrey))
+                    .Padding(10).Text("Linear").FontColor(Colors.White);
+
+                // Several stops, each with a position from 0 to 1, here in DeviceCMYK (DeviceGray works too; one space per gradient).
+                col.Item().Height(60).Background(LayoutGradient.Horizontal(
+                    new LayoutGradientStop(0, PdfGradientColor.Cmyk(0, 1, 1, 0)),
+                    new LayoutGradientStop(0.3, PdfGradientColor.Cmyk(0, 0, 1, 0)),
+                    new LayoutGradientStop(1, PdfGradientColor.Cmyk(1, 0.6, 0, 0))));
+
+                // Circles around a centre given as fractions of the box.
+                col.Item().Height(60).Background(LayoutGradient.Circle(
+                    [new LayoutGradientStop(0, Colors.White), new LayoutGradientStop(1, Colors.Blue)],
+                    centerX: 0.25, centerY: 0.5, extent: RadialExtent.FarthestCorner));
+            });
+        })).Save("gradients.pdf");
+    }
+    // end sample
+
     // sample: component
     sealed class Address(string name, string city) : IComponent
     {
@@ -262,6 +291,7 @@ public class DocSamples
             Invoice();
             Report();
             Chain();
+            Gradient();
             Components();
             Navigation();
             Images();
@@ -276,6 +306,7 @@ public class DocSamples
     [InlineData("report", "docs/layout.md")]
     [InlineData("invoice", "docs/migrating-from-questpdf.md")]
     [InlineData("chain", "docs/layout.md")]
+    [InlineData("gradient", "docs/layout.md")]
     [InlineData("component", "docs/layout.md")]
     [InlineData("navigation", "docs/layout.md")]
     [InlineData("images", "docs/layout.md")]

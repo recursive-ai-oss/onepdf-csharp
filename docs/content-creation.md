@@ -73,6 +73,24 @@ Content is written in the page's default user space: origin at the lower left of
 
 `gAMA`, `cHRM`, `sRGB`, `sBIT`, text chunks and the other ancillary chunks are ignored, and samples are used as stored. APNG animation frames are ignored: the default image is used. A CRC mismatch in IHDR, PLTE or IDAT is a `PdfFormatException`; in `tRNS` or `iCCP` the chunk is dropped with a warning in `Diagnostics`. Pixel count and decoded size are checked against `PdfLimits` from the header, before any pixel memory is allocated; the decoded size of an interlaced image or an image with alpha is computed from the header and the inflater is capped at that size, so a deflate bomb cannot grow past the image.
 
+## Gradients
+
+`PdfGradient.Axial(x0, y0, x1, y1, stops)` and `PdfGradient.Radial(x0, y0, r0, x1, y1, r1, stops)` describe a smooth colour transition; `builder.PaintGradient(gradient)` paints it over the current clipping region (the `sh` operator, ISO 32000-2 8.7.4.2), and `builder.FillRectangle(x, y, w, h, gradient)` is a rectangle clip plus that. To fill any other shape, clip to it:
+
+```csharp
+b.Save();
+b.Ellipse(50, 50, 120, 80);
+b.Clip();
+b.PaintGradient(PdfGradient.Axial(50, 50, 170, 130,
+    [new PdfGradientStop(0, PdfGradientColor.Rgb(1, 0.8, 0)), new PdfGradientStop(1, PdfGradientColor.Rgb(0.8, 0, 0.2))]));
+b.Restore();
+```
+
+- Coordinates are in the user space current where the gradient is painted, so `Transform`, `Rotate` and `Scale` before the call carry it along. The current fill opacity applies.
+- Stops (`PdfGradientStop`: position 0..1 and a `PdfGradientColor` in DeviceGray, DeviceRGB or DeviceCMYK) must be in one space and not decrease; the colour before the first and after the last is held, and two stops at one position make a hard edge. Two stops become one exponential function (type 2), more become a stitching function (type 3). Bad input is an `ArgumentException`.
+- `extendStart` and `extendEnd` (default true) say whether the end colours continue past the start and end of the axis, or past the circles of a radial gradient.
+- Each call adds a shading resource; gradients are immutable, so one may be used on any number of builders.
+
 ## Shaped glyph runs
 
 `builder.DrawGlyphRun(x, y, glyphs, text)` draws glyphs a shaping engine has already chosen and placed, with an embedded font (`SetFont` with a font from `AddFont`). It takes plain data and depends on no shaping library.

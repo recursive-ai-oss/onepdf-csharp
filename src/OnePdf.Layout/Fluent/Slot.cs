@@ -254,7 +254,18 @@ public partial class Slot
         Box(1, b => b.BorderEnd is null, b => b.BorderEnd = new Border(width, color ?? LayoutColor.Black, style));
 
     /// <summary>Fills the box's area (inside the margin) with a colour.</summary>
-    public Slot Background(LayoutColor color) => Box(1, b => b.Background is null, b => b.Background = color);
+    public Slot Background(LayoutColor color) => Box(1, b => b.Background is null && b.BackgroundGradient is null, b => b.Background = color);
+
+    /// <summary>
+    /// Fills the box's area (inside the margin) with a gradient, under the border and clipped to rounded corners. It is painted at the box's
+    /// opacity. A box that splits over pages paints the whole gradient in each piece. In tagged output it is an artifact, like a colour.
+    /// </summary>
+    /// <param name="gradient">The gradient, from <see cref="LayoutGradient"/>.</param>
+    public Slot Background(LayoutGradient gradient)
+    {
+        ArgumentNullException.ThrowIfNull(gradient);
+        return Box(1, b => b.Background is null && b.BackgroundGradient is null, b => b.BackgroundGradient = gradient);
+    }
 
     /// <summary>Rounds the corners of the background and border; the radius is in points.</summary>
     public Slot Rounded(double radius) => Box(-1, b => true, b => b.CornerRadius = radius);

@@ -76,6 +76,43 @@ Other decorators: `Rotate`, `Scale`, `Translate`, `KeepTogether`, `EnsureSpace`,
 - `Rotate` and `Scale` do not split their child: if the content would need a page break inside them, layout throws `PdfLayoutException`. Rotating by 90 degrees makes the child's width the page height, so put a `Width` box inside the rotation.
 - Text fills the width it is offered, so `AlignCenter().Text(...)` aligns the text, not a box around it.
 
+### Gradient backgrounds
+
+`Background` also takes a `LayoutGradient`, linear at any angle or radial, with two or more colour stops:
+
+```csharp
+LayoutDocument.Compose(doc => doc.Page(page =>
+{
+    page.Content().Column(col =>
+    {
+        col.Spacing(10);
+
+        // 90 degrees runs left to right; the first stop is reached in one corner and the last in the opposite one.
+        col.Item().Height(60).Rounded(8)
+            .Background(LayoutGradient.Linear(90, Colors.Blue, Colors.LightGrey))
+            .Padding(10).Text("Linear").FontColor(Colors.White);
+
+        // Several stops, each with a position from 0 to 1, here in DeviceCMYK (DeviceGray works too; one space per gradient).
+        col.Item().Height(60).Background(LayoutGradient.Horizontal(
+            new LayoutGradientStop(0, PdfGradientColor.Cmyk(0, 1, 1, 0)),
+            new LayoutGradientStop(0.3, PdfGradientColor.Cmyk(0, 0, 1, 0)),
+            new LayoutGradientStop(1, PdfGradientColor.Cmyk(1, 0.6, 0, 0))));
+
+        // Circles around a centre given as fractions of the box.
+        col.Item().Height(60).Background(LayoutGradient.Circle(
+            [new LayoutGradientStop(0, Colors.White), new LayoutGradientStop(1, Colors.Blue)],
+            centerX: 0.25, centerY: 0.5, extent: RadialExtent.FarthestCorner));
+    });
+})).Save("gradients.pdf");
+```
+
+- **Linear.** `Linear(angle, stops)`: the angle is in degrees clockwise from up, so 0 runs bottom to top, 90 left to right, 180 top to bottom (`Horizontal` and `Vertical` are 90 and 180). The gradient line passes through the centre of the box and is `|w sin a| + |h cos a|` long, so the first stop is reached exactly in one corner and the last in the opposite one. `Linear(angle, from, to)` is the two-colour form.
+- **Radial.** `Circle(stops, centerX, centerY, extent)`: the first stop is at the centre, the last on the circle that touches the closest or farthest side or corner (`RadialExtent`, default the farthest corner). Circles only; no ellipses.
+- **Stops.** Two or more `LayoutGradientStop(position, colour)` with positions from 0 to 1 that do not decrease, all in one colour space (a `LayoutColor` is DeviceRGB; `PdfGradientColor.Gray` and `.Cmyk` give the others). The end colours are held before the first and after the last stop. Two stops at one position make a hard edge. A bad list throws `ArgumentException` where the gradient is created.
+- **With the rest of the box.** The gradient fills the area inside the margin and is clipped to rounded corners; the border paints over it; `Opacity` fades it (the content stays opaque); `Rotate`, `Scale` and `Translate` carry it along; it works as the background of a layer, a page (`page.Background()`), a table row (`TableRowDescriptor.Background`) and a table cell (`CellBackground`). `BackgroundGradient` replaces `Background` when both are set on an element.
+- **Pages.** A box that splits over pages paints the whole gradient again in each piece, scaled to that piece, so every page shows the full transition. (A gradient that continues across the break would need the box's total height, which is unknown when the first piece is placed.) A table row or cell does the same.
+- **Output.** Each gradient is a PDF shading (axial type 2 or radial type 3, ISO 32000-2 8.7.4.5) painted with `sh` under the box's clip; stops become one exponential function or a stitching function. It is an artifact in tagged output and passes PDF/A and PDF/UA-1 checks (a PDF/A save refuses a CMYK gradient, as it does any DeviceCMYK colour, because OnePDF has no CMYK profile to offer). To fill any other shape in a canvas, see [Content creation](content-creation.md#gradients).
+
 ### Text
 
 `Text("...")` returns a `TextDescriptor` with `FontSize`, `FontFamily`, `FontColor`, `Bold`, `Italic`, `Underline`, `Strike`, `LetterSpacing`, `LineHeight`, `Justify`, `AlignStart`/`AlignCenter`/`AlignEnd`, `FirstLineIndent`, `Language` and `Hyphenator`. `Text(t => ...)` builds rich text from `Span`, `Line`, `CurrentPageNumber`, `TotalPages` and `SectionPages`; a span has the same formatting methods plus `Superscript` and `Subscript`. Settings made on the descriptor are the default for its spans.
@@ -204,7 +241,7 @@ The facade builds the element objects described below; they stay public. They ar
 A tree of plain element objects. Elements hold properties and no layout state, so one element may appear several times and a tree can be laid out again; two runs give the same bytes (use a fixed `PdfDocumentWriterOptions.DocumentId`).
 
 - **Containers:** `Column` (top to bottom, spacing, item alignment), `Row` (constant, relative and automatic cell widths, spacing), `Layers` (one primary layer sets the size and may split; the others are laid out at its size on every page it occupies).
-- **Box:** margin, border (per side, solid/dashed/dotted), padding, background, corner radius, opacity, fixed/min/max width and height, aspect ratio, nine-point alignment of the child. Logical `Start`/`End` insets and borders sit beside the physical ones.
+- **Box:** margin, border (per side, solid/dashed/dotted), padding, background, corner radius, background colour or [gradient](#gradient-backgrounds), opacity, fixed/min/max width and height, aspect ratio, nine-point alignment of the child. Logical `Start`/`End` insets and borders sit beside the physical ones.
 - **Transforms:** `Rotate` (box = bounding box of the turned child), `Scale`, `Translate` (moves the drawing, not the layout space).
 - **Leaves:** `Text` (shaped paragraphs on OneFont: fonts with fallback, rich spans, bidi, justification, hyphenation hook, widow/orphan control; see [layout-text.md](layout-text.md)), `Image` (JPEG or PNG; fit width, fit height, contain, cover, stretch), `Canvas` (a callback with the content builder inside a clipped box), `Spacer`.
 - **Structure:** `Table` and `ItemList` (below), `Heading`, `PageNumber`, and the navigation wrappers `Link`, `Anchor` and `Bookmark`.
@@ -215,7 +252,7 @@ A tree of plain element objects. Elements hold properties and no layout state, s
 
 ## Tables
 
-`Table` has `Columns` (constant, relative or automatic), `HeaderRows`, `Rows`, `FooterRows`, a default `CellPadding` and `CellBorder`, and a `RowBackground` delegate from the body row index to a colour for striping. A `TableRow` holds `TableCell`s (content, `ColumnSpan`, `RowSpan`, padding, background, borders, vertical alignment); cells fill the grid from the start and skip places taken by row spans above.
+`Table` has `Columns` (constant, relative or automatic), `HeaderRows`, `Rows`, `FooterRows`, a default `CellPadding` and `CellBorder`, and a `RowBackground` delegate from the body row index to a colour for striping. A `TableRow` holds `TableCell`s (content, `ColumnSpan`, `RowSpan`, padding, background colour or gradient, borders, vertical alignment); cells fill the grid from the start and skip places taken by row spans above.
 
 - **Widths.** Constant columns keep their width. Automatic columns take the widest content of their cells (from `MeasureWidths`: the longest word to the unwrapped line) when there is room, and shrink towards the narrowest content when there is not. Relative columns share what the automatic ones leave by weight, never below their narrowest content. If even the narrowest contents do not fit, all non-constant columns are scaled down and words may spill (a note is recorded). A cell over several columns that needs more than they have asks the rest of the columns that can still grow, evenly. Content decides widths only for automatic columns and for the minimum of relative ones, so a table whose columns are all constant measures nothing, and one with relative columns but no automatic column measures the header, the footer and the first 100 body rows (just enough to keep a relative column from being narrower than its longest word; a later row with a longer word wraps inside its column). Any automatic column makes every body row count. `MeasuredRows` overrides both.
 - **Pages.** Header and footer rows are laid out again on each page the table occupies and their height comes off every page; they never split. A page always holds at least the start of a body row besides them. Body rows split between lines of their cells; `TableRow.KeepTogether` moves a row instead (a row taller than a page splits with a note). Rows joined by row spans form one unit that moves whole; a unit taller than a page raises `PdfLayoutException`, as does any cell that cannot fit an empty page (`Page[3] > Content > Table > Row 14 > Cell 2 > Image`; header and footer rows are `Header Row n` and `Footer Row n`).
