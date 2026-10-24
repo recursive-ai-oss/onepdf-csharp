@@ -128,14 +128,24 @@ internal static class PdfAPreparer
             }
         }
 
-        var faces = new Dictionary<string, SubstituteFace>(StringComparer.Ordinal);
+        var candidates = new HashSet<int>();
         foreach (int n in numbers)
         {
-            ct.ThrowIfCancellationRequested();
             if (doc.ResolveChain(n, 0) is PdfDictionary font && font.GetName("Subtype") == "Type1" && !font.ContainsKey("FontDescriptor"))
             {
-                TryEmbed(doc, font, faces);
+                candidates.Add(n);
             }
+        }
+
+        // Only the codes the document shows are embedded. A font that is never shown, is listed in the form's default resources, or
+        // is used where the scan cannot follow keeps its whole encoding (see FontUsage).
+        FontUsage usage = candidates.Count > 0 ? FontUsage.Scan(doc, candidates, ct) : null!;
+        var faces = new Dictionary<string, SubstituteFace>(StringComparer.Ordinal);
+        foreach (int n in candidates)
+        {
+            ct.ThrowIfCancellationRequested();
+            HashSet<int>? codes = usage.Complete && !usage.Full.Contains(n) && usage.Used.TryGetValue(n, out HashSet<int>? shown) && shown.Count > 0 ? shown : null;
+            TryEmbed(doc, (PdfDictionary)doc.ResolveChain(n, 0)!, faces, codes);
         }
 
         foreach (SubstituteFace face in faces.Values)
@@ -225,7 +235,8 @@ internal static class PdfAPreparer
         }
     }
 
-    private static void TryEmbed(PdfDocument doc, PdfDictionary font, Dictionary<string, SubstituteFace> faces)
+    // codes: the codes to embed glyphs for, or null for every code of the encoding.
+    private static void TryEmbed(PdfDocument doc, PdfDictionary font, Dictionary<string, SubstituteFace> faces, HashSet<int>? codes)
     {
         string? standard = Core14.Resolve(font.GetName("BaseFont") ?? string.Empty);
         if (standard is null or "Symbol" or "ZapfDingbats")
@@ -337,6 +348,11 @@ internal static class PdfAPreparer
         for (int c = 0; c < 256; c++)
         {
             string? name = names[c];
+            if (codes is not null && !codes.Contains(c))
+            {
+                continue;
+            }
+
             if (name is null || !GlyphList.TryGetUnicode(name, out string? text) || text.Length == 0 || !Rune.TryGetRuneAt(text, 0, out Rune r) || r.Utf16SequenceLength != text.Length)
             {
                 continue;

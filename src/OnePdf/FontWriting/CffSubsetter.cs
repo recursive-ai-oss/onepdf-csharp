@@ -10,9 +10,13 @@ namespace OnePdf.FontWriting;
 /// <remarks>
 /// Charstrings are copied verbatim. Subroutines are kept in place (indexes and biases do not change) and those the kept glyphs never
 /// reach are emptied to a lone <c>return</c>, which costs almost nothing once compressed. If a charstring cannot be followed (it
-/// computes a subroutine number, loops, or is too long) every subroutine is kept. Name-keyed input becomes a one-FD CID font. The
-/// deprecated accented-character form of <c>endchar</c> is refused, as are inputs whose tables point outside the font; all failures
-/// are <see cref="FontProgramException"/>.
+/// computes a subroutine number, loops, or is too long) every subroutine is kept. Name-keyed input becomes a one-FD CID font.
+/// The String INDEX is not copied: nothing the subset keeps refers to a source string (the output has its own ROS strings).
+/// A glyph that ends in the deprecated accented-character form of <c>endchar</c> (TN #5177 appendix C: <c>adx ady bchar achar</c>)
+/// is rewritten as a plain path charstring of the composed outline, because that form names its parts by StandardEncoding code and a
+/// CID-keyed font has no glyph names to resolve them with; the base and accent glyphs are therefore not needed in the subset. Inputs
+/// whose tables point outside the font, or whose composed glyph is itself composed, are refused; all failures are
+/// <see cref="FontProgramException"/>.
 /// </remarks>
 internal static class CffSubsetter
 {
@@ -30,7 +34,7 @@ internal static class CffSubsetter
         int pos = hdrSize;
         _ = CffIndex.Read(d, pos, out pos); // Name INDEX
         CffIndex topIndex = CffIndex.Read(d, pos, out pos);
-        CffIndex strings = CffIndex.Read(d, pos, out pos);
+        _ = CffIndex.Read(d, pos, out pos); // String INDEX: not needed, see the remarks
         CffIndex gsubrs = CffIndex.Read(d, pos, out _);
         if (topIndex.Count < 1)
         {
@@ -162,22 +166,26 @@ internal static class CffSubsetter
 
         // ---- output pieces ----
         byte[] nameIndex = IndexBytes([System.Text.Encoding.ASCII.GetBytes(fontName)]);
-        int stringCount = strings.Count;
-        var stringList = new List<byte[]>(stringCount + 2);
-        for (int i = 0; i < stringCount; i++)
-        {
-            stringList.Add(strings.Get(d, i).ToArray());
-        }
-
-        stringList.Add("Adobe"u8.ToArray());
-        stringList.Add("Identity"u8.ToArray());
-        byte[] stringIndex = IndexBytes(stringList);
+        // Strings 391 and up are the String INDEX. The subset's Top DICT carries only ROS (Registry, Ordering), so its two strings are
+        // all the INDEX holds; the source's strings (names, notices, glyph names) are referenced by nothing that is kept.
+        const int stringCount = 0;
+        byte[] stringIndex = IndexBytes(["Adobe"u8.ToArray(), "Identity"u8.ToArray()]);
         byte[] gsubrIndex = SubrIndex(d, gsubrs, usedGlobal, keepAll);
 
         var csList = new List<byte[]>(order.Count);
+        CffFont? parsed = null;
         foreach (int g in order)
         {
-            csList.Add(charStrings.Get(d, g).ToArray());
+            parsed ??= new CffFont(cff);
+            if (parsed.IsAccented(g))
+            {
+                (float defaultWidth, float nominalWidth) = Widths(privateRaw[fdOfGlyph[g]]);
+                csList.Add(ComposedCharstring(parsed, g, defaultWidth, nominalWidth));
+            }
+            else
+            {
+                csList.Add(charStrings.Get(d, g).ToArray());
+            }
         }
 
         byte[] charStringsIndex = IndexBytes(csList);
@@ -326,8 +334,8 @@ internal static class CffSubsetter
         return -1;
     }
 
-    // DICT data (TN #5176, section 4): operands then an operator. Only the first two operands are kept as numbers (real numbers
-    // are skipped as 0): everything the subsetter edits is an integer, and the rest is copied as raw bytes.
+    // DICT data (TN #5176, section 4): operands then an operator. Only the first two operands are kept as numbers: everything the
+    // subsetter edits is a number it reads here, and the rest is copied as raw bytes.
     private static List<DictEntry> ParseDict(ReadOnlySpan<byte> d)
     {
         var list = new List<DictEntry>();
@@ -375,12 +383,7 @@ internal static class CffSubsetter
             else if (b0 == 30)
             {
                 p++;
-                bool done = false;
-                while (!done)
-                {
-                    int b = Be.U8(d, p++);
-                    done = (b & 0x0F) == 0x0F || (b >> 4) == 0x0F;
-                }
+                value = CffFont.ReadReal(d, ref p);
             }
             else if (b0 >= 32 && b0 <= 246)
             {
@@ -590,11 +593,7 @@ internal static class CffSubsetter
                     break;
 
                 case 14:
-                    if (sp >= 4)
-                    {
-                        throw new FontProgramException("A glyph uses the deprecated accented-character form of endchar.");
-                    }
-
+                    // With four or five operands this is the accented form; the glyph is rewritten, so there is nothing more to follow.
                     return true;
 
                 case 12:
@@ -616,6 +615,119 @@ internal static class CffSubsetter
                     break;
             }
         }
+    }
+
+    // ---- accented glyphs ----
+
+    // defaultWidthX (20) and nominalWidthX (21) of a Private DICT; both are 0 when absent (TN #5176 table 23).
+    private static (float Default, float Nominal) Widths(byte[] privateDict)
+    {
+        List<DictEntry> entries = ParseDict(privateDict);
+        int dw = Find(entries, 20), nw = Find(entries, 21);
+        return (dw >= 0 ? (float)entries[dw].First : 0, nw >= 0 ? (float)entries[nw].First : 0);
+    }
+
+    // The composed outline of glyph <paramref name="gid"/> as a Type 2 charstring of absolute-free relative moves, lines and curves, with
+    // its width. Coordinates are written in 16.16 fixed point, which holds every value a charstring can produce, so the outline read
+    // back from the subset equals the composed one.
+    private static byte[] ComposedCharstring(CffFont font, int gid, float defaultWidth, float nominalWidth)
+    {
+        GlyphOutline outline = font.GetOutline(gid);
+        var b = new List<byte>(64 + (outline.Coords.Length * 3));
+        if (font.TryGetAdvance(gid, out float advance) && advance != defaultWidth)
+        {
+            PutType2(b, ToFixed(advance - nominalWidth));
+        }
+
+        long cx = 0, cy = 0;
+        int c = 0;
+        float[] xy = outline.Coords;
+        foreach (byte verb in outline.Verbs)
+        {
+            int points = verb switch
+            {
+                GlyphOutline.Move or GlyphOutline.Line => 1,
+                GlyphOutline.Cubic => 3,
+                GlyphOutline.Close => 0,
+                _ => throw new FontProgramException("A composed glyph holds a segment a CFF charstring cannot express."),
+            };
+            for (int i = 0; i < points; i++)
+            {
+                long x = ToFixed(xy[c++]), y = ToFixed(xy[c++]);
+                PutType2(b, x - cx);
+                PutType2(b, y - cy);
+                cx = x;
+                cy = y;
+            }
+
+            // rmoveto, rlineto, rrcurveto; a contour ends at the next moveto or at endchar (TN #5177 section 4.1).
+            if (verb == GlyphOutline.Move)
+            {
+                b.Add(21);
+            }
+            else if (verb == GlyphOutline.Line)
+            {
+                b.Add(5);
+            }
+            else if (verb == GlyphOutline.Cubic)
+            {
+                b.Add(8);
+            }
+        }
+
+        b.Add(14);
+        return [.. b];
+    }
+
+    private static long ToFixed(double v)
+    {
+        double f = Math.Round(v * 65536.0);
+        return Math.Abs(f) > 0x7FFFFFFF ? throw new FontProgramException("A composed glyph has a coordinate out of range.") : (long)f;
+    }
+
+    // One Type 2 operand (TN #5177 section 3.2) from a 16.16 fixed-point value: the short integer forms when it is whole, else the
+    // 5-byte fixed form (which holds ±32767.99).
+    private static void PutType2(List<byte> b, long fixedValue)
+    {
+        if ((fixedValue & 0xFFFF) == 0)
+        {
+            long v = fixedValue >> 16;
+            if (v is >= -107 and <= 107)
+            {
+                b.Add((byte)(v + 139));
+                return;
+            }
+
+            if (v is >= 108 and <= 1131)
+            {
+                b.Add((byte)(247 + ((v - 108) >> 8)));
+                b.Add((byte)(v - 108));
+                return;
+            }
+
+            if (v is >= -1131 and <= -108)
+            {
+                b.Add((byte)(251 + ((-v - 108) >> 8)));
+                b.Add((byte)(-v - 108));
+                return;
+            }
+
+            if (v is >= -32768 and <= 32767)
+            {
+                b.Add(28);
+                b.Add((byte)(v >> 8));
+                b.Add((byte)v);
+                return;
+            }
+        }
+
+        if (fixedValue is < int.MinValue or > int.MaxValue)
+        {
+            throw new FontProgramException("A composed glyph has a coordinate out of range.");
+        }
+
+        b.Add(255);
+        PutOffset(b, (uint)(int)fixedValue, 4);
     }
 
     // ---- INDEX output ----
