@@ -155,9 +155,10 @@ internal static class TextLayout
         return ((k % 4) + 4) % 4;
     }
 
-    // Text rotated by more than half a degree from its quantized direction is measured along its own baseline, so the glyphs of a diagonal line
-    // share one baseline and run in order along it. Within half a degree the axis frame is kept (rounding noise in the matrix must not change the result).
-    private const double TiltThreshold = 0.5 * Math.PI / 180;
+    // Text rotated by more than 12 degrees from its quantized direction is measured along its own baseline, so the glyphs of a diagonal line
+    // share one baseline and run in order along it. Within 12 degrees the axis frame is kept: the baseline tolerance absorbs the slant of a skewed
+    // scan, and on the real-world set a smaller threshold made multi-column reading order worse (7.6 to 8.0 % at 5 degrees, 8.3 % at 2).
+    private const double TiltThreshold = 12.0 * Math.PI / 180;
 
     private static void TiltedFrame(in PdfTextGlyph g, ref double ux, ref double uy)
     {
@@ -192,7 +193,12 @@ internal static class TextLayout
     internal static Item MakeItem(in PdfTextGlyph g, int index, int k)
     {
         double ux = Dx[k], uy = Dy[k];
-        TiltedFrame(g, ref ux, ref uy);
+        if (Quantize(g) == k)
+        {
+            // Only text read in the direction it is set in; stacked ideographs set upright in a vertical column keep the axis frame.
+            TiltedFrame(g, ref ux, ref uy);
+        }
+
         double nx = uy, ny = -ux;
         g.Corners(out double ax, out double ay, out double bx, out double by, out double cx, out double cy, out double dx, out double dy);
         double f0 = ux * ax + uy * ay, g0 = nx * ax + ny * ay;
