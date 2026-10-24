@@ -308,7 +308,7 @@ internal static class GlyphPaths
     }
 
     private static PdfPath Finish(byte[] verbs, double[] pts, int vi, int pi) =>
-        vi == verbs.Length && pi == pts.Length ? new PdfPath(verbs, pts) : new PdfPath(verbs.AsMemory(0, vi), pts.AsMemory(0, pi));
+        vi == verbs.Length && pi == pts.Length ? new PdfPath(verbs, pts, true) : new PdfPath(verbs.AsMemory(0, vi), pts.AsMemory(0, pi), true);
 
     // Plain multiplications and additions in a fixed order, so the result is the same on every platform.
     private static void Put(double[] pts, ref int pi, double[] m, double x, double y)
