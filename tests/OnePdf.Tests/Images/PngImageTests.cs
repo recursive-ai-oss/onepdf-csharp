@@ -299,6 +299,19 @@ public class PngImageTests
     }
 
     [Fact]
+    public void DecodedDataWithAWrongZlibChecksumIsRefused()
+    {
+        // Interlaced images take the decode path, which must verify the Adler-32 that ends the zlib stream (RFC 1950 2.2).
+        PngKit.Spec inter = new PngKit.Spec(12, 9, 2, 8) { Interlaced = true };
+        byte[] png = PngKit.Encode(inter, PngKit.RandomRows(inter, 4));
+        using PdfDocument doc = PdfDocument.CreateEmpty();
+        doc.AddPngImage(png);
+        byte[] zlib = PngKit.IdatPayload(png);
+        zlib[^1] ^= 0x55;
+        Assert.Throws<PdfFormatException>(() => doc.AddPngImage(ReplaceIdat(png, zlib)));
+    }
+
+    [Fact]
     public void HugeDimensionsAreRefusedBeforeAnythingIsAllocated()
     {
         PngKit.Spec spec = new PngKit.Spec(6, 6, 6, 8);

@@ -587,6 +587,13 @@ internal static class PngReader
                 outPos += written;
                 if (st == InflateStatus.Done)
                 {
+                    // RFC 1950 2.2: a complete zlib stream ends with the Adler-32 of its data. A PNG's stream must be intact
+                    // (PNG 10.3), so a mismatch means damaged pixels or a decoder fault and is an error, not something to repair.
+                    if (inf.ChecksumMismatch)
+                    {
+                        throw new PdfFormatException("The PNG image data is damaged (the zlib checksum does not match).");
+                    }
+
                     return outPos;
                 }
 
