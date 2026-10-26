@@ -94,6 +94,7 @@ internal sealed class FormCopy
     public string NameInParent = string.Empty;
     public int PageIndex;
     public PdfReference? Reference;
+    public PdfDictionary? Dictionary;
 
     /// <summary>The stream whose <c>Do</c> this copy replaces, and where that operator starts in it.</summary>
     public TagCtx ParentCtx = null!;

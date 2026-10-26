@@ -45,6 +45,8 @@ internal sealed class PdfUAChecker
 
     private readonly List<Node> _nodes = [];
     private readonly HashSet<(int Page, int Mcid)> _treeMcids = [];
+    private readonly HashSet<(int Stream, int Mcid)> _stmMcids = [];
+    private readonly Dictionary<PdfStream, FormScan> _formScans = new(ReferenceEqualityComparer.Instance);
     private readonly Dictionary<int, int> _objrParent = []; // annotation object number -> node index of its structure element
 
     /// <param name="doc">The document.</param>
@@ -462,6 +464,10 @@ internal sealed class PdfUAChecker
                         if (!d.ContainsKey("Stm") && page >= 0 && d.GetInt("MCID", -1) is >= 0 and <= int.MaxValue and long m)
                         {
                             _treeMcids.Add((page, (int)m));
+                        }
+                        else if (d.GetRaw("Stm") is PdfReference stm && d.GetInt("MCID", -1) is >= 0 and <= int.MaxValue and long sm)
+                        {
+                            _stmMcids.Add((stm.Number, (int)sm));
                         }
 
                         break;
@@ -1220,7 +1226,35 @@ internal sealed class PdfUAChecker
                         or ContentOp.FillStroke or ContentOp.FillStrokeEo or ContentOp.CloseFillStroke or ContentOp.CloseFillStrokeEo
                         or ContentOp.Shading or ContentOp.Do or ContentOp.ShowText or ContentOp.ShowTextArray or ContentOp.NextLineShow
                         or ContentOp.SpacedNextLineShow or ContentOp.BeginInline:
-                        if (st.Artifact == 0 && st.Tagged == 0 && !st.Reported)
+                        // A form drawn outside any marked content is fine when everything it paints is marked inside it (ISO 32000-2 14.7.4.2:
+                        // a form XObject may carry its own marked content, linked to the tree by an MCR with /Stm).
+                        if (op == ContentOp.Do && st.Artifact == 0 && st.Tagged == 0 && firstName is not null
+                            && page.Resources.GetDictionary("XObject")?.Get(firstName) is PdfStream formStream && formStream.Dictionary.GetName("Subtype") == "Form")
+                        {
+                            FormScan scan = ScanForm(formStream, page.Resources, 0);
+                            if (scan.Untagged && !st.Reported)
+                            {
+                                st.Reported = true;
+                                Add("01", "7.1", "The page paints content that is neither tagged as real content nor marked as an artifact.", formStream.Reference?.Number ?? -1, pageIndex, "6.7.2");
+                            }
+
+                            if (hasTree && scan.Mcids.Count > 0 && formStream.Reference is { } formRef)
+                            {
+                                foreach (int fm in scan.Mcids)
+                                {
+                                    if (!_stmMcids.Contains((formRef.Number, fm)) && !Limited("orphan-form-mcid"))
+                                    {
+                                        Add("01", "7.1", $"Marked content with MCID {fm} of a form XObject is not part of the structure tree.", formRef.Number, pageIndex);
+                                    }
+                                }
+
+                                if (!formStream.Dictionary.ContainsKey("StructParents") && !Limited("form-structparents"))
+                                {
+                                    Add("01", "7.1", "A form XObject with tagged content has no /StructParents entry linking it to the parent tree.", formRef.Number, pageIndex);
+                                }
+                            }
+                        }
+                        else if (st.Artifact == 0 && st.Tagged == 0 && !st.Reported)
                         {
                             st.Reported = true;
                             Add("01", "7.1", "The page paints content that is neither tagged as real content nor marked as an artifact.", s.Reference?.Number ?? -1, pageIndex, "6.7.2");
@@ -1254,6 +1288,157 @@ internal sealed class PdfUAChecker
                 Add("01", "7.1", "The page has tagged content but no /StructParents entry linking it to the parent tree.", pageNumber, pageIndex);
             }
         }
+    }
+
+    private sealed class FormScan
+    {
+        public bool Untagged;
+        public readonly List<int> Mcids = [];
+    }
+
+    private const int MaxFormDepth = 32;
+
+    // What a form XObject paints outside marked content, and the MCIDs it tags itself. Nested forms are followed with a depth bound and a
+    // cycle guard; results are memoized per stream. A form that cannot be read counts as untagged.
+    private FormScan ScanForm(PdfStream form, PdfDictionary? parentResources, int depth)
+    {
+        if (_formScans.TryGetValue(form, out FormScan? known))
+        {
+            return known;
+        }
+
+        var result = new FormScan();
+        _formScans[form] = result; // also the cycle guard: a form met again while being scanned adds nothing
+        if (depth >= MaxFormDepth)
+        {
+            result.Untagged = true;
+            return result;
+        }
+
+        ReadOnlyMemory<byte> data;
+        try
+        {
+            data = form.GetDecodedBytes(_ct);
+        }
+        catch (PdfException)
+        {
+            result.Untagged = true;
+            return result;
+        }
+
+        PdfDictionary? resources = form.Dictionary.GetDictionary("Resources") ?? parentResources;
+        PdfDictionary? properties = resources?.GetDictionary("Properties");
+        var stack = new List<byte>();
+        int artifact = 0, tagged = 0;
+        var lexer = new ContentLexer(data, _doc.Limits.MaxNestingDepth);
+        string? firstName = null;
+        Operand last = default;
+        long operators = 0;
+        while (true)
+        {
+            ContentToken tok = lexer.Next(out Operand operand, out ContentOp op);
+            if (tok == ContentToken.End)
+            {
+                break;
+            }
+
+            if (tok == ContentToken.Operand)
+            {
+                if (operand.Kind == OperandKind.Name && firstName is null)
+                {
+                    firstName = operand.Name;
+                }
+
+                last = operand;
+                continue;
+            }
+
+            if (++operators > _doc.Limits.MaxOperatorsPerPage)
+            {
+                throw new PdfLimitException("A form has too many content operators to check.");
+            }
+
+            switch (op)
+            {
+                case ContentOp.BeginMarked:
+                    stack.Add(firstName == "Artifact" ? (byte)0 : (byte)2);
+                    if (firstName == "Artifact")
+                    {
+                        artifact++;
+                    }
+
+                    break;
+                case ContentOp.BeginMarkedProps:
+                    PdfDictionary? props = last.Kind == OperandKind.Object ? last.Obj as PdfDictionary : last.Kind == OperandKind.Name && last.Name is { } pn ? properties?.GetDictionary(pn) : null;
+                    if (firstName == "Artifact")
+                    {
+                        stack.Add(0);
+                        artifact++;
+                    }
+                    else if (props is not null && props.ContainsKey("MCID"))
+                    {
+                        stack.Add(1);
+                        tagged++;
+                        if (props.GetInt("MCID", -1) is >= 0 and <= int.MaxValue and long mcid)
+                        {
+                            result.Mcids.Add((int)mcid);
+                        }
+                    }
+                    else
+                    {
+                        stack.Add(2);
+                    }
+
+                    break;
+                case ContentOp.EndMarked:
+                    if (stack.Count > 0)
+                    {
+                        byte k = stack[^1];
+                        stack.RemoveAt(stack.Count - 1);
+                        if (k == 0)
+                        {
+                            artifact--;
+                        }
+                        else if (k == 1)
+                        {
+                            tagged--;
+                        }
+                    }
+
+                    break;
+                case ContentOp.Stroke or ContentOp.CloseStroke or ContentOp.FillNz or ContentOp.FillNzOld or ContentOp.FillEo
+                    or ContentOp.FillStroke or ContentOp.FillStrokeEo or ContentOp.CloseFillStroke or ContentOp.CloseFillStrokeEo
+                    or ContentOp.Shading or ContentOp.Do or ContentOp.ShowText or ContentOp.ShowTextArray or ContentOp.NextLineShow
+                    or ContentOp.SpacedNextLineShow or ContentOp.BeginInline:
+                    if (artifact == 0 && tagged == 0)
+                    {
+                        if (op == ContentOp.Do && firstName is not null && resources?.GetDictionary("XObject")?.Get(firstName) is PdfStream inner
+                            && inner.Dictionary.GetName("Subtype") == "Form")
+                        {
+                            if (ScanForm(inner, resources, depth + 1).Untagged)
+                            {
+                                result.Untagged = true;
+                            }
+                        }
+                        else
+                        {
+                            result.Untagged = true;
+                        }
+                    }
+
+                    if (op == ContentOp.BeginInline)
+                    {
+                        SkipInline(lexer);
+                    }
+
+                    break;
+            }
+
+            firstName = null;
+            last = default;
+        }
+
+        return result;
     }
 
     // After BI the lexer is positioned at the image dictionary; read it and the data so the next operator is the one after EI.

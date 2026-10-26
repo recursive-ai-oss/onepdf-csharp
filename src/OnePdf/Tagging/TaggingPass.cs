@@ -602,6 +602,7 @@ internal sealed class TaggingPass
                 if (copy.Scope.Slots.Count > 0)
                 {
                     copy.Scope.StructParents = nextKey++;
+                    copy.Dictionary?.SetEntry("StructParents", new PdfInteger(copy.Scope.StructParents));
                 }
             }
         }
@@ -796,6 +797,7 @@ internal sealed class TaggingPass
             nd.SetEntry("Resources", Forms.FormFiller.Clone(_doc, res));
         }
 
+        copy.Dictionary = nd;
         copy.Reference = _doc.AddObject(stream);
         if (copy.ParentResources.Owned?.GetDictionary("XObject") is { } xo)
         {
@@ -846,6 +848,7 @@ internal sealed class TaggingPass
                 k.Append(objr);
                 int key = NextAnnotationKey++;
                 ad.SetEntry("StructParent", new PdfInteger(key));
+                AddLinkDescription(ad, n);
                 treeEntries.Add((new PdfInteger(key), n.Reference));
                 _result.AnnotationsTagged++;
                 continue;
@@ -882,6 +885,73 @@ internal sealed class TaggingPass
         if (elementPage >= 0)
         {
             d.SetEntry("Pg", _doc.Pages[elementPage].Dictionary.Reference!);
+        }
+    }
+
+    // ISO 14289-1 7.18.5: a link annotation carries /Contents saying what the link is. A tagged link without one gets the element's
+    // alternate description, else the link's own words, so the description is what a sighted reader sees.
+    private static void AddLinkDescription(PdfDictionary annotation, Node n)
+    {
+        if (annotation.GetName("Subtype") != "Link" || !string.IsNullOrWhiteSpace(annotation.GetString("Contents")?.GetText()))
+        {
+            return;
+        }
+
+        string text = n.Element?.Alt ?? string.Empty;
+        if (string.IsNullOrWhiteSpace(text))
+        {
+            var sb = new System.Text.StringBuilder();
+            foreach (object kid in n.Kids)
+            {
+                if (kid is TagSlot { Content: { } c } && c.Kind != PdfTagContent.Kinds.Annotation && c.Kind != PdfTagContent.Kinds.Graphics)
+                {
+                    AppendWords(sb, c);
+                }
+            }
+
+            text = sb.ToString().Trim();
+        }
+
+        if (!string.IsNullOrWhiteSpace(text))
+        {
+            annotation.SetEntry("Contents", PdfString.FromText(text));
+        }
+    }
+
+    private static void AppendWords(System.Text.StringBuilder sb, PdfTagContent c)
+    {
+        void Line(PdfTextLine line, int from, int count)
+        {
+            for (int i = from; i < from + count && i < line.Words.Count; i++)
+            {
+                if (sb.Length > 0)
+                {
+                    sb.Append(' ');
+                }
+
+                sb.Append(line.Words[i].Text);
+            }
+        }
+
+        switch (c.Kind)
+        {
+            case PdfTagContent.Kinds.Words when c.Line is { } line:
+                Line(line, c.First, c.Count);
+                break;
+            case PdfTagContent.Kinds.Lines when c.SourceBlock is { } block:
+                for (int i = c.First; i < c.First + c.Count && i < block.Lines.Count; i++)
+                {
+                    Line(block.Lines[i], 0, block.Lines[i].Words.Count);
+                }
+
+                break;
+            case PdfTagContent.Kinds.Block when c.SourceBlock is { } whole:
+                foreach (PdfTextLine l in whole.Lines)
+                {
+                    Line(l, 0, l.Words.Count);
+                }
+
+                break;
         }
     }
 
