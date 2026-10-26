@@ -38,7 +38,7 @@ internal static class LayoutParameters
     /// <summary>Every column cut at a narrow stripe has at least this many lines ...</summary>
     internal const int SoftColumnLines = 5;
 
-    /// <summary>... and the widest quarter of its fragments is at least this many em wide (full lines of running text, not labels, bullets or cells).</summary>
+    /// <summary>... and its median fragment is at least this many em wide (full lines of running text, not labels, bullets or cells).</summary>
     internal const double SoftColumnWidthEm = 12;
 
     /// <summary>A narrow-gutter cut makes at most this many columns; a region with more stripes is not newspaper columns.</summary>
