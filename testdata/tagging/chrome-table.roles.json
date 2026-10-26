@@ -1,0 +1,206 @@
+{
+ "version": 1,
+ "source": "pdf/chrome-table.pdf",
+ "title": "Fleet inventory",
+ "language": "en",
+ "blockCounts": [26, 1],
+ "notes": "One table over two pages: the header row is TH with column scope; the first column is ordinary data. The header row repeated at the top of the second page is a layout artifact, not a second header. On page 1 extraction returns one table block that also holds the running header, the closing paragraph and the footer, so those are line ranges.",
+ "elements": [
+  {"role": "Artifact", "artifact": "Header", "children": [{"page": 0, "block": 0}]},
+  {"role": "H1", "children": [{"page": 0, "block": 1}]},
+  {"role": "P", "children": [{"page": 0, "block": 2}]},
+  {"role": "Table", "children": [
+    {"role": "TR", "children": [
+      {"role": "TH", "scope": "Column", "children": [{"page": 0, "block": 3, "line": 0, "cell": 0}]},
+      {"role": "TH", "scope": "Column", "children": [{"page": 0, "block": 3, "line": 0, "cell": 1}]},
+      {"role": "TH", "scope": "Column", "children": [{"page": 0, "block": 3, "line": 0, "cell": 2}]},
+      {"role": "TH", "scope": "Column", "children": [{"page": 0, "block": 3, "line": 0, "cell": 3}]}
+    ]},
+    {"role": "TR", "children": [
+      {"role": "TD", "children": [{"page": 0, "block": 4, "line": 0, "cell": 0}]},
+      {"role": "TD", "children": [{"page": 0, "block": 4, "line": 0, "cell": 1}]},
+      {"role": "TD", "children": [{"page": 0, "block": 4, "line": 0, "cell": 2}]},
+      {"role": "TD", "children": [{"page": 0, "block": 4, "line": 0, "cell": 3}]}
+    ]},
+    {"role": "TR", "children": [
+      {"role": "TD", "children": [{"page": 0, "block": 5, "line": 0, "cell": 0}]},
+      {"role": "TD", "children": [{"page": 0, "block": 5, "line": 0, "cell": 1}]},
+      {"role": "TD", "children": [{"page": 0, "block": 5, "line": 0, "cell": 2}]},
+      {"role": "TD", "children": [{"page": 0, "block": 5, "line": 0, "cell": 3}]}
+    ]},
+    {"role": "TR", "children": [
+      {"role": "TD", "children": [{"page": 0, "block": 6, "line": 0, "cell": 0}]},
+      {"role": "TD", "children": [{"page": 0, "block": 6, "line": 0, "cell": 1}]},
+      {"role": "TD", "children": [{"page": 0, "block": 6, "line": 0, "cell": 2}]},
+      {"role": "TD", "children": [{"page": 0, "block": 6, "line": 0, "cell": 3}]}
+    ]},
+    {"role": "TR", "children": [
+      {"role": "TD", "children": [{"page": 0, "block": 7, "line": 0, "cell": 0}]},
+      {"role": "TD", "children": [{"page": 0, "block": 7, "line": 0, "cell": 1}]},
+      {"role": "TD", "children": [{"page": 0, "block": 7, "line": 0, "cell": 2}]},
+      {"role": "TD", "children": [{"page": 0, "block": 7, "line": 0, "cell": 3}]}
+    ]},
+    {"role": "TR", "children": [
+      {"role": "TD", "children": [{"page": 0, "block": 8, "line": 0, "cell": 0}]},
+      {"role": "TD", "children": [{"page": 0, "block": 8, "line": 0, "cell": 1}]},
+      {"role": "TD", "children": [{"page": 0, "block": 8, "line": 0, "cell": 2}]},
+      {"role": "TD", "children": [{"page": 0, "block": 8, "line": 0, "cell": 3}]}
+    ]},
+    {"role": "TR", "children": [
+      {"role": "TD", "children": [{"page": 0, "block": 9, "line": 0, "cell": 0}]},
+      {"role": "TD", "children": [{"page": 0, "block": 9, "line": 0, "cell": 1}]},
+      {"role": "TD", "children": [{"page": 0, "block": 9, "line": 0, "cell": 2}]},
+      {"role": "TD", "children": [{"page": 0, "block": 9, "line": 0, "cell": 3}]}
+    ]},
+    {"role": "TR", "children": [
+      {"role": "TD", "children": [{"page": 0, "block": 10, "line": 0, "cell": 0}]},
+      {"role": "TD", "children": [{"page": 0, "block": 10, "line": 0, "cell": 1}]},
+      {"role": "TD", "children": [{"page": 0, "block": 10, "line": 0, "cell": 2}]},
+      {"role": "TD", "children": [{"page": 0, "block": 10, "line": 0, "cell": 3}]}
+    ]},
+    {"role": "TR", "children": [
+      {"role": "TD", "children": [{"page": 0, "block": 11, "line": 0, "cell": 0}]},
+      {"role": "TD", "children": [{"page": 0, "block": 11, "line": 0, "cell": 1}]},
+      {"role": "TD", "children": [{"page": 0, "block": 11, "line": 0, "cell": 2}]},
+      {"role": "TD", "children": [{"page": 0, "block": 11, "line": 0, "cell": 3}]}
+    ]},
+    {"role": "TR", "children": [
+      {"role": "TD", "children": [{"page": 0, "block": 12, "line": 0, "cell": 0}]},
+      {"role": "TD", "children": [{"page": 0, "block": 12, "line": 0, "cell": 1}]},
+      {"role": "TD", "children": [{"page": 0, "block": 12, "line": 0, "cell": 2}]},
+      {"role": "TD", "children": [{"page": 0, "block": 12, "line": 0, "cell": 3}]}
+    ]},
+    {"role": "TR", "children": [
+      {"role": "TD", "children": [{"page": 0, "block": 13, "line": 0, "cell": 0}]},
+      {"role": "TD", "children": [{"page": 0, "block": 13, "line": 0, "cell": 1}]},
+      {"role": "TD", "children": [{"page": 0, "block": 13, "line": 0, "cell": 2}]},
+      {"role": "TD", "children": [{"page": 0, "block": 13, "line": 0, "cell": 3}]}
+    ]},
+    {"role": "TR", "children": [
+      {"role": "TD", "children": [{"page": 0, "block": 14, "line": 0, "cell": 0}]},
+      {"role": "TD", "children": [{"page": 0, "block": 14, "line": 0, "cell": 1}]},
+      {"role": "TD", "children": [{"page": 0, "block": 14, "line": 0, "cell": 2}]},
+      {"role": "TD", "children": [{"page": 0, "block": 14, "line": 0, "cell": 3}]}
+    ]},
+    {"role": "TR", "children": [
+      {"role": "TD", "children": [{"page": 0, "block": 15, "line": 0, "cell": 0}]},
+      {"role": "TD", "children": [{"page": 0, "block": 15, "line": 0, "cell": 1}]},
+      {"role": "TD", "children": [{"page": 0, "block": 15, "line": 0, "cell": 2}]},
+      {"role": "TD", "children": [{"page": 0, "block": 15, "line": 0, "cell": 3}]}
+    ]},
+    {"role": "TR", "children": [
+      {"role": "TD", "children": [{"page": 0, "block": 16, "line": 0, "cell": 0}]},
+      {"role": "TD", "children": [{"page": 0, "block": 16, "line": 0, "cell": 1}]},
+      {"role": "TD", "children": [{"page": 0, "block": 16, "line": 0, "cell": 2}]},
+      {"role": "TD", "children": [{"page": 0, "block": 16, "line": 0, "cell": 3}]}
+    ]},
+    {"role": "TR", "children": [
+      {"role": "TD", "children": [{"page": 0, "block": 17, "line": 0, "cell": 0}]},
+      {"role": "TD", "children": [{"page": 0, "block": 17, "line": 0, "cell": 1}]},
+      {"role": "TD", "children": [{"page": 0, "block": 17, "line": 0, "cell": 2}]},
+      {"role": "TD", "children": [{"page": 0, "block": 17, "line": 0, "cell": 3}]}
+    ]},
+    {"role": "TR", "children": [
+      {"role": "TD", "children": [{"page": 0, "block": 18, "line": 0, "cell": 0}]},
+      {"role": "TD", "children": [{"page": 0, "block": 18, "line": 0, "cell": 1}]},
+      {"role": "TD", "children": [{"page": 0, "block": 18, "line": 0, "cell": 2}]},
+      {"role": "TD", "children": [{"page": 0, "block": 18, "line": 0, "cell": 3}]}
+    ]},
+    {"role": "TR", "children": [
+      {"role": "TD", "children": [{"page": 0, "block": 19, "line": 0, "cell": 0}]},
+      {"role": "TD", "children": [{"page": 0, "block": 19, "line": 0, "cell": 1}]},
+      {"role": "TD", "children": [{"page": 0, "block": 19, "line": 0, "cell": 2}]},
+      {"role": "TD", "children": [{"page": 0, "block": 19, "line": 0, "cell": 3}]}
+    ]},
+    {"role": "TR", "children": [
+      {"role": "TD", "children": [{"page": 0, "block": 20, "line": 0, "cell": 0}]},
+      {"role": "TD", "children": [{"page": 0, "block": 20, "line": 0, "cell": 1}]},
+      {"role": "TD", "children": [{"page": 0, "block": 20, "line": 0, "cell": 2}]},
+      {"role": "TD", "children": [{"page": 0, "block": 20, "line": 0, "cell": 3}]}
+    ]},
+    {"role": "TR", "children": [
+      {"role": "TD", "children": [{"page": 0, "block": 21, "line": 0, "cell": 0}]},
+      {"role": "TD", "children": [{"page": 0, "block": 21, "line": 0, "cell": 1}]},
+      {"role": "TD", "children": [{"page": 0, "block": 21, "line": 0, "cell": 2}]},
+      {"role": "TD", "children": [{"page": 0, "block": 21, "line": 0, "cell": 3}]}
+    ]},
+    {"role": "TR", "children": [
+      {"role": "TD", "children": [{"page": 0, "block": 22, "line": 0, "cell": 0}]},
+      {"role": "TD", "children": [{"page": 0, "block": 22, "line": 0, "cell": 1}]},
+      {"role": "TD", "children": [{"page": 0, "block": 22, "line": 0, "cell": 2}]},
+      {"role": "TD", "children": [{"page": 0, "block": 22, "line": 0, "cell": 3}]}
+    ]},
+    {"role": "TR", "children": [
+      {"role": "TD", "children": [{"page": 0, "block": 23, "line": 0, "cell": 0}]},
+      {"role": "TD", "children": [{"page": 0, "block": 23, "line": 0, "cell": 1}]},
+      {"role": "TD", "children": [{"page": 0, "block": 23, "line": 0, "cell": 2}]},
+      {"role": "TD", "children": [{"page": 0, "block": 23, "line": 0, "cell": 3}]}
+    ]},
+    {"role": "TR", "children": [
+      {"role": "TD", "children": [{"page": 0, "block": 24, "line": 0, "cell": 0}]},
+      {"role": "TD", "children": [{"page": 0, "block": 24, "line": 0, "cell": 1}]},
+      {"role": "TD", "children": [{"page": 0, "block": 24, "line": 0, "cell": 2}]},
+      {"role": "TD", "children": [{"page": 0, "block": 24, "line": 0, "cell": 3}]}
+    ]},
+    {"role": "TR", "children": [
+      {"role": "TD", "children": [{"page": 1, "block": 0, "line": 2, "cell": 0}]},
+      {"role": "TD", "children": [{"page": 1, "block": 0, "line": 2, "cell": 1}]},
+      {"role": "TD", "children": [{"page": 1, "block": 0, "line": 2, "cell": 2}]},
+      {"role": "TD", "children": [{"page": 1, "block": 0, "line": 2, "cell": 3}]}
+    ]},
+    {"role": "TR", "children": [
+      {"role": "TD", "children": [{"page": 1, "block": 0, "line": 3, "cell": 0}]},
+      {"role": "TD", "children": [{"page": 1, "block": 0, "line": 3, "cell": 1}]},
+      {"role": "TD", "children": [{"page": 1, "block": 0, "line": 3, "cell": 2}]},
+      {"role": "TD", "children": [{"page": 1, "block": 0, "line": 3, "cell": 3}]}
+    ]},
+    {"role": "TR", "children": [
+      {"role": "TD", "children": [{"page": 1, "block": 0, "line": 4, "cell": 0}]},
+      {"role": "TD", "children": [{"page": 1, "block": 0, "line": 4, "cell": 1}]},
+      {"role": "TD", "children": [{"page": 1, "block": 0, "line": 4, "cell": 2}]},
+      {"role": "TD", "children": [{"page": 1, "block": 0, "line": 4, "cell": 3}]}
+    ]},
+    {"role": "TR", "children": [
+      {"role": "TD", "children": [{"page": 1, "block": 0, "line": 5, "cell": 0}]},
+      {"role": "TD", "children": [{"page": 1, "block": 0, "line": 5, "cell": 1}]},
+      {"role": "TD", "children": [{"page": 1, "block": 0, "line": 5, "cell": 2}]},
+      {"role": "TD", "children": [{"page": 1, "block": 0, "line": 5, "cell": 3}]}
+    ]},
+    {"role": "TR", "children": [
+      {"role": "TD", "children": [{"page": 1, "block": 0, "line": 6, "cell": 0}]},
+      {"role": "TD", "children": [{"page": 1, "block": 0, "line": 6, "cell": 1}]},
+      {"role": "TD", "children": [{"page": 1, "block": 0, "line": 6, "cell": 2}]},
+      {"role": "TD", "children": [{"page": 1, "block": 0, "line": 6, "cell": 3}]}
+    ]},
+    {"role": "TR", "children": [
+      {"role": "TD", "children": [{"page": 1, "block": 0, "line": 7, "cell": 0}]},
+      {"role": "TD", "children": [{"page": 1, "block": 0, "line": 7, "cell": 1}]},
+      {"role": "TD", "children": [{"page": 1, "block": 0, "line": 7, "cell": 2}]},
+      {"role": "TD", "children": [{"page": 1, "block": 0, "line": 7, "cell": 3}]}
+    ]},
+    {"role": "TR", "children": [
+      {"role": "TD", "children": [{"page": 1, "block": 0, "line": 8, "cell": 0}]},
+      {"role": "TD", "children": [{"page": 1, "block": 0, "line": 8, "cell": 1}]},
+      {"role": "TD", "children": [{"page": 1, "block": 0, "line": 8, "cell": 2}]},
+      {"role": "TD", "children": [{"page": 1, "block": 0, "line": 8, "cell": 3}]}
+    ]},
+    {"role": "TR", "children": [
+      {"role": "TD", "children": [{"page": 1, "block": 0, "line": 9, "cell": 0}]},
+      {"role": "TD", "children": [{"page": 1, "block": 0, "line": 9, "cell": 1}]},
+      {"role": "TD", "children": [{"page": 1, "block": 0, "line": 9, "cell": 2}]},
+      {"role": "TD", "children": [{"page": 1, "block": 0, "line": 9, "cell": 3}]}
+    ]},
+    {"role": "TR", "children": [
+      {"role": "TD", "children": [{"page": 1, "block": 0, "line": 10, "cell": 0}]},
+      {"role": "TD", "children": [{"page": 1, "block": 0, "line": 10, "cell": 1}]},
+      {"role": "TD", "children": [{"page": 1, "block": 0, "line": 10, "cell": 2}]},
+      {"role": "TD", "children": [{"page": 1, "block": 0, "line": 10, "cell": 3}]}
+    ]}
+  ]},
+  {"role": "Artifact", "artifact": "Footer", "children": [{"page": 0, "block": 25}]},
+  {"role": "Artifact", "artifact": "Header", "children": [{"page": 1, "block": 0, "lines": [0, 0]}]},
+  {"role": "Artifact", "artifact": "Layout", "children": [{"page": 1, "block": 0, "lines": [1, 1]}]},
+  {"role": "P", "children": [{"page": 1, "block": 0, "lines": [11, 11]}]},
+  {"role": "Artifact", "artifact": "Footer", "children": [{"page": 1, "block": 0, "lines": [12, 12]}]}
+ ]
+}

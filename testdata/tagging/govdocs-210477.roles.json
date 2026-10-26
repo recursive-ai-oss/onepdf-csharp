@@ -1,0 +1,12 @@
+{
+ "version": 1,
+ "source": "../govdocs/210477.pdf",
+ "title": "Correlation of Map Units",
+ "language": "en",
+ "blockCounts": [17],
+ "notes": "A vector legend chart. The title is a heading; the coloured boxes and their labels form one Figure whose text is part of the figure.",
+ "elements": [
+  {"role": "H1", "children": [{"page": 0, "block": 3}]},
+  {"role": "Figure", "alt": "Correlation chart of map units: a row of coloured boxes labelled with unit symbols (pf, c, fh, ff, fd, fs, ft, fl, fpf, fp, f, p, pla, mg, ms, m), grouped under the headings Patera floor material, Cone material, Flow materials, Plains materials and Mountain materials.", "children": [{"page": 0, "graphics": [128, 378, 674, 499]}, {"page": 0, "block": 0}, {"page": 0, "block": 1}, {"page": 0, "block": 2}, {"page": 0, "block": 4}, {"page": 0, "block": 5}, {"page": 0, "block": 6}, {"page": 0, "block": 7}, {"page": 0, "block": 8}, {"page": 0, "block": 9}, {"page": 0, "block": 10}, {"page": 0, "block": 11}, {"page": 0, "block": 12}, {"page": 0, "block": 13}, {"page": 0, "block": 14}, {"page": 0, "block": 15}, {"page": 0, "block": 16}]}
+ ]
+}

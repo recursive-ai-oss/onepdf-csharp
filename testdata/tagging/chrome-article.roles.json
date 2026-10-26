@@ -1,0 +1,67 @@
+{
+ "version": 1,
+ "source": "pdf/chrome-article.pdf",
+ "title": "The Lighthouse Keepers",
+ "language": "en",
+ "blockCounts": [11, 8],
+ "notes": "Bullets are drawn shapes, so each Lbl is a graphics rectangle; numbers of the ordered list are text and are the Lbl. Words are counted per line. Header and footer repeat on every page and are artifacts.",
+ "elements": [
+  {"role": "Artifact", "artifact": "Header", "children": [{"page": 0, "block": 0}]},
+  {"role": "H1", "children": [{"page": 0, "block": 1}]},
+  {"role": "P", "children": [{"page": 0, "block": 2}]},
+  {"role": "H2", "children": [{"page": 0, "block": 3}]},
+  {"role": "P", "children": [{"page": 0, "block": 4}]},
+  {"role": "P", "children": [{"page": 0, "block": 5}]},
+  {"role": "H2", "children": [{"page": 0, "block": 6}]},
+  {"role": "P", "children": [{"page": 0, "block": 7}]},
+  {"role": "L", "children": [
+    {"role": "LI", "children": [
+      {"role": "Lbl", "children": [{"page": 0, "graphics": [80.0, 451.7, 85.8, 457.4]}]},
+      {"role": "LBody", "children": [{"page": 0, "block": 8, "lines": [0, 0]}]}
+    ]},
+    {"role": "LI", "children": [
+      {"role": "Lbl", "children": [{"page": 0, "graphics": [80.0, 435.2, 85.8, 440.9]}]},
+      {"role": "LBody", "children": [{"page": 0, "block": 8, "lines": [1, 1]}]}
+    ]},
+    {"role": "LI", "children": [
+      {"role": "Lbl", "children": [{"page": 0, "graphics": [80.0, 418.7, 85.8, 424.4]}]},
+      {"role": "LBody", "children": [{"page": 0, "block": 8, "lines": [2, 2]}]}
+    ]},
+    {"role": "LI", "children": [
+      {"role": "Lbl", "children": [{"page": 0, "graphics": [80.0, 401.4, 85.8, 407.2]}]},
+      {"role": "LBody", "children": [{"page": 0, "block": 8, "lines": [3, 3]}]}
+    ]}
+  ]},
+  {"role": "P", "children": [
+    {"page": 0, "block": 9, "line": 0, "words": [0, 9]},
+    {"role": "Link", "children": [{"page": 0, "annotation": 0}, {"page": 0, "block": 9, "line": 0, "words": [10, 12]}]},
+    {"page": 0, "block": 9, "line": 0, "words": [13, 16]},
+    {"page": 0, "block": 9, "lines": [1, 1]}
+  ]},
+  {"role": "Artifact", "artifact": "Footer", "children": [{"page": 0, "block": 10}]},
+  {"role": "Artifact", "artifact": "Header", "children": [{"page": 1, "block": 0}]},
+  {"role": "H2", "children": [{"page": 1, "block": 1}]},
+  {"role": "P", "children": [{"page": 1, "block": 2}]},
+  {"role": "L", "children": [
+    {"role": "LI", "children": [
+      {"role": "Lbl", "children": [{"page": 1, "block": 3, "line": 0, "words": [0, 0]}]},
+      {"role": "LBody", "children": [{"page": 1, "block": 3, "line": 0, "words": [1, 9]}]}
+    ]},
+    {"role": "LI", "children": [
+      {"role": "Lbl", "children": [{"page": 1, "block": 3, "line": 1, "words": [0, 0]}]},
+      {"role": "LBody", "children": [{"page": 1, "block": 3, "line": 1, "words": [1, 12]}]}
+    ]},
+    {"role": "LI", "children": [
+      {"role": "Lbl", "children": [{"page": 1, "block": 3, "line": 2, "words": [0, 0]}]},
+      {"role": "LBody", "children": [{"page": 1, "block": 3, "line": 2, "words": [1, 9]}]}
+    ]}
+  ]},
+  {"role": "P", "children": [
+    {"page": 1, "block": 4, "line": 0, "words": [0, 11]},
+    {"role": "Link", "children": [{"page": 1, "annotation": 0}, {"page": 1, "block": 4, "line": 0, "words": [12, 14]}]}
+  ]},
+  {"role": "H2", "children": [{"page": 1, "block": 5}]},
+  {"role": "P", "children": [{"page": 1, "block": 6}]},
+  {"role": "Artifact", "artifact": "Footer", "children": [{"page": 1, "block": 7}]}
+ ]
+}

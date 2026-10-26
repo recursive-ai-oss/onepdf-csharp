@@ -1,0 +1,18 @@
+{
+ "version": 1,
+ "source": "pdf/chrome-figures.pdf",
+ "title": "Harbor charts",
+ "language": "en",
+ "blockCounts": [8],
+ "notes": "A raster figure (an image XObject) and a vector figure (paths plus axis text). The chart title and axis labels are text inside the Figure. Captions are paragraphs.",
+ "elements": [
+  {"role": "H1", "children": [{"page": 0, "block": 0}]},
+  {"role": "P", "children": [{"page": 0, "block": 1}]},
+  {"role": "Figure", "alt": "Survey photograph of the sea wall: pale sky above a wall of stone blocks, with dark water below.", "children": [{"page": 0, "graphics": [169, 517, 427, 678]}]},
+  {"role": "P", "children": [{"page": 0, "block": 2}]},
+  {"role": "P", "children": [{"page": 0, "block": 3}]},
+  {"role": "Figure", "alt": "Bar chart of tons landed per month: four bars for January to April, rising from the shortest in January to the tallest in April.", "children": [{"page": 0, "graphics": [163, 294, 434, 437]}, {"page": 0, "block": 4}, {"page": 0, "block": 5}]},
+  {"role": "P", "children": [{"page": 0, "block": 6}]},
+  {"role": "P", "children": [{"page": 0, "block": 7}]}
+ ]
+}

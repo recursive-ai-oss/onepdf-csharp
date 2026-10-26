@@ -1,0 +1,30 @@
+{
+ "version": 1,
+ "source": "pdf/chrome-cjk-ja.pdf",
+ "title": "世界人権宣言",
+ "language": "ja",
+ "blockCounts": [7],
+ "notes": "Japanese text: lines are not split into words by spaces, so refs use blocks and lines.",
+ "elements": [
+  {"role": "H1", "children": [{"page": 0, "block": 0}]},
+  {"role": "H2", "children": [{"page": 0, "block": 1}]},
+  {"role": "P", "children": [{"page": 0, "block": 2}]},
+  {"role": "H2", "children": [{"page": 0, "block": 3}]},
+  {"role": "P", "children": [{"page": 0, "block": 4}]},
+  {"role": "P", "children": [{"page": 0, "block": 5}]},
+  {"role": "L", "children": [
+    {"role": "LI", "children": [
+      {"role": "Lbl", "children": [{"page": 0, "graphics": [80.0, 531.2, 85.8, 536.9]}]},
+      {"role": "LBody", "children": [{"page": 0, "block": 6, "lines": [0, 0]}]}
+    ]},
+    {"role": "LI", "children": [
+      {"role": "Lbl", "children": [{"page": 0, "graphics": [80.0, 514.7, 85.8, 520.4]}]},
+      {"role": "LBody", "children": [{"page": 0, "block": 6, "lines": [1, 1]}]}
+    ]},
+    {"role": "LI", "children": [
+      {"role": "Lbl", "children": [{"page": 0, "graphics": [80.0, 497.4, 85.8, 503.2]}]},
+      {"role": "LBody", "children": [{"page": 0, "block": 6, "lines": [2, 2]}]}
+    ]}
+  ]}
+ ]
+}

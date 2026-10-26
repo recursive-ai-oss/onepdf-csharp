@@ -1,0 +1,60 @@
+{
+ "version": 1,
+ "source": "../generated/pdf/lo-report.pdf",
+ "title": "Quarterly Harbor Report",
+ "language": "en",
+ "blockCounts": [6, 2],
+ "notes": "Bullet glyphs are text (one word) and become the Lbl. The table has a header row and no row headers. Running header and footer are artifacts. The second page starts with a plain line, not a heading.",
+ "elements": [
+  {"role": "Artifact", "artifact": "Header", "children": [{"page": 0, "block": 0, "lines": [0, 0]}]},
+  {"role": "H1", "children": [{"page": 0, "block": 0, "lines": [1, 1]}]},
+  {"role": "P", "children": [{"page": 0, "block": 0, "lines": [2, 3]}]},
+  {"role": "P", "children": [
+    {"page": 0, "block": 0, "line": 4, "words": [0, 1]},
+    {"role": "Link", "children": [{"page": 0, "annotation": 0}, {"page": 0, "block": 0, "line": 4, "words": [2, 4]}]},
+    {"page": 0, "block": 0, "line": 4, "words": [5, 6]}
+  ]},
+  {"role": "L", "children": [
+    {"role": "LI", "children": [
+      {"role": "Lbl", "children": [{"page": 0, "block": 0, "line": 5, "words": [0, 0]}]},
+      {"role": "LBody", "children": [{"page": 0, "block": 0, "line": 5, "words": [1, 2]}]}
+    ]},
+    {"role": "LI", "children": [
+      {"role": "Lbl", "children": [{"page": 0, "block": 0, "line": 6, "words": [0, 0]}]},
+      {"role": "LBody", "children": [{"page": 0, "block": 0, "line": 6, "words": [1, 2]}]}
+    ]},
+    {"role": "LI", "children": [
+      {"role": "Lbl", "children": [{"page": 0, "block": 0, "line": 7, "words": [0, 0]}]},
+      {"role": "LBody", "children": [{"page": 0, "block": 0, "line": 7, "words": [1, 2]}]}
+    ]}
+  ]},
+  {"role": "Table", "children": [
+    {"role": "TR", "children": [
+      {"role": "TH", "scope": "Column", "children": [{"page": 0, "block": 1, "line": 0, "cell": 0}]},
+      {"role": "TH", "scope": "Column", "children": [{"page": 0, "block": 1, "line": 0, "cell": 1}]},
+      {"role": "TH", "scope": "Column", "children": [{"page": 0, "block": 1, "line": 0, "cell": 2}]}
+    ]},
+    {"role": "TR", "children": [
+      {"role": "TD", "children": [{"page": 0, "block": 2, "line": 0, "cell": 0}]},
+      {"role": "TD", "children": [{"page": 0, "block": 2, "line": 0, "cell": 1}]},
+      {"role": "TD", "children": [{"page": 0, "block": 2, "line": 0, "cell": 2}]}
+    ]},
+    {"role": "TR", "children": [
+      {"role": "TD", "children": [{"page": 0, "block": 3, "line": 0, "cell": 0}]},
+      {"role": "TD", "children": [{"page": 0, "block": 3, "line": 0, "cell": 1}]},
+      {"role": "TD", "children": [{"page": 0, "block": 3, "line": 0, "cell": 2}]}
+    ]},
+    {"role": "TR", "children": [
+      {"role": "TD", "children": [{"page": 0, "block": 4, "line": 0, "cell": 0}]},
+      {"role": "TD", "children": [{"page": 0, "block": 4, "line": 0, "cell": 1}]},
+      {"role": "TD", "children": [{"page": 0, "block": 4, "line": 0, "cell": 2}]}
+    ]}
+  ]},
+  {"role": "Artifact", "artifact": "Footer", "children": [{"page": 0, "block": 5}]},
+  {"role": "Artifact", "artifact": "Header", "children": [{"page": 1, "block": 0, "lines": [0, 0]}]},
+  {"role": "P", "children": [{"page": 1, "block": 0, "lines": [1, 1]}]},
+  {"role": "P", "children": [{"page": 1, "block": 0, "lines": [2, 3]}]},
+  {"role": "P", "children": [{"page": 1, "block": 0, "lines": [4, 5]}]},
+  {"role": "Artifact", "artifact": "Footer", "children": [{"page": 1, "block": 1}]}
+ ]
+}
