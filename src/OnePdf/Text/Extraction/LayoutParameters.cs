@@ -24,6 +24,26 @@ internal static class LayoutParameters
     /// <summary>An empty vertical stripe at least this wide (em), crossing every fragment of a region, separates columns.</summary>
     internal const double ColumnGutterEm = 1.25;
 
+    /// <summary>
+    /// A narrower empty stripe than <see cref="ColumnGutterEm"/> still separates columns when it runs clear through a region of many lines and every
+    /// column it leaves is running text. Tightly set pages have gutters of 0.5 to 1.25 em, and fragments are joined across anything under
+    /// <see cref="FragmentGapEm"/>, so without this such pages are read row by row across their columns. Word spaces are about 0.25 em, so a stripe that
+    /// no glyph of a dozen lines touches is not a gap between words.
+    /// </summary>
+    internal const double SoftGutterEm = 0.5;
+
+    /// <summary>A region needs at least this many distinct lines before a narrow stripe can separate its columns.</summary>
+    internal const int SoftMinLines = 10;
+
+    /// <summary>Every column cut at a narrow stripe has at least this many lines ...</summary>
+    internal const int SoftColumnLines = 5;
+
+    /// <summary>... and the widest quarter of its fragments is at least this many em wide (full lines of running text, not labels, bullets or cells).</summary>
+    internal const double SoftColumnWidthEm = 12;
+
+    /// <summary>A narrow-gutter cut makes at most this many columns; a region with more stripes is not newspaper columns.</summary>
+    internal const int SoftMaxColumns = 8;
+
     /// <summary>An empty horizontal band at least this tall (em) separates blocks.</summary>
     internal const double BlockGapEm = 0.5;
 
