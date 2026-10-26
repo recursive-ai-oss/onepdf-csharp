@@ -4,6 +4,8 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ## [Unreleased]
 
+## [1.10.2] - 2026-10-26
+
 ### Fixed
 
 - Text extraction read columns of running text row by row when the gutter between them was narrower than 1.25 em (typically 0.5 to 1.25 em on tightly set pages). Words closer than that are joined into one fragment, so the gutter was never seen and each line came out as the left and right column text joined together. A region with no wide gutter and no gap between blocks is now also cut at an empty stripe of at least 0.5 em that runs clear through at least 10 lines, when every column it leaves has at least 5 lines and its typical line is at least 12 em wide (running text, not labels, bullets or table cells). The columns are read one after another. Regions that already had a wide gutter or a gap between blocks are cut exactly as before.
@@ -236,6 +238,7 @@ First release. Two packages, `RecursiveAI.OnePdf` (the library, `net10.0`, no de
 - Limits on by default (`PdfLimits`) and fuzzed parsers, filters and font readers; no `unsafe` code. OnePDF never runs code or touches the network.
 - `RecursiveAI.OnePdf.Fonts`: Liberation and Noto substitute outlines under the SIL Open Font License 1.1, registered with `FontsPackage.Register()`.
 
+[1.10.2]: https://github.com/recursive-ai-oss/onepdf-csharp/releases/tag/v1.10.2
 [1.10.1]: https://github.com/recursive-ai-oss/onepdf-csharp/releases/tag/v1.10.1
 [1.10.0]: https://github.com/recursive-ai-oss/onepdf-csharp/releases/tag/v1.10.0
 [1.9.0]: https://github.com/recursive-ai-oss/onepdf-csharp/releases/tag/v1.9.0
