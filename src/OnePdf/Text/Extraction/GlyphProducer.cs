@@ -9,7 +9,7 @@ namespace OnePdf.Text;
 /// </summary>
 internal sealed class PdfGlyphSource(PdfDocument document) : IGlyphSource
 {
-    private static readonly PdfInterpretOptions InterpretOptions = new() { GlyphOutlines = false, Annotations = PdfAnnotationMode.None };
+    internal static readonly PdfInterpretOptions InterpretOptions = new() { GlyphOutlines = false, Annotations = PdfAnnotationMode.None };
 
     public int PageCount => document.Pages.Count;
 
@@ -53,6 +53,15 @@ internal sealed class TextGlyphDevice(int pageIndex) : PdfDevice
     private string? _spanText;
     private bool _spanFirst;
     private int _mcid = -1;
+
+    /// <summary>
+    /// When set, every run adds one entry per glyph of the run: the glyph's source index, or -1 when the glyph was not taken. Tagging
+    /// reads it to match the operator that showed a glyph to the glyph the extraction holds.
+    /// </summary>
+    internal List<int>? RunSources { get; set; }
+
+    /// <summary>How many glyphs have been taken so far.</summary>
+    internal int Count => _count;
 
     public PdfPageGlyphs Result()
     {
@@ -220,8 +229,11 @@ internal sealed class TextGlyphDevice(int pageIndex) : PdfDevice
         // With no finite clip every comparison below is false, so the glyph box need not be computed.
         bool clipUnbounded = _clip.Left == double.NegativeInfinity && _clip.Bottom == double.NegativeInfinity
             && _clip.Right == double.PositiveInfinity && _clip.Top == double.PositiveInfinity;
+        List<int>? sources = RunSources;
+        int sourceBase = sources?.Count ?? 0;
         for (int i = 0; i < glyphs.Length; i++)
         {
+            sources?.Add(-1);
             ref readonly PdfGlyph g = ref glyphs[i];
             if (g.Unicode is null && g.GlyphId < 0 && g.Width == 0)
             {
@@ -271,7 +283,12 @@ internal sealed class TextGlyphDevice(int pageIndex) : PdfDevice
                 MarkedContentId = _mcid,
                 ActualTextSpan = _span,
                 ActualText = _span != 0 && _spanFirst ? _spanText : null,
+                SourceIndex = _count - 1,
             };
+            if (sources is not null)
+            {
+                sources[sourceBase + i] = _count - 1;
+            }
             if (_span != 0)
             {
                 _spanFirst = false;

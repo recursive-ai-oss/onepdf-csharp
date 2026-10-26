@@ -75,6 +75,7 @@ public sealed class PdfTextExtractor
     {
         StructureOrder? structure = Structure(cancellationToken);
         PdfPageText result = AnalyzeCore(_source.GetPage(pageIndex, cancellationToken), _options, structure?.ForPage(pageIndex), structure is not null, keepGlyphs, cancellationToken);
+        result.Document = _doc;
         if (!keepGlyphs)
         {
             // Glyphs are the bulk of a result; letting go of them page by page keeps a long document's heap small.
@@ -147,6 +148,7 @@ public sealed class PdfTextExtractor
         // Without retained glyphs and with reading-order text, nothing needs the glyph array once the blocks exist: it comes from the
         // pool and goes back to it, instead of becoming a large object per page.
         bool pooled = !keepGlyphs && o.Mode == PdfTextMode.ReadingOrder && !(tagged && o.UseStructureTree);
+        int sourceCount = page.Count;
         PdfTextGlyph[] g;
         int count;
         try
@@ -163,7 +165,9 @@ public sealed class PdfTextExtractor
             try
             {
                 List<PdfTextBlock> found = TextLayout.RunAll(g, count, false, ct);
-                return PdfPageText.WithoutGlyphs(page.PageIndex, page.Width, page.Height, found.ToArray(), [], o, wordsAlreadyClear: true);
+                PdfPageText bare = PdfPageText.WithoutGlyphs(page.PageIndex, page.Width, page.Height, found.ToArray(), [], o, wordsAlreadyClear: true);
+                bare.SourceGlyphCount = sourceCount;
+                return bare;
             }
             finally
             {
@@ -216,7 +220,7 @@ public sealed class PdfTextExtractor
             blocks = TextLayout.RunAll(g, ct);
         }
 
-        return new PdfPageText(page.PageIndex, page.Width, page.Height, g, blocks.ToArray(), used, diag, o);
+        return new PdfPageText(page.PageIndex, page.Width, page.Height, g, blocks.ToArray(), used, diag, o) { SourceGlyphCount = sourceCount };
     }
 
     private static bool IsBlank(string t)
