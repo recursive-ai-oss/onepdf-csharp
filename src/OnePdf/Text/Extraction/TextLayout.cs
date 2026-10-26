@@ -415,16 +415,17 @@ internal static class TextLayout
         Frag[] frags = Fragment(w, items, ids, lineCount, lineStart, out int nf);
 
         // XY-cut: regions are runs of the fragment-id array; a split reorders a region in place and pushes its parts.
-        int[] reg = w.Ints.Rent(nf);
+        // Room beyond the first nf entries is for the fragments and regions a narrow-gutter column cut creates; n (the glyph count) bounds them.
+        int[] reg = w.Ints.Rent(2 * n + 1);
         for (int i = 0; i < nf; i++)
         {
             reg[i] = i;
         }
 
-        int[] leafStart = w.Ints.Rent(nf);
-        int[] leafLen = w.Ints.Rent(nf);
-        int[] leafTable = w.Ints.Rent(nf);
-        int leaves = XyCut(w, frags, items, ids, nf, reg, leafStart, leafLen, leafTable, ct);
+        int[] leafStart = w.Ints.Rent(n + 1);
+        int[] leafLen = w.Ints.Rent(n + 1);
+        int[] leafTable = w.Ints.Rent(n + 1);
+        int leaves = XyCut(w, frags, items, ids, nf, n, reg, leafStart, leafLen, leafTable, ct);
         for (int i = 0; i < leaves; i++)
         {
             PdfTextBlock? b = MakeBlock(w, g, items, ids, frags, reg, leafStart[i], leafLen[i], leafTable[i] != 0);
@@ -772,20 +773,25 @@ internal static class TextLayout
     /// Cuts the fragments into leaf regions in reading order. A region is a run of <paramref name="reg"/>; a split rewrites it in place as its parts
     /// (sorted along the cut axis, or in their original order for a line-kind split) and pushes them on an explicit stack. A table keeps its region as it was.
     /// </summary>
-    private static int XyCut(LayoutWork w, Frag[] f, Item[] items, int[] ids, int nf, int[] reg, int[] leafStart, int[] leafLen, int[] leafTable, CancellationToken ct)
+    private static int XyCut(LayoutWork w, Frag[] f, Item[] items, int[] ids, int nf, int cap, int[] reg, int[] leafStart, int[] leafLen, int[] leafTable, CancellationToken ct)
     {
         int leaves = 0;
-        int[] stS = w.Ints.Rent(nf + 1);
-        int[] stL = w.Ints.Rent(nf + 1);
+        int[] stS = w.Ints.Rent(cap + 1);
+        int[] stL = w.Ints.Rent(cap + 1);
         int sp = 0;
         stS[sp] = 0;
         stL[sp++] = nf;
-        KeyIdx[] ks = w.Keys.Rent(nf);
-        int[] gb = w.Ints.Rent(nf + 2);
-        int[] tmp = w.Ints.Rent(nf);
-        double[] dscr = w.Doubles.Rent(nf);
-        double[] stripesA = w.Doubles.Rent(2 * nf);
-        double[] stripesB = w.Doubles.Rent(2 * nf);
+        KeyIdx[] ks = w.Keys.Rent(cap + 1);
+        int[] gb = w.Ints.Rent(cap + 2);
+        int[] tmp = w.Ints.Rent(cap + 1);
+        double[] dscr = w.Doubles.Rent(cap + 1);
+        double[] stripesA = w.Doubles.Rent(2 * cap + 2);
+        double[] stripesB = w.Doubles.Rent(2 * cap + 2);
+        double[] softScratch = w.Doubles.Rent(cap + 1);
+        double[] softBounds = new double[LayoutParameters.SoftMaxColumns];
+        int[] softStart = new int[LayoutParameters.SoftMaxColumns];
+        int[] softLen = new int[LayoutParameters.SoftMaxColumns];
+        int fragCount = nf, regTail = nf;
         int guard = 0;
         while (sp > 0)
         {
@@ -830,6 +836,21 @@ internal static class TextLayout
             {
                 groups = Partition(f, reg, s, len, false, LayoutParameters.BlockGapEm * ms, ks, gb);
                 horizontal = true;
+                int cols = groups == 0 ? SoftColumns(w, f, items, ids, reg, s, len, ms, cap, ks, softScratch, softBounds, ref fragCount, ref regTail, softStart, softLen) : 0;
+                if (cols > 0)
+                {
+                    // No wide gutter and no gap between blocks, but a narrow gutter runs clear through columns of running text: read them one
+                    // after another, each cut on its own next.
+                    bool rtl = MajorityRtl(f, items, ids, reg, s, len);
+                    for (int j = 0; j < cols; j++)
+                    {
+                        int c = rtl ? j : cols - 1 - j;
+                        stS[sp] = softStart[c];
+                        stL[sp++] = softLen[c];
+                    }
+
+                    continue;
+                }
             }
 
             if (groups > 0)
@@ -882,6 +903,174 @@ internal static class TextLayout
             leafLen[leaves] = len;
             leafTable[leaves++] = table ? 1 : 0;
         }
+    }
+
+    /// <summary>
+    /// Columns of running text separated by a gutter narrower than <see cref="LayoutParameters.ColumnGutterEm"/>. Lines whose gaps are under a fragment gap
+    /// are one fragment, so a narrow gutter hides inside fragments and the region looks like full-width rows. This looks at the glyphs: when an empty stripe of
+    /// at least <see cref="LayoutParameters.SoftGutterEm"/> runs clear through a region of at least <see cref="LayoutParameters.SoftMinLines"/> lines, the
+    /// fragments are split at it and the columns returned, if every column is running text (at least <see cref="LayoutParameters.SoftColumnLines"/> lines, and
+    /// its widest quarter of fragments at least <see cref="LayoutParameters.SoftColumnWidthEm"/> wide, so lists of labels, bullets and table cells stay as they are).
+    /// The columns are written after the existing regions (<paramref name="regTail"/>) with new fragments after the existing ones; returns the column count
+    /// with their runs in <paramref name="outStart"/>/<paramref name="outLen"/>, or 0 and nothing changed. The room is bounded by the glyph
+    /// count, so the answer does not depend on pooled array sizes.
+    /// </summary>
+    private static int SoftColumns(LayoutWork w, Frag[] f, Item[] items, int[] ids, int[] reg, int s, int len, double ms, int cap, KeyIdx[] ks, double[] scratch,
+        double[] bounds, ref int fragCount, ref int regTail, int[] outStart, int[] outLen)
+    {
+        if (CountLines(w, f, reg, s, len, LayoutParameters.SoftMinLines) < LayoutParameters.SoftMinLines)
+        {
+            return 0;
+        }
+
+        int n = 0;
+        for (int i = 0; i < len; i++)
+        {
+            ref Frag fr = ref f[reg[s + i]];
+            for (int p = fr.Start; p < fr.Start + fr.Count; p++)
+            {
+                if (!items[ids[p]].Space)
+                {
+                    ks[n++] = new KeyIdx { Key = items[ids[p]].X0, Idx = ids[p] };
+                }
+            }
+        }
+
+        if (n == 0)
+        {
+            return 0;
+        }
+
+        int fragMark = fragCount, regMark = regTail;
+        IntroSort.Sort<KeyIdx, ByKeyOrder>(ks.AsSpan(0, n));
+        double gap = LayoutParameters.SoftGutterEm * ms;
+        int nb = 0;
+        double curEnd = items[ks[0].Idx].X1;
+        for (int i = 1; i < n; i++)
+        {
+            if (ks[i].Key - curEnd >= gap)
+            {
+                if (nb == bounds.Length - 1)
+                {
+                    return 0;
+                }
+
+                bounds[nb++] = (curEnd + ks[i].Key) / 2;
+            }
+
+            curEnd = Math.Max(curEnd, items[ks[i].Idx].X1);
+        }
+
+        if (nb == 0)
+        {
+            return 0;
+        }
+
+        int cols = nb + 1;
+        for (int c = 0; c < cols; c++)
+        {
+            int first = regTail;
+            for (int i = 0; i < len; i++)
+            {
+                Frag fr = f[reg[s + i]];
+                int end = fr.Start + fr.Count;
+                int runStart = -1;
+                bool ink = false;
+                for (int p = fr.Start; p <= end; p++)
+                {
+                    bool inCol = false;
+                    if (p < end)
+                    {
+                        ref Item it = ref items[ids[p]];
+                        double mid = (it.X0 + it.X1) / 2;
+                        int col = 0;
+                        while (col < nb && mid > bounds[col])
+                        {
+                            col++;
+                        }
+
+                        inCol = col == c;
+                        if (inCol)
+                        {
+                            ink |= !it.Space;
+                        }
+                    }
+
+                    if (inCol)
+                    {
+                        if (runStart < 0)
+                        {
+                            runStart = p;
+                        }
+                    }
+                    else if (runStart >= 0)
+                    {
+                        if (ink)
+                        {
+                            // Out of room (the arrays are sized from the glyph count): leave the region as it is.
+                            if (fragCount >= cap || regTail >= 2 * cap)
+                            {
+                                fragCount = fragMark;
+                                regTail = regMark;
+                                return 0;
+                            }
+
+                            f[fragCount] = MakeFrag(items, ids, runStart, p, fr.Line, scratch);
+                            reg[regTail++] = fragCount++;
+                        }
+
+                        runStart = -1;
+                        ink = false;
+                    }
+                }
+            }
+
+            outStart[c] = first;
+            outLen[c] = regTail - first;
+            if (!SoftColumnIsText(w, f, reg, first, regTail - first, ms, scratch))
+            {
+                fragCount = fragMark;
+                regTail = regMark;
+                return 0;
+            }
+        }
+
+        return cols;
+    }
+
+    private static bool SoftColumnIsText(LayoutWork w, Frag[] f, int[] reg, int s, int len, double ms, double[] widths)
+    {
+        if (len == 0 || CountLines(w, f, reg, s, len, LayoutParameters.SoftColumnLines) < LayoutParameters.SoftColumnLines)
+        {
+            return false;
+        }
+
+        for (int i = 0; i < len; i++)
+        {
+            widths[i] = (f[reg[s + i]].X1 - f[reg[s + i]].X0) / Math.Max(ms, 1e-6);
+        }
+
+        widths.AsSpan(0, len).Sort();
+        return widths[(len - 1) / 2] >= LayoutParameters.SoftColumnWidthEm;
+    }
+
+    /// <summary>The number of distinct lines among the fragments of a region, counting no further than <paramref name="limit"/>.</summary>
+    private static int CountLines(LayoutWork w, Frag[] f, int[] reg, int s, int len, int limit)
+    {
+        int gen = ++w.Generation;
+        int[] stamp = w.Stamp;
+        int c = 0;
+        for (int i = 0; i < len && c < limit; i++)
+        {
+            int line = f[reg[s + i]].Line;
+            if (stamp[line] != gen)
+            {
+                stamp[line] = gen;
+                c++;
+            }
+        }
+
+        return c;
     }
 
     /// <summary>

@@ -4,6 +4,10 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ## [Unreleased]
 
+### Fixed
+
+- Text extraction read columns of running text row by row when the gutter between them was narrower than 1.25 em (typically 0.5 to 1.25 em on tightly set pages). Words closer than that are joined into one fragment, so the gutter was never seen and each line came out as the left and right column text joined together. A region with no wide gutter and no gap between blocks is now also cut at an empty stripe of at least 0.5 em that runs clear through at least 10 lines, when every column it leaves has at least 5 lines and its typical line is at least 12 em wide (running text, not labels, bullets or table cells). The columns are read one after another. Regions that already had a wide gutter or a gap between blocks are cut exactly as before.
+
 ## [1.10.1] - 2026-10-24
 
 ### Added
