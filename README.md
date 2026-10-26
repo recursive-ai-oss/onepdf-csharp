@@ -59,10 +59,10 @@ are read through safe, bounds-checked code with size limits on by default.
   ([conformance saves](https://github.com/recursive-ai-oss/onepdf-csharp/blob/main/docs/pdfa.md#a-conformance-save-never-drops-content)). It is not a validator and does not convert arbitrary
   files ([PDF/A](https://github.com/recursive-ai-oss/onepdf-csharp/blob/main/docs/pdfa.md)).
 - **PDF/UA-1, PDF/UA-2 and PDF/A level A.** Write PDF/UA-1 (ISO 14289-1) and PDF/A-2a/3a, alone or combined, from documents OnePDF
-  laid out or created with tags, or PDF/UA-2 (ISO 14289-2) on PDF 2.0 with `PdfUAOptions.Part = PdfUAPart.Part2`
+  laid out or created with tags (or existing files tagged with roles you supply: [tagging](https://github.com/recursive-ai-oss/onepdf-csharp/blob/main/docs/tagging.md)), or PDF/UA-2 (ISO 14289-2) on PDF 2.0 with `PdfUAOptions.Part = PdfUAPart.Part2`
   ([PDF/UA-2](https://github.com/recursive-ai-oss/onepdf-csharp/blob/main/docs/pdfua.md#pdfua-2)). `PdfSaveOptions.PdfUA` repairs the clerical parts (language, title display, tab order, link descriptions, XMP
   identification) and refuses what the document must provide (title, alternate text for figures, heading levels, table header
-  cells, untagged content, unembedded fonts, ...) with every violation listed; `CheckPdfUA` only reports. It never tags untagged
+  cells, untagged content, unembedded fonts, ...) with every violation listed; `CheckPdfUA` only reports. It never decides roles for untagged
   files or guesses alternate text, and a clean result is not proof of conformance
   ([PDF/UA](https://github.com/recursive-ai-oss/onepdf-csharp/blob/main/docs/pdfua.md)).
 - **Concurrent.** Objects parse lazily into a byte-budgeted cache with single-flight parsing; any number of threads can read pages

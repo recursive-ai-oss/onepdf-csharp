@@ -4,7 +4,7 @@ OnePDF can write **PDF/UA-1** (ISO 14289-1), **PDF/UA-2** (ISO 14289-2, on PDF 2
 
 ## What is promised, and what is not
 
-- **Only for documents OnePDF laid out or created with tags.** The input must already be a tagged document: a structure tree, marked content on every painted mark, alternate text where it is needed, a title. OnePDF checks that and repairs the clerical parts; it **does not tag untagged content, guess alternate text, invent titles or guess a language**. It is not a converter for arbitrary files. An untagged file is refused with the reasons.
+- **Only for tagged documents: ones OnePDF laid out or created with tags, and existing files tagged through [the tagging API](tagging.md).** The input must already be a tagged document: a structure tree, marked content on every painted mark, alternate text where it is needed, a title. OnePDF checks that and repairs the clerical parts; it **does not tag on its own judgement, guess alternate text, invent titles or guess a language**. The tagging API writes the structure a caller decides on (the caller supplies every role and every alternate text); OnePDF never works the roles out. It is not a converter for arbitrary files. An untagged file is refused with the reasons.
 - **A clean check is not proof of conformance.** `CheckPdfUA` verifies the rules listed below and nothing else; PDF/UA also asks for things only a person can judge (a logical reading order, meaningful alternate text, sufficient contrast, correct heading use). The tests run the veraPDF validator (PDF/UA-1, PDF/A-2a, PDF/A-3a) as a black box on the documents OnePDF writes; passing it is evidence, not certification. Use a validator and a screen-reader review before claiming conformance for a document.
 - It writes the identification only when every check it makes passes.
 
@@ -79,7 +79,7 @@ PDF/UA-2 (ISO 14289-2) is built on PDF 2.0. Choose it with `PdfUAOptions.Part`:
 layout.Save(file, new PdfSaveOptions { PdfUA = new PdfUAOptions { Part = PdfUAPart.Part2 } });
 ```
 
-The promises are those of part 1 (above): tagged documents laid out or created by OnePDF only, no tagging of untagged content, no invented titles, alternate text or language, **and a clean check is not proof of conformance**. A part-2 save is checked with veraPDF's `ua2` flavour as a black box in the tests; passing it is evidence, not certification.
+The promises are those of part 1 (above): tagged documents only (laid out or created by OnePDF, or tagged through [the tagging API](tagging.md) with roles the caller supplies), no tagging on OnePDF's own judgement, no invented titles, alternate text or language, **and a clean check is not proof of conformance**. A part-2 save is checked with veraPDF's `ua2` flavour as a black box in the tests; passing it is evidence, not certification.
 
 | | |
 |---|---|

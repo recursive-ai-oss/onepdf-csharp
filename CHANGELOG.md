@@ -4,6 +4,14 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ## [Unreleased]
 
+### Added
+
+- Tagging of existing untagged PDFs. `PdfDocument.CreateTaggingPlan()` returns a plan in which a caller (typically an accessibility remediation tool) gives blocks, lines, words, table cells, graphics areas and link annotations of a text extraction a structure role; `PdfDocument.ApplyTagging(plan)` then writes the marked content, the structure tree, the parent tree, `/StructParents`, `/MarkInfo`, the language and the title into the editable document, and marks everything the plan leaves out as an artifact. Pages look and extract the same afterwards: only marked-content operators are added, text-showing operators are split at glyph boundaries without moving a glyph, and Form XObjects are wrapped whole or, when their content belongs to several elements, copied for that use. OnePDF does not choose roles or invent alternate text. Files that already have a structure tree, declare `/MarkInfo /Marked true` or contain marked content with an `/MCID` are refused with `PdfTaggingException`, as are references that come from another document, content referenced twice, impossible nesting and pages that cannot be rewritten safely. A link annotation without `/Contents` gets the link's alternate text or its words. See `docs/tagging.md`.
+
+### Changed
+
+- `CheckPdfUA` follows a Form XObject drawn by a `Do` outside marked content: it reports the form only when it paints something unmarked, and checks the form's own marked content against `MCR` entries with `/Stm` in the structure tree and its `/StructParents`. Before, any such `Do` was reported as untagged content.
+
 ## [1.10.2] - 2026-10-26
 
 ### Fixed

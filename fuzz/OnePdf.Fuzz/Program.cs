@@ -46,6 +46,7 @@ internal static class Program
         ["extraction"] = ExtractionTarget.Run,
         ["save"] = SaveTarget.Run,
         ["redact"] = RedactTarget.Run,
+        ["tag"] = TagTarget.Run,
         ["fontsubset"] = FontSubsetTarget.Run,
         ["signature"] = SignatureTarget.Run,
         ["pdfa"] = PdfATarget.Run,

@@ -96,8 +96,9 @@ public sealed class PdfSaveOptions
     /// judgement (<see cref="PdfDocument.PreparePdfUA"/>: tagged marker, language, title display, tab order, link descriptions, XMP
     /// identification, library fonts) and checks the rest; if anything is still wrong it throws <see cref="PdfUAException"/> (or
     /// <see cref="PdfAException"/> when PDF/A is also requested) listing every violation, and writes nothing. The document must be
-    /// editable and the changes stay in it. This is offered for documents OnePDF laid out or created with tags; it never tags existing
-    /// content, and a clean result is not proof of conformance. Not supported with <see cref="PdfDocument.SaveIncremental(Stream, PdfSaveOptions?, CancellationToken)"/>.
+    /// editable and the changes stay in it. This is offered for documents OnePDF laid out or created with tags and for existing files tagged through
+    /// <see cref="PdfDocument.ApplyTagging(PdfTaggingPlan, CancellationToken)"/>; it never tags on its own judgement,
+    /// and a clean result is not proof of conformance. Not supported with <see cref="PdfDocument.SaveIncremental(Stream, PdfSaveOptions?, CancellationToken)"/>.
     /// Default null.
     /// </summary>
     public PdfUAOptions? PdfUA { get; init; }

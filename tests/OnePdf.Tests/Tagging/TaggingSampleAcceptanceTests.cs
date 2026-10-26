@@ -162,8 +162,8 @@ public class TaggingSampleAcceptanceTests
         using PdfDocument after = PdfDocument.Open(tagged);
         IReadOnlyList<PdfUAViolation> check = after.CheckPdfUA();
         Assert.True(check.All(v => fontsOnly && FontClause(v.Clause)), $"{file}: {string.Join(" | ", check.Select(static v => v.ToString()))}");
-        Assert.Equal(extractBefore, TagSupport.ExtractionJson(after));
-        Assert.Equal(displayBefore, TagSupport.DisplayText(after));
+        TagSupport.AssertSame(extractBefore, TagSupport.ExtractionJson(after));
+        TagSupport.AssertSame(displayBefore, TagSupport.DisplayText(after));
 
         if (VeraPdf.Path is not null)
         {
