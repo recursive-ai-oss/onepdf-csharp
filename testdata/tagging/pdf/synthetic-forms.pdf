@@ -1,0 +1,115 @@
+%PDF-1.7
+%‚„œ”
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Kids [3 0 R 4 0 R] /Count 2 >>
+endobj
+3 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 5 0 R /F2 6 0 R >> /XObject << /Hdr 7 0 R /Ftr 8 0 R /Mark 9 0 R /Body1 10 0 R /Card 11 0 R >> >> /Contents 13 0 R >>
+endobj
+4 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 5 0 R /F2 6 0 R >> /XObject << /Hdr 7 0 R /Ftr 8 0 R /Mark 9 0 R >> >> /Contents 14 0 R /Annots [15 0 R] >>
+endobj
+5 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>
+endobj
+6 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding >>
+endobj
+7 0 obj
+<< /Type /XObject /Subtype /Form /BBox [0 0 612 792] /Resources << /Font << /F1 5 0 R /F2 6 0 R >> >> /Length 101 >>
+stream
+0.4 g BT /F1 9 Tf 72 752 Td (Tide Tables 2026 - Harbor Office) Tj ET 0.5 G 0.5 w 72 746 m 540 746 l S
+endstream
+endobj
+8 0 obj
+<< /Type /XObject /Subtype /Form /BBox [0 0 612 792] /Resources << /Font << /F1 5 0 R /F2 6 0 R >> >> /Length 114 >>
+stream
+0.4 g BT /F1 9 Tf 72 40 Td (Issued by the harbor office. Not for navigation.) Tj ET 0.5 G 0.5 w 72 56 m 540 56 l S
+endstream
+endobj
+9 0 obj
+<< /Type /XObject /Subtype /Form /BBox [0 0 612 792] /Resources << /Font << /F1 5 0 R /F2 6 0 R >> >> /Group << /S /Transparency >> /Length 73 >>
+stream
+0.85 g BT /F2 60 Tf 0.7071 -0.7071 0.7071 0.7071 150 250 Tm (DRAFT) Tj ET
+endstream
+endobj
+10 0 obj
+<< /Type /XObject /Subtype /Form /BBox [0 0 612 792] /Resources << /Font << /F1 5 0 R /F2 6 0 R >> >> /Length 240 >>
+stream
+0 g BT /F1 11 Tf 14 TL 72 640 Td (The harbor opens at first light and closes at dusk. Vessels arriving) Tj T* (after dusk must wait outside the breakwater until morning.) Tj T* (Pilots are available on request from the harbor office.) Tj ET
+endstream
+endobj
+11 0 obj
+<< /Type /XObject /Subtype /Form /BBox [0 0 220 150] /Matrix [1 0 0 1 340 420] /Resources << /Font << /F1 5 0 R /F2 6 0 R >> /XObject << /Wave 12 0 R >> >> /Length 243 >>
+stream
+0.93 g 0 0 220 150 re f 0.4 G 1 w 0.5 0.5 219 149 re S /Wave Do 0 g BT /F2 11 Tf 12 126 Td (Sidebar) Tj /F1 10 Tf 0 -16 Td (Spring tides are the highest) Tj 0 -13 Td (of the year. Check the table) Tj 0 -13 Td (before planning a passage.) Tj ET
+endstream
+endobj
+12 0 obj
+<< /Type /XObject /Subtype /Form /BBox [0 0 220 60] /Length 132 >>
+stream
+0.2 0.4 0.7 rg 12 8 m 40 30 70 30 98 18 c 126 6 150 6 208 26 c 208 8 l 12 8 l f 0.2 0.4 0.7 RG 1.5 w 12 40 m 60 52 110 28 208 48 l S
+endstream
+endobj
+13 0 obj
+<<  /Length 695 >>
+stream
+/Hdr Do /Mark Do /Ftr Do
+0 g BT /F2 20 Tf 72 700 Td (Harbor Notices) Tj ET
+BT /F1 11 Tf 72 680 Td (Opening hours and pilotage for the season.) Tj ET
+/Body1 Do
+q 120 0 0 120 72 440 cm
+BI /W 8 /H 8 /CS /RGB /BPC 8 /F /AHx
+ID
+FF0000FF0000FF0000FF0000FF0000FF0000FF0000FF0000
+2060C0FFFFFF2060C0FFFFFF2060C0FFFFFF2060C0FFFFFF
+FFFFFF2060C0FFFFFF2060C0FFFFFF2060C0FFFFFF2060C0
+2060C0FFFFFF2060C0FFFFFF2060C0FFFFFF2060C0FFFFFF
+FFFFFF2060C0FFFFFF2060C0FFFFFF2060C0FFFFFF2060C0
+2060C0FFFFFF2060C0FFFFFF2060C0FFFFFF2060C0FFFFFF
+FFFFFF2060C0FFFFFF2060C0FFFFFF2060C0FFFFFF2060C0
+2060C0FFFFFF2060C0FFFFFF2060C0FFFFFF2060C0FFFFFF>
+EI
+Q
+BT /F1 9 Tf 72 424 Td (Figure 1. Notice board at the quay.) Tj ET
+/Card Do
+endstream
+endobj
+14 0 obj
+<<  /Length 250 >>
+stream
+/Hdr Do /Mark Do /Ftr Do
+0 g BT /F2 14 Tf 72 700 Td (Contacts) Tj ET
+BT /F1 11 Tf 14 TL 72 676 Td (For berths and pilots call the harbor office.) Tj T* (Visit the harbor office online for the full tables.) Tj ET
+0 0 0.8 RG 0.5 w 213 674 m 277 674 l S
+endstream
+endobj
+15 0 obj
+<< /Type /Annot /Subtype /Link /Rect [212 672 278 688] /Border [0 0 0] /A << /S /URI /URI (https://example.org/harbor) >> >>
+endobj
+xref
+0 16
+0000000000 65535 f 
+0000000015 00000 n 
+0000000064 00000 n 
+0000000127 00000 n 
+0000000340 00000 n 
+0000000543 00000 n 
+0000000640 00000 n 
+0000000742 00000 n 
+0000000993 00000 n 
+0000001257 00000 n 
+0000001509 00000 n 
+0000001900 00000 n 
+0000002348 00000 n 
+0000002581 00000 n 
+0000003329 00000 n 
+0000003632 00000 n 
+trailer
+<< /Size 16 /Root 1 0 R >>
+startxref
+3773
+%%EOF

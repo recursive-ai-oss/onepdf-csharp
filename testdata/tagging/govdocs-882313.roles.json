@@ -1,0 +1,25 @@
+{
+ "version": 1,
+ "source": "../govdocs/882313.pdf",
+ "title": "Order Amending Blanket Authority to Import Natural Gas from Canada (DOE/FE Order 1643-A)",
+ "language": "en",
+ "blockCounts": [16, 5],
+ "notes": "A US federal order. The docket caption is two paragraphs; its rules and right parentheses are layout artifacts. The footnote follows the paragraph that cites it. The second paragraph continues on the next page. The page number at the top of page 2 is an artifact.",
+ "elements": [
+  {"role": "P", "children": [{"page": 0, "block": 0}]},
+  {"role": "P", "children": [{"page": 0, "block": 1}]},
+  {"role": "P", "children": [{"page": 0, "block": 2}]},
+  {"role": "Artifact", "artifact": "Layout", "children": [{"page": 0, "block": 3, "lines": [0, 1]}, {"page": 0, "block": 3, "line": 2, "words": [3, 3]}, {"page": 0, "block": 4, "line": 0, "words": [5, 5]}, {"page": 0, "block": 5}]},
+  {"role": "P", "children": [{"page": 0, "block": 3, "line": 2, "words": [0, 2]}, {"page": 0, "block": 4, "line": 0, "words": [0, 4]}]},
+  {"role": "P", "children": [{"page": 0, "block": 3, "line": 2, "words": [4, 7]}]},
+  {"role": "H1", "children": [{"page": 0, "block": 6}]},
+  {"role": "H2", "children": [{"page": 0, "block": 7}]},
+  {"role": "P", "children": [{"page": 0, "block": 8}, {"page": 0, "block": 9}, {"page": 0, "block": 10}, {"page": 0, "block": 11}]},
+  {"role": "P", "children": [{"page": 0, "block": 15}]},
+  {"role": "P", "children": [{"page": 0, "block": 12}, {"page": 0, "block": 13}, {"page": 0, "block": 14}, {"page": 1, "block": 1}, {"page": 1, "block": 2}]},
+  {"role": "Artifact", "artifact": "Header", "children": [{"page": 1, "block": 0}]},
+  {"role": "P", "children": [{"page": 1, "block": 3}]},
+  {"role": "Artifact", "artifact": "Layout", "children": [{"page": 1, "block": 4, "lines": [0, 0]}]},
+  {"role": "P", "children": [{"page": 1, "block": 4, "lines": [1, 5]}]}
+ ]
+}

@@ -1,0 +1,32 @@
+{
+ "version": 1,
+ "source": "pdf/synthetic-forms.pdf",
+ "title": "Harbor Notices",
+ "language": "en",
+ "blockCounts": [8, 5],
+ "notes": "Content lives in Form XObjects: the running header, the footer and the DRAFT watermark are shared by both pages (artifacts); the first paragraph is inside a form used once; the sidebar nests a drawing form; the checkerboard is an inline image.",
+ "elements": [
+  {"role": "Artifact", "artifact": "Header", "children": [{"page": 0, "block": 0}]},
+  {"role": "H1", "children": [{"page": 0, "block": 1}]},
+  {"role": "P", "children": [{"page": 0, "block": 2}]},
+  {"role": "P", "children": [{"page": 0, "block": 3}]},
+  {"role": "Figure", "alt": "Notice board drawn as a blue and white checkerboard with a red strip along the top.", "children": [{"page": 0, "graphics": [72, 440, 192, 560]}]},
+  {"role": "P", "children": [{"page": 0, "block": 5}]},
+  {"role": "Div", "children": [
+    {"role": "H2", "children": [{"page": 0, "block": 4, "lines": [0, 0]}]},
+    {"role": "P", "children": [{"page": 0, "block": 4, "lines": [1, 3]}]},
+    {"role": "Figure", "alt": "Decorative wave: a thin blue line above a filled blue swell.", "children": [{"page": 0, "graphics": [350, 428, 552, 475]}]}
+  ]},
+  {"role": "Artifact", "artifact": "Watermark", "children": [{"page": 0, "block": 6}]},
+  {"role": "Artifact", "artifact": "Footer", "children": [{"page": 0, "block": 7}]},
+  {"role": "Artifact", "artifact": "Header", "children": [{"page": 1, "block": 0}]},
+  {"role": "H2", "children": [{"page": 1, "block": 1}]},
+  {"role": "P", "children": [
+    {"page": 1, "block": 2, "line": 0, "words": [0, 5]},
+    {"role": "Link", "children": [{"page": 1, "annotation": 0}, {"page": 1, "block": 2, "line": 0, "words": [6, 7]}]},
+    {"page": 1, "block": 2, "lines": [1, 1]}
+  ]},
+  {"role": "Artifact", "artifact": "Watermark", "children": [{"page": 1, "block": 3}]},
+  {"role": "Artifact", "artifact": "Footer", "children": [{"page": 1, "block": 4}]}
+ ]
+}

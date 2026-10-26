@@ -1,0 +1,30 @@
+{
+ "version": 1,
+ "source": "pdf/chrome-arabic.pdf",
+ "title": "الإعلان العالمي لحقوق الإنسان",
+ "language": "ar",
+ "blockCounts": [7],
+ "notes": "Right-to-left page. Blocks come in logical order; the list bullets sit on the right.",
+ "elements": [
+  {"role": "H1", "children": [{"page": 0, "block": 0}]},
+  {"role": "H2", "children": [{"page": 0, "block": 1}]},
+  {"role": "P", "children": [{"page": 0, "block": 2}]},
+  {"role": "H2", "children": [{"page": 0, "block": 3}]},
+  {"role": "P", "children": [{"page": 0, "block": 4}]},
+  {"role": "P", "children": [{"page": 0, "block": 5}]},
+  {"role": "L", "children": [
+    {"role": "LI", "children": [
+      {"role": "Lbl", "children": [{"page": 0, "graphics": [509.5, 549.9, 515.3, 555.7]}]},
+      {"role": "LBody", "children": [{"page": 0, "block": 6, "lines": [0, 0]}]}
+    ]},
+    {"role": "LI", "children": [
+      {"role": "Lbl", "children": [{"page": 0, "graphics": [509.5, 533.4, 515.3, 539.2]}]},
+      {"role": "LBody", "children": [{"page": 0, "block": 6, "lines": [1, 1]}]}
+    ]},
+    {"role": "LI", "children": [
+      {"role": "Lbl", "children": [{"page": 0, "graphics": [509.5, 516.2, 515.3, 521.9]}]},
+      {"role": "LBody", "children": [{"page": 0, "block": 6, "lines": [2, 2]}]}
+    ]}
+  ]}
+ ]
+}

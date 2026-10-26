@@ -1,0 +1,28 @@
+{
+ "version": 1,
+ "source": "pdf/chrome-columns.pdf",
+ "title": "Weather and tides",
+ "language": "en",
+ "blockCounts": [14, 5],
+ "notes": "Two text columns under a full-width title. The paragraph that starts at the bottom of the left column and ends at the top of the right one is a single P made of two blocks.",
+ "elements": [
+  {"role": "H1", "children": [{"page": 0, "block": 0}]},
+  {"role": "H2", "children": [{"page": 0, "block": 1}]},
+  {"role": "P", "children": [{"page": 0, "block": 2}]},
+  {"role": "P", "children": [{"page": 0, "block": 3}]},
+  {"role": "H2", "children": [{"page": 0, "block": 4}]},
+  {"role": "P", "children": [{"page": 0, "block": 5}]},
+  {"role": "P", "children": [{"page": 0, "block": 6}, {"page": 0, "block": 7}]},
+  {"role": "H2", "children": [{"page": 0, "block": 8}]},
+  {"role": "P", "children": [{"page": 0, "block": 9}]},
+  {"role": "P", "children": [{"page": 0, "block": 10}]},
+  {"role": "H2", "children": [{"page": 0, "block": 11}]},
+  {"role": "P", "children": [{"page": 0, "block": 12}]},
+  {"role": "P", "children": [{"page": 0, "block": 13}]},
+  {"role": "H1", "children": [{"page": 1, "block": 0}]},
+  {"role": "P", "children": [{"page": 1, "block": 1}]},
+  {"role": "P", "children": [{"page": 1, "block": 2}]},
+  {"role": "P", "children": [{"page": 1, "block": 3}]},
+  {"role": "P", "children": [{"page": 1, "block": 4}]}
+ ]
+}
