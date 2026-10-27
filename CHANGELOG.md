@@ -4,6 +4,8 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ## [Unreleased]
 
+## [1.11.1] - 2026-10-27
+
 ### Fixed
 
 - The PDF/UA-1 table check (`CheckPdfUA` and the check made by a PDF/UA save) refused tables whose rows are regular once row spans are counted, whenever a row span covered the trailing columns of a later row, for example a last-column cell with `RowSpan` 2 above a row that lists one cell fewer. Such a row was counted as too short, and the save failed with "The rows of a table do not all cover the same number of columns". Columns still covered by a row span from earlier rows now count towards the width of the row (ISO 32000-1 14.8.5.7). Tables that really are ragged are still refused, and the check now agrees with veraPDF on both. Spanned cells need their `ColSpan`/`RowSpan` set: `PdfStructureAttributes.Table(columnSpan, rowSpan)` for a `TD` and `PdfStructureAttributes.TableHeader(scope, columnSpan, rowSpan)` for a `TH`, passed as `PdfStructureElementOptions.Attributes`, or `ColSpan`/`RowSpan` on a tagging-plan element.
@@ -253,6 +255,7 @@ First release. Two packages, `RecursiveAI.OnePdf` (the library, `net10.0`, no de
 - Limits on by default (`PdfLimits`) and fuzzed parsers, filters and font readers; no `unsafe` code. OnePDF never runs code or touches the network.
 - `RecursiveAI.OnePdf.Fonts`: Liberation and Noto substitute outlines under the SIL Open Font License 1.1, registered with `FontsPackage.Register()`.
 
+[1.11.1]: https://github.com/recursive-ai-oss/onepdf-csharp/releases/tag/v1.11.1
 [1.11.0]: https://github.com/recursive-ai-oss/onepdf-csharp/releases/tag/v1.11.0
 [1.10.2]: https://github.com/recursive-ai-oss/onepdf-csharp/releases/tag/v1.10.2
 [1.10.1]: https://github.com/recursive-ai-oss/onepdf-csharp/releases/tag/v1.10.1
