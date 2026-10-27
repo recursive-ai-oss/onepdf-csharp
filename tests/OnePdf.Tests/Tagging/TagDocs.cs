@@ -101,6 +101,70 @@ internal static class TagDocs
         return roles.StartsWith("Document ", StringComparison.Ordinal) ? roles[9..] : roles;
     }
 
+    /// <summary>The structure element dictionaries in document order.</summary>
+    public static List<PdfDictionary> Elements(PdfDocument doc)
+    {
+        var list = new List<PdfDictionary>();
+        PdfDictionary? root = doc.StructureTreeRoot;
+        if (root is null)
+        {
+            return list;
+        }
+
+        var stack = new Stack<PdfObject>();
+        stack.Push(root);
+        while (stack.Count > 0)
+        {
+            PdfObject o = stack.Pop();
+            if (o is PdfDictionary d)
+            {
+                if (d.GetName("S") is not null)
+                {
+                    list.Add(d);
+                }
+
+                if (d.Get("K") is { } k)
+                {
+                    stack.Push(k);
+                }
+            }
+            else if (o is PdfArray a)
+            {
+                for (int i = a.Count - 1; i >= 0; i--)
+                {
+                    if (a[i] is (PdfDictionary or PdfArray) and { } item)
+                    {
+                        stack.Push(item);
+                    }
+                }
+            }
+        }
+
+        return list;
+    }
+
+    /// <summary>The happy path: tags with <see cref="PdfDocument.Tag"/> from a whole-document extraction, saves, and checks that extraction and the display list are unchanged.</summary>
+    public static byte[] Happy(byte[] source, Func<PdfTagBlock, PdfBlockRole?> roles, PdfTagOptions? options, out PdfTaggingResult result, bool check = true)
+    {
+        using PdfDocument doc = TagSupport.Editable(source);
+        string extractBefore = TagSupport.ExtractionJson(doc);
+        string displayBefore = TagSupport.DisplayText(doc);
+        IReadOnlyList<PdfPageText> pages = TagSupport.Extract(doc);
+        options ??= new PdfTagOptions();
+        options.Title ??= "Test document";
+        options.Language ??= "en";
+        result = doc.Tag(pages, roles, options);
+        byte[] saved = TagSupport.Save(doc);
+        if (check)
+        {
+            using PdfDocument after = PdfDocument.Open(saved);
+            TagSupport.AssertSame(extractBefore, TagSupport.ExtractionJson(after));
+            TagSupport.AssertSame(displayBefore, TagSupport.DisplayText(after));
+        }
+
+        return saved;
+    }
+
     /// <summary>The decoded content of a page, all its streams joined.</summary>
     public static string PageContent(PdfDocument doc, int page)
     {

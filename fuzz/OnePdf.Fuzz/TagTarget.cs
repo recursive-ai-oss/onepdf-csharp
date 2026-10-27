@@ -25,6 +25,7 @@ internal static class TagTarget
         }
 
         int sel = data[0];
+        int shift = data[1];
         ReadOnlySpan<byte> body = data[2..];
         byte[] file = body.Length > 4 && body[0] == '%' && body[1] == 'P' && body[2] == 'D' && body[3] == 'F' ? body.ToArray() : ContentTarget.Wrap(body);
         try
@@ -44,6 +45,21 @@ internal static class TagTarget
             }
 
             string before = string.Concat(pages.Select(static p => p.Text));
+            if ((sel & 16) != 0)
+            {
+                // The happy path: roles by block number, so lists, tables, links, figures and artifacts all occur.
+                var happy = new PdfTagOptions { Title = "t", Language = "en", KeepHeadersAndFooters = (sel & 8) != 0, SplitListBlocks = (sel & 32) == 0 };
+                if ((sel & 4) != 0)
+                {
+                    happy.Figures.Add(new PdfTagFigure(0, new PdfRectangle(0, 0, pages[0].Width / 2, pages[0].Height), "area"));
+                }
+
+                PdfTaggingPlan p2 = doc.PlanTagging(pages, bl => RoleFor(bl, shift), happy);
+                doc.ApplyTagging(p2);
+                CheckSaved(doc, pageCount, before, options);
+                return;
+            }
+
             PdfTaggingPlan plan = doc.CreateTaggingPlan();
             plan.Title = "t";
             plan.Language = "en";
@@ -85,19 +101,37 @@ internal static class TagTarget
             }
 
             doc.ApplyTagging(plan);
-            using var ms = new MemoryStream();
-            doc.Save(ms, new PdfSaveOptions { XrefFormat = PdfXrefFormat.Table, UseObjectStreams = false });
-            using PdfDocument again = PdfDocument.Open(ms.ToArray(), new PdfOpenOptions { Limits = Limits });
-            string after = string.Concat(Enumerable.Range(0, Math.Min(pageCount, again.Pages.Count)).Select(i => again.Pages[i].ExtractText(options).Text));
-            if (before != after)
-            {
-                throw new InvalidOperationException("the text changed by tagging");
-            }
-
-            _ = again.CheckPdfUA();
+            CheckSaved(doc, pageCount, before, options);
         }
         catch (PdfException)
         {
         }
+    }
+
+    private static PdfBlockRole? RoleFor(PdfTagBlock bl, int shift)
+    {
+        switch ((bl.BlockIndex + shift) % 6)
+        {
+            case 0: return PdfBlockRole.Heading(1 + (bl.BlockIndex % 6));
+            case 1: return PdfBlockRole.Paragraph;
+            case 2: return PdfBlockRole.ListItem;
+            case 3: return PdfBlockRole.Table;
+            case 4: return PdfBlockRole.TableContinued;
+            default: return null;
+        }
+    }
+
+    private static void CheckSaved(PdfDocument doc, int pageCount, string before, PdfTextOptions options)
+    {
+        using var ms = new MemoryStream();
+        doc.Save(ms, new PdfSaveOptions { XrefFormat = PdfXrefFormat.Table, UseObjectStreams = false });
+        using PdfDocument again = PdfDocument.Open(ms.ToArray(), new PdfOpenOptions { Limits = Limits });
+        string after = string.Concat(Enumerable.Range(0, Math.Min(pageCount, again.Pages.Count)).Select(i => again.Pages[i].ExtractText(options).Text));
+        if (before != after)
+        {
+            throw new InvalidOperationException("the text changed by tagging");
+        }
+
+        _ = again.CheckPdfUA();
     }
 }

@@ -425,6 +425,13 @@ public sealed class PdfTaggingPlan
     /// <summary>The language of the document, a BCP 47 tag such as <c>en-US</c>, written as the catalog's <c>/Lang</c>. Null keeps the language the file has.</summary>
     public string? Language { get; set; }
 
+    /// <summary>Notes about a plan made by <see cref="PdfDocument.PlanTagging"/>, for example a link annotation that covers no text. Empty for plans built by hand.</summary>
+    public IReadOnlyList<string> Warnings => _warnings;
+
+    internal void AddWarnings(IEnumerable<string> warnings) => _warnings.AddRange(warnings);
+
+    private readonly List<string> _warnings = [];
+
     internal PdfDocument Document { get; }
 
     internal bool Applied { get; set; }

@@ -83,7 +83,7 @@ internal static class Seeds
                         if (new FileInfo(f).Length <= MaxPdfBytes)
                         {
                             // Rotate through the modes so every mix of block, word, graphics and artifact tagging has seeds.
-                            PutData("pdf", File.ReadAllBytes(f), [(byte)(n++ % 16), 0]);
+                            PutData("pdf", File.ReadAllBytes(f), [(byte)(n++ % 64), (byte)(n % 6)]);
                         }
                     }
 

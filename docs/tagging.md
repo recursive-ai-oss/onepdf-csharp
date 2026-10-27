@@ -1,10 +1,59 @@
 # Tagging existing PDFs
 
+There are two layers. The **happy path** (`PdfDocument.Tag`) covers the common case: you say what each block is, OnePDF builds the structure the way the rules below describe, and each default is an option. The **plan API** underneath (`CreateTaggingPlan`, `PdfTagElement`, `ApplyTagging`) gives full control over every element and every reference; the happy path is built on it, not beside it. Use the happy path first, and drop to the plan for what the options do not reach.
+
 OnePDF can add a structure tree to a PDF that has none. **You decide the roles; OnePDF writes the structure.** A tool that works out what each block is (a heading, a paragraph, a list item, a table cell, a figure) builds a plan from a text extraction, and `ApplyTagging` turns that plan into marked content in the page streams, a structure tree, a parent tree and the catalog entries a tagged PDF needs. OnePDF never guesses a role, never invents alternate text and never judges whether the roles are right. A clean PDF/UA check afterwards is evidence, not proof of conformance (see [pdfua.md](pdfua.md)).
 
 Pages look the same and extract the same afterwards. Only marked-content operators are added, text-showing operators are split at glyph boundaries without moving a glyph, and nothing is drawn differently. The tests check this against the extraction, the display list and two independent renderers.
 
-## Flow
+## The happy path
+
+```csharp
+using PdfDocument doc = PdfDocument.Open("in.pdf", new PdfOpenOptions { AllowEditing = true });
+
+// Extract the whole document with the glyphs kept (running headers and footers are found across pages).
+IReadOnlyList<PdfPageText> text = doc.ExtractText(new PdfTextOptions { RetainGlyphs = true, UseStructureTree = false });
+
+var options = new PdfTagOptions { Title = "Harbor tide tables 2026", Language = "en" };
+options.Figures.Add(new PdfTagFigure(0, new PdfRectangle(100, 300, 300, 450), "Chart of the tide heights"));
+
+doc.Tag(text, block => /* your decision for this block */ block.Block.Lines[0].Text switch
+{
+    var t when IsHeading(t) => PdfBlockRole.Heading(1),
+    var t when IsListItem(t) => PdfBlockRole.ListItem,
+    var t when IsTableRow(t) => PdfBlockRole.Table,
+    _ => PdfBlockRole.Paragraph,   // or null / PdfBlockRole.Artifact for decoration
+}, options);
+
+doc.Save("out.pdf", new PdfSaveOptions { PdfUA = new PdfUAOptions() });   // or Save / SaveIncremental
+```
+
+`doc.Tag(...)` is `doc.PlanTagging(...)` followed by `doc.ApplyTagging(plan)`. `PlanTagging` returns the plan without touching the document, so you can add to it or change it with the plan API before applying.
+
+**The decision is yours.** The delegate returns a `PdfBlockRole` for every block it is asked about: `Heading(1..6)`, `Paragraph`, `ListItem`, `Table`, `TableContinued`, `Figure(alt)`, or `Artifact` (also what `null` and `default` mean). OnePDF never works a role out.
+
+### What OnePDF builds from the roles
+
+| Role | Structure | Option |
+|---|---|---|
+| `Heading(n)` | `H1`–`H6` holding the block | |
+| `Paragraph` | `P` holding the block | |
+| `ListItem` | Consecutive list items (artifacts in between do not break the run) share one `L`; each is an `LI`. Any other role, a figure or a table ends the list. | |
+| – the label | A first word that is a bullet or a number (`•`, `-`, `1.`, `(2)`, `a)`, `iv.`) becomes `Lbl`, the rest of the item `LBody`. An item without a label word is an `LI` with an `LBody` only. | `SplitListLabels` (default true), `IsListLabel` |
+| – blocks of several items | A block with several lines is cut into items at each line that starts with a label word; lines before the first label word form their own item. Without any label word a block is one item. | `SplitListBlocks` (default true) |
+| `Table` | A `Table`; every line is a `TR`, every cell of a line (`PdfTextLine.CellStarts`) a cell. The first row is `TH` with scope `Column`, the others `TD`. | `TableHeaderRows` (1), `TableHeaderColumns` (0), `HeaderRowScope` (Column), `HeaderColumnScope` (Row) |
+| `TableContinued` | More body rows added to the table before it, also across pages. Without a table before it, it starts a new one. | |
+| `Figure(alt)` | A `Figure` holding the block's own text, with `Alt`. | |
+| figures by area | Each `PdfTagFigure` (page, area, alt) becomes a `Figure` of the images and paths inside the area, placed before the first block of its page that lies lower. | `Figures` |
+| header, footer | Blocks that extraction flags as running headers or footers become pagination artifacts (`/Subtype /Header` or `/Footer`); the delegate is not asked about them. | `KeepHeadersAndFooters` (false) |
+| link annotation | The words its rectangle covers (word centres inside it, on the block that holds most of them) get a `Link` element with the annotation as an object reference, inside the element of that block. The annotation gets `/Contents` from the words if it has none. A link over an artifact, a list label or no text is left alone and noted in `Warnings`. | `TagLinks` (true) |
+| anything else | A mark or text that no element holds is an artifact. | |
+
+`PdfTagOptions.Customize` is called for every element the happy path creates (including `L`, `LI`, `Lbl`, `LBody`, `TR`, `TH`, `TD` and `Link`) with the block it came from and before it gets children. Use it to set `Alt`, `Lang`, `ActualText`, `Scope`, `RowSpan` or `ColSpan`. Elements made for `Figures` have no block and do not go through the hook; set their text in the `PdfTagFigure`.
+
+Limits of the happy path, by design: one role per block (a block that holds a heading and a paragraph has to be tagged with the plan API, which can reference lines and words), a table row is a line of the block, and spans are not guessed. The result of `Tag` is the `PdfTaggingResult` of `ApplyTagging`, with the plan's warnings in front.
+
+## The plan API
 
 ```csharp
 using PdfDocument doc = PdfDocument.Open("in.pdf", new PdfOpenOptions { AllowEditing = true });
