@@ -4,6 +4,8 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ## [Unreleased]
 
+## [1.11.0] - 2026-10-26
+
 ### Added
 
 - Tagging of existing untagged PDFs, in two layers. The happy path, `PdfDocument.Tag(text, block => role, options)` (and `PlanTagging`, which returns the plan without applying it), takes the role a caller gives each block of an extraction (`PdfBlockRole`: headings, paragraphs, list items, tables, continued tables, figures, artifacts) and builds the structure by documented rules: list items grouped into one `L` with `Lbl` and `LBody`, table rows and cells from the lines and their cells with a header row, headers and footers as pagination artifacts, link annotations as `Link` elements with object references, figures by area, everything else an artifact. Each default is a `PdfTagOptions` setting, and `Customize` can change every generated element. The plan API underneath, `PdfDocument.CreateTaggingPlan()` returns a plan in which a caller (typically an accessibility remediation tool) gives blocks, lines, words, table cells, graphics areas and link annotations of a text extraction a structure role; `PdfDocument.ApplyTagging(plan)` then writes the marked content, the structure tree, the parent tree, `/StructParents`, `/MarkInfo`, the language and the title into the editable document, and marks everything the plan leaves out as an artifact. Pages look and extract the same afterwards: only marked-content operators are added, text-showing operators are split at glyph boundaries without moving a glyph, and Form XObjects are wrapped whole or, when their content belongs to several elements, copied for that use. OnePDF does not choose roles or invent alternate text. Files that already have a structure tree, declare `/MarkInfo /Marked true` or contain marked content with an `/MCID` are refused with `PdfTaggingException`, as are references that come from another document, content referenced twice, impossible nesting and pages that cannot be rewritten safely. A link annotation without `/Contents` gets the link's alternate text or its words. See `docs/tagging.md`.
@@ -246,6 +248,7 @@ First release. Two packages, `RecursiveAI.OnePdf` (the library, `net10.0`, no de
 - Limits on by default (`PdfLimits`) and fuzzed parsers, filters and font readers; no `unsafe` code. OnePDF never runs code or touches the network.
 - `RecursiveAI.OnePdf.Fonts`: Liberation and Noto substitute outlines under the SIL Open Font License 1.1, registered with `FontsPackage.Register()`.
 
+[1.11.0]: https://github.com/recursive-ai-oss/onepdf-csharp/releases/tag/v1.11.0
 [1.10.2]: https://github.com/recursive-ai-oss/onepdf-csharp/releases/tag/v1.10.2
 [1.10.1]: https://github.com/recursive-ai-oss/onepdf-csharp/releases/tag/v1.10.1
 [1.10.0]: https://github.com/recursive-ai-oss/onepdf-csharp/releases/tag/v1.10.0
