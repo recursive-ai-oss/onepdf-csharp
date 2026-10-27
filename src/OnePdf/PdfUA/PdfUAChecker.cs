@@ -952,7 +952,7 @@ internal sealed class PdfUAChecker
             }
         }
 
-        var carry = new List<int>(); // rows still covered by a row span, per column
+        var carry = new List<int>(); // per column, how many more rows (this one included) are covered by a row span
         int expected = -1;
         bool regular = true;
         foreach (int r in rows)
@@ -980,17 +980,19 @@ internal sealed class PdfUAChecker
                         carry.Add(0);
                     }
 
-                    carry[col] = rowSpan;
+                    carry[col] = Math.Max(carry[col], rowSpan);
                 }
             }
 
-            // Columns still covered from earlier rows count towards this row's width.
+            // The row is as wide as its last cell, or as the last column that a cell of an earlier row still covers here
+            // (a row whose trailing columns are taken by a row span lists fewer cells; ISO 32000-1 14.8.5.7, RowSpan).
             int width = col;
-            for (int k = col; k < carry.Count; k++)
+            for (int k = carry.Count - 1; k >= col; k--)
             {
-                if (carry[k] > 1)
+                if (carry[k] > 0)
                 {
                     width = k + 1;
+                    break;
                 }
             }
 
