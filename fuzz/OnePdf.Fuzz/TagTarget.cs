@@ -37,14 +37,17 @@ internal static class TagTarget
                 return;
             }
 
-            var options = new PdfTextOptions { RetainGlyphs = true, UseStructureTree = false };
+            // Duplicate collapsing visits near-identical positions in an order that depends on the last bits of the coordinates, so on hostile
+            // files with thousands of overprinted copies a split text operator (which reaches the same place by another sum) can collapse
+            // another copy. It is off for this comparison.
+            var options = new PdfTextOptions { RetainGlyphs = true, UseStructureTree = false, CollapseDuplicates = false };
             var pages = new List<PdfPageText>();
             for (int i = 0; i < pageCount; i++)
             {
                 pages.Add(doc.Pages[i].ExtractText(options));
             }
 
-            string before = string.Concat(pages.Select(static p => p.Text));
+            List<PdfTextGlyph> before = [.. pages.SelectMany(static p => p.Glyphs)];
             if ((sel & 16) != 0)
             {
                 // The happy path: roles by block number, so lists, tables, links, figures and artifacts all occur.
@@ -121,15 +124,25 @@ internal static class TagTarget
         }
     }
 
-    private static void CheckSaved(PdfDocument doc, int pageCount, string before, PdfTextOptions options)
+    // The glyphs, in order, are the same and sit in the same places. Words and lines are not compared: they come from thresholds on gaps,
+    // which a sum of advances taken in another order can tip on files whose glyphs have zero advance.
+    private static void CheckSaved(PdfDocument doc, int pageCount, List<PdfTextGlyph> before, PdfTextOptions options)
     {
         using var ms = new MemoryStream();
         doc.Save(ms, new PdfSaveOptions { XrefFormat = PdfXrefFormat.Table, UseObjectStreams = false });
         using PdfDocument again = PdfDocument.Open(ms.ToArray(), new PdfOpenOptions { Limits = Limits });
-        string after = string.Concat(Enumerable.Range(0, Math.Min(pageCount, again.Pages.Count)).Select(i => again.Pages[i].ExtractText(options).Text));
-        if (before != after)
+        List<PdfTextGlyph> after = [.. Enumerable.Range(0, Math.Min(pageCount, again.Pages.Count)).SelectMany(i => again.Pages[i].ExtractText(options).Glyphs)];
+        if (before.Count != after.Count)
         {
-            throw new InvalidOperationException("the text changed by tagging");
+            throw new InvalidOperationException($"tagging changed the number of glyphs: {before.Count} to {after.Count}");
+        }
+
+        for (int i = 0; i < before.Count; i++)
+        {
+            if (before[i].Text != after[i].Text || Math.Abs(before[i].Matrix.E - after[i].Matrix.E) > 1e-6 || Math.Abs(before[i].Matrix.F - after[i].Matrix.F) > 1e-6)
+            {
+                throw new InvalidOperationException($"tagging changed glyph {i}: '{before[i].Text}' at {before[i].Matrix.E},{before[i].Matrix.F} became '{after[i].Text}' at {after[i].Matrix.E},{after[i].Matrix.F}");
+            }
         }
 
         _ = again.CheckPdfUA();

@@ -153,3 +153,4 @@ Calls also throw `PdfLimitException` when the tree would be deeper than `PdfLimi
 - No reading order is derived from the plan beyond the order of elements and their content.
 - The visual result is unchanged by design, which also means defects in the source (fonts that are not embedded, text without a Unicode mapping) stay and are reported by the PDF/UA check.
 - Annotation appearance streams are not tagged; annotations are tied to the tree by an object reference.
+- Tagging splits a text operator where owners change, which reaches later glyphs by a different sum of the same advances (differences around 1e-13 pt). Extraction is unchanged for every committed test file, but on a page of thousands of overprinted copies, or glyphs with zero advance, a threshold in duplicate collapsing or word spacing can fall the other way for a glyph. Glyph order, text and positions stay the same.
