@@ -25,7 +25,7 @@ doc.Save("out.pdf", new PdfSaveOptions
 
 ## What it is, and is not
 
-- **It writes PDF/A for documents made or edited with OnePDF**, and for existing files that already meet the requirements. Level B (visual reproducibility) and level U (B plus a Unicode mapping for all text) of parts 2 and 3. Level A (tagged structure) is offered for documents that are already tagged: see [pdfua.md](pdfua.md).
+- **It writes PDF/A for documents made or edited with OnePDF**, and for existing files that already meet the requirements. Level B (visual reproducibility) and level U (B plus a Unicode mapping for all text) of parts 2 and 3. Level A (tagged structure) is offered for documents that are already tagged, including existing files tagged through [the tagging API](tagging.md): see [pdfua.md](pdfua.md).
 - **It is not a validator.** `CheckPdfA` verifies what is listed below and nothing else; a clean result does not prove conformance. The tests use the veraPDF command-line validator as a black box (see "Verification").
 - **It does not convert.** No fonts are embedded into foreign content, no transparency or colour is rewritten, nothing is flattened, no JavaScript is removed. A file that breaks a requirement is refused, and the violations tell you what to change.
 

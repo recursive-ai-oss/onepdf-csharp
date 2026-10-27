@@ -75,6 +75,23 @@ internal static class Seeds
 
                 break;
 
+            case "tag":
+                {
+                    int n = 0;
+                    foreach (string f in pdfs)
+                    {
+                        if (new FileInfo(f).Length <= MaxPdfBytes)
+                        {
+                            // Rotate through the modes so every mix of block, word, graphics and artifact tagging has seeds.
+                            PutData("pdf", File.ReadAllBytes(f), [(byte)(n++ % 64), (byte)(n % 6)]);
+                        }
+                    }
+
+                    PutData("cs", "BT /F1 12 Tf 20 100 Td (Hello secret world) Tj [(a) -120 (b)] TJ ET q 1 0 0 rg 0 0 50 50 re f Q /Fm Do BI /W 2 /H 2 /BPC 8 /CS /G ID abcd EI"u8, [2, 0]);
+                    PutData("cs", "/Artifact BMC BT /F1 12 Tf 20 100 Td (One two three) Tj ET EMC q 1 0 0 1 0 -20 cm BT /F1 12 Tf 20 100 Td (Four five) Tj ET Q"u8, [3, 0]);
+                    break;
+                }
+
             case "redact":
                 {
                     byte[] head = [0, 20, 90, 60, 20, 100, 150, 50, 40, 10, 10, 80, 80, 150, 20, 60, 60, 0, 0, 0];

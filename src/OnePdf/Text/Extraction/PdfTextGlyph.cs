@@ -78,9 +78,16 @@ public readonly struct PdfTextGlyph
     /// <summary>The <c>/ActualText</c> string, set on the first glyph (in content order) of the span only; null elsewhere.</summary>
     public string? ActualText { get; init; }
 
+    /// <summary>
+    /// The position of the glyph among everything the page's content showed, before exclusions and duplicate removal; -1 for glyphs
+    /// that did not come from a document page. Tagging uses it to find the operator that showed a glyph the extraction kept.
+    /// </summary>
+    internal int SourceIndex { get; init; }
+
     /// <summary>Creates a glyph with default metrics (ascent 0.9, descent -0.2, visible, no marked content).</summary>
     public PdfTextGlyph()
     {
+        SourceIndex = -1;
         Text = "";
         FontId = -1;
         Matrix = PdfTextMatrix.Identity;
@@ -201,6 +208,9 @@ public sealed class PdfPageGlyphs
 
     /// <summary>Height of the upright page in points.</summary>
     public double Height { get; }
+
+    /// <summary>How many glyphs the page holds (also after they were taken over by an analysis).</summary>
+    internal int Count => _count;
 
     /// <summary>The glyphs in content order.</summary>
     public IReadOnlyList<PdfTextGlyph> Glyphs => _list ?? new ArraySegment<PdfTextGlyph>(_pooled ?? [], 0, _pooled is null ? 0 : _count);

@@ -48,6 +48,12 @@ if (OnePdf.AotSmoke.RedactionSmoke.Run() is { } redactionFailure)
     return 1;
 }
 
+if (OnePdf.AotSmoke.TaggingSmoke.Run() is { } taggingFailure)
+{
+    Console.Error.WriteLine("tagging: " + taggingFailure);
+    return 1;
+}
+
 if (OnePdf.AotSmoke.SignatureSmoke.Run() is { } signatureFailure)
 {
     Console.Error.WriteLine("signature verification: " + signatureFailure);

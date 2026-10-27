@@ -271,6 +271,15 @@ public sealed class PdfPageText
     /// <summary>Zero-based page index.</summary>
     public int PageIndex { get; }
 
+    /// <summary>The document the page was read from, or null for a page analyzed from a bare glyph list.</summary>
+    internal PdfDocument? Document { get; set; }
+
+    /// <summary>How many glyphs the page's content showed before exclusions and duplicate removal (see <see cref="PdfTextGlyph.SourceIndex"/>).</summary>
+    internal int SourceGlyphCount { get; set; }
+
+    /// <summary>True when the glyphs were dropped after the analysis, so words carry no glyph indices.</summary>
+    internal bool GlyphsWereDropped => _glyphsDropped;
+
     /// <summary>Width of the upright page in points.</summary>
     public double Width { get; }
 

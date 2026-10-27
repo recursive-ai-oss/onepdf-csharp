@@ -22,7 +22,7 @@ public enum PdfAConformance
     /// <summary>
     /// Level A (accessible): level U, and the document is tagged with a logical structure (ISO 19005-2, 6.7): <c>/MarkInfo</c>, a structure
     /// tree with standard or role-mapped types, a document language, alternate text for figures, and every mark either tagged or an artifact.
-    /// OnePDF offers A for documents it laid out or created with tags; it does not tag existing files.
+    /// OnePDF offers A for documents it laid out or created with tags, and for existing files tagged through <see cref="PdfDocument.ApplyTagging(PdfTaggingPlan, CancellationToken)"/> with roles the caller supplies; it never decides roles itself.
     /// </summary>
     A = 2,
 }
