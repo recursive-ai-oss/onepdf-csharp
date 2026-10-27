@@ -44,6 +44,22 @@ internal static class LayoutParameters
     /// <summary>A narrow-gutter cut makes at most this many columns; a region with more stripes is not newspaper columns.</summary>
     internal const int SoftMaxColumns = 8;
 
+    /// <summary>
+    /// A region of at least this many lines whose narrow-gutter search found no usable empty stripe is searched again for a stripe that a few glyphs
+    /// cross (at most a tenth of the lines): a word running on into the gutter, a stray page number. Shorter regions have too few lines to tell a gutter
+    /// from chance alignment of word gaps.
+    /// </summary>
+    internal const int RobustMinLines = 30;
+
+    /// <summary>Text must stand up to a stripe on both sides: over this many em on each side ...</summary>
+    internal const double RobustSideEm = 3;
+
+    /// <summary>... the mean number of glyphs covering a position is at least this share of the peak (the ragged edge of one column is not a gutter).</summary>
+    internal const double RobustSideShare = 0.25;
+
+    /// <summary>The widest column cut at such stripes is at most this many times the narrowest; otherwise a gutter is missing inside the wide one.</summary>
+    internal const double RobustColumnRatio = 1.6;
+
     /// <summary>An empty horizontal band at least this tall (em) separates blocks.</summary>
     internal const double BlockGapEm = 0.5;
 

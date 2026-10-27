@@ -4,6 +4,10 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ## [Unreleased]
 
+### Fixed
+
+- Text extraction read columns of running text row by row when a few glyphs crossed the gutter: a word running on into it from the end of a line, or a stray word such as a page number standing in it. The narrow-gutter search needed a completely empty stripe. For regions of at least 30 lines that still have no cut, it now also accepts a stripe at least 0.5 em wide that at most a tenth of the lines cross, with text standing up to it on both sides, and the resulting columns must be running text of similar width. Pages that were already cut by an earlier rule read exactly as before.
+
 ## [1.11.0] - 2026-10-26
 
 ### Added

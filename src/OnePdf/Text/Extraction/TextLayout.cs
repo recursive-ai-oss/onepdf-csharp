@@ -788,6 +788,7 @@ internal static class TextLayout
         double[] stripesA = w.Doubles.Rent(2 * cap + 2);
         double[] stripesB = w.Doubles.Rent(2 * cap + 2);
         double[] softScratch = w.Doubles.Rent(cap + 1);
+        double[] softEnds = w.Doubles.Rent(cap + 1);
         double[] softBounds = new double[LayoutParameters.SoftMaxColumns];
         int[] softStart = new int[LayoutParameters.SoftMaxColumns];
         int[] softLen = new int[LayoutParameters.SoftMaxColumns];
@@ -836,7 +837,7 @@ internal static class TextLayout
             {
                 groups = Partition(f, reg, s, len, false, LayoutParameters.BlockGapEm * ms, ks, gb);
                 horizontal = true;
-                int cols = groups == 0 ? SoftColumns(w, f, items, ids, reg, s, len, ms, cap, ks, softScratch, softBounds, ref fragCount, ref regTail, softStart, softLen) : 0;
+                int cols = groups == 0 ? SoftColumns(w, f, items, ids, reg, s, len, ms, cap, ks, softScratch, softEnds, stripesA, stripesB, softBounds, ref fragCount, ref regTail, softStart, softLen) : 0;
                 if (cols > 0)
                 {
                     // No wide gutter and no gap between blocks, but a narrow gutter runs clear through columns of running text: read them one
@@ -916,7 +917,7 @@ internal static class TextLayout
     /// count, so the answer does not depend on pooled array sizes.
     /// </summary>
     private static int SoftColumns(LayoutWork w, Frag[] f, Item[] items, int[] ids, int[] reg, int s, int len, double ms, int cap, KeyIdx[] ks, double[] scratch,
-        double[] bounds, ref int fragCount, ref int regTail, int[] outStart, int[] outLen)
+        double[] ends, double[] pos, double[] cov, double[] bounds, ref int fragCount, ref int regTail, int[] outStart, int[] outLen)
     {
         if (CountLines(w, f, reg, s, len, LayoutParameters.SoftMinLines) < LayoutParameters.SoftMinLines)
         {
@@ -941,7 +942,6 @@ internal static class TextLayout
             return 0;
         }
 
-        int fragMark = fragCount, regMark = regTail;
         IntroSort.Sort<KeyIdx, ByKeyOrder>(ks.AsSpan(0, n));
         double gap = LayoutParameters.SoftGutterEm * ms;
         int nb = 0;
@@ -961,11 +961,72 @@ internal static class TextLayout
             curEnd = Math.Max(curEnd, items[ks[i].Idx].X1);
         }
 
-        if (nb == 0)
+        if (nb > 0)
+        {
+            int cols = BuildSoftColumns(w, f, items, ids, reg, s, len, ms, cap, scratch, bounds, null, nb, ref fragCount, ref regTail, outStart, outLen);
+            if (cols > 0)
+            {
+                return cols;
+            }
+        }
+
+        // No clean stripe gave columns. A few glyphs in the gutter can still hide it (see RobustBounds).
+        if (CountLines(w, f, reg, s, len, LayoutParameters.RobustMinLines) < LayoutParameters.RobustMinLines)
         {
             return 0;
         }
 
+        double[] cost = new double[LayoutParameters.SoftMaxColumns];
+        double[] runs = new double[2 * LayoutParameters.SoftMaxColumns];
+        nb = RobustBounds(items, ks, n, ends, pos, cov, ms, bounds, cost, runs);
+        while (nb > 0)
+        {
+            int cols = BuildSoftColumns(w, f, items, ids, reg, s, len, ms, cap, scratch, bounds, runs, nb, ref fragCount, ref regTail, outStart, outLen);
+            if (cols > 0)
+            {
+                return cols;
+            }
+
+            // The columns were not running text or differ too much in width: a stripe was a gap inside a column. Drop the one with the most glyphs in it.
+            DropWorstStripe(bounds, cost, runs, ref nb);
+        }
+
+        return 0;
+    }
+
+    private static void DropWorstStripe(double[] bounds, double[] cost, double[] runs, ref int nb)
+    {
+        int worst = 0;
+        for (int i = 1; i < nb; i++)
+        {
+            if (cost[i] > cost[worst])
+            {
+                worst = i;
+            }
+        }
+
+        for (int i = worst; i < nb - 1; i++)
+        {
+            bounds[i] = bounds[i + 1];
+            cost[i] = cost[i + 1];
+            runs[2 * i] = runs[2 * i + 2];
+            runs[2 * i + 1] = runs[2 * i + 3];
+        }
+
+        nb--;
+    }
+
+    /// <summary>
+    /// Cuts the fragments of a region at the vertical lines <paramref name="bounds"/> (glyphs go to the column their centre is in) and appends the columns after
+    /// the existing regions. Returns the column count, or 0 with nothing changed when a column is not running text (or, for stripes found by <see cref="RobustBounds"/>,
+    /// when the widest column is more than <see cref="LayoutParameters.RobustColumnRatio"/> times the narrowest).
+    /// </summary>
+    private static int BuildSoftColumns(LayoutWork w, Frag[] f, Item[] items, int[] ids, int[] reg, int s, int len, double ms, int cap, double[] scratch,
+        double[] bounds, double[]? runs, int nb, ref int fragCount, ref int regTail, int[] outStart, int[] outLen)
+    {
+        bool robust = runs is not null;
+        int fragMark = fragCount, regMark = regTail;
+        double minWidth = double.MaxValue, maxWidth = 0;
         int cols = nb + 1;
         for (int c = 0; c < cols; c++)
         {
@@ -976,6 +1037,7 @@ internal static class TextLayout
                 int end = fr.Start + fr.Count;
                 int runStart = -1;
                 bool ink = false;
+                int prevCol = -1;
                 for (int p = fr.Start; p <= end; p++)
                 {
                     bool inCol = false;
@@ -989,6 +1051,17 @@ internal static class TextLayout
                             col++;
                         }
 
+                        // A glyph in the stripe itself (a word running on into the gutter) stays with the text before it on the line.
+                        if (runs is not null && prevCol >= 0 && mid >= runs[2 * Math.Min(col, nb - 1)] && mid <= runs[2 * Math.Min(col, nb - 1) + 1])
+                        {
+                            col = prevCol;
+                        }
+                        else if (runs is not null && prevCol >= 0 && col > 0 && mid >= runs[2 * (col - 1)] && mid <= runs[2 * (col - 1) + 1])
+                        {
+                            col = prevCol;
+                        }
+
+                        prevCol = col;
                         inCol = col == c;
                         if (inCol)
                         {
@@ -1033,10 +1106,171 @@ internal static class TextLayout
                 regTail = regMark;
                 return 0;
             }
+
+            double x0 = double.MaxValue, x1 = double.MinValue;
+            for (int i = first; i < regTail; i++)
+            {
+                x0 = Math.Min(x0, f[reg[i]].X0);
+                x1 = Math.Max(x1, f[reg[i]].X1);
+            }
+
+            minWidth = Math.Min(minWidth, x1 - x0);
+            maxWidth = Math.Max(maxWidth, x1 - x0);
+        }
+
+        if (robust && maxWidth > LayoutParameters.RobustColumnRatio * minWidth)
+        {
+            fragCount = fragMark;
+            regTail = regMark;
+            return 0;
         }
 
         return cols;
     }
+
+    /// <summary>
+    /// Finds vertical stripes through a region of running text that a few glyphs cross (a word that runs on into the gutter, a stray page number), which
+    /// the empty-stripe search misses. The glyph boxes are swept left to right counting how many cover each position. A stripe is a run of positions
+    /// inside the text, at least <see cref="LayoutParameters.SoftGutterEm"/> wide, covered by at most a tenth of the peak count (and at least one glyph),
+    /// with text standing up to it on both sides: over <see cref="LayoutParameters.RobustSideEm"/> em on each side the mean count is at least
+    /// <see cref="LayoutParameters.RobustSideShare"/> of the peak, so the ragged right edge of one column with a few long lines is not a gutter. The stripe is
+    /// placed in the middle of the longest part of the run with the fewest glyphs. Returns the stripe count (at most <see cref="LayoutParameters.SoftMaxColumns"/> - 1,
+    /// the worst dropped first) with positions in <paramref name="bounds"/> and mean glyph counts in <paramref name="cost"/> and the extent of each run in <paramref name="runs"/>. <paramref name="ks"/> holds the
+    /// glyphs sorted by left edge.
+    /// </summary>
+    private static int RobustBounds(Item[] items, KeyIdx[] ks, int n, double[] ends, double[] pos, double[] cov, double ms, double[] bounds, double[] cost, double[] runs)
+    {
+        for (int i = 0; i < n; i++)
+        {
+            ends[i] = items[ks[i].Idx].X1;
+        }
+
+        ends.AsSpan(0, n).Sort();
+
+        // Segment k is [pos[k], pos[k + 1]) covered by cov[k] glyphs.
+        int m = 0, si = 0, ei = 0, cur = 0;
+        while (si < n || ei < n)
+        {
+            double x = si < n && (ei >= n || ks[si].Key <= ends[ei]) ? ks[si].Key : ends[ei];
+            while (si < n && ks[si].Key <= x)
+            {
+                cur++;
+                si++;
+            }
+
+            while (ei < n && ends[ei] <= x)
+            {
+                cur--;
+                ei++;
+            }
+
+            pos[m] = x;
+            cov[m++] = cur;
+        }
+
+        int peak = 0;
+        for (int k = 0; k < m - 1; k++)
+        {
+            peak = Math.Max(peak, (int)cov[k]);
+        }
+
+        int tolerance = Math.Max(1, (peak + 9) / 10);
+        double width = LayoutParameters.SoftGutterEm * ms;
+        double side = LayoutParameters.RobustSideEm * ms;
+        int nb = 0;
+        for (int k = 1; k < m - 2; k++)
+        {
+            if (cov[k] > tolerance)
+            {
+                continue;
+            }
+
+            int first = k;
+            while (k < m - 1 && cov[k] <= tolerance)
+            {
+                k++;
+            }
+
+            int last = k - 1;
+            if (last >= m - 2)
+            {
+                break;
+            }
+
+            double a = pos[first], b = pos[last + 1];
+            if (b - a < width
+                || MeanCover(pos, cov, m, a - side, a) < LayoutParameters.RobustSideShare * peak
+                || MeanCover(pos, cov, m, b, b + side) < LayoutParameters.RobustSideShare * peak)
+            {
+                continue;
+            }
+
+            // Middle of the longest part of the run with the lowest count.
+            double low = double.MaxValue, mean = 0;
+            for (int j = first; j <= last; j++)
+            {
+                low = Math.Min(low, cov[j]);
+                mean += cov[j] * (pos[j + 1] - pos[j]);
+            }
+
+            double bestLen = -1, bestMid = (a + b) / 2;
+            for (int j = first; j <= last; j++)
+            {
+                if (cov[j] != low)
+                {
+                    continue;
+                }
+
+                int e = j;
+                while (e < last && cov[e + 1] == low)
+                {
+                    e++;
+                }
+
+                if (pos[e + 1] - pos[j] > bestLen)
+                {
+                    bestLen = pos[e + 1] - pos[j];
+                    bestMid = (pos[j] + pos[e + 1]) / 2;
+                }
+
+                j = e;
+            }
+
+            if (nb == bounds.Length)
+            {
+                break;
+            }
+
+            bounds[nb] = bestMid;
+            runs[2 * nb] = a;
+            runs[2 * nb + 1] = b;
+            cost[nb++] = mean / (b - a);
+        }
+
+        while (nb > LayoutParameters.SoftMaxColumns - 1)
+        {
+            DropWorstStripe(bounds, cost, runs, ref nb);
+        }
+
+        return nb;
+    }
+
+    /// <summary>The mean glyph count over [<paramref name="from"/>, <paramref name="to"/>); positions outside the swept text count as zero.</summary>
+    private static double MeanCover(double[] pos, double[] cov, int m, double from, double to)
+    {
+        double sum = 0;
+        for (int k = 0; k < m - 1; k++)
+        {
+            double lo = Math.Max(pos[k], from), hi = Math.Min(pos[k + 1], to);
+            if (hi > lo)
+            {
+                sum += cov[k] * (hi - lo);
+            }
+        }
+
+        return sum / (to - from);
+    }
+
 
     private static bool SoftColumnIsText(LayoutWork w, Frag[] f, int[] reg, int s, int len, double ms, double[] widths)
     {
