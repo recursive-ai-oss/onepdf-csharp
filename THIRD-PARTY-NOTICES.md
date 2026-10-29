@@ -134,7 +134,9 @@ The package license expression is `(MIT OR Apache-2.0) AND OFL-1.1`: the code is
 - **Noto Sans Symbols 2 2.008** — "Copyright 2022 The Noto Project Authors (https://github.com/notofonts/symbols)". Used for ZapfDingbats. License text: `NotoSansSymbols2.OFL.txt`.
 - **Noto Sans Symbols 2.003** — "Copyright 2022 The Noto Project Authors (https://github.com/notofonts/symbols)". Fills the ZapfDingbats glyphs that Noto Sans Symbols 2 lacks. License text: `NotoSansSymbols.OFL.txt`.
 
-OFL 1.1 conditions that apply: the copyright notice and license accompany every copy (they do, in the package and in the assembly's resources); the fonts are not sold by themselves; no Modified Version is made.
+OFL 1.1 conditions that apply: the copyright notice and license accompany every copy (they do, in the package and in the assembly's resources); the fonts are not sold by themselves; no Modified Version of the package files is made (they stay byte for byte).
+
+Subsets embedded in documents: when a document is saved with `EmbedSubstituteFonts` (see `docs/fonts.md`), or content is created with an embedded subset, the subset written into the PDF is a modified version of the font, made only for use inside that document. Its advance widths may be set to the widths the document already declares, it contains only the glyphs used, and it carries no `name` table, so no Reserved Font Name appears in it; the PDF names it after the font the document used, behind a subset tag. The subset keeps the OFL, and embedding a subset in a document is covered by OFL-FAQ 1.12 ("So can I embed OFL fonts in my document? Yes, either in full or a subset. The restrictions regarding font modification and redistribution do not apply, as the font is not intended for use outside the document."). The OFL text above stays the license of the font files in this package.
 
 ## Hyphenation patterns (`RecursiveAI.OnePdf.Hyphenation`)
 

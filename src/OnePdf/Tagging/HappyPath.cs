@@ -64,6 +64,19 @@ internal sealed class HappyPath
             }
 
             links.ReportUnused(page.PageIndex, _warnings);
+            if (_o.TagAnnotations)
+            {
+                foreach (PdfAnnotation a in _doc.Pages[page.PageIndex].Annotations)
+                {
+                    if (a.Subtype is not ("Link" or "Widget" or "Popup" or "TrapNet" or "PrinterMark") && a.Dictionary.Reference is not null)
+                    {
+                        // Close open runs (list, table) only when there is an annotation to add, so a table
+                        // can still continue onto the next page on pages without annotations.
+                        CloseRuns();
+                        _plan.Add(PdfTagRole.Annot, PdfTagContent.Annotation(a));
+                    }
+                }
+            }
         }
     }
 

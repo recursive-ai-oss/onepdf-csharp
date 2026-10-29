@@ -272,6 +272,32 @@ internal static class Seeds
 
                 break;
 
+            case "fontembed":
+                // A mode byte (dictionary kind in the low two bits), then the font file.
+                foreach (byte[] font in ExtractFromPdfs(pdfs, FontFiles))
+                {
+                    PutData("pdffont-simple", font, [0]);
+                    PutData("pdffont-symbolic", font, [1]);
+                    PutData("pdffont-cid", font, [2]);
+                    PutData("pdffont-diff", font, [3]);
+                }
+
+                if (fontDir is not null && Directory.Exists(fontDir))
+                {
+                    foreach (string f in Directory.EnumerateFiles(fontDir, "*.*", SearchOption.AllDirectories)
+                                 .Where(static f => f.EndsWith(".ttf", StringComparison.OrdinalIgnoreCase) || f.EndsWith(".otf", StringComparison.OrdinalIgnoreCase))
+                                 .Order(StringComparer.Ordinal).Take(6))
+                    {
+                        if (new FileInfo(f).Length <= 260_000)
+                        {
+                            PutData("sysfont-simple", File.ReadAllBytes(f), [0]);
+                            PutData("sysfont-cid", File.ReadAllBytes(f), [2]);
+                        }
+                    }
+                }
+
+                break;
+
             case "fontprogram":
                 foreach (byte[] font in ExtractFromPdfs(pdfs, FontFiles))
                 {

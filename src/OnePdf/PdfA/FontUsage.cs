@@ -1,5 +1,6 @@
 using System.Linq;
 using OnePdf.Content;
+using OnePdf.PdfFonts;
 
 namespace OnePdf.PdfA;
 
@@ -27,11 +28,19 @@ internal sealed class FontUsage
     private long _operators;
     private Operand[] _pendingItems = [];
 
-    private FontUsage(PdfDocument doc, HashSet<int> targets)
+    private readonly IReadOnlyDictionary<int, PdfFont>? _composite;
+    private readonly Dictionary<int, Dictionary<uint, (int Cid, int Length)>> _usedComposite = [];
+    private readonly List<FontGlyph> _scratch = [];
+
+    private FontUsage(PdfDocument doc, HashSet<int> targets, IReadOnlyDictionary<int, PdfFont>? composite)
     {
         _doc = doc;
         _targets = targets;
+        _composite = composite;
     }
+
+    /// <summary>The codes shown with a composite font (see the <c>composite</c> argument of <see cref="Scan"/>) with their character id and byte length.</summary>
+    public IReadOnlyDictionary<int, Dictionary<uint, (int Cid, int Length)>> UsedComposite => _usedComposite;
 
     /// <summary>Font object numbers that must keep their whole encoding.</summary>
     public HashSet<int> Full { get; } = [];
@@ -43,9 +52,13 @@ internal sealed class FontUsage
     public bool Complete { get; private set; } = true;
 
     /// <summary>Reads the document's content for the fonts with the object numbers in <paramref name="targets"/>.</summary>
-    public static FontUsage Scan(PdfDocument doc, HashSet<int> targets, CancellationToken ct)
+    /// <param name="doc">The document.</param>
+    /// <param name="targets">Object numbers of the fonts to track.</param>
+    /// <param name="ct">Checked between pages.</param>
+    /// <param name="composite">Composite (Type 0) fonts among the targets, by object number: their strings are split into codes with the font, since codes are not bytes.</param>
+    public static FontUsage Scan(PdfDocument doc, HashSet<int> targets, CancellationToken ct, IReadOnlyDictionary<int, PdfFont>? composite = null)
     {
-        var usage = new FontUsage(doc, targets);
+        var usage = new FontUsage(doc, targets, composite);
         try
         {
             usage.Run(ct);
@@ -369,6 +382,23 @@ internal sealed class FontUsage
     {
         if (font < 0 || !_targets.Contains(font))
         {
+            return;
+        }
+
+        if (_composite is not null && _composite.TryGetValue(font, out PdfFont? wide))
+        {
+            _scratch.Clear();
+            wide.Decode(codes, _scratch);
+            if (!_usedComposite.TryGetValue(font, out Dictionary<uint, (int Cid, int Length)>? seen))
+            {
+                _usedComposite[font] = seen = [];
+            }
+
+            foreach (FontGlyph g in _scratch)
+            {
+                seen[g.Code] = (g.Cid, g.CodeLength);
+            }
+
             return;
         }
 

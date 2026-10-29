@@ -17,6 +17,7 @@ One executable (`fuzz/OnePdf.Fuzz`) holds one target per input surface. SharpFuz
 | `redact` | 20 parameter bytes (options, four areas), then a PDF file or a bare content stream | redaction: rewriting page, form and annotation content, image blanking, annotations, metadata; full save; reopen; no glyph left inside an area |
 | `tag` | 2 parameter bytes (what to tag: every block, every second block, single words, a graphics area, header/footer artifacts, the happy path with roles by block number), then a PDF file or a bare content stream | tagging an untagged document: extraction with glyphs, the plan, rewriting page and form content, structure tree; full save; reopen; the extracted text must be unchanged |
 | `fontsubset` | an option byte, 8 character picks, then a TrueType/OpenType font | adding a font to a new document, drawing with it, subsetting on save (TrueType `glyf` and CFF), reading the subset back |
+| `fontembed` | a mode byte (kind of font dictionary, options), then a TrueType/OpenType/CFF font | `PdfFontFile` queries; embedding the program into a simple, symbolic, Type 0 or Differences font dictionary of a small document; save and reopen |
 | `fontprogram` | a mode byte, then a font program | Type 1, CFF, TrueType/OpenType outlines and cmaps; mode 5 runs the TrueType instruction interpreter on any TrueType font |
 | `cmap` | a flag byte, then CMap text | CMap parser and lookups |
 | `shading` | 12 parameter bytes (type, bit widths, colour space, geometry), then mesh data | shading types 1 to 7: mesh decoding, tessellation, evaluators |

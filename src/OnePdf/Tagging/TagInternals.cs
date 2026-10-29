@@ -150,7 +150,7 @@ internal static class TagText
     [
         "P", "H", "H1", "H2", "H3", "H4", "H5", "H6", "L", "LI", "Lbl", "LBody", "Table", "THead", "TBody", "TFoot", "TR", "TH", "TD",
         "Caption", "Figure", "Formula", "Link", "Span", "Div", "Part", "Art", "Sect", "BlockQuote", "Quote", "Note", "Reference", "Code",
-        "Form", "TOC", "TOCI",
+        "Form", "TOC", "TOCI", "Annot",
     ];
 
     public static void WriteString(OutBuf o, List<byte> s)

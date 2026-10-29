@@ -182,6 +182,12 @@ public sealed class PdfTagOptions
     public bool TagLinks { get; set; } = true;
 
     /// <summary>
+    /// True (the default): every annotation that is not a link, a form widget or a popup (a sticky note, a highlight, a stamp) becomes an
+    /// <see cref="PdfTagRole.Annot"/> element with an object reference, after the page's text. False: they are left alone.
+    /// </summary>
+    public bool TagAnnotations { get; set; } = true;
+
+    /// <summary>
     /// Called once for every element the happy path creates (also L, LI, Lbl, LBody, TR, TH, TD and Link) with the block it was made
     /// from, before the element gets its children: set <see cref="PdfTagElement.Alt"/>, <see cref="PdfTagElement.Lang"/>, <see cref="PdfTagElement.ActualText"/>, a scope or spans.
     /// Default null.

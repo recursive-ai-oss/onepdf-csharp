@@ -28,7 +28,14 @@ internal static class TrueTypeSubsetter
     /// Optional (Unicode value, source glyph id) pairs for a (3,1) cmap, format 4. Values above U+FFFF are skipped; every glyph named
     /// must be in <paramref name="glyphs"/>. With null the output has no cmap, which is right for a CID-keyed (Type 0) use.
     /// </param>
-    public static byte[] Subset(SfntFont font, IReadOnlyList<int> glyphs, IReadOnlyList<(int Unicode, int Glyph)>? unicodeMap = null)
+    /// <param name="advances">
+    /// Optional replacement advance widths in font units, by source glyph id. A document font whose PDF widths differ from the program's
+    /// gets the PDF's widths in its subset, so the two agree (ISO 32000-2 9.6.2.1 and 14289-1 7.21.5 compare them).
+    /// </param>
+    /// <param name="cmapPlatform">Platform id of the cmap subtable: 3 with encoding 1 (Unicode) by default, or 3 with encoding 0 (symbol) for codes at U+F000 and above.</param>
+    /// <param name="cmapEncoding">Encoding id of the cmap subtable.</param>
+    public static byte[] Subset(SfntFont font, IReadOnlyList<int> glyphs, IReadOnlyList<(int Unicode, int Glyph)>? unicodeMap = null,
+        IReadOnlyDictionary<int, int>? advances = null, int cmapPlatform = 3, int cmapEncoding = 1)
     {
         ReadOnlyMemory<byte> head = font.GetTable("head");
         ReadOnlyMemory<byte> hhea = font.GetTable("hhea");
@@ -42,6 +49,11 @@ internal static class TrueTypeSubsetter
         }
 
         int numGlyphs = Be.U16(maxp.Span, 4);
+        if (numGlyphs == 0)
+        {
+            throw new FontProgramException("The font has no glyphs.");
+        }
+
         int locaFormat = Be.I16(head.Span, 50);
         if (locaFormat is not (0 or 1))
         {
@@ -173,6 +185,11 @@ internal static class TrueTypeSubsetter
                 }
             }
 
+            if (advances is not null && advances.TryGetValue(g, out int replaced))
+            {
+                advance = (ushort)Math.Clamp(replaced, 0, ushort.MaxValue);
+            }
+
             BinaryPrimitives.WriteUInt16BigEndian(hmtxOut.AsSpan(4 * n), advance);
             BinaryPrimitives.WriteInt16BigEndian(hmtxOut.AsSpan((4 * n) + 2), lsb);
         }
@@ -196,7 +213,7 @@ internal static class TrueTypeSubsetter
         };
         if (unicodeMap is not null)
         {
-            tables[Be.Tag("cmap")] = BuildCmap31(unicodeMap, newOf);
+            tables[Be.Tag("cmap")] = BuildCmap31(unicodeMap, newOf, cmapPlatform, cmapEncoding);
         }
 
         foreach (string optional in (string[])["cvt ", "fpgm", "prep"])
@@ -213,7 +230,7 @@ internal static class TrueTypeSubsetter
 
     // OpenType "cmap": one encoding record, platform 3 (Windows) encoding 1 (Unicode BMP), format 4 (segment mapping to delta values).
     // Consecutive code points that map to consecutive glyphs share a segment, so idRangeOffset is always 0.
-    private static byte[] BuildCmap31(IReadOnlyList<(int Unicode, int Glyph)> map, Dictionary<int, int> newOf)
+    private static byte[] BuildCmap31(IReadOnlyList<(int Unicode, int Glyph)> map, Dictionary<int, int> newOf, int platform, int encoding)
     {
         // (code point, subset glyph, position in the input): sorted by code point, and for a repeated code point the later entry wins.
         var sorted = new List<(int Unicode, int Glyph, int Order)>(map.Count);
@@ -276,8 +293,8 @@ internal static class TrueTypeSubsetter
         int searchRange = 2 * (1 << entrySelector);
         var t = new byte[12 + subtableLength];
         BinaryPrimitives.WriteUInt16BigEndian(t.AsSpan(2), 1); // numTables
-        BinaryPrimitives.WriteUInt16BigEndian(t.AsSpan(4), 3); // platformID
-        BinaryPrimitives.WriteUInt16BigEndian(t.AsSpan(6), 1); // encodingID
+        BinaryPrimitives.WriteUInt16BigEndian(t.AsSpan(4), (ushort)platform); // platformID
+        BinaryPrimitives.WriteUInt16BigEndian(t.AsSpan(6), (ushort)encoding); // encodingID
         BinaryPrimitives.WriteUInt32BigEndian(t.AsSpan(8), 12);
         Span<byte> s = t.AsSpan(12);
         BinaryPrimitives.WriteUInt16BigEndian(s, 4);

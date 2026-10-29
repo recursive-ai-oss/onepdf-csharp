@@ -33,7 +33,7 @@ doc.Save("out.pdf", new PdfSaveOptions
 
 | | |
 |---|---|
-| `PdfSaveOptions.PdfA` (`PdfAOptions`) | Target part (`Part2` default, `Part3`), level (`B` default, `U`, `A`: tagged, see [pdfua.md](pdfua.md)), `Language` (fallback `/Lang` for level A), and `EmbedLibraryFonts` (default true). A full save then prepares, checks, and writes, or throws `PdfAException` and writes nothing. Needs an editable document (`AllowEditing`, or `CreateEmpty`). Not available for `SaveIncremental`. |
+| `PdfSaveOptions.PdfA` (`PdfAOptions`) | Target part (`Part2` default, `Part3`), level (`B` default, `U`, `A`: tagged, see [pdfua.md](pdfua.md)), `Language` (fallback `/Lang` for level A), and `EmbedLibraryFonts` (default true), `EmbedSubstituteFonts` (default false: embeds Liberation subsets into existing non-embedded fonts such as Arial, see [fonts.md](fonts.md)). A full save then prepares, checks, and writes, or throws `PdfAException` and writes nothing. Needs an editable document (`AllowEditing`, or `CreateEmpty`). Not available for `SaveIncremental`. |
 | `PdfDocument.PreparePdfA(options)` | Makes the repairs below in memory and returns what is still wrong. Calling it again changes nothing more. |
 | `PdfDocument.CheckPdfA(options)` | Reports every violation of the document as it stands, without changing it. Works on read-only documents. |
 | `PdfAException.Violations` | `PdfAViolation`: `Clause` (ISO 19005-2 clause number), `Message`, `ObjectNumber` (-1 for the file as a whole), `PageIndex` (-1 when not on a page). Large numbers of one kind (a hundred bad operators) are cut after twenty; at most 2000 violations are listed. |

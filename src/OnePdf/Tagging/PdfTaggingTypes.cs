@@ -116,6 +116,13 @@ public enum PdfTagRole
 
     /// <summary>An item of a table of contents.</summary>
     TOCI,
+
+    /// <summary>
+    /// An annotation other than a link or a form widget (a sticky note, a highlight, a stamp). Give it the annotation through
+    /// <see cref="PdfTagContent.Annotation(PdfAnnotation)"/>: it is tied to the element with an object reference and a <c>/StructParent</c>
+    /// (ISO 32000-2 14.8.4.5, ISO 14289-1 7.18.1). The annotation needs a <c>/Contents</c> entry for PDF/UA.
+    /// </summary>
+    Annot,
 }
 
 /// <summary>What a header cell is a header of (<c>/Scope</c> of the table attributes, ISO 32000-2 14.8.5.7).</summary>

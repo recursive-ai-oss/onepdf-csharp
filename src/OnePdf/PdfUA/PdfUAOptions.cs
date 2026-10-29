@@ -32,6 +32,13 @@ public sealed class PdfUAOptions
     /// Fonts that came with a file are never replaced.
     /// </summary>
     public bool EmbedLibraryFonts { get; init; } = true;
+
+    /// <summary>
+    /// When true, fonts the file names without embedding (Arial, Times New Roman, Courier New and the other standard faces and their common
+    /// aliases) get metric-compatible substitutes embedded by <see cref="PdfDocument.EmbedSubstituteFonts"/>, so ISO 14289-1 7.21.4.1 is met
+    /// for them. Default false, because it changes the letter shapes in viewers that had the real font; without it such fonts are reported.
+    /// </summary>
+    public bool EmbedSubstituteFonts { get; init; }
 }
 
 /// <summary>One requirement of ISO 14289-1 (PDF/UA-1) that a document does not meet.</summary>
