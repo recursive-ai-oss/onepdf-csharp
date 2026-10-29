@@ -72,7 +72,7 @@ internal static class PdfUAPreparer
         }
 
         PrepareAnnotations(doc, ct);
-        PrepareOptionalContentNames(doc);
+        PrepareOptionalContentNames(doc, removeAutoState: ua.Part == PdfUAPart.Part1);
         if (ua.Part == PdfUAPart.Part1)
         {
             PrepareTableHeaders(doc, ct);
@@ -98,7 +98,7 @@ internal static class PdfUAPreparer
 
     // A configuration without a /Name gets one that says what it is: the default one is "Default", the others "Configuration n".
     // Nothing else about optional content changes (ISO 14289-1 7.10).
-    private static void PrepareOptionalContentNames(PdfDocument doc)
+    private static void PrepareOptionalContentNames(PdfDocument doc, bool removeAutoState)
     {
         if (doc.Catalog.GetDictionary("OCProperties") is not { } props)
         {
@@ -109,6 +109,12 @@ internal static class PdfUAPreparer
         foreach ((PdfDictionary config, string where) in PdfUAChecker.OptionalContentConfigurations(props))
         {
             n++;
+            // /AS (automatic state changes by event) is not allowed in Part 1; the groups keep the states /D gives them.
+            if (removeAutoState && config.ContainsKey("AS"))
+            {
+                config.RemoveEntry("AS");
+            }
+
             if (string.IsNullOrWhiteSpace(config.GetString("Name")?.GetText()))
             {
                 config.SetEntry("Name", PdfString.FromText(where.Contains("/D)", StringComparison.Ordinal) ? "Default" : "Configuration " + n));

@@ -86,4 +86,26 @@ public class OptionalContentNameTests
             Assert.DoesNotContain(StructureDocs.Vera(saved), static r => r.StartsWith("7.10-", StringComparison.Ordinal));
         }
     }
+
+    [Fact]
+    public void AnAutomaticStateEntryIsReportedAndRemoved()
+    {
+        using PdfDocument doc = WithConfigurations(nameDefault: true, nameExtra: true);
+        PdfDictionary d = doc.Catalog.GetDictionary("OCProperties")!.GetDictionary("D")!;
+        var as1 = new PdfArray();
+        d.SetEntry("AS", as1);
+        Assert.True(Reported(doc, 1));
+        byte[] before = TagSupport.Save(doc);
+        if (VeraPdf.Path is not null)
+        {
+            Assert.Contains(StructureDocs.Vera(before), static r => r.StartsWith("7.10-2", StringComparison.Ordinal));
+        }
+
+        Assert.DoesNotContain(doc.PreparePdfUA(new PdfUAOptions { Language = "en" }), static v => v.Clause == "7.10");
+        Assert.False(doc.Catalog.GetDictionary("OCProperties")!.GetDictionary("D")!.ContainsKey("AS"));
+        if (VeraPdf.Path is not null)
+        {
+            Assert.DoesNotContain(StructureDocs.Vera(TagSupport.Save(doc)), static r => r.StartsWith("7.10-", StringComparison.Ordinal));
+        }
+    }
 }

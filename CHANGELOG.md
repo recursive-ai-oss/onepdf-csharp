@@ -20,6 +20,7 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 - `PdfSubstituteEntry.MissingCodes` (and `PdfFontEmbedResult.MissingCodes`) now lists only the codes the pages show that the substitute lacks. It used to list every code the encoding names when the font was kept whole, for example a ZapfDingbats form default that no page shows (about 100 codes). A font whose use cannot be traced still counts every code its encoding names as possibly shown. What was embedded is unchanged.
 - `docs/fonts.md` says that the substitute report (`WidthChanges`, `WidthConflicts`, `MissingCodes`) covers metrics and coverage, not glyph shapes, so it cannot stand in for a render comparison, and documents the additions above.
 - `PreparePdfUA` sets `/Scope` on the header cells of a table in breach where the row makes it plain (a row of only `TH` heads columns; the first cell of a row with `TD` cells heads the row), and gives optional content configurations without one a `/Name`.
+- `CheckPdfUA` reports an `/AS` entry in optional content configuration dictionaries (ISO 14289-1 7.10) and `PreparePdfUA` removes it for PDF/UA-1.
 - The `InsertChild` documentation says that an inserted `TH` needs its `Scope`.
 
 ## [1.13.0] - 2026-10-29

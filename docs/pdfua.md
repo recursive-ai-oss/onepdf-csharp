@@ -52,7 +52,7 @@ A layout document reaches these through `LayoutDocument.Save(stream, PdfSaveOpti
 | `/Contents` on a link annotation that has none: the structure element's `/Alt` or `/ActualText`, else the link's address (layout links already carry the text they cover) | 7.18.5 |
 | Liberation faces for standard fonts OnePDF added | 7.21.4.1 |
 | `/Scope` on a header cell of a table that is in breach, where the layout of its row makes the answer plain (see "Header cells") | 7.5 |
-| `/Name` on an optional content configuration that has none (`Default` for `/OCProperties /D`, `Configuration n` for the entries of `/Configs`) | 7.10 |
+| `/Name` on an optional content configuration that has none (`Default` for `/OCProperties /D`, `Configuration n` for the entries of `/Configs`); Part 1 also removes `/AS` from those dictionaries | 7.10 |
 
 An XMP packet that already claims everything requested is kept; any other packet is replaced by one built from the Info dictionary (as for PDF/A).
 
@@ -67,7 +67,7 @@ Each finding names the Matterhorn checkpoint and the ISO 14289-1 clause.
 - **Figures (13; 7.3, 7.7):** `Figure` and `Formula` elements have `/Alt` or `/ActualText`.
 - **Headings (14; 7.4):** the first numbered heading is H1; a numbered heading is at most one level deeper than the one before; `H` and `H1`…`H6` are not mixed.
 - **Tables (15; 7.5):** at least one `TH` cell; `TR` in `Table`/`THead`/`TBody`/`TFoot`; cells in `TR`; every row covers the same number of columns once `ColSpan` and `RowSpan` are counted; header cells whose data cells cannot find them (see "Header cells").
-- **Optional content (20; 7.10):** each configuration dictionary, `/OCProperties /D` and every entry of `/Configs`, has a non-empty `/Name`.
+- **Optional content (20; 7.10):** each configuration dictionary, `/OCProperties /D` and every entry of `/Configs`, has a non-empty `/Name` and, in Part 1, no `/AS` entry (7.10; a file saved by a print driver with a watermark layer often has one).
 - **Lists (16; 7.6):** `L` contains `LI` (or a `Caption`); `LI` is in `L`; `Lbl` and `LBody` are in `LI`.
 - **Annotations (28; 7.18):** every link annotation is an object reference inside a `Link` structure element and has `/Contents` (or its element has `/Alt`); widgets are in `Form` elements and have a `/TU`; other annotations (except Popup, TrapNet, PrinterMark) are in the tree and have `/Contents`; each has a `/StructParent`; pages with annotations have `/Tabs /S`.
 - **Fonts (31; 7.21):** every font other than Type 3, in page and form resources, has an embedded font program; a font has a `/ToUnicode` map, or an encoding that determines Unicode (a standard encoding without `/Differences`, or an Adobe CJK ordering).

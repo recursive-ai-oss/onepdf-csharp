@@ -18,6 +18,11 @@ internal sealed partial class PdfUAChecker
             {
                 Add("20", "7.10", $"The optional content configuration {where} has no /Name.", config.Reference?.Number ?? -1);
             }
+
+            if (config.ContainsKey("AS"))
+            {
+                Add("20", "7.10", $"The optional content configuration {where} has an /AS entry, which ISO 14289-1 7.10 does not allow.", config.Reference?.Number ?? -1);
+            }
         }
     }
 
