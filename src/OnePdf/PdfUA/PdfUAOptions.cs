@@ -37,6 +37,8 @@ public sealed class PdfUAOptions
     /// When true, fonts the file names without embedding (Arial, Times New Roman, Courier New and the other standard faces and their common
     /// aliases) get metric-compatible substitutes embedded by <see cref="PdfDocument.EmbedSubstituteFonts"/>, so ISO 14289-1 7.21.4.1 is met
     /// for them. Default false, because it changes the letter shapes in viewers that had the real font; without it such fonts are reported.
+    /// Needs a font provider (reference <c>RecursiveAI.OnePdf.Fonts</c> and call <c>FontsPackage.Register()</c>, or set <see cref="PdfDocument.FontProvider"/>);
+    /// the save throws <see cref="InvalidOperationException"/> naming the fix when a font needs a substitute and there is none.
     /// </summary>
     public bool EmbedSubstituteFonts { get; init; }
 }

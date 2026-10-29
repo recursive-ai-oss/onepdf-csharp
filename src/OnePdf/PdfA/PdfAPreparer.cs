@@ -31,7 +31,7 @@ internal static class PdfAPreparer
 
         if (options.EmbedSubstituteFonts)
         {
-            doc.EmbedSubstituteFonts(cancellationToken: ct);
+            RequireProvider(doc.EmbedSubstituteFonts(cancellationToken: ct));
         }
 
         AddOutputIntent(doc);
@@ -44,6 +44,15 @@ internal static class PdfAPreparer
         if (options.Part == PdfAPart.Part3)
         {
             DateAttachments(doc);
+        }
+    }
+
+    /// <summary>EmbedSubstituteFonts was asked for in the save options but cannot work without a font provider: fail with the fix instead of leaving unembedded fonts to a vaguer finding later.</summary>
+    internal static void RequireProvider(PdfSubstituteEmbedReport report)
+    {
+        if (report.FontProviderMissing)
+        {
+            throw new InvalidOperationException("EmbedSubstituteFonts is set, but the document names fonts that need a substitute and no font provider is available. " + report.ProviderMessage);
         }
     }
 

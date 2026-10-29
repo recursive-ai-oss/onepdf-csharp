@@ -141,6 +141,17 @@ public static class PdfFontProviders
         }
     }
 
+    /// <summary>Replaces the registered providers and returns the old ones, so a test can run with none. Not for production use.</summary>
+    internal static IPdfFontProvider[] ReplaceRegistered(IPdfFontProvider[] providers)
+    {
+        lock (Gate)
+        {
+            IPdfFontProvider[] old = s_registered;
+            s_registered = providers;
+            return old;
+        }
+    }
+
     private sealed class ChainProvider : IPdfFontProvider
     {
         public PdfSubstituteFont? FindFont(PdfFontRequest request)

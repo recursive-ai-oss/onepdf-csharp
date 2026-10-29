@@ -29,7 +29,11 @@ internal sealed class RemoveTagsPass
 
     public static PdfRemoveTagsResult Run(PdfDocument doc, PdfRemoveTagsOptions options, CancellationToken ct)
     {
-        doc.EnsureEditable(0);
+        if (!options.DryRun)
+        {
+            doc.EnsureEditable(0);
+        }
+
         return new RemoveTagsPass(doc, options, ct).Execute();
     }
 
@@ -96,6 +100,20 @@ internal sealed class RemoveTagsPass
 
         // Nothing has been changed yet; from here on the edits are applied.
         _ct.ThrowIfCancellationRequested();
+        if (_options.DryRun)
+        {
+            // Report what the edits would do, without making them.
+            _result.StreamsChanged = _pageEdits.Count + _streamEdits.Count;
+            foreach (PdfDictionary d in _strip)
+            {
+                _result.StructParentsRemoved += (d.ContainsKey("StructParents") ? 1 : 0) + (d.ContainsKey("StructParent") ? 1 : 0);
+            }
+
+            _result.StructureTreeRemoved = _doc.Catalog.ContainsKey("StructTreeRoot");
+            _result.MarkInfoRemoved = _doc.Catalog.ContainsKey("MarkInfo");
+            return _result;
+        }
+
         foreach ((PdfDictionary page, byte[] data) in _pageEdits)
         {
             page.SetEntry("Contents", _doc.AddObject(_doc.CreateStream(data, compress: true)));

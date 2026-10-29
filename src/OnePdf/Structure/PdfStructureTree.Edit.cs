@@ -448,6 +448,34 @@ public sealed partial class PdfStructureTree
         return node;
     }
 
+    internal PdfStructureNode InsertEmpty(PdfStructureNode parent, string type, int index)
+    {
+        ArgumentException.ThrowIfNullOrEmpty(type);
+        EnsureEditable(parent);
+        List<PdfStructureItem> kids = parent.Kids;
+        int at = index < 0 ? kids.Count : index;
+        if (at > kids.Count)
+        {
+            throw new ArgumentOutOfRangeException(nameof(index));
+        }
+
+        var d = new PdfDictionary();
+        d.SetEntry("Type", new PdfName("StructElem"));
+        d.SetEntry("S", new PdfName(type));
+        if (parent.Dictionary.GetRaw("Pg") is { } pg)
+        {
+            d.SetEntry("Pg", pg);
+        }
+
+        PdfReference reference = Document.AddObject(d);
+        var node = new PdfStructureNode(this, reference, d) { Parent = parent };
+        _elementCount++;
+        kids.Insert(at, node);
+        WriteParentLink(node, parent);
+        WriteK(parent);
+        return node;
+    }
+
     // ---- removing ----
 
     internal void RemoveItem(PdfStructureItem item, PdfStructureRemoval mode)

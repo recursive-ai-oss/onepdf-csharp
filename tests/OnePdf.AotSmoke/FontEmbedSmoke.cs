@@ -21,9 +21,14 @@ internal static class FontEmbedSmoke
         using PdfDocument doc = PdfDocument.Open(Encoding.ASCII.GetBytes(pdf), new PdfOpenOptions { AllowEditing = true });
         doc.FontProvider = FontsPackage.Provider;
         PdfSubstituteEmbedReport report = doc.EmbedSubstituteFonts();
-        if (report.EmbeddedCount != 1)
+        if (report.EmbeddedCount != 1 || report.FontProviderMissing || report.Entries[0].WidthConflicts.Count != 0)
         {
             return "the substitute font was not embedded";
+        }
+
+        if (doc.AddMissingToUnicode().FontsWithUnknownCodes != 0)
+        {
+            return "AddMissingToUnicode found unknown codes in a WinAnsi font";
         }
 
         using var ms = new MemoryStream();

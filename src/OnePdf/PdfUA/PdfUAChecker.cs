@@ -1616,24 +1616,27 @@ internal sealed class PdfUAChecker
             return;
         }
 
-        bool unicodeKnown;
-        if (subtype == "Type0")
-        {
-            unicodeKnown = f.Get("DescendantFonts") is PdfArray { Count: > 0 } d2 && d2[0] is PdfDictionary c2
-                && c2.GetDictionary("CIDSystemInfo") is { } info
-                && info.GetString("Registry")?.GetText() == "Adobe"
-                && info.GetString("Ordering")?.GetText() is "GB1" or "CNS1" or "Japan1" or "Korea1";
-        }
-        else
-        {
-            PdfObject? enc = f.Get("Encoding");
-            unicodeKnown = enc is PdfName { Value: "WinAnsiEncoding" or "MacRomanEncoding" or "StandardEncoding" }
-                || (enc is PdfDictionary ed && ed.GetName("BaseEncoding") is "WinAnsiEncoding" or "MacRomanEncoding" or "StandardEncoding" && !ed.ContainsKey("Differences"));
-        }
+        bool unicodeKnown = EncodingDeterminesUnicode(f, subtype);
 
         if (!unicodeKnown && !Limited("tounicode"))
         {
             Add("10", "7.21.7", $"The font {name} has no /ToUnicode map and its encoding does not determine Unicode values.", num, pageIndex);
         }
+    }
+
+    /// <summary>True when the font's encoding alone says what its codes mean, so ISO 14289-1 7.21.7 does not ask for a <c>/ToUnicode</c>: a Type 0 font of an Adobe CJK collection, or a simple font with a standard Latin base encoding and no <c>/Differences</c>.</summary>
+    internal static bool EncodingDeterminesUnicode(PdfDictionary f, string subtype)
+    {
+        if (subtype == "Type0")
+        {
+            return f.Get("DescendantFonts") is PdfArray { Count: > 0 } d2 && d2[0] is PdfDictionary c2
+                && c2.GetDictionary("CIDSystemInfo") is { } info
+                && info.GetString("Registry")?.GetText() == "Adobe"
+                && info.GetString("Ordering")?.GetText() is "GB1" or "CNS1" or "Japan1" or "Korea1";
+        }
+
+        PdfObject? enc = f.Get("Encoding");
+        return enc is PdfName { Value: "WinAnsiEncoding" or "MacRomanEncoding" or "StandardEncoding" }
+            || (enc is PdfDictionary ed && ed.GetName("BaseEncoding") is "WinAnsiEncoding" or "MacRomanEncoding" or "StandardEncoding" && !ed.ContainsKey("Differences"));
     }
 }

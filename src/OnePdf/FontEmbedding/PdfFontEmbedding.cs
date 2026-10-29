@@ -210,6 +210,13 @@ public enum PdfSubstituteOutcome
     /// <summary>The font's name maps to no substitute (or the provider has none). It is left as it was.</summary>
     NoSubstitute,
 
+    /// <summary>
+    /// The font names a standard face, but no font provider is available to supply a substitute: <see cref="PdfDocument.FontProvider"/> is not set,
+    /// <see cref="PdfSubstituteEmbedOptions.Provider"/> is null and nothing is registered. Reference <c>RecursiveAI.OnePdf.Fonts</c> and call
+    /// <c>OnePdf.Fonts.FontsPackage.Register()</c> once at startup (or set <see cref="PdfDocument.FontProvider"/> to <c>FontsPackage.Provider</c>).
+    /// </summary>
+    NoFontProvider,
+
     /// <summary>The embedding was refused; <see cref="PdfSubstituteEntry.Failure"/> says why.</summary>
     Refused,
 }
@@ -221,16 +228,60 @@ public enum PdfSubstituteOutcome
 /// <param name="Substitute">The substitute's name when one was used or chosen.</param>
 /// <param name="Failure">The reason, for <see cref="PdfSubstituteOutcome.Refused"/>.</param>
 /// <param name="Message">A sentence about the outcome.</param>
-public sealed record PdfSubstituteEntry(int ObjectNumber, string BaseFont, PdfSubstituteOutcome Outcome, string? Substitute, PdfFontEmbedFailure? Failure, string Message);
+public sealed record PdfSubstituteEntry(int ObjectNumber, string BaseFont, PdfSubstituteOutcome Outcome, string? Substitute, PdfFontEmbedFailure? Failure, string Message)
+{
+    /// <summary>For <see cref="PdfSubstituteOutcome.Embedded"/>: codes whose PDF width differs from the substitute's advance. With the default policy the subset carries the PDF's width, so positions don't move but the letter shape is the substitute's. Empty otherwise.</summary>
+    public IReadOnlyList<PdfFontWidthChange> WidthChanges { get; init; } = [];
+
+    /// <summary>For <see cref="PdfSubstituteOutcome.Embedded"/>: codes that share a glyph with another code but have a different PDF width; they keep the first code's width and still disagree (ISO 14289-1 7.21.5). Empty otherwise.</summary>
+    public IReadOnlyList<int> WidthConflicts { get; init; } = [];
+
+    /// <summary>For <see cref="PdfSubstituteOutcome.Embedded"/>: shown codes the substitute has no glyph for; they draw <c>.notdef</c>. Empty otherwise.</summary>
+    public IReadOnlyList<int> MissingCodes { get; init; } = [];
+}
 
 /// <summary>The result of <see cref="PdfDocument.EmbedSubstituteFonts"/>.</summary>
 public sealed class PdfSubstituteEmbedReport
 {
+    internal const string NoFontProviderMessage =
+        "No font provider is available, so no substitute can be found. Reference the RecursiveAI.OnePdf.Fonts package and call OnePdf.Fonts.FontsPackage.Register() once at startup, or set PdfDocument.FontProvider to OnePdf.Fonts.FontsPackage.Provider.";
+
     internal PdfSubstituteEmbedReport(IReadOnlyList<PdfSubstituteEntry> entries) => Entries = entries;
+
+    /// <summary>True when at least one font needed a substitute but no font provider was available (those entries are <see cref="PdfSubstituteOutcome.NoFontProvider"/>). <see cref="ProviderMessage"/> says what to do.</summary>
+    public bool FontProviderMissing { get; internal init; }
+
+    /// <summary>An actionable sentence naming the <c>RecursiveAI.OnePdf.Fonts</c> package when <see cref="FontProviderMissing"/> is true; otherwise null.</summary>
+    public string? ProviderMessage => FontProviderMissing ? NoFontProviderMessage : null;
 
     /// <summary>Every font examined, in the order found.</summary>
     public IReadOnlyList<PdfSubstituteEntry> Entries { get; }
 
     /// <summary>The number of fonts that now carry an embedded substitute.</summary>
     public int EmbeddedCount => Entries.Count(e => e.Outcome == PdfSubstituteOutcome.Embedded);
+}
+
+/// <summary>One font <see cref="PdfDocument.AddMissingToUnicode"/> changed or could not fully map.</summary>
+/// <param name="ObjectNumber">The font dictionary's object number, or -1 for a direct dictionary.</param>
+/// <param name="BaseFont">The <c>/BaseFont</c>.</param>
+/// <param name="CodesAdded">How many codes got a new <c>/ToUnicode</c> entry.</param>
+/// <param name="CodesWithoutUnicode">Shown codes for which the chain knows no Unicode value; they have no entry. Empty when the font's use could not be traced.</param>
+public sealed record PdfToUnicodeEntry(int ObjectNumber, string BaseFont, int CodesAdded, IReadOnlyList<int> CodesWithoutUnicode);
+
+/// <summary>The result of <see cref="PdfDocument.AddMissingToUnicode"/>.</summary>
+public sealed class PdfToUnicodeReport
+{
+    internal PdfToUnicodeReport(IReadOnlyList<PdfToUnicodeEntry> entries) => Entries = entries;
+
+    /// <summary>The fonts that changed or have shown codes with no known Unicode.</summary>
+    public IReadOnlyList<PdfToUnicodeEntry> Entries { get; }
+
+    /// <summary>The number of fonts whose <c>/ToUnicode</c> was written or extended.</summary>
+    public int FontsChanged => Entries.Count(static e => e.CodesAdded > 0);
+
+    /// <summary>The total number of entries added.</summary>
+    public int CodesAdded => Entries.Sum(static e => e.CodesAdded);
+
+    /// <summary>The number of fonts with shown codes that stay unmapped, so ISO 14289-1 7.21.7 can still fail for them.</summary>
+    public int FontsWithUnknownCodes => Entries.Count(static e => e.CodesWithoutUnicode.Count > 0);
 }

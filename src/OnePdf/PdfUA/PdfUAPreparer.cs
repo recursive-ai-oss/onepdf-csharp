@@ -53,7 +53,7 @@ internal static class PdfUAPreparer
 
         if (ua.EmbedSubstituteFonts && pdfA is null)
         {
-            doc.EmbedSubstituteFonts(cancellationToken: ct);
+            PdfAPreparer.RequireProvider(doc.EmbedSubstituteFonts(cancellationToken: ct));
         }
 
         if (!string.IsNullOrWhiteSpace(doc.Info.Title) || !string.IsNullOrWhiteSpace(doc.Xmp?.Title))
@@ -75,6 +75,8 @@ internal static class PdfUAPreparer
         if (ua.Part == PdfUAPart.Part2)
         {
             PdfUA2.ConvertStructure(doc, ct);
+            // The conversion edits the tree's dictionaries in place, so nodes read before it no longer match them.
+            doc.ForgetStructureTree();
         }
 
         if (pdfA is null)

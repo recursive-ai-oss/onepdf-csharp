@@ -43,7 +43,15 @@ public sealed partial class PdfStructureTree
     public PdfDocument Document { get; }
 
     /// <summary>The children of the root, in order (normally one <c>Document</c> element).</summary>
-    public IReadOnlyList<PdfStructureItem> Children => RootKids;
+    /// <exception cref="InvalidOperationException">The tree is stale (<see cref="IsStale"/>).</exception>
+    public IReadOnlyList<PdfStructureItem> Children
+    {
+        get
+        {
+            ThrowIfStale();
+            return RootKids;
+        }
+    }
 
     /// <summary>What was wrong in the tree when it was read, for example cycles, a <c>/P</c> that does not match, or duplicate marked content. Empty for a sound tree.</summary>
     public IReadOnlyList<PdfDiagnostic> Diagnostics => _diagnostics;
@@ -52,7 +60,14 @@ public sealed partial class PdfStructureTree
     public int ElementCount => _elementCount;
 
     /// <summary>All structure elements, depth first in document order.</summary>
+    /// <exception cref="InvalidOperationException">The tree is stale (<see cref="IsStale"/>).</exception>
     public IEnumerable<PdfStructureNode> Elements()
+    {
+        ThrowIfStale();
+        return ElementsCore();
+    }
+
+    private IEnumerable<PdfStructureNode> ElementsCore()
     {
         var stack = new Stack<PdfStructureItem>();
         for (int i = RootKids.Count - 1; i >= 0; i--)
@@ -431,8 +446,22 @@ public sealed partial class PdfStructureTree
         }
     }
 
+    /// <summary>True once the document dropped this tree (<see cref="PdfDocument.RefreshStructureTree"/>, <see cref="PdfDocument.RemoveTags"/>, tagging, PDF/UA-2 conversion): its nodes no longer describe the document. Reading their children or editing them throws <see cref="InvalidOperationException"/>; read <see cref="PdfDocument.StructureTree"/> again.</summary>
+    public bool IsStale { get; private set; }
+
+    internal void MarkStale() => IsStale = true;
+
+    internal void ThrowIfStale()
+    {
+        if (IsStale)
+        {
+            throw new InvalidOperationException("The structure tree was replaced or refreshed after this object was read; read PdfDocument.StructureTree again.");
+        }
+    }
+
     internal void EnsureEditable(PdfStructureItem item)
     {
+        ThrowIfStale();
         Document.EnsureEditable(0);
         if (item.IsRemoved)
         {
