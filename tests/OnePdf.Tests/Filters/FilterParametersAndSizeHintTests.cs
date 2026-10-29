@@ -87,8 +87,9 @@ public class FilterParametersAndSizeHintTests
         Assert.True(raw.AsSpan().SequenceEqual(a.Data.Span));
         Assert.True(raw.AsSpan().SequenceEqual(b.Data.Span));
         Assert.True(hinted < raw.Length * 1.05, $"hinted allocated {hinted} for {raw.Length}");
-        // A large stream is measured first when no size is given, so both end up allocating the result once.
-        Assert.True(plain <= hinted + 4096, $"plain {plain}, hinted {hinted}");
+        // A large stream is measured first when no size is given, so both end up allocating the result once. The margin allows for
+        // a pooled buffer that another test is holding at that moment; growing segments would cost about the whole size again.
+        Assert.True(plain <= hinted + 64 * 1024, $"plain {plain}, hinted {hinted}");
     }
 
     [Fact]
