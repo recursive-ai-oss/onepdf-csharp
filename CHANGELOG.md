@@ -4,6 +4,11 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ## [Unreleased]
 
+### Added
+
+- Embedding a font program into an existing font dictionary (`docs/fonts.md`). `PdfFontFile.Open` reads TrueType, OpenType-CFF and CFF programs (metrics, `fsType` rights, cmap and glyph-name lookups). `PdfDocument.EmbedFontProgram` writes a subset of a TrueType program into a simple TrueType/Type1 font or a Type0/CIDFontType2 font, setting the subset's advances to the document's `/Widths` (ISO 14289-1 7.21.5) without rewriting `/Widths`, and `PdfDocument.SetToUnicode` extends `/ToUnicode`. `PdfDocument.EmbedSubstituteFonts` does it for non-embedded Arial, Times New Roman, Courier New and the standard 14 with the Liberation, Noto Sans Math and Noto Sans Symbols 2 faces from the Fonts package. `PdfUAOptions.EmbedSubstituteFonts` and `PdfAOptions.EmbedSubstituteFonts` (off by default) run it during a save. Refusals are `PdfFontEmbedException`.
+- `PdfTagRole.Annot` and `PdfTagOptions.TagAnnotations` (default true): the tagging happy path tags annotations other than links, widgets and popups as `Annot`.
+
 ## [1.11.1] - 2026-10-27
 
 ### Fixed
