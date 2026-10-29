@@ -246,14 +246,15 @@ internal sealed class TaggingPass
                 }
 
                 PdfDictionary ad = c.SourceAnnotation!.Dictionary;
-                if (!annotationPages.TryGetValue(ad, out int ap) || ad.Reference is null)
+                // A dictionary written inline in /Annots has no object number yet; it is made an indirect object when it is written.
+                if (!annotationPages.TryGetValue(ad, out int ap))
                 {
-                    throw new PdfTaggingException(PdfTaggingFailure.ForeignContent, "An annotation of the plan is not an indirect object of one of this document's pages.");
+                    throw new PdfTaggingException(PdfTaggingFailure.ForeignContent, "An annotation of the plan is not one of the annotations of this document's pages.");
                 }
 
                 if (!annotationsSeen.Add(ad))
                 {
-                    throw new PdfTaggingException(PdfTaggingFailure.DuplicateContent, "An annotation is referenced more than once.", ap);
+                    throw new PdfTaggingException(PdfTaggingFailure.DuplicateContent, $"An annotation of page {ap + 1} is referenced by more than one element of the plan.", ap);
                 }
 
                 slot.PageIndex = ap;
@@ -841,6 +842,7 @@ internal sealed class TaggingPass
             if (slot.Content.Kind == PdfTagContent.Kinds.Annotation)
             {
                 PdfDictionary ad = slot.Content.SourceAnnotation!.Dictionary;
+                MakeIndirect(ad, slot.PageIndex);
                 var objr = new PdfDictionary();
                 objr.SetEntry("Type", new PdfName("OBJR"));
                 objr.SetEntry("Pg", _doc.Pages[slot.PageIndex].Dictionary.Reference!);
@@ -889,16 +891,18 @@ internal sealed class TaggingPass
     }
 
     // ISO 14289-1 7.18.5: a link annotation carries /Contents saying what the link is. A tagged link without one gets the element's
-    // alternate description, else the link's own words, so the description is what a sighted reader sees.
+    // alternate description, else the link's own words, so the description is what a sighted reader sees. ISO 14289-1 7.18.1 asks
+    // the same of every other annotation that is tagged (not form fields, which use /TU), and only the element's description can serve.
     private static void AddLinkDescription(PdfDictionary annotation, Node n)
     {
-        if (annotation.GetName("Subtype") != "Link" || !string.IsNullOrWhiteSpace(annotation.GetString("Contents")?.GetText()))
+        string? subtype = annotation.GetName("Subtype");
+        if (subtype == "Widget" || !string.IsNullOrWhiteSpace(annotation.GetString("Contents")?.GetText()))
         {
             return;
         }
 
         string text = n.Element?.Alt ?? string.Empty;
-        if (string.IsNullOrWhiteSpace(text))
+        if (string.IsNullOrWhiteSpace(text) && subtype == "Link")
         {
             var sb = new System.Text.StringBuilder();
             foreach (object kid in n.Kids)
@@ -916,6 +920,31 @@ internal sealed class TaggingPass
         {
             annotation.SetEntry("Contents", PdfString.FromText(text));
         }
+    }
+
+    // An object reference (OBJR) can only point at an indirect object (ISO 32000-2 14.7.4.3). An annotation dictionary written directly in
+    // /Annots becomes one here. The same dictionary instance is kept, so annotations read earlier stay valid, and the /Annots entry
+    // is replaced by the reference, so the page still lists the annotation once, in the same place.
+    private void MakeIndirect(PdfDictionary annotation, int pageIndex)
+    {
+        if (annotation.Reference is not null)
+        {
+            return;
+        }
+
+        PdfReference reference = _doc.AddObject(annotation);
+        if (_doc.Pages[pageIndex].Dictionary.Get("Annots") is PdfArray annots)
+        {
+            for (int i = 0; i < annots.Count; i++)
+            {
+                if (ReferenceEquals(annots[i], annotation))
+                {
+                    annots.SetItem(i, reference);
+                }
+            }
+        }
+
+        _result.AnnotationsMadeIndirect++;
     }
 
     private static void AppendWords(System.Text.StringBuilder sb, PdfTagContent c)

@@ -19,6 +19,9 @@ internal sealed class HappyPath
     private PdfTagElement? _table;
     private int _tableRows;
 
+    // Annotations already given a role. A page may list one annotation object many times in /Annots; it is tagged once, at its first entry.
+    private readonly HashSet<PdfDictionary> _tagged = new(ReferenceEqualityComparer.Instance);
+
     private HappyPath(PdfDocument doc, IReadOnlyList<PdfPageText> text, Func<PdfTagBlock, PdfBlockRole?> roles, PdfTagOptions o)
     {
         _doc = doc;
@@ -45,7 +48,8 @@ internal sealed class HappyPath
             ArgumentNullException.ThrowIfNull(page);
             PdfTagFigure[] figures = [.. _o.Figures.Where(f => f.PageIndex == page.PageIndex).OrderByDescending(static f => f.Area.Top)];
             int nextFigure = 0;
-            PageLinks links = PageLinks.Find(_doc, page, _o.TagLinks);
+            int repeats = 0;
+            PageLinks links = PageLinks.Find(_doc, page, _o.TagLinks, _tagged, ref repeats);
             for (int b = 0; b < page.Blocks.Count; b++)
             {
                 PdfTextBlock block = page.Blocks[b];
@@ -66,17 +70,122 @@ internal sealed class HappyPath
             links.ReportUnused(page.PageIndex, _warnings);
             if (_o.TagAnnotations)
             {
-                foreach (PdfAnnotation a in _doc.Pages[page.PageIndex].Annotations)
+                Dictionary<PdfDictionary, string>? shown = null;
+                IReadOnlyList<PdfAnnotation> annots = _doc.Pages[page.PageIndex].Annotations;
+                for (int a = 0; a < annots.Count; a++)
                 {
-                    if (a.Subtype is not ("Link" or "Widget" or "Popup" or "TrapNet" or "PrinterMark") && a.Dictionary.Reference is not null)
+                    PdfAnnotation annot = annots[a];
+                    if (annot.Subtype is "Link" or "Widget" or "Popup" or "TrapNet" or "PrinterMark")
                     {
-                        // Close open runs (list, table) only when there is an annotation to add, so a table
-                        // can still continue onto the next page on pages without annotations.
-                        CloseRuns();
-                        _plan.Add(PdfTagRole.Annot, PdfTagContent.Annotation(a));
+                        continue;
+                    }
+
+                    if (!_tagged.Add(annot.Dictionary))
+                    {
+                        repeats++;
+                        continue;
+                    }
+
+                    // Close open runs (list, table) only when there is an annotation to add, so a table
+                    // can still continue onto the next page on pages without annotations.
+                    CloseRuns();
+                    PdfTagElement e = _plan.Add(PdfTagRole.Annot, PdfTagContent.Annotation(annot));
+
+                    // ISO 14289-1 7.18.1: a tagged annotation needs a description in /Contents. When it has none, the text its appearance
+                    // shows describes it (a running head or footer, for example); the element's Alt is copied into /Contents when the plan is applied.
+                    if (string.IsNullOrWhiteSpace(annot.Dictionary.GetString("Contents")?.GetText()))
+                    {
+                        shown ??= AppearanceText(page.PageIndex);
+                        if (shown.TryGetValue(annot.Dictionary, out string? text))
+                        {
+                            e.Alt = text;
+                        }
+                        else if (annot.Subtype == "HeaderFooter")
+                        {
+                            e.Alt = "Page header or footer";
+                        }
                     }
                 }
             }
+
+            if (repeats > 0)
+            {
+                _warnings.Add($"Page {page.PageIndex + 1}: {repeats} /Annots {(repeats == 1 ? "entry lists" : "entries list")} an annotation that is already tagged. Each object is tagged once and the entries were left as they are.");
+            }
+        }
+    }
+
+    /// <summary>The text each annotation of a page draws with its appearance stream, by annotation dictionary.</summary>
+    private Dictionary<PdfDictionary, string> AppearanceText(int pageIndex)
+    {
+        var device = new AnnotationTextDevice();
+        _doc.Pages[pageIndex].Interpret(device, new PdfInterpretOptions());
+        return device.Texts;
+    }
+
+    private sealed class AnnotationTextDevice : PdfDevice
+    {
+        private PdfDictionary? _current;
+        private int _depth;
+        private readonly Dictionary<PdfDictionary, System.Text.StringBuilder> _builders = new(ReferenceEqualityComparer.Instance);
+
+        public Dictionary<PdfDictionary, string> Texts
+        {
+            get
+            {
+                var r = new Dictionary<PdfDictionary, string>(ReferenceEqualityComparer.Instance);
+                foreach ((PdfDictionary d, System.Text.StringBuilder sb) in _builders)
+                {
+                    string t = string.Join(' ', sb.ToString().Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries));
+                    if (t.Length > 0)
+                    {
+                        r[d] = t;
+                    }
+                }
+
+                return r;
+            }
+        }
+
+        public override void BeginAnnotation(in PdfAnnotationInfo annotation)
+        {
+            if (_depth++ == 0)
+            {
+                _current = annotation.Annotation;
+            }
+        }
+
+        public override void EndAnnotation()
+        {
+            if (--_depth == 0)
+            {
+                _current = null;
+            }
+        }
+
+        public override void ShowGlyphRun(in PdfGlyphRun run, in PdfGraphicsState state)
+        {
+            if (_current is null)
+            {
+                return;
+            }
+
+            if (!_builders.TryGetValue(_current, out System.Text.StringBuilder? sb))
+            {
+                _builders[_current] = sb = new System.Text.StringBuilder();
+            }
+
+            if (sb.Length > 400)
+            {
+                return;
+            }
+
+            foreach (PdfGlyph g in run.Glyphs.Span)
+            {
+                sb.Append(g.Unicode);
+            }
+
+            sb.Append(' ');
         }
     }
 
@@ -322,7 +431,7 @@ internal sealed class HappyPath
         private readonly List<bool> _used = [];
         private readonly List<string> _unmatched = [];
 
-        public static PageLinks Find(PdfDocument doc, PdfPageText text, bool enabled)
+        public static PageLinks Find(PdfDocument doc, PdfPageText text, bool enabled, HashSet<PdfDictionary> tagged, ref int repeats)
         {
             var r = new PageLinks();
             if (!enabled)
@@ -334,8 +443,15 @@ internal sealed class HappyPath
             IReadOnlyList<PdfAnnotation> annots = page.Annotations;
             for (int a = 0; a < annots.Count; a++)
             {
-                if (annots[a].Subtype != "Link" || annots[a].Dictionary.Reference is null)
+                if (annots[a].Subtype != "Link")
                 {
+                    continue;
+                }
+
+                // One link object listed several times in /Annots is one annotation: it is tagged at its first entry.
+                if (!tagged.Add(annots[a].Dictionary))
+                {
+                    repeats++;
                     continue;
                 }
 

@@ -36,6 +36,15 @@ internal sealed class TextGlyphDevice(int pageIndex) : PdfDevice
     /// <summary>Glyphs smaller than this (page units) are not text anybody can see or read.</summary>
     private const double MinSize = 1e-6;
 
+    // The same text reached by different operator splits (marked content wraps a run, a Tj is cut at a glyph) multiplies the same
+    // matrices in a different order and differs in the last bits. Every ordering decision below compares positions, and an exact tie
+    // that becomes a difference of 1e-14 sorts another way, so the stored matrix is put on a fixed grid. Dividing the rounded integer
+    // by the power of ten gives the double nearest the decimal value, which is identical on every platform and prints short.
+    private const double OriginGrid = 1e6;
+    private const double MatrixGrid = 1e9;
+
+    private static double Snap(double v, double grid) => Math.Round(v * grid) / grid;
+
     // Glyphs go into a pooled buffer that the page analysis releases once it has copied the survivors.
     private PdfTextGlyph[] _buf = ArrayPool<PdfTextGlyph>.Shared.Rent(1024);
     private int _count;
@@ -274,7 +283,7 @@ internal sealed class TextGlyphDevice(int pageIndex) : PdfDevice
                 Text = g.Unicode ?? "\uFFFD",
                 FontId = fontId,
                 FontName = fontName,
-                Matrix = new PdfTextMatrix(m.A, m.B, m.C, m.D, m.E, m.F),
+                Matrix = new PdfTextMatrix(Snap(m.A, MatrixGrid), Snap(m.B, MatrixGrid), Snap(m.C, MatrixGrid), Snap(m.D, MatrixGrid), Snap(m.E, OriginGrid), Snap(m.F, OriginGrid)),
                 Advance = run.IsVertical ? Math.Abs(g.VerticalAdvance) : g.Width,
                 IsVertical = run.IsVertical,
                 FillColor = fill,
