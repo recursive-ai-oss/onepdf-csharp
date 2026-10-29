@@ -17,7 +17,7 @@ internal static class PdfATarget
         var limits = PdfLimits.Default with { MaxDecodedStreamBytes = 8 << 20, MaxObjects = 200_000 };
         var options = new PdfAOptions { Part = (sel & 1) == 0 ? PdfAPart.Part2 : PdfAPart.Part3, Conformance = (sel & 16) != 0 ? PdfAConformance.A : (sel & 2) == 0 ? PdfAConformance.B : PdfAConformance.U };
         bool uaOnly = (sel & 64) != 0;
-        PdfUAOptions? ua = (sel & 32) != 0 || uaOnly ? new PdfUAOptions { Language = "en", Part = (sel & 128) != 0 ? PdfUAPart.Part2 : PdfUAPart.Part1 } : null;
+        PdfUAOptions? ua = (sel & 32) != 0 || uaOnly ? new PdfUAOptions { Language = "en", Part = (sel & 128) != 0 ? PdfUAPart.Part2 : PdfUAPart.Part1, RemoveInvisibleNotdefText = (sel & 4) != 0 } : null;
         PdfAOptions? pdfa = uaOnly ? null : options;
         byte[] input = data.ToArray();
         try
@@ -30,6 +30,17 @@ internal static class PdfATarget
             }
 
             using PdfDocument doc = PdfDocument.Open(input, new PdfOpenOptions { Limits = limits, AllowEditing = true });
+            if ((sel & 2) != 0)
+            {
+                // The .notdef removal rewrites page and form content; what is left may only be what it kept, never more than there was.
+                int before = doc.FindNotdefText().Count;
+                _ = doc.RemoveNotdefText(new PdfNotdefRemoveOptions { Scope = (sel & 16) != 0 ? PdfNotdefScope.All : PdfNotdefScope.Invisible });
+                if (doc.FindNotdefText().Count > before)
+                {
+                    throw new InvalidOperationException("removing .notdef text left more of it than there was");
+                }
+            }
+
             if ((sel & 4) != 0)
             {
                 doc.AttachFile("a.txt", new byte[] { 1, 2, 3 }, new PdfAttachmentOptions { MimeType = "text/plain" });

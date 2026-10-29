@@ -31,6 +31,7 @@ layout.Save(file, new PdfSaveOptions
 | `PdfUAOptions.Language` | A `/Lang` to write when the catalog has none. Without it, a missing language is a violation. |
 | `PdfUAOptions.EmbedLibraryFonts` | Default true: standard fonts added by `AddStandardFont` become embedded Liberation faces when the Fonts package is registered (as for PDF/A). |
 | `PdfUAOptions.EmbedSubstituteFonts` | Default false: fonts the document names but does not embed (Arial, Times New Roman, Courier New, the standard 14) get a Liberation subset, with the document's widths. See [fonts.md](fonts.md). |
+| `PdfUAOptions.RemoveInvisibleNotdefText` | Default false, Part 1 only: also takes out text that is never drawn and shows the font's `.notdef` glyph (7.21.8), by `PdfDocument.RemoveNotdefText` with the `Invisible` scope. Removing it changes the extracted text, so it is the caller's decision. See "Text that shows `.notdef`" below. |
 | `PdfAConformance.A`, `PdfAOptions.Language` | PDF/A level A; `Language` is the same fallback. |
 | `PdfDocument.PreparePdfUA(options)` | Makes the repairs below in memory and returns what is still wrong. |
 | `PdfDocument.CheckPdfUA()` | Reports every violation as the document stands; changes nothing; works on read-only documents. |
@@ -50,6 +51,8 @@ A layout document reaches these through `LayoutDocument.Save(stream, PdfSaveOpti
 | `/Tabs /S` on pages that have annotations | 7.18.3 |
 | `/Contents` on a link annotation that has none: the structure element's `/Alt` or `/ActualText`, else the link's address (layout links already carry the text they cover) | 7.18.5 |
 | Liberation faces for standard fonts OnePDF added | 7.21.4.1 |
+| `/Scope` on a header cell of a table that is in breach, where the layout of its row makes the answer plain (see "Header cells") | 7.5 |
+| `/Name` on an optional content configuration that has none (`Default` for `/OCProperties /D`, `Configuration n` for the entries of `/Configs`) | 7.10 |
 
 An XMP packet that already claims everything requested is kept; any other packet is replaced by one built from the Info dictionary (as for PDF/A).
 
@@ -63,14 +66,31 @@ Each finding names the Matterhorn checkpoint and the ISO 14289-1 clause.
 - **Language (11; 7.2):** a catalog `/Lang` that is a plausible BCP 47 tag.
 - **Figures (13; 7.3, 7.7):** `Figure` and `Formula` elements have `/Alt` or `/ActualText`.
 - **Headings (14; 7.4):** the first numbered heading is H1; a numbered heading is at most one level deeper than the one before; `H` and `H1`…`H6` are not mixed.
-- **Tables (15; 7.5):** at least one `TH` cell; `TR` in `Table`/`THead`/`TBody`/`TFoot`; cells in `TR`; every row covers the same number of columns once `ColSpan` and `RowSpan` are counted.
+- **Tables (15; 7.5):** at least one `TH` cell; `TR` in `Table`/`THead`/`TBody`/`TFoot`; cells in `TR`; every row covers the same number of columns once `ColSpan` and `RowSpan` are counted; header cells whose data cells cannot find them (see "Header cells").
+- **Optional content (20; 7.10):** each configuration dictionary, `/OCProperties /D` and every entry of `/Configs`, has a non-empty `/Name`.
 - **Lists (16; 7.6):** `L` contains `LI` (or a `Caption`); `LI` is in `L`; `Lbl` and `LBody` are in `LI`.
 - **Annotations (28; 7.18):** every link annotation is an object reference inside a `Link` structure element and has `/Contents` (or its element has `/Alt`); widgets are in `Form` elements and have a `/TU`; other annotations (except Popup, TrapNet, PrinterMark) are in the tree and have `/Contents`; each has a `/StructParent`; pages with annotations have `/Tabs /S`.
 - **Fonts (31; 7.21):** every font other than Type 3, in page and form resources, has an embedded font program; a font has a `/ToUnicode` map, or an encoding that determines Unicode (a standard encoding without `/Differences`, or an Adobe CJK ordering).
+- **`.notdef` text (31; 7.21.8, Part 1):** a text-showing operator selects a character code for which the embedded font program has no glyph, whether or not the text is drawn. One finding per font and page lists the codes. The check interprets every page (without decoding images or building outlines) so the codes are the ones a validator names; on the largest documents tried that added roughly a third to the time and allocation of `CheckPdfUA`.
 - **Content that a save would lose (31 for fonts, else 01; 7.21.4.1, 7.1):** a stream that cannot be read, decrypted or decoded (corrupt or truncated filter data) and a reference to a needed part that leads to no object, such as a missing `/FontFile2`. The finding names the object and what it is. A PDF/UA save, like a PDF/A save, never drops content: it fails with these findings instead (the full list of what counts is in [pdfa.md](pdfa.md)). In PDF/UA-2 the clause is that of the matching checkpoint.
 - **Security (26; 7.16):** an encrypted document, or new encryption in the save options, must keep the accessibility-extraction permission.
 
-Not checked: reading order, contrast and colour use, the meaning of alternate text, heading semantics beyond the level sequence, `Headers`/`ID` association of complex tables, scope attributes, optional content names, embedded file descriptions, media and flicker rules, XFA and JavaScript rules, fonts used only in invisible text, the Unicode mapping of foreign symbolic fonts, forms inside XObjects. Bookmarks for long documents (ISO 14289-1 7.17) are not required by this check.
+Not checked: reading order, contrast and colour use, the meaning of alternate text, heading semantics beyond the level sequence, whether a `Headers` list names the right cells, embedded file descriptions, media and flicker rules, XFA and JavaScript rules, fonts used only in invisible text, the Unicode mapping of foreign symbolic fonts, forms inside XObjects. Bookmarks for long documents (ISO 14289-1 7.17) are not required by this check.
+
+## Header cells (7.5)
+
+A `TH` without a `/Scope` leaves the data cells of its table without a header unless something else reaches them. The check judges only tables that have an unscoped `TH` and a regular grid (irregular tables get the width finding instead). A data cell is connected when its `/Headers` names the `/ID` of a cell, when a `Column` or `Both` header lies entirely above it in its column, or when a `Row` or `Both` header lies entirely to its left in its row. An unscoped header never connects anything. The finding is per unscoped `TH` and says how many data cells are left without a header. A `/Scope` given through a class map counts.
+
+`PreparePdfUA` sets a scope only in a table that is in breach, and only where the row makes it plain: a row made only of `TH` cells gets `Column`, and the first cell of a row that also has `TD` cells gets `Row`. Anything less clear stays a violation, because it takes a person to say what the cell heads. The usual way to meet this is a header cell added with `InsertChild("TH", ...)`: set its `Scope` at once.
+
+## Text that shows `.notdef`
+
+Hidden text layers (render mode 3, or content in a hidden optional content group) often show codes that map to `.notdef` in the font that carries them. ISO 14289-1 7.21.8 forbids that whether or not the text is drawn.
+
+- `doc.FindNotdefText()` returns a `PdfNotdefRun` per text operator: page, source (page content, form XObject or annotation appearance), the stream's object number, the operator's offset, the font, the codes shown and the codes that are `.notdef`, the render mode, whether it is drawn, the optional content groups around it, and the text it extracts as. Only embedded, non-substituted, non-Type 3 fonts can show `.notdef`.
+- `doc.RemoveNotdefText(options)` removes exactly the `.notdef` codes from those operators. A removed code is replaced by a `TJ` adjustment of its advance, so the following text does not move; nothing else in the stream changes. `PdfNotdefRemoveOptions.Scope` is `Invisible` by default (render mode 3, or hidden by optional content; clip modes count as drawn): that text is never seen, so removing it changes no picture. `All` also removes drawn `.notdef` text, which changes what is visible. `DryRun` reports without editing, `Include` picks runs. The result lists what was removed and what was kept with the reason.
+- A form XObject used from several places is edited once, and only when every use agrees; otherwise its runs are reported as kept. Patterns and operators without a stream of their own are reported, not edited.
+- What changes for readers: the extracted text loses exactly the `NotdefText` of the removed runs (a gap reads as a space). The rendering of invisible text is unchanged.
 
 ## PDF/UA-2
 

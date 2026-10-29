@@ -16,7 +16,7 @@ internal sealed partial class PdfUAChecker
         {
             if (string.IsNullOrWhiteSpace(config.GetString("Name")?.GetText()))
             {
-                Add("26", "7.10", $"The optional content configuration {where} has no /Name.", config.Reference?.Number ?? -1);
+                Add("20", "7.10", $"The optional content configuration {where} has no /Name.", config.Reference?.Number ?? -1);
             }
         }
     }

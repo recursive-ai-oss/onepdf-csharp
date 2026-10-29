@@ -11,11 +11,16 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 - `PdfDocument.MatchEmbeddedFontWidths` (`PdfWidthMatchOptions`, `PdfWidthMatchReport`, `PdfWidthMatchEntry`, `PdfWidthMatchOutcome`): rewrites the width operand of the shown glyphs of embedded CFF programs (`Type1C`, `CIDFontType0C`; simple and composite) to the PDF's `/Widths` or `/W`, for ISO 14289-1 7.21.5. Outlines, names and text positions are unchanged, and the new program is compared with the old one before it replaces it. TrueType, OpenType and Type 1 programs are only examined.
 - `PdfSubstituteEmbedOptions.FaceForFont` (`PdfSubstituteRequest`) and `PdfSubstituteEntry.FromCaller`: the caller supplies a TrueType face for a font the provider has no substitute for (Verdana, Calibri), embedded with the PDF's widths like a provider face.
 - `fontembed` fuzz target: bit 7 of the mode byte runs the CFF width and caller-text path.
+- `PdfDocument.FindNotdefText()` (`PdfNotdefRun`) reports the text-showing operators that select a `.notdef` glyph of an embedded font: page, stream, offset, font, codes, render mode, whether drawn, optional content groups and the text it extracts as.
+- `PdfDocument.RemoveNotdefText(PdfNotdefRemoveOptions)` (`PdfNotdefRemoval`, `PdfNotdefKept`, `PdfNotdefScope`) removes exactly those codes, keeping the advance with `TJ` adjustments. The default scope is text that is never drawn; shared forms are edited only when every use agrees; `DryRun` reports only. `PdfUAOptions.RemoveInvisibleNotdefText` (default false) does it during `PreparePdfUA`.
+- `CheckPdfUA` reports `.notdef` text (ISO 14289-1 7.21.8), header cells whose data cells cannot find a header (7.5) and optional content configurations without a `/Name` (7.10).
 
 ### Changed
 
 - `PdfSubstituteEntry.MissingCodes` (and `PdfFontEmbedResult.MissingCodes`) now lists only the codes the pages show that the substitute lacks. It used to list every code the encoding names when the font was kept whole, for example a ZapfDingbats form default that no page shows (about 100 codes). A font whose use cannot be traced still counts every code its encoding names as possibly shown. What was embedded is unchanged.
 - `docs/fonts.md` says that the substitute report (`WidthChanges`, `WidthConflicts`, `MissingCodes`) covers metrics and coverage, not glyph shapes, so it cannot stand in for a render comparison, and documents the additions above.
+- `PreparePdfUA` sets `/Scope` on the header cells of a table in breach where the row makes it plain (a row of only `TH` heads columns; the first cell of a row with `TD` cells heads the row), and gives optional content configurations without one a `/Name`.
+- The `InsertChild` documentation says that an inserted `TH` needs its `Scope`.
 
 ## [1.13.0] - 2026-10-29
 
