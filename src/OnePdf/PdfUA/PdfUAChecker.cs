@@ -7,7 +7,7 @@ namespace OnePdf.PdfUA;
 /// identification, the tagged structure (types, headings, tables, lists, figures, links), that every painted mark is tagged content
 /// or an artifact, annotations, fonts and security. It reports; it changes nothing. A clean result is not proof of conformance.
 /// </summary>
-internal sealed class PdfUAChecker
+internal sealed partial class PdfUAChecker
 {
     private const int MaxViolations = 2000;
     private const int MaxIssuesPerKind = 20;
@@ -74,6 +74,11 @@ internal sealed class PdfUAChecker
         }
 
         CheckPages(hasTree);
+        if (!_structureOnly && !_part2)
+        {
+            CheckNotdefText();
+        }
+
         if (_part2)
         {
             CheckDestinations();
@@ -1022,6 +1027,11 @@ internal sealed class PdfUAChecker
         if (!regular && !Limited("regular"))
         {
             Add("15", "7.5", "The rows of a table do not all cover the same number of columns.", table.Number);
+        }
+
+        if (!_part2)
+        {
+            CheckTableHeaders(tableIndex);
         }
     }
 

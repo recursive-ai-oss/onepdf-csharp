@@ -41,6 +41,14 @@ public sealed class PdfUAOptions
     /// the save throws <see cref="InvalidOperationException"/> naming the fix when a font needs a substitute and there is none.
     /// </summary>
     public bool EmbedSubstituteFonts { get; init; }
+
+    /// <summary>
+    /// When true, text operators that show the <c>.notdef</c> glyph of an embedded font are cleaned up when they are text nobody sees
+    /// (invisible text, as in an OCR layer, or switched-off optional content), by <see cref="PdfDocument.RemoveNotdefText"/> with the
+    /// default scope. Default false: the removal changes what text extraction returns, so it is the caller's decision. Visible
+    /// <c>.notdef</c> text is never touched here and is reported (ISO 14289-1 7.21.8). Part 1 only.
+    /// </summary>
+    public bool RemoveInvisibleNotdefText { get; init; }
 }
 
 /// <summary>One requirement of ISO 14289-1 (PDF/UA-1) that a document does not meet.</summary>

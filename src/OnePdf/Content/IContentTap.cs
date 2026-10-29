@@ -6,6 +6,15 @@ namespace OnePdf.Content;
 /// </summary>
 internal interface IContentTap
 {
+    /// <summary>
+    /// The next <see cref="StreamBegin"/> is the content of this form XObject (or annotation appearance stream). Not called for the page's
+    /// own content, for patterns or for streams the interpreter makes up, so a consumer that sees none before <see cref="StreamBegin"/> knows
+    /// the stream has no object of its own that could be edited.
+    /// </summary>
+    void StreamOrigin(PdfStream form)
+    {
+    }
+
     /// <summary>A content stream starts: the page's (joined) content, a form XObject or an annotation appearance. <paramref name="resources"/> is what its names resolve against.</summary>
     void StreamBegin(ReadOnlyMemory<byte> data, PdfDictionary? resources);
 
