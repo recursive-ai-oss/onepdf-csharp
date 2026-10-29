@@ -196,7 +196,31 @@ public sealed class PdfSubstituteEmbedOptions
     /// (the <c>RecursiveAI.OnePdf.Fonts</c> package registers Liberation Sans, Serif and Mono).
     /// </summary>
     public IPdfFontProvider? Provider { get; init; }
+
+    /// <summary>
+    /// Supplies a font program for a font that has no substitute from the provider: its name is not a standard face (Verdana, Calibri), or the
+    /// provider has no face for it. Return the program to embed for the request, or null for none; return a face with similar proportions and
+    /// the right weight and style, because only the PDF's widths are kept, not the program's. The face is embedded the way provider faces are
+    /// (a subset of the shown glyphs, advances set to the PDF's <c>/Widths</c> under the default width policy, <c>/ToUnicode</c> kept) and
+    /// is reported like any other entry, with <see cref="PdfSubstituteEntry.FromCaller"/> true. A shown code the face lacks draws
+    /// <c>.notdef</c> and is listed in <see cref="PdfSubstituteEntry.MissingCodes"/>. The provider's faces stay the default: this is asked only
+    /// when the provider has none, and the program must have TrueType outlines. The caller answers for the face's license; its embedding
+    /// flags are checked as for <see cref="PdfDocument.EmbedFontProgram"/>. Called on the calling thread, once per font.
+    /// </summary>
+    public Func<PdfSubstituteRequest, PdfFontFile?>? FaceForFont { get; init; }
 }
+
+/// <summary>What <see cref="PdfSubstituteEmbedOptions.FaceForFont"/> is asked to find a face for.</summary>
+/// <param name="ObjectNumber">The font dictionary's object number, or -1 for a direct dictionary.</param>
+/// <param name="BaseFont">The <c>/BaseFont</c> as written (with any subset tag).</param>
+/// <param name="FontName">The name without a subset tag, for a composite font the descendant's (for example <c>Verdana-Bold</c>).</param>
+/// <param name="IsBold">Bold by the descriptor's <c>ForceBold</c> flag or <c>/FontWeight</c> of 700 or more, or by the name.</param>
+/// <param name="IsItalic">Italic by the descriptor's flag or <c>/ItalicAngle</c>, or by the name.</param>
+/// <param name="IsSerif">The descriptor's <c>Serif</c> flag.</param>
+/// <param name="IsFixedPitch">The descriptor's <c>FixedPitch</c> flag.</param>
+/// <param name="IsSymbolic">The descriptor says symbolic without non-symbolic.</param>
+/// <param name="IsComposite">True for a Type 0 font.</param>
+public sealed record PdfSubstituteRequest(int ObjectNumber, string BaseFont, string FontName, bool IsBold, bool IsItalic, bool IsSerif, bool IsFixedPitch, bool IsSymbolic, bool IsComposite);
 
 /// <summary>What happened to one font in <see cref="PdfDocument.EmbedSubstituteFonts"/>.</summary>
 public enum PdfSubstituteOutcome
@@ -236,8 +260,11 @@ public sealed record PdfSubstituteEntry(int ObjectNumber, string BaseFont, PdfSu
     /// <summary>For <see cref="PdfSubstituteOutcome.Embedded"/>: codes that share a glyph with another code but have a different PDF width; they keep the first code's width and still disagree (ISO 14289-1 7.21.5). Empty otherwise.</summary>
     public IReadOnlyList<int> WidthConflicts { get; init; } = [];
 
-    /// <summary>For <see cref="PdfSubstituteOutcome.Embedded"/>: shown codes the substitute has no glyph for; they draw <c>.notdef</c>. Empty otherwise.</summary>
+    /// <summary>For <see cref="PdfSubstituteOutcome.Embedded"/>: codes the document shows with this font that the substitute has no glyph for; they draw <c>.notdef</c>. Only codes the pages show are listed: a font that is never shown lists none. When the font's use cannot be traced (a direct dictionary, unreadable content) every code its encoding names counts as possibly shown. Empty otherwise.</summary>
     public IReadOnlyList<int> MissingCodes { get; init; } = [];
+
+    /// <summary>True when the program came from <see cref="PdfSubstituteEmbedOptions.FaceForFont"/> rather than from the font provider.</summary>
+    public bool FromCaller { get; init; }
 }
 
 /// <summary>The result of <see cref="PdfDocument.EmbedSubstituteFonts"/>.</summary>
@@ -261,14 +288,57 @@ public sealed class PdfSubstituteEmbedReport
     public int EmbeddedCount => Entries.Count(e => e.Outcome == PdfSubstituteOutcome.Embedded);
 }
 
-/// <summary>One font <see cref="PdfDocument.AddMissingToUnicode"/> changed or could not fully map.</summary>
+/// <summary>A shown code of a font whose Unicode value OnePDF's chain does not know. See <see cref="PdfToUnicodeOptions.CodeToText"/>.</summary>
+/// <param name="Font">The font dictionary (the same object <see cref="PdfDocument.SetToUnicode"/> takes).</param>
 /// <param name="ObjectNumber">The font dictionary's object number, or -1 for a direct dictionary.</param>
 /// <param name="BaseFont">The <c>/BaseFont</c>.</param>
-/// <param name="CodesAdded">How many codes got a new <c>/ToUnicode</c> entry.</param>
-/// <param name="CodesWithoutUnicode">Shown codes for which the chain knows no Unicode value; they have no entry. Empty when the font's use could not be traced.</param>
-public sealed record PdfToUnicodeEntry(int ObjectNumber, string BaseFont, int CodesAdded, IReadOnlyList<int> CodesWithoutUnicode);
+/// <param name="Code">The character code as shown (one byte for a simple font; the code as read for a composite font).</param>
+/// <param name="CodeLength">The number of bytes the code occupies in a shown string.</param>
+/// <param name="Cid">The character id of a composite font's code; the code itself for a simple font.</param>
+/// <param name="GlyphId">The glyph in the font's embedded program, or -1 when the font has no program or the code has no glyph.</param>
+/// <param name="GlyphName">The glyph name from the encoding or the program (for example <c>gid00132</c>), or null. A name that carries no character is why the code has no Unicode.</param>
+/// <param name="Width">The glyph's width in the PDF, 1/1000 em; it tells glyphs of one font apart.</param>
+public sealed record PdfUnmappedCode(PdfDictionary Font, int ObjectNumber, string BaseFont, int Code, int CodeLength, int Cid, int GlyphId, string? GlyphName, double Width);
 
-/// <summary>The result of <see cref="PdfDocument.AddMissingToUnicode"/>.</summary>
+/// <summary>Options for <see cref="PdfDocument.AddMissingToUnicode(PdfToUnicodeOptions, CancellationToken)"/>.</summary>
+public sealed class PdfToUnicodeOptions
+{
+    /// <summary>
+    /// Supplies text for a shown code whose Unicode OnePDF cannot derive: glyph names that carry no character (<c>gid00132</c>), codes of a
+    /// composite font that no <c>/ToUnicode</c> entry covers, embedded CFF or TrueType programs without a usable character map. Return the
+    /// text the glyph stands for, or null to leave the code unmapped. Called on the calling thread, once per such code that the document
+    /// shows (never for codes that cannot be shown), in code order within a font. Text that is returned is written into the font's
+    /// <c>/ToUnicode</c> and counted in <see cref="PdfToUnicodeEntry.CodesFromCaller"/>. OnePDF never guesses: what the callback returns is
+    /// the caller's statement about what the glyph is.
+    /// </summary>
+    public Func<PdfUnmappedCode, string?>? CodeToText { get; init; }
+}
+
+/// <summary>One font <see cref="PdfDocument.AddMissingToUnicode(CancellationToken)"/> changed or could not fully map.</summary>
+/// <param name="ObjectNumber">The font dictionary's object number, or -1 for a direct dictionary.</param>
+/// <param name="BaseFont">The <c>/BaseFont</c>.</param>
+/// <param name="CodesAdded">How many codes got a new <c>/ToUnicode</c> entry (those the chain derived and those <see cref="PdfToUnicodeOptions.CodeToText"/> gave).</param>
+/// <param name="CodesWithoutUnicode">Shown codes for which no Unicode value is known, so they have no entry. Empty when the font's use could not be traced.</param>
+public sealed record PdfToUnicodeEntry(int ObjectNumber, string BaseFont, int CodesAdded, IReadOnlyList<int> CodesWithoutUnicode)
+{
+    /// <summary>The font dictionary, so a caller can pass it to <see cref="PdfDocument.SetToUnicode"/>.</summary>
+    public PdfDictionary? Font { get; init; }
+
+    /// <summary>The same codes as <see cref="CodesWithoutUnicode"/> with what is known about each glyph.</summary>
+    public IReadOnlyList<PdfUnmappedCode> Unmapped { get; init; } = [];
+
+    /// <summary>How many of <see cref="CodesAdded"/> came from <see cref="PdfToUnicodeOptions.CodeToText"/>.</summary>
+    public int CodesFromCaller { get; init; }
+
+    /// <summary>
+    /// True when the existing <c>/ToUnicode</c> had a <c>bfrange</c> that crosses a boundary of its last code byte (for example
+    /// <c>&lt;0000&gt; &lt;FFFF&gt; &lt;0000&gt;</c>), which readers that follow the specification read wrongly, and the map was written again with the
+    /// same meaning in ranges they read correctly.
+    /// </summary>
+    public bool MapRewritten { get; init; }
+}
+
+/// <summary>The result of <see cref="PdfDocument.AddMissingToUnicode(CancellationToken)"/>.</summary>
 public sealed class PdfToUnicodeReport
 {
     internal PdfToUnicodeReport(IReadOnlyList<PdfToUnicodeEntry> entries) => Entries = entries;
@@ -276,8 +346,8 @@ public sealed class PdfToUnicodeReport
     /// <summary>The fonts that changed or have shown codes with no known Unicode.</summary>
     public IReadOnlyList<PdfToUnicodeEntry> Entries { get; }
 
-    /// <summary>The number of fonts whose <c>/ToUnicode</c> was written or extended.</summary>
-    public int FontsChanged => Entries.Count(static e => e.CodesAdded > 0);
+    /// <summary>The number of fonts whose <c>/ToUnicode</c> was written, extended or rewritten.</summary>
+    public int FontsChanged => Entries.Count(static e => e.CodesAdded > 0 || e.MapRewritten);
 
     /// <summary>The total number of entries added.</summary>
     public int CodesAdded => Entries.Sum(static e => e.CodesAdded);

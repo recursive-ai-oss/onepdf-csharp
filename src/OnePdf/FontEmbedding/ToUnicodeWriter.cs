@@ -15,9 +15,9 @@ internal static class ToUnicodeWriter
 
     /// <summary>
     /// Merges <paramref name="entries"/> into the font's <c>/ToUnicode</c> (created when the font has none). Entries are (code, byte length of
-    /// the code, text). Returns false when nothing changed.
+    /// the code, text). Returns false when nothing changed; <paramref name="rewrite"/> writes the map again even when no entry changes (to normalise its ranges).
     /// </summary>
-    public static bool Merge(PdfDocument doc, PdfDictionary font, IReadOnlyDictionary<int, (int Length, string Text)> entries, bool overrideExisting)
+    public static bool Merge(PdfDocument doc, PdfDictionary font, IReadOnlyDictionary<int, (int Length, string Text)> entries, bool overrideExisting, bool rewrite = false)
     {
         // code + length -> text. Existing entries first, so they win unless overridden.
         var merged = new SortedDictionary<(int Length, uint Code), string>();
@@ -47,7 +47,7 @@ internal static class ToUnicodeWriter
             }
         }
 
-        bool changed = !existed;
+        bool changed = !existed || rewrite;
         foreach ((int code, (int length, string text)) in entries)
         {
             if (code < 0 || text.Length == 0 || merged.Count >= MaxEntries)

@@ -8,7 +8,7 @@ namespace OnePdf.FontEmbedding;
 /// <summary>Writes <c>/ToUnicode</c> entries for the codes a document shows whose Unicode value the font chain already knows.</summary>
 internal static class ToUnicodeAdder
 {
-    public static PdfToUnicodeReport Run(PdfDocument doc, CancellationToken ct)
+    public static PdfToUnicodeReport Run(PdfDocument doc, PdfToUnicodeOptions options, CancellationToken ct)
     {
         var fonts = new List<PdfDictionary>();
         var targets = new HashSet<int>();
@@ -94,8 +94,12 @@ internal static class ToUnicodeAdder
                 }
             }
 
+            // A map with a range across a 256-code block is read wrongly by readers that follow the specification: write it again.
+            bool rewrite = existing is not null && existing.HasWideBfRanges();
             var add = new Dictionary<int, (int, string)>();
             var unknown = new List<int>();
+            var unmapped = new List<PdfUnmappedCode>();
+            int fromCaller = 0;
             foreach ((uint code, int length) in codes)
             {
                 if (existing is not null && existing.TryGetUnicode(code, length, out string have) && have.Length > 0)
@@ -118,11 +122,23 @@ internal static class ToUnicodeAdder
                 }
                 else if (tracked)
                 {
-                    unknown.Add(unchecked((int)code));
+                    var info = new PdfUnmappedCode(font, number, baseFont, unchecked((int)code), length, g?.Cid ?? unchecked((int)code), g?.Gid ?? -1, g?.Name,
+                        g is null ? 0 : g.Advance * 1000.0);
+                    string? given = options.CodeToText?.Invoke(info);
+                    if (!string.IsNullOrEmpty(given))
+                    {
+                        add[unchecked((int)code)] = (length, given);
+                        fromCaller++;
+                    }
+                    else
+                    {
+                        unknown.Add(unchecked((int)code));
+                        unmapped.Add(info);
+                    }
                 }
             }
 
-            bool written = add.Count > 0 && ToUnicodeWriter.Merge(doc, font, add, overrideExisting: false);
+            bool written = (add.Count > 0 || rewrite) && ToUnicodeWriter.Merge(doc, font, add, overrideExisting: false, rewrite);
             if (written)
             {
                 doc.ForgetFont(font);
@@ -130,7 +146,13 @@ internal static class ToUnicodeAdder
 
             if (written || unknown.Count > 0)
             {
-                entries.Add(new PdfToUnicodeEntry(number, baseFont, written ? add.Count : 0, unknown));
+                entries.Add(new PdfToUnicodeEntry(number, baseFont, written ? add.Count : 0, unknown)
+                {
+                    Font = font,
+                    Unmapped = unmapped,
+                    CodesFromCaller = written ? fromCaller : 0,
+                    MapRewritten = written && rewrite,
+                });
             }
         }
 

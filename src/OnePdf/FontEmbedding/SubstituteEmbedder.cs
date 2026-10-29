@@ -34,25 +34,47 @@ internal static class SubstituteEmbedder
                 continue;
             }
 
-            string? standard = Core14.Resolve(FontEmbedder.StripTag(subtype == "Type0" ? DescendantName(font) ?? baseFont : baseFont));
-            if (standard is null)
+            string stripped = FontEmbedder.StripTag(subtype == "Type0" ? DescendantName(font) ?? baseFont : baseFont);
+            string? standard = Core14.Resolve(stripped);
+            PdfSubstituteFont? sub = null;
+            bool providerGap = false;
+            if (standard is not null)
             {
-                entries.Add(new PdfSubstituteEntry(number, baseFont, PdfSubstituteOutcome.NoSubstitute, null, null, "The name is not a standard face or a common alias of one."));
-                continue;
+                standard = ApplyDescriptorStyle(standard, desc);
+                if (noProvider)
+                {
+                    providerGap = true;
+                }
+                else
+                {
+                    sub = Find(doc, options, standard);
+                }
             }
 
-            standard = ApplyDescriptorStyle(standard, desc);
-            if (noProvider)
-            {
-                providerMissing = true;
-                entries.Add(new PdfSubstituteEntry(number, baseFont, PdfSubstituteOutcome.NoFontProvider, null, null, PdfSubstituteEmbedReport.NoFontProviderMessage));
-                continue;
-            }
-
-            PdfSubstituteFont? sub = Find(doc, options, standard);
             if (sub is null)
             {
-                entries.Add(new PdfSubstituteEntry(number, baseFont, PdfSubstituteOutcome.NoSubstitute, null, null, "The font provider has no substitute for " + standard + "."));
+                // No face of ours: the caller may have one for this font.
+                PdfFontFile? own = options.FaceForFont?.Invoke(RequestFor(number, baseFont, stripped, desc, subtype == "Type0"));
+                if (own is not null)
+                {
+                    entries.Add(EmbedCallerFace(doc, font, own, options, number, baseFont, stripped, subtype == "Type0", ct));
+                    continue;
+                }
+
+                if (standard is null)
+                {
+                    entries.Add(new PdfSubstituteEntry(number, baseFont, PdfSubstituteOutcome.NoSubstitute, null, null, "The name is not a standard face or a common alias of one."));
+                }
+                else if (providerGap)
+                {
+                    providerMissing = true;
+                    entries.Add(new PdfSubstituteEntry(number, baseFont, PdfSubstituteOutcome.NoFontProvider, null, null, PdfSubstituteEmbedReport.NoFontProviderMessage));
+                }
+                else
+                {
+                    entries.Add(new PdfSubstituteEntry(number, baseFont, PdfSubstituteOutcome.NoSubstitute, null, null, "The font provider has no substitute for " + standard + "."));
+                }
+
                 continue;
             }
 
@@ -108,6 +130,65 @@ internal static class SubstituteEmbedder
         }
 
         return new PdfSubstituteEmbedReport(entries) { FontProviderMissing = providerMissing };
+    }
+
+    private static PdfSubstituteRequest RequestFor(int number, string baseFont, string stripped, PdfDictionary? desc, bool composite)
+    {
+        int flags = desc is not null && desc.ContainsKey("Flags") ? (int)desc.GetInt("Flags") : 0;
+        bool bold = (flags & (1 << 18)) != 0 || (desc?.GetDouble("FontWeight") ?? 0) >= 700
+            || stripped.Contains("Bold", StringComparison.OrdinalIgnoreCase) || stripped.Contains("Black", StringComparison.OrdinalIgnoreCase) || stripped.Contains("Heavy", StringComparison.OrdinalIgnoreCase);
+        bool italic = (flags & 64) != 0 || (desc?.GetDouble("ItalicAngle") ?? 0) != 0
+            || stripped.Contains("Italic", StringComparison.OrdinalIgnoreCase) || stripped.Contains("Oblique", StringComparison.OrdinalIgnoreCase);
+        return new PdfSubstituteRequest(number, baseFont, stripped, bold, italic, (flags & 2) != 0, (flags & 1) != 0, (flags & 4) != 0 && (flags & 32) == 0, composite);
+    }
+
+    // A face the caller supplied for a font this package has no substitute for. It goes through the same embedding as the provider's faces
+    // (widths follow the PDF's, ToUnicode is kept), but a shown code it lacks is reported instead of refusing, because the caller chose it.
+    private static PdfSubstituteEntry EmbedCallerFace(PdfDocument doc, PdfDictionary font, PdfFontFile own, PdfSubstituteEmbedOptions options,
+        int number, string baseFont, string stripped, bool composite, CancellationToken ct)
+    {
+        string name = own.PostScriptName ?? stripped;
+        if (own.Kind != PdfFontFileKind.TrueType)
+        {
+            return new PdfSubstituteEntry(number, baseFont, PdfSubstituteOutcome.Refused, name, PdfFontEmbedFailure.UnsupportedProgram, "The face the caller supplied is not a TrueType-outline font.") { FromCaller = true };
+        }
+
+        if (composite && !font.ContainsKey("ToUnicode"))
+        {
+            return new PdfSubstituteEntry(number, baseFont, PdfSubstituteOutcome.NoSubstitute, name, null, "A composite font needs a /ToUnicode map to pick glyphs of a substitute; this one has none.") { FromCaller = true };
+        }
+
+        for (int attempt = 0; attempt < 2; attempt++)
+        {
+            try
+            {
+                var o = new PdfFontEmbedOptions
+                {
+                    Subset = options.Subset,
+                    Widths = options.Widths,
+                    MissingGlyphs = attempt == 0 ? PdfMissingGlyphPolicy.Refuse : PdfMissingGlyphPolicy.UseNotdef,
+                };
+                PdfFontEmbedResult r = FontEmbedder.Embed(doc, font, own, o, ct);
+                string note = $"Embedded the caller's face {name} as {r.BaseFont}" + (r.MissingCodes.Count > 0 ? $"; {r.MissingCodes.Count} shown code(s) have no glyph in it." : ".");
+                return new PdfSubstituteEntry(number, baseFont, PdfSubstituteOutcome.Embedded, name, null, note)
+                {
+                    WidthChanges = r.WidthChanges,
+                    WidthConflicts = r.WidthConflicts,
+                    MissingCodes = r.MissingCodes,
+                    FromCaller = true,
+                };
+            }
+            catch (PdfFontEmbedException ex) when (ex.Reason == PdfFontEmbedFailure.NoGlyphForCode && attempt == 0)
+            {
+                // Try again, leaving the codes the face lacks to draw .notdef.
+            }
+            catch (PdfFontEmbedException ex)
+            {
+                return new PdfSubstituteEntry(number, baseFont, PdfSubstituteOutcome.Refused, name, ex.Reason, ex.Message) { FromCaller = true };
+            }
+        }
+
+        return new PdfSubstituteEntry(number, baseFont, PdfSubstituteOutcome.Refused, name, PdfFontEmbedFailure.NoGlyphForCode, "The face has no glyph for the shown codes.") { FromCaller = true };
     }
 
     private static PdfFontFile? Open(Dictionary<string, PdfFontFile?> faces, PdfSubstituteFont sub)
