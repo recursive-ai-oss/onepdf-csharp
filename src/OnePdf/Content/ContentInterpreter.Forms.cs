@@ -388,6 +388,11 @@ internal sealed partial class ContentInterpreter
                 return;
             }
 
+            if (_tapSuspended == 0)
+            {
+                _tap?.StreamOrigin(form);
+            }
+
             RunFormContent(form.Dictionary, data, isMask);
         }
         finally

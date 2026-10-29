@@ -36,7 +36,7 @@ The edits:
 | role map entry | `tree.MapRole(custom, standard)` |
 | move an element or a content item | `item.MoveTo(newParent, index)` (`null` parent is the root; the index counts after the item has left its old place; -1 appends) |
 | wrap children in a new element | `node.WrapChildren("Div", first, count)` (`tree.WrapChildren` for the root) |
-| insert an empty element | `node.InsertChild("TD", index)` (-1 appends): a new element with `/P` set and no `/K`, for example a `TD` for a table cell the producer left out; content can be moved into it later |
+| insert an empty element | `node.InsertChild("TD", index)` (-1 appends): a new element with `/P` set and no `/K`, for example a `TD` for a table cell the producer left out; content can be moved into it later. A `TH` inserted this way has no `/Scope`: set `node.Scope` at once, or `CheckPdfUA` reports it (ISO 14289-1 7.5) and `PreparePdfUA` sets it only where the row makes the answer plain |
 | remove, keep the children | `item.Remove(PdfStructureRemoval.Unwrap)`: the children take its place |
 | remove, keep nothing untagged | `item.Remove(PdfStructureRemoval.ToArtifacts)`: the subtree goes, its marked content becomes `/Artifact` in the content streams, annotations lose their `/StructParent` |
 

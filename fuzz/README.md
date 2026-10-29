@@ -25,7 +25,7 @@ One executable (`fuzz/OnePdf.Fuzz`) holds one target per input surface. SharpFuz
 | `type4` | 2 parameter bytes, then program text | PostScript calculator functions |
 | `save` | a PDF (seeded from the test files) | open for editing, change objects, full and incremental save, reopen what was written |
 | `signature` | a mode byte, then a CMS blob or a whole PDF | CMS and ASN.1 parsing, certificates, signature and time-stamp checks, chain building, byte ranges, change analysis |
-| `pdfa` | a PDF (seeded from the test files) | PDF/A check, preparation and save; a file that is written must pass the checker |
+| `pdfa` | a PDF (seeded from the test files) | PDF/A and PDF/UA check, preparation and save, and (bit 1 of the selector) removing `.notdef` text from page and form content; a file that is written must pass the checker |
 | `extraction` | an options byte, then 10-byte glyph records | text layout, plain-text modes, extraction JSON, bidirectional reordering |
 | `svg` | an SVG document (any bytes; the committed sample SVGs seed it) | an SVG picture in `OnePdf.Layout` (same project as `layout`, picked by the target name): parse, lay out tagged or untagged, save twice (same bytes), reopen and extract; limits tightened so one input stays cheap |
 | `layout` | a flag byte (hostile font, right-to-left, untagged, justified, landscape, debug), a script length, a script that chooses a random element tree, its text and settings, then optionally a font file | `OnePdf.Layout` (separate project `fuzz/OnePdf.Layout.Fuzz`, built with `OnePdf.slnx`): laying out and saving; a second run must give the same bytes, the file must reopen, and each text token must be extracted once |
