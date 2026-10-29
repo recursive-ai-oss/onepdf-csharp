@@ -25,7 +25,7 @@ internal static class CffSubsetter
     private const int ScanBudgetPerGlyph = 200_000;
     private const long ScanBudgetTotal = 40_000_000;
 
-    private readonly record struct DictEntry(int Op, int RawStart, int RawLength, double First, double Second);
+    internal readonly record struct DictEntry(int Op, int RawStart, int RawLength, double First, double Second);
 
     public static byte[] Subset(ReadOnlyMemory<byte> cff, IReadOnlyList<int> glyphs, string fontName)
     {
@@ -321,7 +321,7 @@ internal static class CffSubsetter
         return (long)dict[i].First;
     }
 
-    private static int Find(List<DictEntry> dict, int op)
+    internal static int Find(List<DictEntry> dict, int op)
     {
         for (int i = 0; i < dict.Count; i++)
         {
@@ -336,7 +336,7 @@ internal static class CffSubsetter
 
     // DICT data (TN #5176, section 4): operands then an operator. Only the first two operands are kept as numbers: everything the
     // subsetter edits is a number it reads here, and the rest is copied as raw bytes.
-    private static List<DictEntry> ParseDict(ReadOnlySpan<byte> d)
+    internal static List<DictEntry> ParseDict(ReadOnlySpan<byte> d)
     {
         var list = new List<DictEntry>();
         int p = 0;
@@ -423,7 +423,7 @@ internal static class CffSubsetter
         return list;
     }
 
-    private static void ReadFdSelect(ReadOnlySpan<byte> d, int offset, int[] fdOfGlyph, int fdCount)
+    internal static void ReadFdSelect(ReadOnlySpan<byte> d, int offset, int[] fdOfGlyph, int fdCount)
     {
         int format = Be.U8(d, offset);
         if (format == 0)
@@ -679,7 +679,7 @@ internal static class CffSubsetter
         return [.. b];
     }
 
-    private static long ToFixed(double v)
+    internal static long ToFixed(double v)
     {
         double f = Math.Round(v * 65536.0);
         return Math.Abs(f) > 0x7FFFFFFF ? throw new FontProgramException("A composed glyph has a coordinate out of range.") : (long)f;
@@ -687,7 +687,7 @@ internal static class CffSubsetter
 
     // One Type 2 operand (TN #5177 section 3.2) from a 16.16 fixed-point value: the short integer forms when it is whole, else the
     // 5-byte fixed form (which holds ±32767.99).
-    private static void PutType2(List<byte> b, long fixedValue)
+    internal static void PutType2(List<byte> b, long fixedValue)
     {
         if ((fixedValue & 0xFFFF) == 0)
         {
@@ -743,7 +743,7 @@ internal static class CffSubsetter
         return IndexBytes(list);
     }
 
-    private static byte[] IndexBytes(List<byte[]> items)
+    internal static byte[] IndexBytes(List<byte[]> items)
     {
         if (items.Count == 0)
         {
@@ -777,7 +777,7 @@ internal static class CffSubsetter
         return [.. b];
     }
 
-    private static void PutOffset(List<byte> b, long v, int size)
+    internal static void PutOffset(List<byte> b, long v, int size)
     {
         for (int i = size - 1; i >= 0; i--)
         {
@@ -785,14 +785,14 @@ internal static class CffSubsetter
         }
     }
 
-    private static void PutInt(List<byte> b, int v)
+    internal static void PutInt(List<byte> b, int v)
     {
         b.Add(29);
         PutOffset(b, (uint)v, 4);
     }
 
     /// <summary>A DICT integer in its shortest form (TN #5176 table 3), as far as the 1- and 2-byte forms reach, else the 3-byte form.</summary>
-    private static void PutCompact(List<byte> b, int v)
+    internal static void PutCompact(List<byte> b, int v)
     {
         if (v >= -107 && v <= 107)
         {
@@ -815,7 +815,7 @@ internal static class CffSubsetter
         }
     }
 
-    private static void PutOp(List<byte> b, int op)
+    internal static void PutOp(List<byte> b, int op)
     {
         if (op > 0xFF)
         {

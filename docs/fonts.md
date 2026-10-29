@@ -29,7 +29,9 @@ Or let a PDF/UA or PDF/A save do it:
 doc.Save(output, new PdfSaveOptions { PdfUA = new PdfUAOptions { Language = "en-US", EmbedSubstituteFonts = true } });
 ```
 
-`EmbedSubstituteFonts` goes through every font dictionary that is not embedded and picks a substitute from the provider: Arial, Helvetica and the other sans names get Liberation Sans, Times and its aliases Liberation Serif, Courier and Courier New Liberation Mono, with bold and italic taken from the name and the descriptor flags. Symbol and ZapfDingbats try each face the provider offers. A `PdfSubstituteEntry` says per font whether it was `Embedded`, `AlreadyEmbedded`, had `NoSubstitute` (for example Verdana, which has no metric-compatible face), had `NoFontProvider` (see above) or was `Refused` and why. An `Embedded` entry also carries what changed visibly for that font: `WidthChanges` (codes whose PDF width differs from the substitute's own advance; the subset carries the PDF's), `WidthConflicts` (codes that share a glyph but have different PDF widths, which can only keep one of them) and `MissingCodes` (shown codes the substitute has no glyph for, which draw `.notdef`). A Type 0 font is only done when it has a `/ToUnicode` to map its codes to glyphs.
+`EmbedSubstituteFonts` goes through every font dictionary that is not embedded and picks a substitute from the provider: Arial, Helvetica and the other sans names get Liberation Sans, Times and its aliases Liberation Serif, Courier and Courier New Liberation Mono, with bold and italic taken from the name and the descriptor flags. Symbol and ZapfDingbats try each face the provider offers. A `PdfSubstituteEntry` says per font whether it was `Embedded`, `AlreadyEmbedded`, had `NoSubstitute` (for example Verdana, which has no metric-compatible face), had `NoFontProvider` (see above) or was `Refused` and why. An `Embedded` entry also carries what changed visibly for that font: `WidthChanges` (codes whose PDF width differs from the substitute's own advance; the subset carries the PDF's), `WidthConflicts` (codes that share a glyph but have different PDF widths, which can only keep one of them) and `MissingCodes` (codes the pages show that the substitute has no glyph for, which draw `.notdef`; a code the pages never show is not listed, even when the font is kept whole because a form may still be filled in with it, and when a font's use cannot be traced every code its encoding names counts as possibly shown). A Type 0 font is only done when it has a `/ToUnicode` to map its codes to glyphs.
+
+**The report is not a render comparison.** `WidthChanges`, `WidthConflicts` and `MissingCodes` say where metrics and coverage differ. They say nothing about how the letters look: a substitute that has every glyph and every width can still draw a different shape (Liberation Sans for Arial is close; for a face like Verdana or a script font it is not). Where the look matters, render the page before and after and compare the images.
 
 The option is off by default in `PdfUAOptions` and `PdfAOptions` (`EmbedSubstituteFonts`), because the letter shapes in a viewer change from the viewer's own Arial to the embedded Liberation face. `EmbedLibraryFonts` is a different option: it only covers standard fonts that OnePDF's own writer added.
 
@@ -72,7 +74,7 @@ PdfFontEmbedResult r = doc.EmbedFontProgram(font, file, new PdfFontEmbedOptions
 doc.SetToUnicode(font, new Dictionary<int, string> { [0x20] = " " });   // merge entries into /ToUnicode
 ```
 
-`PdfFontFile` reads TrueType, OpenType-CFF and bare CFF (`Kind`), exposes metrics, `fsType` (`EmbeddingRights`, `AllowsEmbedding`, `AllowsSubsetting`) and cmap and glyph-name lookups. Embedding supports TrueType programs only; a CFF program is read but refused (`UnsupportedProgram`). `PdfFontEmbedOptions` has `Subset`, `Codes`, `Replace` (swap the program of an already embedded font), `IgnoreEmbeddingRestrictions`, `Widths`, `MaxWidthDifference`, `MissingGlyphs` (`Refuse` throws `NoGlyphForCode`; `UseNotdef` draws .notdef and lists the codes in `MissingCodes`), `CodeToUnicode`, `GlyphForCode`, `CidsAreGlyphIds`, `OverrideToUnicode` and `WriteToUnicode`. The happy path uses `UseNotdef` and reports; the low level refuses.
+`PdfFontFile` reads TrueType, OpenType-CFF and bare CFF (`Kind`), exposes metrics, `fsType` (`EmbeddingRights`, `AllowsEmbedding`, `AllowsSubsetting`) and cmap and glyph-name lookups. `EmbedFontProgram` supports TrueType programs only; a CFF program is read but refused (`UnsupportedProgram`). `PdfFontEmbedOptions` has `Subset`, `Codes`, `Replace` (swap the program of an already embedded font), `IgnoreEmbeddingRestrictions`, `Widths`, `MaxWidthDifference`, `MissingGlyphs` (`Refuse` throws `NoGlyphForCode`; `UseNotdef` draws .notdef and lists the codes in `MissingCodes`), `CodeToUnicode`, `GlyphForCode`, `CidsAreGlyphIds`, `OverrideToUnicode` and `WriteToUnicode`. The happy path uses `UseNotdef` and reports; the low level refuses.
 
 Refusals are `PdfFontEmbedException` with a `Reason`: `NoGlyphForCode`, `ProgramForbidsEmbedding`, `AlreadyEmbedded`, `Type3Font`, `UnsupportedFont`, `UnsupportedProgram`, `WidthMismatch`, `TooLarge`.
 
@@ -84,10 +86,55 @@ foreach (PdfToUnicodeEntry e in report.Entries)
     Console.WriteLine($"{e.BaseFont}: {e.CodesAdded} added, no Unicode for {e.CodesWithoutUnicode.Count} codes");
 ```
 
-ISO 14289-1 7.21.7 wants a `/ToUnicode` map for a font whose encoding does not say what its codes mean (a `/Differences` array, a symbolic or Identity-encoded font). `AddMissingToUnicode` writes entries for the codes the document shows, taking each value from the same chain text extraction uses: the encoding and `/Differences` glyph names through the Adobe Glyph List, then the embedded font's character map. A code the chain cannot read gets no entry and is listed in `CodesWithoutUnicode`: nothing is guessed, so such a font still fails 7.21.7 and needs `SetToUnicode` with values from the caller. Entries already in a map are kept. Text extraction does not change, because it reads the same chain. Fonts whose encoding already determines Unicode (WinAnsi, MacRoman or Standard without `/Differences`; Adobe CJK collections) are skipped, as are Type 3 fonts. Needs an editable document.
+ISO 14289-1 7.21.7 wants a `/ToUnicode` map for a font whose encoding does not say what its codes mean (a `/Differences` array, a symbolic or Identity-encoded font). `AddMissingToUnicode` writes entries for the codes the document shows, taking each value from the same chain text extraction uses: the encoding and `/Differences` glyph names through the Adobe Glyph List, then the embedded font's character map. A code the chain cannot read gets no entry and is listed in `CodesWithoutUnicode`: nothing is guessed, so such a font still fails 7.21.7 and needs `SetToUnicode` with values from the caller. Entries already in a map are kept. Text extraction does not change, because it reads the same chain.
+
+A map that already exists can still fail 7.21.7 for a reason of syntax: a `bfrange` that runs across a boundary of the last code byte, such as `<0000> <FFFF> <0000>`. ISO 32000-2 9.10.3 and Adobe Technical Note #5411 increment only the last byte and keep a range within one block of 256 codes, and readers that follow them read such a range correctly only for the first 256 codes. OnePDF reads the range as written, so extraction was never affected, but `AddMissingToUnicode` now writes such a map again with the same meaning in ranges of at most 256 codes (`PdfToUnicodeEntry.MapRewritten`). Fonts whose encoding already determines Unicode (WinAnsi, MacRoman or Standard without `/Differences`; Adobe CJK collections) are skipped, as are Type 3 fonts. Needs an editable document.
+
+## Text for codes OnePDF cannot read
+
+Some embedded subsets say nothing about what their glyphs are: a CFF subset whose glyphs are named `gid00132`, a TrueType subset without a character map, a composite font whose `/ToUnicode` lacks codes. The code's Unicode cannot be derived from the file, and a glyph's shape does not say which character it is, so OnePDF never guesses. `AddMissingToUnicode` reports them with what is known about each glyph, and the caller can supply the text:
+
+```csharp
+PdfToUnicodeReport report = doc.AddMissingToUnicode(new PdfToUnicodeOptions
+{
+    CodeToText = u => LookUp(u.BaseFont, u.Code, u.GlyphName, u.GlyphId, u.Width),   // null leaves the code unmapped
+});
+// Or look first: every PdfToUnicodeEntry lists its Unmapped codes and carries the font dictionary.
+foreach (PdfToUnicodeEntry e in doc.AddMissingToUnicode().Entries)
+    doc.SetToUnicode(e.Font!, e.Unmapped.ToDictionary(u => u.Code, u => Decide(u)));
+```
+
+`CodeToText` is asked once for each shown code the chain cannot map, and what it returns is written to the font's `/ToUnicode` (`CodesFromCaller` counts them). Both routes only write the font dictionary's `/ToUnicode`, so they work for every font kind, including embedded CFF, OpenType-CFF and Type 0 fonts with CIDFontType0 descendants; the font program is never read or changed. Extraction then returns the caller's text for those codes, and nothing else changes. Two subsets of the same font in one file are mapped separately: a code is never mapped from another font's glyph, because identical charstrings in two subsets can still belong to different characters in a producer's private numbering.
+
+## Widths of fonts that are already embedded
+
+A font that was subset from a variable font often carries the instance's fractional advances in its program while the PDF lists other widths, so ISO 14289-1 7.21.5 fails. For embedded CFF programs (`FontFile3` of subtype `Type1C` or `CIDFontType0C`, simple or composite) the caller can bring the program to the PDF:
+
+```csharp
+PdfWidthMatchReport report = doc.MatchEmbeddedFontWidths();
+foreach (PdfWidthMatchEntry e in report.Entries)
+    Console.WriteLine($"{e.BaseFont}: {e.Outcome} ({e.WidthChanges.Count} widths) {e.Note}");
+```
+
+The shown glyphs get the PDF's widths and nothing else changes: the width is the first operand of a glyph's charstring (Adobe Technical Note #5177 section 3.1), and that operand is rewritten. `defaultWidthX` and `nominalWidthX` become whole numbers, since readers differ in how they take their fractions, so every glyph is written again against the new defaults and keeps its width unless it is a shown one. Outlines, glyph names, charset and encoding are copied, the new program is read back and compared glyph by glyph with the old one before it replaces it, and the descriptor is replaced by a copy so fonts that shared the old one are not affected. Text positions come from the PDF's widths and are not touched; the page renders identically.
+
+A glyph that reaches its width through a subroutine call is not handled, and the font is left as it was (`Refused`, with the reason in `Note`). TrueType, OpenType and Type 1 programs are examined but not rewritten (`UnsupportedProgram`); fonts embedded by OnePDF (`EmbedFontProgram`, `EmbedSubstituteFonts`) already carry the PDF's widths. `PdfWidthMatchOptions.Tolerance` (default 0.01 in 1/1000 em) sets how small a difference is ignored.
+
+## A face of your own for fonts with no substitute
+
+Verdana, Calibri and most other faces have no metric-compatible substitute in the Fonts package, so `EmbedSubstituteFonts` reports `NoSubstitute` for them. A caller who has a suitable face (and the right to embed it) supplies it:
+
+```csharp
+doc.EmbedSubstituteFonts(new PdfSubstituteEmbedOptions
+{
+    FaceForFont = r => r.FontName == "Verdana-Bold" ? PdfFontFile.Open(File.ReadAllBytes("DejaVuSans-Bold.ttf")) : null,
+});
+```
+
+`FaceForFont` is asked only for fonts the provider has no face for; the provider's faces stay the default. The face is embedded as a subset with the PDF's widths forced onto its glyphs, exactly like a provider's face, and the entry says so (`FromCaller`). The request carries the font name without the subset tag and the descriptor's weight, style, serif and pitch flags, so one callback can pick a face by style. The program must have TrueType outlines (otherwise `Refused`/`UnsupportedProgram`). A shown code the face lacks draws `.notdef` and is listed in `MissingCodes`. Licensing is the caller's: `fsType` is checked, nothing else. Choose a face with similar proportions, because the PDF's advances are kept and the program's are not; see the note above on shapes.
 
 ## Limits
 
-- Only TrueType programs are written. An already embedded Type1C/CFF font whose widths or `/ToUnicode` fail 7.21.5 or 7.21.7 is not repaired.
-- A `/ToUnicode` is only written for codes with a known Unicode value; guessing is never done.
+- Substitutes and caller faces must be TrueType programs. An already embedded CFF font gets its widths matched (`MatchEmbeddedFontWidths`), not replaced; an already embedded TrueType font whose widths disagree with the PDF is only reported.
+- A `/ToUnicode` is only written for codes with a known Unicode value or one the caller supplied; guessing is never done.
 - Embedded programs follow the font licence: `fsType` is honoured, and the substitute faces are under the SIL OFL 1.1. Embedding a subset in a document is covered by OFL-FAQ 1.12; see `THIRD-PARTY-NOTICES.md`.

@@ -31,6 +31,14 @@ internal static class FontEmbedSmoke
             return "AddMissingToUnicode found unknown codes in a WinAnsi font";
         }
 
+        // The caller-supplied paths: a face for fonts with no substitute, text for unmapped codes, widths of embedded CFF programs.
+        _ = doc.EmbedSubstituteFonts(new PdfSubstituteEmbedOptions { FaceForFont = static _ => null });
+        _ = doc.AddMissingToUnicode(new PdfToUnicodeOptions { CodeToText = static _ => null });
+        if (doc.MatchEmbeddedFontWidths().FontsRewritten != 0)
+        {
+            return "a TrueType font was rewritten by the CFF width match";
+        }
+
         using var ms = new MemoryStream();
         doc.Save(ms);
         using PdfDocument back = PdfDocument.Open(ms.ToArray());

@@ -319,6 +319,8 @@ internal static class Seeds
                     PutData("pdffont-symbolic", font, [1]);
                     PutData("pdffont-cid", font, [2]);
                     PutData("pdffont-diff", font, [3]);
+                    PutData("pdffont-cffwidth", font, [128]);
+                    PutData("pdffont-cffwidth-cid", font, [130]);
                 }
 
                 if (fontDir is not null && Directory.Exists(fontDir))
