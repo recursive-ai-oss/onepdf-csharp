@@ -39,7 +39,9 @@ public sealed partial class PdfDocument
     {
         ArgumentNullException.ThrowIfNull(plan);
         ThrowIfDisposed();
-        return Tagging.TaggingPass.Run(this, plan, cancellationToken);
+        PdfTaggingResult result = Tagging.TaggingPass.Run(this, plan, cancellationToken);
+        ForgetStructureTree();
+        return result;
     }
 
     /// <summary>

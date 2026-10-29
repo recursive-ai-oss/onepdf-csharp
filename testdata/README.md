@@ -21,5 +21,6 @@ Rules:
 `repros/`:
 
 - `encrypted-objstm-aes128.pdf` — `raw-base-objstm.pdf` encrypted by qpdf (AES-128, user password `up`, owner password `op`) keeping its object stream. The object stream is encrypted, so reading its header before authentication fails with an invalid `/N` or `/First`; the reader now authenticates first.
+- `structure-parent-tree-null-entry.pdf` — a tagged file whose parent tree lists a key with a null value; moving content out of an element into another one tried to reuse that entry and failed with a null reference (found by fuzzing the structure tree; a mutated copy of a committed file).
 - `appearance-short-line-ending-array.pdf` — a Line and a PolyLine whose `/LE` array has fewer than two names; the appearance generator indexed past the end of the array (found by fuzzing). Assembled by hand.
 - `save-incremental-junk-prefix-offset.pdf` — `raw-broken-junk-before-header.pdf` after a byte-level mutation. Saved incrementally, the new cross-reference section landed one byte past a place where an object header started, and the reader took the unshifted reading of `startxref` before the header-relative one. Found by the `save` fuzz target.

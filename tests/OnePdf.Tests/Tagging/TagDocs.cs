@@ -14,7 +14,7 @@ internal static class TagDocs
         $"BT /{font} {size} Tf {x} {y} Td ({text}) Tj ET\n";
 
     /// <summary>Catalog 1, Pages 2, fonts 3 (Helvetica) and 4 (Times-Roman), pages 10.., their contents 50..; extra objects from 100.</summary>
-    public static byte[] Make(PageSpec[] pages, Action<PdfBuilder>? extra = null, string xobjects = "", string catalogExtra = "", string resourcesExtra = "")
+    public static byte[] Make(PageSpec[] pages, Action<PdfBuilder>? extra = null, string xobjects = "", string catalogExtra = "", string resourcesExtra = "", int xrefSize = 200)
     {
         var b = new PdfBuilder();
         b.Obj(1, $"<< /Type /Catalog /Pages 2 0 R {catalogExtra} >>");
@@ -33,8 +33,8 @@ internal static class TagDocs
         }
 
         extra?.Invoke(b);
-        long x = b.XrefTable(200);
-        b.Trailer("/Size 200 /Root 1 0 R", x);
+        long x = b.XrefTable(xrefSize);
+        b.Trailer($"/Size {xrefSize} /Root 1 0 R", x);
         return b.ToArray();
     }
 
