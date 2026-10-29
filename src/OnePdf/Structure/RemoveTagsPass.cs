@@ -1,7 +1,3 @@
-using System.Globalization;
-using System.Text;
-using OnePdf.Content;
-
 namespace OnePdf.Structure;
 
 /// <summary>
@@ -26,6 +22,7 @@ internal sealed class RemoveTagsPass
     private RemoveTagsPass(PdfDocument doc, PdfRemoveTagsOptions options, CancellationToken ct)
     {
         _doc = doc;
+        _rewriter = new MarkedContentRewriter(doc.Limits);
         _options = options;
         _ct = ct;
     }
@@ -281,203 +278,50 @@ internal sealed class RemoveTagsPass
 
     // ---- one content stream ----
 
-    private enum Close : byte
-    {
-        Keep,
-        Drop,
-    }
-
-    private readonly record struct Edit(int Start, int End, byte[] Bytes);
-
-    private static readonly byte[] s_space = [(byte)' '];
+    private readonly MarkedContentRewriter _rewriter;
 
     /// <summary>Returns the rewritten bytes, or null when nothing in the stream has to change (or it cannot be read to its end).</summary>
     private byte[]? Rewrite(ReadOnlyMemory<byte> data, PdfDictionary? resources, string where)
     {
-        var lx = new ContentLexer(data, _doc.Limits.MaxNestingDepth);
-        var edits = new List<Edit>();
-        var stack = new List<Close>();
-        Operand a = default;
-        Operand b = default;
-        int operands = 0;
-        int segment = 0;
         int removed = 0;
         int artifacts = 0;
         int actualText = 0;
-        while (true)
+        byte[]? bytes = _rewriter.Rewrite(data, resources, (tag, props, mcid) =>
         {
-            ContentToken t = lx.Next(out Operand operand, out ContentOp op);
-            if (t == ContentToken.End)
+            if (tag == "Artifact" && _options.RemoveArtifactMarks)
             {
-                break;
+                artifacts++;
+                return McAction.Drop;
             }
 
-            if (t == ContentToken.Operand)
+            if (tag == "OC" || mcid < 0 && props?.ContainsKey("MCID") != true)
             {
-                a = b;
-                b = operand;
-                operands++;
-                continue;
+                return McAction.Keep;
             }
 
-            int end = lx.Position;
-            switch (op)
+            removed++;
+            if (props?.Get("ActualText") is PdfString)
             {
-                case ContentOp.BeginMarked:
-                {
-                    string? tag = operands >= 1 && b.Kind == OperandKind.Name ? b.Name : null;
-                    if (tag == "Artifact" && _options.RemoveArtifactMarks)
-                    {
-                        edits.Add(new Edit(segment, end, s_space));
-                        stack.Add(Close.Drop);
-                        artifacts++;
-                    }
-                    else
-                    {
-                        stack.Add(Close.Keep);
-                    }
-
-                    break;
-                }
-
-                case ContentOp.BeginMarkedProps:
-                {
-                    string? tag = operands >= 2 && a.Kind == OperandKind.Name ? a.Name : null;
-                    PdfDictionary? props = null;
-                    if (operands >= 2)
-                    {
-                        if (b.Kind == OperandKind.Name)
-                        {
-                            props = resources?.Get("Properties") is PdfDictionary pr ? pr.Get(b.Name!) as PdfDictionary : null;
-                        }
-                        else if (b.Kind == OperandKind.Object)
-                        {
-                            props = lx.ToObject(in b) as PdfDictionary;
-                        }
-                    }
-
-                    if (tag == "Artifact" && _options.RemoveArtifactMarks)
-                    {
-                        edits.Add(new Edit(segment, end, s_space));
-                        stack.Add(Close.Drop);
-                        artifacts++;
-                    }
-                    else if (tag is not null && tag != "OC" && props is not null && props.ContainsKey("MCID"))
-                    {
-                        removed++;
-                        PdfString? at = props.Get("ActualText") as PdfString;
-                        if (at is not null)
-                        {
-                            // Text extraction takes /ActualText from the content stream, so it stays, without the identifier.
-                            edits.Add(new Edit(segment, end, Encoding.Latin1.GetBytes(" " + NameText(tag) + " <</ActualText " + HexText(at) + ">> BDC")));
-                            stack.Add(Close.Keep);
-                            actualText++;
-                        }
-                        else if (_options.MarkedContent == PdfMarkedContentRemoval.ConvertToBmc)
-                        {
-                            edits.Add(new Edit(segment, end, Encoding.Latin1.GetBytes(" " + NameText(tag) + " BMC")));
-                            stack.Add(Close.Keep);
-                        }
-                        else
-                        {
-                            edits.Add(new Edit(segment, end, s_space));
-                            stack.Add(Close.Drop);
-                        }
-                    }
-                    else
-                    {
-                        stack.Add(Close.Keep);
-                    }
-
-                    break;
-                }
-
-                case ContentOp.EndMarked:
-                    if (stack.Count > 0)
-                    {
-                        Close c = stack[^1];
-                        stack.RemoveAt(stack.Count - 1);
-                        if (c == Close.Drop)
-                        {
-                            edits.Add(new Edit(segment, end, s_space));
-                        }
-                    }
-
-                    break;
-
-                case ContentOp.BeginInline:
-                    if (lx.ReadInlineImageDictionary() is null)
-                    {
-                        _result.WarningList.Add($"The inline image dictionary in {where} could not be read, so its marked content was left as it is.");
-                        return null;
-                    }
-
-                    lx.ReadInlineImageData(-1, out bool found);
-                    if (!found)
-                    {
-                        _result.WarningList.Add($"An inline image in {where} has no end, so its marked content was left as it is.");
-                        return null;
-                    }
-
-                    end = lx.Position;
-                    break;
+                // Text extraction takes /ActualText from the content stream, so it stays, without the identifier.
+                actualText++;
+                return McAction.KeepActualText;
             }
 
-            segment = end;
-            operands = 0;
-            a = default;
-            b = default;
-            lx.ResetItems();
-        }
-
-        if (edits.Count == 0)
+            return _options.MarkedContent == PdfMarkedContentRemoval.ConvertToBmc ? McAction.ToBmc : McAction.Drop;
+        }, out bool complete);
+        if (!complete)
         {
+            _result.WarningList.Add($"An inline image in {where} has no end, so its marked content was left as it is.");
             return null;
         }
 
-        _result.SequencesRemoved += removed;
-        _result.ArtifactSequencesRemoved += artifacts;
-        _result.ActualTextKept += actualText;
-        ReadOnlySpan<byte> src = data.Span;
-        var output = new MemoryStream(src.Length);
-        int pos = 0;
-        foreach (Edit e in edits)
+        if (bytes is not null)
         {
-            output.Write(src[pos..e.Start]);
-            output.Write(e.Bytes);
-            pos = e.End;
+            _result.SequencesRemoved += removed;
+            _result.ArtifactSequencesRemoved += artifacts;
+            _result.ActualTextKept += actualText;
         }
 
-        output.Write(src[pos..]);
-        return output.ToArray();
-    }
-
-    private static string NameText(string name)
-    {
-        var sb = new StringBuilder("/");
-        foreach (char ch in name)
-        {
-            if (ch is > ' ' and < '\u007f' and not ('#' or '/' or '(' or ')' or '<' or '>' or '[' or ']' or '{' or '}' or '%'))
-            {
-                sb.Append(ch);
-            }
-            else
-            {
-                sb.Append('#').Append(((int)ch & 0xFF).ToString("X2", CultureInfo.InvariantCulture));
-            }
-        }
-
-        return sb.ToString();
-    }
-
-    private static string HexText(PdfString s)
-    {
-        var sb = new StringBuilder("<");
-        foreach (byte x in s.Bytes.Span)
-        {
-            sb.Append(x.ToString("X2", CultureInfo.InvariantCulture));
-        }
-
-        return sb.Append('>').ToString();
+        return bytes;
     }
 }

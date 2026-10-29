@@ -24,6 +24,8 @@ public sealed partial class PdfDocument
     public PdfRemoveTagsResult RemoveTags(PdfRemoveTagsOptions? options = null, CancellationToken cancellationToken = default)
     {
         ThrowIfDisposed();
-        return Structure.RemoveTagsPass.Run(this, options ?? new PdfRemoveTagsOptions(), cancellationToken);
+        PdfRemoveTagsResult result = Structure.RemoveTagsPass.Run(this, options ?? new PdfRemoveTagsOptions(), cancellationToken);
+        ForgetStructureTree();
+        return result;
     }
 }

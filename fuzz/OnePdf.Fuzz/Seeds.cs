@@ -92,6 +92,45 @@ internal static class Seeds
                     break;
                 }
 
+            case "structure":
+                {
+                    // Files as they are (the ones with a tree), and every file tagged by the happy path with paragraphs, so every file has a tree.
+                    int n = 0;
+                    foreach (string f in pdfs)
+                    {
+                        if (new FileInfo(f).Length > MaxPdfBytes)
+                        {
+                            continue;
+                        }
+
+                        byte[] raw = File.ReadAllBytes(f);
+                        byte[] head = BitConverter.GetBytes((ulong)(0x9E3779B97F4A7C15UL * (ulong)(++n)));
+                        PutData("pdf", raw, head);
+                        try
+                        {
+                            using PdfDocument doc = PdfDocument.Open(raw, new PdfOpenOptions { AllowEditing = true });
+                            if (doc.StructureTree is not null)
+                            {
+                                continue;
+                            }
+
+                            var options = new OnePdf.Text.PdfTextOptions { RetainGlyphs = true, UseStructureTree = false };
+                            doc.Tag(doc.ExtractText(options), static b => b.BlockIndex % 4 == 0 ? PdfBlockRole.Heading(1) : PdfBlockRole.Paragraph);
+                            using var ms = new MemoryStream();
+                            doc.Save(ms);
+                            if (ms.Length <= MaxPdfBytes)
+                            {
+                                PutData("tagged", ms.ToArray(), head);
+                            }
+                        }
+                        catch (PdfException)
+                        {
+                        }
+                    }
+
+                    break;
+                }
+
             case "redact":
                 {
                     byte[] head = [0, 20, 90, 60, 20, 100, 150, 50, 40, 10, 10, 80, 80, 150, 20, 60, 60, 0, 0, 0];

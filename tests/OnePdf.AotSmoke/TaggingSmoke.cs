@@ -84,6 +84,44 @@ internal static class TaggingSmoke
         }
 
         again.Tag(again.ExtractText(options), static _ => PdfBlockRole.Paragraph);
-        return again.StructureTreeRoot is null ? "tagging after RemoveTags wrote no tree" : null;
+        if (again.StructureTreeRoot is null)
+        {
+            return "tagging after RemoveTags wrote no tree";
+        }
+
+        return EditTree(again, before);
+    }
+
+    // Reads the tree, changes it, saves and reads it back.
+    private static string? EditTree(PdfDocument doc, string text)
+    {
+        PdfStructureTree? tree = doc.StructureTree;
+        if (tree is null || tree.ElementCount < 2)
+        {
+            return "the structure tree was not read";
+        }
+
+        PdfStructureNode paragraph = tree.Elements().First(static n => n.StandardType == "P");
+        if (paragraph.GetText().Length == 0)
+        {
+            return "an element has no text";
+        }
+
+        paragraph.Alt = "alt";
+        paragraph.SetType(PdfTagRole.H2);
+        paragraph.Parent!.WrapChildren("Sect", 0, 1);
+        tree.MapRole("Custom", "Span");
+        paragraph.Remove(PdfStructureRemoval.Unwrap);
+        using var saved = new MemoryStream();
+        doc.Save(saved);
+        using PdfDocument back = PdfDocument.Open(saved.ToArray());
+        PdfStructureTree? again = back.StructureTree;
+        if (again is null || again.Diagnostics.Count != 0 || again.RoleMap["Custom"] != "Span")
+        {
+            return "the edited tree does not read back cleanly";
+        }
+
+        string after = string.Concat(back.ExtractText(new PdfTextOptions { UseStructureTree = false }).Select(static p => p.Text));
+        return after == text ? null : "editing the tree changed the text";
     }
 }

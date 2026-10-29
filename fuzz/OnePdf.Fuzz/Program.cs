@@ -47,6 +47,7 @@ internal static class Program
         ["save"] = SaveTarget.Run,
         ["redact"] = RedactTarget.Run,
         ["tag"] = TagTarget.Run,
+        ["structure"] = StructureTarget.Run,
         ["fontsubset"] = FontSubsetTarget.Run,
         ["signature"] = SignatureTarget.Run,
         ["pdfa"] = PdfATarget.Run,
