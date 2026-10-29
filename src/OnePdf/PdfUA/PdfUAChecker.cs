@@ -76,6 +76,7 @@ internal sealed partial class PdfUAChecker
         CheckPages(hasTree);
         if (!_structureOnly && !_part2)
         {
+            CheckOptionalContentNames();
             CheckNotdefText();
         }
 

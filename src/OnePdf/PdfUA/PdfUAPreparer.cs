@@ -72,6 +72,7 @@ internal static class PdfUAPreparer
         }
 
         PrepareAnnotations(doc, ct);
+        PrepareOptionalContentNames(doc);
         if (ua.Part == PdfUAPart.Part1)
         {
             PrepareTableHeaders(doc, ct);
@@ -92,6 +93,26 @@ internal static class PdfUAPreparer
         {
             // With PDF/A the packet is written by the PDF/A preparer, which knows both identifications.
             PdfAPreparer.WriteMetadata(doc, null, pdfUA: true, (int)ua.Part);
+        }
+    }
+
+    // A configuration without a /Name gets one that says what it is: the default one is "Default", the others "Configuration n".
+    // Nothing else about optional content changes (ISO 14289-1 7.10).
+    private static void PrepareOptionalContentNames(PdfDocument doc)
+    {
+        if (doc.Catalog.GetDictionary("OCProperties") is not { } props)
+        {
+            return;
+        }
+
+        int n = 0;
+        foreach ((PdfDictionary config, string where) in PdfUAChecker.OptionalContentConfigurations(props))
+        {
+            n++;
+            if (string.IsNullOrWhiteSpace(config.GetString("Name")?.GetText()))
+            {
+                config.SetEntry("Name", PdfString.FromText(where.Contains("/D)", StringComparison.Ordinal) ? "Default" : "Configuration " + n));
+            }
         }
     }
 
