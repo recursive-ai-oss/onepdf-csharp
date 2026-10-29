@@ -51,6 +51,11 @@ internal static class PdfUAPreparer
             PdfAPreparer.EmbedLibraryFonts(doc, ct);
         }
 
+        if (ua.EmbedSubstituteFonts && pdfA is null)
+        {
+            doc.EmbedSubstituteFonts(cancellationToken: ct);
+        }
+
         if (!string.IsNullOrWhiteSpace(doc.Info.Title) || !string.IsNullOrWhiteSpace(doc.Xmp?.Title))
         {
             PdfDictionary? vp = catalog.GetDictionary("ViewerPreferences");
