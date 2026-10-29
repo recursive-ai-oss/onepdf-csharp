@@ -19,13 +19,18 @@ public sealed partial class PdfDocument
     /// <c>/ActualText</c> keep a <c>BDC</c> with the text alone, so extraction reads the same. Signatures are invalidated by a full
     /// save; an incremental save keeps the signed revision. Save with <c>Save</c> or <c>SaveIncremental</c>.
     /// </remarks>
-    /// <exception cref="InvalidOperationException">The document is not editable (<see cref="PdfOpenOptions.AllowEditing"/>).</exception>
+    /// <exception cref="InvalidOperationException">The document is not editable (<see cref="PdfOpenOptions.AllowEditing"/>); not thrown with <see cref="PdfRemoveTagsOptions.DryRun"/>.</exception>
     /// <exception cref="PdfLimitException">A limit was exceeded.</exception>
     public PdfRemoveTagsResult RemoveTags(PdfRemoveTagsOptions? options = null, CancellationToken cancellationToken = default)
     {
         ThrowIfDisposed();
-        PdfRemoveTagsResult result = Structure.RemoveTagsPass.Run(this, options ?? new PdfRemoveTagsOptions(), cancellationToken);
-        ForgetStructureTree();
+        options ??= new PdfRemoveTagsOptions();
+        PdfRemoveTagsResult result = Structure.RemoveTagsPass.Run(this, options, cancellationToken);
+        if (!options.DryRun)
+        {
+            ForgetStructureTree();
+        }
+
         return result;
     }
 }

@@ -48,7 +48,7 @@ public sealed class PdfAOptions
     /// When true, fonts the file names without embedding (Arial, Times New Roman, Courier New and the other standard faces and their common
     /// aliases) get metric-compatible substitutes embedded by <see cref="PdfDocument.EmbedSubstituteFonts"/>, with the registered font
     /// provider's faces (Liberation, with the <c>RecursiveAI.OnePdf.Fonts</c> package). Default false, because it changes the letter shapes in
-    /// viewers that had the real font; without it such fonts are reported as violations. Needs the document to be editable.
+    /// viewers that had the real font; without it such fonts are reported as violations. Needs the document to be editable and a font provider (reference <c>RecursiveAI.OnePdf.Fonts</c> and call <c>FontsPackage.Register()</c>, or set <see cref="PdfDocument.FontProvider"/>); the save throws <see cref="InvalidOperationException"/> naming the fix when a font needs a substitute and there is none.
     /// </summary>
     public bool EmbedSubstituteFonts { get; init; }
 

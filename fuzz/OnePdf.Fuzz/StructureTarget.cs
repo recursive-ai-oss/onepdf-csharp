@@ -94,7 +94,7 @@ internal static class StructureTarget
                 PdfStructureNode n = all[rng.Next(all.Count)];
                 try
                 {
-                    switch (rng.Next(11))
+                    switch (rng.Next(13))
                     {
                         case 0:
                             n.Alt = rng.Next(3) == 0 ? null : "alt";
@@ -127,6 +127,12 @@ internal static class StructureTarget
                         case 9 when n.Children.Count > 0:
                             n.Children[rng.Next(n.Children.Count)].MoveTo(all[rng.Next(all.Count)]);
                             break;
+                        case 11:
+                            n.InsertChild(rng.Next(2) == 0 ? "TD" : "Span", rng.Next(3) == 0 ? -1 : rng.Next(n.Children.Count + 1));
+                            break;
+                        case 12:
+                            tree = doc.RefreshStructureTree() ?? tree;
+                            break;
                         case 10:
                             n.Language = "de";
                             n.ListNumbering = "Decimal";
@@ -146,6 +152,11 @@ internal static class StructureTarget
                 }
             }
 
+            if (rng.Next(8) == 0)
+            {
+                _ = doc.AddMissingToUnicode();
+            }
+
             if (rng.Next(5) == 0)
             {
                 string before = doc.Pages.Count > 0 ? DisplayOf(doc) : string.Empty;
@@ -163,7 +174,13 @@ internal static class StructureTarget
 
             if (rng.Next(6) == 0)
             {
-                doc.RemoveTags();
+                PdfRemoveTagsResult probe = doc.RemoveTags(new PdfRemoveTagsOptions { DryRun = true });
+                PdfRemoveTagsResult real = doc.RemoveTags();
+                if (probe.SequencesRemoved != real.SequencesRemoved || probe.StructParentsRemoved != real.StructParentsRemoved || probe.StreamsChanged != real.StreamsChanged)
+                {
+                    throw new InvalidOperationException("the RemoveTags probe disagrees with the real call");
+                }
+
                 if (doc.StructureTree is not null)
                 {
                     throw new InvalidOperationException("RemoveTags left a structure tree");

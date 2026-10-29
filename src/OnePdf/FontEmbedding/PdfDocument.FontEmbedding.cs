@@ -91,9 +91,16 @@ public sealed partial class PdfDocument
     /// already embedded, and fonts the embedding refuses are left as they were and listed in the report. The document must be opened for editing.
     /// </summary>
     /// <remarks>
+    /// <para>
+    /// The package is not found by itself: call <c>OnePdf.Fonts.FontsPackage.Register()</c> once at startup, or set <see cref="FontProvider"/> (or
+    /// <see cref="PdfSubstituteEmbedOptions.Provider"/>). With no provider at all the fonts that name a standard face get
+    /// <see cref="PdfSubstituteOutcome.NoFontProvider"/> and <see cref="PdfSubstituteEmbedReport.FontProviderMissing"/> is set.
+    /// </para>
+    /// <para>
     /// This is the happy path over <see cref="EmbedFontProgram"/>: widths follow the PDF, a <c>/ToUnicode</c> is written where the encoding stops
     /// naming characters, and a shown code the substitute lacks is left to draw <c>.notdef</c>. It changes how the text looks in viewers that had
     /// the real font; the metrics are compatible, the letter shapes are Liberation's.
+    /// </para>
     /// </remarks>
     /// <param name="options">Options; null uses the defaults.</param>
     /// <param name="cancellationToken">Checked between fonts and while content is read.</param>
@@ -104,6 +111,30 @@ public sealed partial class PdfDocument
     {
         EnsureEditable(0);
         return SubstituteEmbedder.Run(this, options ?? new PdfSubstituteEmbedOptions(), cancellationToken);
+    }
+
+    /// <summary>
+    /// Writes <c>/ToUnicode</c> entries for the codes the document shows with fonts that lack them, using only what OnePDF's own Unicode chain
+    /// already knows for each code: the encoding and <c>/Differences</c> glyph names (through the Adobe Glyph List), the embedded font's character
+    /// map, and an existing map's other entries. Codes whose Unicode is unknown are never guessed: they get no entry and are listed in the report.
+    /// Text extraction is unchanged, because it reads the same chain; PDF/UA checks (ISO 14289-1 7.21.7) see a map where there was none.
+    /// The document must be opened for editing.
+    /// </summary>
+    /// <remarks>
+    /// Fonts are those of the pages, forms and annotation appearances. A font is looked at when it has no <c>/ToUnicode</c> and its encoding does
+    /// not already determine Unicode (a standard Latin base encoding without <c>/Differences</c>, or an Adobe CJK collection), or when it has a map
+    /// that misses codes the document shows. Entries already in a map are kept. Type 3 fonts are left alone. A simple font whose use cannot be
+    /// traced (a direct dictionary, unreadable content) is given every code it can name; a Type 0 font in that case is skipped. The font cache is
+    /// refreshed.
+    /// </remarks>
+    /// <param name="cancellationToken">Checked between fonts and while content is read.</param>
+    /// <returns>One entry per font that changed or has shown codes with no known Unicode.</returns>
+    /// <exception cref="InvalidOperationException">The document was not opened for editing.</exception>
+    /// <exception cref="OperationCanceledException">Cancelled.</exception>
+    public PdfToUnicodeReport AddMissingToUnicode(CancellationToken cancellationToken = default)
+    {
+        EnsureEditable(0);
+        return ToUnicodeAdder.Run(this, cancellationToken);
     }
 
     /// <summary>Drops the cached decoded font for a dictionary, after its entries changed.</summary>

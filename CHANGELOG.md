@@ -6,7 +6,17 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ### Added
 
+- `PdfSubstituteOutcome.NoFontProvider`, `PdfSubstituteEmbedReport.FontProviderMissing` and `ProviderMessage`: `EmbedSubstituteFonts` with no font provider (the Fonts package neither registered nor set on the document) now says so, naming `RecursiveAI.OnePdf.Fonts` and the call to make, instead of reporting `NoSubstitute` for every font. A PDF/UA or PDF/A save with `EmbedSubstituteFonts` and no provider throws `InvalidOperationException` with the same message. `NoSubstitute` stays for fonts that have no substitute.
+- `PdfSubstituteEntry.WidthChanges`, `WidthConflicts` and `MissingCodes` on embedded entries: what changed visibly per font.
+- `PdfDocument.AddMissingToUnicode()` writes `/ToUnicode` entries for the shown codes whose Unicode the font chain already knows (encoding and `/Differences` glyph names, the embedded font's character map), for fonts whose encoding does not determine Unicode (ISO 14289-1 7.21.7). Codes with no known Unicode are never guessed; they are listed in the `PdfToUnicodeReport`.
+- `PdfStructureNode.InsertChild(type, index)` inserts a new empty structure element, for example a `TD` for a missing table cell.
+- `PdfDocument.RefreshStructureTree()` re-reads the typed tree after changes made through its dictionaries, and `PdfStructureTree.IsStale`: a tree dropped by a refresh, `RemoveTags`, tagging or a PDF/UA-2 preparation throws `InvalidOperationException` when its children are read or it is edited, instead of showing old data. `PdfDocument.StructureTree` also re-reads when the catalog's `/StructTreeRoot` was replaced by another object.
+- `PdfRemoveTagsOptions.DryRun`: reports what `RemoveTags` would remove (marked-content sequences with an `/MCID`, `/StructTreeRoot`, `/MarkInfo`, `/StructParents`) without changing the document, and without needing `AllowEditing`.
 - `PdfDocument.ArtifactUntaggedGraphics()` marks painted content that is neither tagged nor an artifact as an artifact in a document that is already tagged: paths, images, shadings, inline images and Form XObjects drawn outside marked content are wrapped in `/Artifact BMC … EMC` in the page content, the way the PDF/UA check (ISO 14289-1 7.1) counts them. Only the two operators are inserted, so pages paint and extract as before. Text is never wrapped; it is counted per page in `PdfArtifactResult`, and forms that show text, tag content of their own or cannot be read are left and counted. See `docs/structure.md`.
+
+### Changed
+
+- `docs/fonts.md` says what the caller must do to get the substitutes, which face each standard font maps to (Noto Sans Math for Symbol, Noto Sans Symbols 2 for ZapfDingbats) and where their notices ship; `docs/structure.md` notes that the typed attribute properties resolve classes and return null when absent, and how `RemoveTags` `Drop` and `ConvertToBmc` differ for a later `Tag`.
 
 ## [1.12.0] - 2026-10-29
 

@@ -118,6 +118,7 @@ internal static class TaggingSmoke
         paragraph.SetType(PdfTagRole.H2);
         paragraph.Parent!.WrapChildren("Sect", 0, 1);
         tree.MapRole("Custom", "Span");
+        tree.Elements().First().InsertChild("Span");
         paragraph.Remove(PdfStructureRemoval.Unwrap);
         using var saved = new MemoryStream();
         doc.Save(saved);
@@ -126,6 +127,17 @@ internal static class TaggingSmoke
         if (again is null || again.Diagnostics.Count != 0 || again.RoleMap["Custom"] != "Span")
         {
             return "the edited tree does not read back cleanly";
+        }
+
+        PdfRemoveTagsResult probe = back.RemoveTags(new PdfRemoveTagsOptions { DryRun = true });
+        if (!probe.StructureTreeRemoved || probe.SequencesRemoved == 0 || back.StructureTree is null)
+        {
+            return "the tagging probe found no tags or changed the document";
+        }
+
+        if (doc.RefreshStructureTree() is null || !tree.IsStale)
+        {
+            return "refreshing the structure tree did not replace it";
         }
 
         string after = string.Concat(back.ExtractText(new PdfTextOptions { UseStructureTree = false }).Select(static p => p.Text));

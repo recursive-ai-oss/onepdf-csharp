@@ -20,7 +20,15 @@ public sealed class PdfStructureNode : PdfStructureItem
     public PdfDictionary Dictionary { get; }
 
     /// <summary>The children in order: elements, marked-content references and object references.</summary>
-    public IReadOnlyList<PdfStructureItem> Children => Kids;
+    /// <exception cref="InvalidOperationException">The tree is stale (<see cref="PdfStructureTree.IsStale"/>).</exception>
+    public IReadOnlyList<PdfStructureItem> Children
+    {
+        get
+        {
+            Tree.ThrowIfStale();
+            return Kids;
+        }
+    }
 
     /// <summary>The structure type as written (<c>/S</c>), for example <c>P</c>, <c>TH</c> or a custom name; empty when the element has none.</summary>
     public string Type => Dictionary.GetName("S") ?? string.Empty;
@@ -281,6 +289,18 @@ public sealed class PdfStructureNode : PdfStructureItem
     /// <exception cref="ArgumentOutOfRangeException">The range is not within the children, or is empty.</exception>
     /// <exception cref="InvalidOperationException">The document is not editable, or the element is removed.</exception>
     public PdfStructureNode WrapChildren(string type, int first, int count) => Tree.Wrap(this, type, first, count);
+
+    /// <summary>
+    /// Inserts a new, empty structure element of <paramref name="type"/> among the children at <paramref name="index"/> (-1 or the child count
+    /// appends). The element has <c>/P</c> set to this element and no <c>/K</c>; it inherits this element's <c>/Pg</c>. Fill it with
+    /// <see cref="PdfStructureItem.MoveTo"/> or leave it empty, for example a <c>TD</c> standing for a table cell the producer left out
+    /// (ISO 14289-1 7.5 needs every row to have the same number of cells). No parent-tree entry is needed until content is moved into it.
+    /// </summary>
+    /// <returns>The new element.</returns>
+    /// <exception cref="ArgumentException"><paramref name="type"/> is empty.</exception>
+    /// <exception cref="ArgumentOutOfRangeException">The index is outside the children.</exception>
+    /// <exception cref="InvalidOperationException">The document is not editable, or the element is removed or stale.</exception>
+    public PdfStructureNode InsertChild(string type, int index = -1) => Tree.InsertEmpty(this, type, index);
 
     /// <summary>
     /// The text of the element's marked content and of everything below it, in tree order, from text extraction (the marked-content

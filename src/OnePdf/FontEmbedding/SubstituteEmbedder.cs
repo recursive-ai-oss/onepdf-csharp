@@ -11,6 +11,9 @@ internal static class SubstituteEmbedder
     {
         var entries = new List<PdfSubstituteEntry>();
         var faces = new Dictionary<string, PdfFontFile?>(StringComparer.Ordinal);
+        // No provider anywhere means no font can ever be found: say so instead of reporting every font as having no substitute.
+        bool noProvider = options.Provider is null && doc.FontProvider is null && PdfFontProviders.RegisteredProviders.Length == 0;
+        bool providerMissing = false;
         foreach (PdfDictionary font in CollectFonts(doc, ct))
         {
             ct.ThrowIfCancellationRequested();
@@ -39,6 +42,13 @@ internal static class SubstituteEmbedder
             }
 
             standard = ApplyDescriptorStyle(standard, desc);
+            if (noProvider)
+            {
+                providerMissing = true;
+                entries.Add(new PdfSubstituteEntry(number, baseFont, PdfSubstituteOutcome.NoFontProvider, null, null, PdfSubstituteEmbedReport.NoFontProviderMessage));
+                continue;
+            }
+
             PdfSubstituteFont? sub = Find(doc, options, standard);
             if (sub is null)
             {
@@ -77,7 +87,7 @@ internal static class SubstituteEmbedder
                     };
                     PdfFontEmbedResult r = FontEmbedder.Embed(doc, font, file, o, ct);
                     string note = $"Embedded {cand.Name} as {r.BaseFont}" + (r.MissingCodes.Count > 0 ? $"; {r.MissingCodes.Count} shown code(s) have no glyph in it." : ".");
-                    entries.Add(new PdfSubstituteEntry(number, baseFont, PdfSubstituteOutcome.Embedded, cand.Name, null, note));
+                    entries.Add(new PdfSubstituteEntry(number, baseFont, PdfSubstituteOutcome.Embedded, cand.Name, null, note) { WidthChanges = r.WidthChanges, WidthConflicts = r.WidthConflicts, MissingCodes = r.MissingCodes });
                     done = true;
                 }
                 catch (PdfFontEmbedException ex) when (ex.Reason == PdfFontEmbedFailure.NoGlyphForCode && !lenient)
@@ -97,7 +107,7 @@ internal static class SubstituteEmbedder
             }
         }
 
-        return new PdfSubstituteEmbedReport(entries);
+        return new PdfSubstituteEmbedReport(entries) { FontProviderMissing = providerMissing };
     }
 
     private static PdfFontFile? Open(Dictionary<string, PdfFontFile?> faces, PdfSubstituteFont sub)
@@ -180,7 +190,7 @@ internal static class SubstituteEmbedder
     }
 
     // Every font dictionary the pages can reach, once: page resources, the forms and annotation appearances they draw, and the form's default resources.
-    private static List<PdfDictionary> CollectFonts(PdfDocument doc, CancellationToken ct)
+    internal static List<PdfDictionary> CollectFonts(PdfDocument doc, CancellationToken ct)
     {
         var result = new List<PdfDictionary>();
         var seenFonts = new HashSet<PdfDictionary>(ReferenceEqualityComparer.Instance);

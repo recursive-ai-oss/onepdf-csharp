@@ -36,10 +36,17 @@ The edits:
 | role map entry | `tree.MapRole(custom, standard)` |
 | move an element or a content item | `item.MoveTo(newParent, index)` (`null` parent is the root; the index counts after the item has left its old place; -1 appends) |
 | wrap children in a new element | `node.WrapChildren("Div", first, count)` (`tree.WrapChildren` for the root) |
+| insert an empty element | `node.InsertChild("TD", index)` (-1 appends): a new element with `/P` set and no `/K`, for example a `TD` for a table cell the producer left out; content can be moved into it later |
 | remove, keep the children | `item.Remove(PdfStructureRemoval.Unwrap)`: the children take its place |
 | remove, keep nothing untagged | `item.Remove(PdfStructureRemoval.ToArtifacts)`: the subtree goes, its marked content becomes `/Artifact` in the content streams, annotations lose their `/StructParent` |
 
+`Scope`, `ColSpan`, `RowSpan` and `ListNumbering` resolve the element's classes (`/C`) as well as its own attributes, and return null when the attribute is absent everywhere, so test for "not set" with `is null`, not by looking for `/A` in `node.Dictionary`. `Headers` is empty when absent.
+
 Each edit changes the document at once and keeps `/K`, `/P`, the parent tree, `/StructParents` and the id tree consistent: content moved to another element is listed under it in the parent tree, a reference whose page the new owner's `/Pg` no longer implies is written as an `MCR` dictionary with its page, and an element wrapped around content gets its parent's `/Pg`. The parent tree is rewritten as one leaf (a key can be found and changed in place) the first time an edit needs it; a tree that is only read is never touched, and saving it changes no byte of the structure. Edits need `AllowEditing`; the result saves normally, incrementally and with `PdfUA`. A tree read before `RemoveTags` or `ApplyTagging` is stale: read `doc.StructureTree` again.
+
+### After changes made outside the typed model
+
+The typed tree is a snapshot of what was read; typed edits keep it in step with the document, but changes made to the dictionaries (`node.Dictionary`, `doc.StructureTreeRoot`) are invisible to it. After such raw edits call `doc.RefreshStructureTree()`: it reads the tree again and returns the new one. The old `PdfStructureTree` and every node and reference read from it are then **stale** (`tree.IsStale`): reading their `Children` (or `tree.Elements()`) or editing them throws `InvalidOperationException`, never old data; properties that read the node's own dictionary (`Type`, `Alt`, ...) still show the live values. `doc.StructureTree` also re-reads on its own when the catalog's `/StructTreeRoot` was replaced by another object. `RemoveTags`, `ApplyTagging` and a PDF/UA-2 preparation (which declares namespaces on the root in place) make the old tree stale in the same way; `PreparePdfUA` and a PDF/UA-1 save do not touch the tree, so nodes stay valid across them.
 
 ### Damaged trees
 
@@ -79,6 +86,12 @@ doc.Tag(text, block => /* your role */, options);
 ```
 
 A stream that cannot be decoded, or an inline image whose end cannot be found, is left as it is and reported in `result.Warnings`; the `/MCID` sequences in it stay and `ApplyTagging` refuses the document. All edits are worked out before the first one is applied, so a cancelled call changes nothing. Properties resources (`/Properties`) that only held an `/MCID` are left in the resource dictionaries; nothing refers to them any more. Outline items and actions that point at structure elements (`/SE`, `/SD`) are left alone.
+
+`Drop` and `ConvertToBmc` leave different files for a later `Tag`: with `ConvertToBmc` the former tagged sequences stay as bare marked-content (`/Span BMC ... EMC`) around the content, and the tagger treats existing marked-content operators as boundaries where a sequence must close (see `docs/tagging.md`), so the new tree can have more, smaller sequences, while with `Drop` the content is one run again and the new sequences span it. Text and pixels are identical either way; an element-by-element comparison with an earlier pipeline that used BMC stand-ins will differ in how many marked-content references the new tree holds.
+
+### Is the file tagged in any way?
+
+`doc.RemoveTags(new PdfRemoveTagsOptions { DryRun = true })` reads everything a real call reads and returns the same counts, and changes nothing. It does not need `AllowEditing`. A file counts as carrying tags or remnants when `StructureTreeRemoved`, `MarkInfoRemoved`, `StructParentsRemoved` or `SequencesRemoved` is non-zero, which also catches marked content with `/MCID` identifiers but no `/StructTreeRoot` or `/MarkInfo`; `doc.StructureTree` and `IsTagged` do not see that case, and `Tag`/`ApplyTagging` refuse it.
 
 Signatures: a full save invalidates them; an incremental save keeps the signed revision.
 

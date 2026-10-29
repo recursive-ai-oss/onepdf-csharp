@@ -72,6 +72,11 @@ internal static class FontEmbedTarget
             var limits = PdfLimits.Default with { MaxDecodedStreamBytes = 16 << 20 };
             using PdfDocument doc = PdfDocument.Open(pdf, new PdfOpenOptions { AllowEditing = true, Limits = limits });
             PdfDictionary font = doc.Pages[0].Resources.GetDictionary("Font")!.GetDictionary("F1")!;
+            if ((mode & 64) != 0)
+            {
+                _ = doc.AddMissingToUnicode();
+            }
+
             var map = new Dictionary<int, string> { [1] = "A", [2] = "B", [3] = "C", [65] = "A", [66] = "B" };
             _ = doc.EmbedFontProgram(font, file, new PdfFontEmbedOptions
             {
@@ -83,6 +88,7 @@ internal static class FontEmbedTarget
                 Widths = (mode & 8) != 0 ? PdfFontWidthPolicy.KeepProgram : PdfFontWidthPolicy.AdjustProgram,
                 CodeToUnicode = map,
             });
+            _ = doc.AddMissingToUnicode();
             using var ms = new MemoryStream();
             doc.Save(ms, new PdfSaveOptions { DocumentId = new byte[16] });
             using PdfDocument back = PdfDocument.Open(ms.ToArray());

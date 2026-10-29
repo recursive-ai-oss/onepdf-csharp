@@ -21,6 +21,15 @@ public sealed class PdfRemoveTagsOptions
     /// false: artifact marks say which content is decoration, and a later tagging pass reads them.
     /// </summary>
     public bool RemoveArtifactMarks { get; init; }
+
+    /// <summary>
+    /// True reads everything and reports what a real call would remove, without changing the document: the result's counts are the ones a
+    /// call without this option would return (<see cref="PdfRemoveTagsResult.SequencesRemoved"/> counts marked-content sequences with an
+    /// <c>/MCID</c>, <see cref="PdfRemoveTagsResult.StructureTreeRemoved"/> a <c>/StructTreeRoot</c>, and so on), so it answers "is this file
+    /// tagged in any way" even for marked content with no tree and no <c>/MarkInfo</c>. A dry run does not need
+    /// <see cref="PdfOpenOptions.AllowEditing"/> and leaves <see cref="PdfDocument.StructureTree"/> as it was. Default false.
+    /// </summary>
+    public bool DryRun { get; init; }
 }
 
 /// <summary>What <see cref="PdfDocument.RemoveTags"/> removed.</summary>
