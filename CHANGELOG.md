@@ -4,6 +4,10 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ## [Unreleased]
 
+### Added
+
+- `PdfDocument.ArtifactUntaggedGraphics()` marks painted content that is neither tagged nor an artifact as an artifact in a document that is already tagged: paths, images, shadings, inline images and Form XObjects drawn outside marked content are wrapped in `/Artifact BMC … EMC` in the page content, the way the PDF/UA check (ISO 14289-1 7.1) counts them. Only the two operators are inserted, so pages paint and extract as before. Text is never wrapped; it is counted per page in `PdfArtifactResult`, and forms that show text, tag content of their own or cannot be read are left and counted. See `docs/structure.md`.
+
 ## [1.12.0] - 2026-10-29
 
 ### Added
