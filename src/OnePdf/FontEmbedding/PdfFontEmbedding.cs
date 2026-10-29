@@ -133,6 +133,9 @@ public sealed class PdfFontEmbedOptions
     /// </summary>
     public bool OverrideToUnicode { get; init; }
 
+    /// <summary>Adjusts a Unicode value before it is looked up in the program, for substitutes that keep a shape at another address (see <see cref="PdfSubstituteFont.MapCodePoint"/>). The mapped value is tried first, the original second.</summary>
+    internal Func<int, int>? CodePointMap { get; init; }
+
     /// <summary>True (the default) writes or extends <c>/ToUnicode</c> where the embedding needs it: when the font already has one, when
     /// <see cref="CodeToUnicode"/> is set, or when the encoding written no longer names the characters.</summary>
     public bool WriteToUnicode { get; init; } = true;

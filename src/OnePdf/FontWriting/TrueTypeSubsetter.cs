@@ -49,6 +49,11 @@ internal static class TrueTypeSubsetter
         }
 
         int numGlyphs = Be.U16(maxp.Span, 4);
+        if (numGlyphs == 0)
+        {
+            throw new FontProgramException("The font has no glyphs.");
+        }
+
         int locaFormat = Be.I16(head.Span, 50);
         if (locaFormat is not (0 or 1))
         {

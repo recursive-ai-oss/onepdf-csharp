@@ -227,10 +227,17 @@ public sealed class PdfFontFile
     {
         ArgumentOutOfRangeException.ThrowIfNegative(glyph);
         ArgumentOutOfRangeException.ThrowIfGreaterThanOrEqual(glyph, GlyphCount);
-        return TryGetAdvanceWidth(glyph, out double w) ? w : 0;
+        try
+        {
+            return _program.TryGetAdvance(glyph, out float advance) ? advance * Math.Abs(_program.FontMatrix[0]) * 1000.0 : 0;
+        }
+        catch (FontProgramException ex)
+        {
+            throw new PdfFormatException("The font file is damaged: " + ex.Message, ex);
+        }
     }
 
-    /// <summary>Like <see cref="GetAdvanceWidth"/>, but returns false when the glyph is outside the font or the font defines no width for it.</summary>
+    /// <summary>Like <see cref="GetAdvanceWidth"/>, but returns false, and never throws, when the glyph is outside the font, its data is damaged, or the font defines no width for it.</summary>
     public bool TryGetAdvanceWidth(int glyph, out double width)
     {
         width = 0;
@@ -249,9 +256,9 @@ public sealed class PdfFontFile
             width = advance * Math.Abs(_program.FontMatrix[0]) * 1000.0;
             return true;
         }
-        catch (FontProgramException ex)
+        catch (FontProgramException)
         {
-            throw new PdfFormatException("The font file is damaged: " + ex.Message, ex);
+            return false;
         }
     }
 

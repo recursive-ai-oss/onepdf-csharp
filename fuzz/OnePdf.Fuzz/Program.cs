@@ -48,6 +48,7 @@ internal static class Program
         ["redact"] = RedactTarget.Run,
         ["tag"] = TagTarget.Run,
         ["fontsubset"] = FontSubsetTarget.Run,
+        ["fontembed"] = FontEmbedTarget.Run,
         ["signature"] = SignatureTarget.Run,
         ["pdfa"] = PdfATarget.Run,
     };

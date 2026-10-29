@@ -537,4 +537,72 @@ public class FontEmbeddingTests
         d2.ApplyTagging(plan);
         Assert.Contains("P Annot", TagDocs.Roles(d2));
     }
+
+    // ---- fuzz-found and robustness ------------------------------------------------------------------------------------------------
+
+    [Fact]
+    public void AFontWithZeroGlyphsInItsMaxpIsRefusedNotCrashed()
+    {
+        string repro = Content.AppearanceGenerationTests.TestDataPath("repros/fontembed-zero-glyph-count.bin");
+        OnePdf.Fuzz.FontEmbedTarget.Run(File.ReadAllBytes(repro));
+    }
+
+    [Fact]
+    public void MutatedFontsOnlyEverRaiseTypedExceptions()
+    {
+        byte[] seed = Sans.Data.ToArray();
+        var rnd = new Random(7);
+        int runs = 0;
+        for (int i = 0; i < 40; i++)
+        {
+            byte[] input = new byte[seed.Length + 1];
+            input[0] = (byte)(i % 4);
+            seed.CopyTo(input, 1);
+            for (int k = 0; k < 6; k++)
+            {
+                input[1 + rnd.Next(seed.Length)] = (byte)rnd.Next(256);
+            }
+
+            OnePdf.Fuzz.FontEmbedTarget.Run(input);
+            runs++;
+        }
+
+        Assert.Equal(40, runs);
+    }
+
+    [Fact]
+    public void AnEmbeddedSubsetCarriesNoProgramNameAndKeepsTheDocumentsFontName()
+    {
+        using PdfDocument d = Editable(OnePage(Hello, ArialFont()));
+        PdfFontEmbedResult r = d.EmbedFontProgram(FontOf(d), Sans);
+        byte[] program = ((PdfStream)d.ResolveChain(r.FontFile.Number, 0)).GetDecodedBytes().ToArray();
+        // The subset has no name table, and its bytes do not contain the source font's family names.
+        Assert.DoesNotContain("name", Enumerable.Range(0, BinaryPrimitives.ReadUInt16BigEndian(program.AsSpan(4))).Select(i => Encoding.ASCII.GetString(program, 12 + (16 * i), 4)));
+        string text = Encoding.Latin1.GetString(program);
+        Assert.DoesNotContain("Liberation", text, StringComparison.Ordinal);
+        Assert.DoesNotContain("Arimo", text, StringComparison.Ordinal);
+        PdfDictionary desc = FontOf(d).GetDictionary("FontDescriptor")!;
+        Assert.Equal(r.BaseFont, FontOf(d).GetName("BaseFont"));
+        Assert.Equal(r.BaseFont, desc.GetName("FontName"));
+        Assert.EndsWith("+Arial", r.BaseFont, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void FontsThatShareADescriptorEachGetTheirOwnSubset()
+    {
+        byte[] pdf = WithObjects("BT /F1 12 Tf 20 150 Td (AB) Tj /F2 12 Tf (xyz) Tj ET", "/F1 20 0 R /F2 22 0 R", b =>
+            Put(b, "20 0 obj\n<< /Type /Font /Subtype /TrueType /BaseFont /Arial /Encoding /WinAnsiEncoding /FontDescriptor 21 0 R >>\nendobj\n"
+                + "22 0 obj\n<< /Type /Font /Subtype /TrueType /BaseFont /Arial /Encoding /WinAnsiEncoding /FontDescriptor 21 0 R >>\nendobj\n"
+                + "21 0 obj\n<< /Type /FontDescriptor /FontName /Arial /Flags 32 >>\nendobj\n"));
+        using PdfDocument d = Editable(pdf);
+        string text = PlainText(d);
+        PdfSubstituteEmbedReport report = d.EmbedSubstituteFonts();
+        Assert.Equal(2, report.EmbeddedCount);
+        PdfFontFile a = PdfFontFile.Open(((PdfStream)FontOf(d, "F1").GetDictionary("FontDescriptor")!.Get("FontFile2")!).GetDecodedBytes());
+        PdfFontFile c = PdfFontFile.Open(((PdfStream)FontOf(d, "F2").GetDictionary("FontDescriptor")!.Get("FontFile2")!).GetDecodedBytes());
+        Assert.True(a.GetGlyphForUnicode('A') > 0);
+        Assert.Equal(0, a.GetGlyphForUnicode('x'));
+        Assert.True(c.GetGlyphForUnicode('x') > 0);
+        Assert.Equal(text, PlainText(d));
+    }
 }

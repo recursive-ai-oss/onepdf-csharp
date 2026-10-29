@@ -32,10 +32,9 @@ internal static class SubstituteEmbedder
             }
 
             string? standard = Core14.Resolve(FontEmbedder.StripTag(subtype == "Type0" ? DescendantName(font) ?? baseFont : baseFont));
-            if (standard is null or "Symbol" or "ZapfDingbats")
+            if (standard is null)
             {
-                entries.Add(new PdfSubstituteEntry(number, baseFont, PdfSubstituteOutcome.NoSubstitute, null, null,
-                    standard is null ? "The name is not a standard face or a common alias of one." : "No substitute with matching glyphs exists for " + standard + "."));
+                entries.Add(new PdfSubstituteEntry(number, baseFont, PdfSubstituteOutcome.NoSubstitute, null, null, "The name is not a standard face or a common alias of one."));
                 continue;
             }
 
@@ -53,41 +52,72 @@ internal static class SubstituteEmbedder
                 continue;
             }
 
-            string key = sub.CacheKey ?? sub.Name + "#" + sub.FaceIndex;
-            if (!faces.TryGetValue(key, out PdfFontFile? file))
+            // Symbol and ZapfDingbats are drawn from several faces: the first face that has every shown character is used.
+            List<PdfSubstituteFont> candidates = [sub, .. sub.Fallbacks];
+            bool done = false;
+            PdfFontEmbedException? last = null;
+            for (int attempt = 0; attempt < candidates.Count + 1 && !done; attempt++)
             {
+                bool lenient = attempt == candidates.Count;
+                PdfSubstituteFont cand = candidates[lenient ? 0 : attempt];
+                PdfFontFile? file = Open(faces, cand);
+                if (file is null || file.Kind != PdfFontFileKind.TrueType)
+                {
+                    continue;
+                }
+
                 try
                 {
-                    file = PdfFontFile.Open(sub.Data, sub.FaceIndex);
+                    var o = new PdfFontEmbedOptions
+                    {
+                        Subset = options.Subset,
+                        Widths = options.Widths,
+                        MissingGlyphs = lenient ? PdfMissingGlyphPolicy.UseNotdef : PdfMissingGlyphPolicy.Refuse,
+                        CodePointMap = cand.MapCodePoint,
+                    };
+                    PdfFontEmbedResult r = FontEmbedder.Embed(doc, font, file, o, ct);
+                    string note = $"Embedded {cand.Name} as {r.BaseFont}" + (r.MissingCodes.Count > 0 ? $"; {r.MissingCodes.Count} shown code(s) have no glyph in it." : ".");
+                    entries.Add(new PdfSubstituteEntry(number, baseFont, PdfSubstituteOutcome.Embedded, cand.Name, null, note));
+                    done = true;
                 }
-                catch (PdfFormatException)
+                catch (PdfFontEmbedException ex) when (ex.Reason == PdfFontEmbedFailure.NoGlyphForCode && !lenient)
                 {
-                    file = null;
+                    last = ex;
                 }
-
-                faces[key] = file;
+                catch (PdfFontEmbedException ex)
+                {
+                    entries.Add(new PdfSubstituteEntry(number, baseFont, PdfSubstituteOutcome.Refused, cand.Name, ex.Reason, ex.Message));
+                    done = true;
+                }
             }
 
-            if (file is null || file.Kind != PdfFontFileKind.TrueType)
+            if (!done)
             {
-                entries.Add(new PdfSubstituteEntry(number, baseFont, PdfSubstituteOutcome.NoSubstitute, sub.Name, null, "The substitute is not a TrueType-outline font."));
-                continue;
-            }
-
-            try
-            {
-                var o = new PdfFontEmbedOptions { Subset = options.Subset, Widths = options.Widths, MissingGlyphs = PdfMissingGlyphPolicy.UseNotdef };
-                PdfFontEmbedResult r = FontEmbedder.Embed(doc, font, file, o, ct);
-                string note = $"Embedded {sub.Name} as {r.BaseFont}" + (r.MissingCodes.Count > 0 ? $"; {r.MissingCodes.Count} shown code(s) have no glyph in it." : ".");
-                entries.Add(new PdfSubstituteEntry(number, baseFont, PdfSubstituteOutcome.Embedded, sub.Name, null, note));
-            }
-            catch (PdfFontEmbedException ex)
-            {
-                entries.Add(new PdfSubstituteEntry(number, baseFont, PdfSubstituteOutcome.Refused, sub.Name, ex.Reason, ex.Message));
+                entries.Add(new PdfSubstituteEntry(number, baseFont, PdfSubstituteOutcome.NoSubstitute, sub.Name, null, last?.Message ?? "The substitute is not a TrueType-outline font."));
             }
         }
 
         return new PdfSubstituteEmbedReport(entries);
+    }
+
+    private static PdfFontFile? Open(Dictionary<string, PdfFontFile?> faces, PdfSubstituteFont sub)
+    {
+        string key = sub.CacheKey ?? sub.Name + "#" + sub.FaceIndex;
+        if (!faces.TryGetValue(key, out PdfFontFile? file))
+        {
+            try
+            {
+                file = PdfFontFile.Open(sub.Data, sub.FaceIndex);
+            }
+            catch (PdfFormatException)
+            {
+                file = null;
+            }
+
+            faces[key] = file;
+        }
+
+        return file;
     }
 
     private static string? DescendantName(PdfDictionary type0) =>
@@ -96,6 +126,11 @@ internal static class SubstituteEmbedder
     // The name decides the style; descriptor flags add a style the name doesn't carry (ISO 32000-2 9.8.2 Italic and ForceBold).
     private static string ApplyDescriptorStyle(string standard, PdfDictionary? desc)
     {
+        if (standard is "Symbol" or "ZapfDingbats")
+        {
+            return standard;
+        }
+
         int flags = desc is not null && desc.ContainsKey("Flags") ? (int)desc.GetInt("Flags") : 0;
         bool italic = standard.Contains("Italic", StringComparison.Ordinal) || standard.Contains("Oblique", StringComparison.Ordinal);
         bool bold = standard.Contains("Bold", StringComparison.Ordinal);
@@ -126,6 +161,7 @@ internal static class SubstituteEmbedder
             IsItalic = standard.Contains("Italic", StringComparison.Ordinal) || standard.Contains("Oblique", StringComparison.Ordinal),
             IsSerif = standard.StartsWith("Times", StringComparison.Ordinal),
             IsFixedPitch = standard.StartsWith("Courier", StringComparison.Ordinal),
+            IsSymbolic = standard is "Symbol" or "ZapfDingbats",
         };
         if ((options.Provider ?? doc.FontProvider) is { } own)
         {

@@ -100,7 +100,7 @@ internal static class FontEmbedder
         {
             string? name = names[code];
             string? explicitText = o.CodeToUnicode is not null && o.CodeToUnicode.TryGetValue(code, out string? t) && t.Length > 0 ? t : null;
-            string? nameText = name is not null && GlyphList.TryGetUnicode(name, out string? nt) && nt.Length > 0 ? nt : null;
+            string? nameText = name is not null && FontSupport.NameToUnicode(name, stdName == "ZapfDingbats", out string? nt) && nt.Length > 0 ? nt : null;
             string? text = explicitText ?? nameText;
             int g = 0;
             if (o.GlyphForCode is { } pick)
@@ -116,7 +116,12 @@ internal static class FontEmbedder
 
             if (g == 0 && text is not null && SingleRune(text, out int cp))
             {
-                g = program.GetGlyphForUnicode(cp);
+                int mapped = o.CodePointMap?.Invoke(cp) ?? cp;
+                g = program.GetGlyphForUnicode(mapped);
+                if (g == 0 && mapped != cp)
+                {
+                    g = program.GetGlyphForUnicode(cp);
+                }
             }
 
             if (g == 0 && name is not null)
@@ -216,23 +221,8 @@ internal static class FontEmbedder
             outFlags |= StyleFlags(stdName);
         }
 
-        PdfObject fdValue;
-        if (desc is not null)
-        {
-            desc.RemoveEntry("FontFile");
-            desc.RemoveEntry("FontFile3");
-            desc.RemoveEntry("CharSet");
-            FillDescriptor(desc, program, newName, outFlags, baseName);
-            desc.SetEntry("FontFile2", fileRef);
-            fdValue = font.GetRaw("FontDescriptor") ?? desc;
-        }
-        else
-        {
-            var fd = new PdfDictionary();
-            FillDescriptor(fd, program, newName, outFlags, baseName);
-            fd.SetEntry("FontFile2", fileRef);
-            fdValue = doc.AddObject(fd);
-        }
+        // The descriptor is rewritten as a new object: other fonts of the file may share the old one and still need it as it was.
+        PdfObject fdValue = doc.AddObject(NewDescriptor(desc, program, newName, outFlags, baseName, fileRef));
 
         font.SetEntry("Subtype", new PdfName("TrueType"));
         font.SetEntry("BaseFont", new PdfName(newName));
@@ -554,20 +544,7 @@ internal static class FontEmbedder
         file.Dictionary.SetEntry("Length1", new PdfInteger(data.Length));
         PdfReference fileRef = doc.AddObject(file);
         int flags = desc is not null && desc.ContainsKey("Flags") ? (int)desc.GetInt("Flags") : 4;
-        if (desc is not null)
-        {
-            desc.RemoveEntry("FontFile");
-            desc.RemoveEntry("FontFile3");
-            FillDescriptor(desc, program, newName, flags, baseName);
-            desc.SetEntry("FontFile2", fileRef);
-        }
-        else
-        {
-            var fd = new PdfDictionary();
-            FillDescriptor(fd, program, newName, flags, baseName);
-            fd.SetEntry("FontFile2", fileRef);
-            cidFont.SetEntry("FontDescriptor", doc.AddObject(fd));
-        }
+        cidFont.SetEntry("FontDescriptor", doc.AddObject(NewDescriptor(desc, program, newName, flags, baseName, fileRef)));
 
         cidFont.SetEntry("BaseFont", new PdfName(newName));
         if (map is null)
@@ -815,6 +792,26 @@ internal static class FontEmbedder
         }
 
         return f;
+    }
+
+    // A copy of the font's descriptor (or a new one) that names the embedded program. Entries the PDF has stay as they are.
+    private static PdfDictionary NewDescriptor(PdfDictionary? old, PdfFontFile program, string fontName, int flags, string baseName, PdfReference fileRef)
+    {
+        var fd = new PdfDictionary();
+        if (old is not null)
+        {
+            foreach (string key in old.Keys.ToArray())
+            {
+                if (key is not ("FontFile" or "FontFile2" or "FontFile3" or "CharSet") && old.GetRaw(key) is { } value)
+                {
+                    fd.SetEntry(key, value);
+                }
+            }
+        }
+
+        FillDescriptor(fd, program, fontName, flags, baseName);
+        fd.SetEntry("FontFile2", fileRef);
+        return fd;
     }
 
     // Sets the descriptor entries an embedded font needs and leaves the ones the PDF already has (the PDF's metrics stay the PDF's).

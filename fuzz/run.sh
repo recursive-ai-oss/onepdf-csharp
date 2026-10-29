@@ -4,7 +4,7 @@
 #   fuzz/run.sh <target> <seconds> [corpus dir] [extra libFuzzer flags...]
 #   fuzz/run.sh replay <target> <file>...      # run saved inputs once, without libFuzzer (reproduce a finding)
 #
-# Targets: parser document model pdffont filters security fontprogram cmap type4 ccitt content appearance extraction shading png save redact tag fontsubset signature pdfa layout svg   (see fuzz/README.md)
+# Targets: parser document model pdffont filters security fontprogram cmap type4 ccitt content appearance extraction shading png save redact tag fontsubset fontembed signature pdfa layout svg   (see fuzz/README.md)
 # `layout` and `svg` are separate executables (fuzz/OnePdf.Layout.Fuzz) because it also loads the layout and OneFont assemblies.
 #
 # Environment (nothing is baked into the script):
@@ -40,7 +40,7 @@ shift
 case "$target" in
   parser|document|model|content|pdffont|save|redact|tag|signature|pdfa) maxlen=131072 ;;
   filters|security|cmap|type4|ccitt|shading|png) maxlen=65536 ;;
-  fontprogram|fontsubset) maxlen=262144 ;;
+  fontprogram|fontsubset|fontembed) maxlen=262144 ;;
   extraction|appearance) maxlen=4096 ;;
   layout) maxlen=262144 ;;
   svg) maxlen=65536 ;;
