@@ -47,9 +47,13 @@ public class ConformanceDamagedStringTests
         var text = new StringBuilder(Encoding.ASCII.GetString(enc, at, length));
         if (how == Break.BadPadding)
         {
-            // Change the last cipher block: the decrypted padding no longer checks out.
-            int p = text.Length - 3;
-            text[p] = text[p] == '0' ? '1' : '0';
+            // In CBC the block before the last (the IV for a one-block string) is XORed into the last plaintext block, so flipping
+            // bit 0x10 of its last byte flips the same bit of the padding byte: a valid count of 1 to 16 becomes 0 or 17 to 31,
+            // which never checks out. Changing the last cipher block itself would scramble the padding, and about one save in
+            // a few hundred would still decrypt to valid padding by chance, since every save uses a fresh IV.
+            int p = text.Length - 34;
+            int nibble = Convert.ToInt32(text[p].ToString(), 16) ^ 1;
+            text[p] = char.IsUpper(text[p]) ? char.ToUpperInvariant(nibble.ToString("x")[0]) : nibble.ToString("x")[0];
             return Replace(enc, at, length, text.ToString());
         }
 
