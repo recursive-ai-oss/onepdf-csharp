@@ -64,7 +64,10 @@ are read through safe, bounds-checked code with size limits on by default.
   identification) and refuses what the document must provide (title, alternate text for figures, heading levels, table header
   cells, untagged content, unembedded fonts, ...) with every violation listed; `CheckPdfUA` only reports. It never decides roles for untagged
   files or guesses alternate text, and a clean result is not proof of conformance
-  ([PDF/UA](https://github.com/recursive-ai-oss/onepdf-csharp/blob/main/docs/pdfua.md)).
+  ([PDF/UA](https://github.com/recursive-ai-oss/onepdf-csharp/blob/main/docs/pdfua.md)). For repairing existing files there are
+  font helpers (substitute embedding, `/ToUnicode` from the font chain or from text you supply, CFF widths matched to `/Widths`:
+  [fonts](https://github.com/recursive-ai-oss/onepdf-csharp/blob/main/docs/fonts.md)), header-cell scope and optional-content
+  repairs, and a report and opt-in removal of hidden text that shows `.notdef` glyphs.
 - **Concurrent.** Objects parse lazily into a byte-budgeted cache with single-flight parsing; any number of threads can read pages
   of one document at once.
 

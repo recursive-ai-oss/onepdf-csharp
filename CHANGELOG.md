@@ -4,6 +4,8 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ## [Unreleased]
 
+## [1.14.0] - 2026-10-29
+
 ### Added
 
 - `PdfDocument.AddMissingToUnicode(PdfToUnicodeOptions)` with `PdfToUnicodeOptions.CodeToText`: the caller supplies the text for shown codes whose Unicode cannot be derived (embedded CFF subsets with `gidNNNNN` glyph names, subsets without a character map, composite fonts whose map lacks codes). It is written into `/ToUnicode` for any font kind, so ISO 14289-1 7.21.7 can be met without a new font program. `PdfToUnicodeEntry` gains `Font`, `Unmapped` (`PdfUnmappedCode`: code, glyph id, glyph name, width), `CodesFromCaller` and `MapRewritten`.
@@ -303,6 +305,7 @@ First release. Two packages, `RecursiveAI.OnePdf` (the library, `net10.0`, no de
 - Limits on by default (`PdfLimits`) and fuzzed parsers, filters and font readers; no `unsafe` code. OnePDF never runs code or touches the network.
 - `RecursiveAI.OnePdf.Fonts`: Liberation and Noto substitute outlines under the SIL Open Font License 1.1, registered with `FontsPackage.Register()`.
 
+[1.14.0]: https://github.com/recursive-ai-oss/onepdf-csharp/releases/tag/v1.14.0
 [1.13.0]: https://github.com/recursive-ai-oss/onepdf-csharp/releases/tag/v1.13.0
 [1.12.0]: https://github.com/recursive-ai-oss/onepdf-csharp/releases/tag/v1.12.0
 [1.11.1]: https://github.com/recursive-ai-oss/onepdf-csharp/releases/tag/v1.11.1
