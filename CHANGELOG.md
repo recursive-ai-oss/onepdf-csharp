@@ -4,6 +4,8 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ## [Unreleased]
 
+## [1.12.0] - 2026-10-29
+
 ### Added
 
 - Embedding a font program into an existing font dictionary (`docs/fonts.md`). `PdfFontFile.Open` reads TrueType, OpenType-CFF and CFF programs (metrics, `fsType` rights, cmap and glyph-name lookups). `PdfDocument.EmbedFontProgram` writes a subset of a TrueType program into a simple TrueType/Type1 font or a Type0/CIDFontType2 font, setting the subset's advances to the document's `/Widths` (ISO 14289-1 7.21.5) without rewriting `/Widths`, and `PdfDocument.SetToUnicode` extends `/ToUnicode`. `PdfDocument.EmbedSubstituteFonts` does it for non-embedded Arial, Times New Roman, Courier New and the standard 14 with the Liberation, Noto Sans Math and Noto Sans Symbols 2 faces from the Fonts package. `PdfUAOptions.EmbedSubstituteFonts` and `PdfAOptions.EmbedSubstituteFonts` (off by default) run it during a save. Refusals are `PdfFontEmbedException`.
@@ -262,6 +264,7 @@ First release. Two packages, `RecursiveAI.OnePdf` (the library, `net10.0`, no de
 - Limits on by default (`PdfLimits`) and fuzzed parsers, filters and font readers; no `unsafe` code. OnePDF never runs code or touches the network.
 - `RecursiveAI.OnePdf.Fonts`: Liberation and Noto substitute outlines under the SIL Open Font License 1.1, registered with `FontsPackage.Register()`.
 
+[1.12.0]: https://github.com/recursive-ai-oss/onepdf-csharp/releases/tag/v1.12.0
 [1.11.1]: https://github.com/recursive-ai-oss/onepdf-csharp/releases/tag/v1.11.1
 [1.11.0]: https://github.com/recursive-ai-oss/onepdf-csharp/releases/tag/v1.11.0
 [1.10.2]: https://github.com/recursive-ai-oss/onepdf-csharp/releases/tag/v1.10.2
