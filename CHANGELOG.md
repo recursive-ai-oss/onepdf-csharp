@@ -4,6 +4,19 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ## [Unreleased]
 
+### Added
+
+- `PdfDocument.AddMissingToUnicode(PdfToUnicodeOptions)` with `PdfToUnicodeOptions.CodeToText`: the caller supplies the text for shown codes whose Unicode cannot be derived (embedded CFF subsets with `gidNNNNN` glyph names, subsets without a character map, composite fonts whose map lacks codes). It is written into `/ToUnicode` for any font kind, so ISO 14289-1 7.21.7 can be met without a new font program. `PdfToUnicodeEntry` gains `Font`, `Unmapped` (`PdfUnmappedCode`: code, glyph id, glyph name, width), `CodesFromCaller` and `MapRewritten`.
+- `AddMissingToUnicode` writes a `/ToUnicode` again when it has a `bfrange` across a boundary of the last code byte (for example `<0000> <FFFF> <0000>`), which readers that follow ISO 32000-2 9.10.3 read wrongly beyond the first 256 codes. The mapping is the same, so extraction does not change.
+- `PdfDocument.MatchEmbeddedFontWidths` (`PdfWidthMatchOptions`, `PdfWidthMatchReport`, `PdfWidthMatchEntry`, `PdfWidthMatchOutcome`): rewrites the width operand of the shown glyphs of embedded CFF programs (`Type1C`, `CIDFontType0C`; simple and composite) to the PDF's `/Widths` or `/W`, for ISO 14289-1 7.21.5. Outlines, names and text positions are unchanged, and the new program is compared with the old one before it replaces it. TrueType, OpenType and Type 1 programs are only examined.
+- `PdfSubstituteEmbedOptions.FaceForFont` (`PdfSubstituteRequest`) and `PdfSubstituteEntry.FromCaller`: the caller supplies a TrueType face for a font the provider has no substitute for (Verdana, Calibri), embedded with the PDF's widths like a provider face.
+- `fontembed` fuzz target: bit 7 of the mode byte runs the CFF width and caller-text path.
+
+### Changed
+
+- `PdfSubstituteEntry.MissingCodes` (and `PdfFontEmbedResult.MissingCodes`) now lists only the codes the pages show that the substitute lacks. It used to list every code the encoding names when the font was kept whole, for example a ZapfDingbats form default that no page shows (about 100 codes). A font whose use cannot be traced still counts every code its encoding names as possibly shown. What was embedded is unchanged.
+- `docs/fonts.md` says that the substitute report (`WidthChanges`, `WidthConflicts`, `MissingCodes`) covers metrics and coverage, not glyph shapes, so it cannot stand in for a render comparison, and documents the additions above.
+
 ## [1.13.0] - 2026-10-29
 
 ### Added

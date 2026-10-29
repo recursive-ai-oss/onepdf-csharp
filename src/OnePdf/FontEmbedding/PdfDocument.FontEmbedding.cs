@@ -131,10 +131,68 @@ public sealed partial class PdfDocument
     /// <returns>One entry per font that changed or has shown codes with no known Unicode.</returns>
     /// <exception cref="InvalidOperationException">The document was not opened for editing.</exception>
     /// <exception cref="OperationCanceledException">Cancelled.</exception>
-    public PdfToUnicodeReport AddMissingToUnicode(CancellationToken cancellationToken = default)
+    public PdfToUnicodeReport AddMissingToUnicode(CancellationToken cancellationToken = default) =>
+        AddMissingToUnicode(new PdfToUnicodeOptions(), cancellationToken);
+
+    /// <summary>
+    /// Like <see cref="AddMissingToUnicode(CancellationToken)"/>, and also asks <see cref="PdfToUnicodeOptions.CodeToText"/> for the text of every
+    /// shown code the chain cannot map, so ISO 14289-1 7.21.7 can be met for fonts whose codes carry no derivable Unicode: embedded CFF programs
+    /// with glyph names such as <c>gid00132</c>, subsets without a character map, composite fonts whose map lacks codes. This works for every
+    /// font kind, because it only writes the font dictionary's <c>/ToUnicode</c>; the font program is not read or changed.
+    /// </summary>
+    /// <remarks>
+    /// A <c>/ToUnicode</c> that has a <c>bfrange</c> across a boundary of its last code byte (such as <c>&lt;0000&gt; &lt;FFFF&gt; &lt;0000&gt;</c>, which
+    /// readers that follow ISO 32000-2 9.10.3 read wrongly beyond the first 256 codes) is written again with the same meaning in valid ranges;
+    /// <see cref="PdfToUnicodeEntry.MapRewritten"/> says so. Two fonts of one file that draw the same glyph are mapped separately: nothing is
+    /// derived from another subset, because a glyph's shape does not say which character it is.
+    /// </remarks>
+    /// <param name="options">Options, including the caller's code-to-text callback.</param>
+    /// <param name="cancellationToken">Checked between fonts and while content is read.</param>
+    /// <returns>One entry per font that changed or has shown codes with no known Unicode; <see cref="PdfToUnicodeEntry.Unmapped"/> describes what is left.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="options"/> is null.</exception>
+    /// <exception cref="InvalidOperationException">The document was not opened for editing.</exception>
+    /// <exception cref="OperationCanceledException">Cancelled.</exception>
+    public PdfToUnicodeReport AddMissingToUnicode(PdfToUnicodeOptions options, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(options);
+        EnsureEditable(0);
+        return ToUnicodeAdder.Run(this, options, cancellationToken);
+    }
+
+    /// <summary>
+    /// Rewrites embedded CFF font programs so the advance width of each glyph the document shows equals the width the PDF gives it in
+    /// <c>/Widths</c> or <c>/W</c>, as ISO 14289-1 7.21.5 requires. Text positions come from the PDF's widths and stay as they are; outlines,
+    /// glyph names and encodings are not touched. The document must be opened for editing.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Producers that subset a font instanced from a variable font often leave the instance's fractional advances in the program while the PDF
+    /// lists rounded or differently instanced widths. A CFF program keeps each advance as the first operand of the glyph's charstring, relative to
+    /// the Private DICT's <c>nominalWidthX</c>; this changes that operand for the shown glyphs and makes both width defaults whole numbers.
+    /// Every glyph of the program is written again (unchanged except for that operand) and the result is read back and compared with the
+    /// original before it replaces it: glyph count, names, outlines and widths. A glyph that reaches its width through a subroutine, or any
+    /// mismatch, leaves the font as it was (outcome <see cref="PdfWidthMatchOutcome.Refused"/>).
+    /// </para>
+    /// <para>
+    /// Handles <c>FontFile3</c> programs of subtype <c>Type1C</c> and <c>CIDFontType0C</c>, simple and composite. TrueType, OpenType and Type 1
+    /// programs are only examined (<see cref="PdfWidthMatchOutcome.UnsupportedProgram"/>); for TrueType fonts embedded with
+    /// <see cref="EmbedFontProgram"/> or <see cref="EmbedSubstituteFonts"/> the widths already agree. Fonts shown nowhere are left alone. The font
+    /// descriptor is replaced by a copy that names the new program, so other fonts that shared the old descriptor keep the old program.
+    /// </para>
+    /// <para>
+    /// A glyph shared by codes with different PDF widths has one advance: the first code's width is used and the others are listed in
+    /// <see cref="PdfWidthMatchEntry.WidthConflicts"/>.
+    /// </para>
+    /// </remarks>
+    /// <param name="options">Options; null uses the defaults.</param>
+    /// <param name="cancellationToken">Checked between fonts and while content is read.</param>
+    /// <returns>One entry per font that has an embedded program.</returns>
+    /// <exception cref="InvalidOperationException">The document was not opened for editing.</exception>
+    /// <exception cref="OperationCanceledException">Cancelled.</exception>
+    public PdfWidthMatchReport MatchEmbeddedFontWidths(PdfWidthMatchOptions? options = null, CancellationToken cancellationToken = default)
     {
         EnsureEditable(0);
-        return ToUnicodeAdder.Run(this, cancellationToken);
+        return WidthMatcher.Run(this, options ?? new PdfWidthMatchOptions(), cancellationToken);
     }
 
     /// <summary>Drops the cached decoded font for a dictionary, after its entries changed.</summary>

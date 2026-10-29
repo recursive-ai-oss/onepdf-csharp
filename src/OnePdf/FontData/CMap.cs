@@ -351,6 +351,33 @@ internal sealed class CMap
         }
     }
 
+    /// <summary>
+    /// True when a <c>bfrange</c> of this map (not the parent) runs across a boundary of its last code byte, or counts its destination past the
+    /// last byte of the destination string. ISO 32000-2 9.10.3 and Adobe Technical Note #5411 define a range as incrementing the last byte only
+    /// and keep a range within one block of 256 codes, so readers that follow them read such a range wrongly. OnePDF reads it as written
+    /// (the whole span, carrying into the destination's last UTF-16 unit); a map is rewritten when this is true.
+    /// </summary>
+    public bool HasWideBfRanges()
+    {
+        foreach (BfRange[] ranges in _bfRanges)
+        {
+            foreach (BfRange r in ranges)
+            {
+                if ((r.Lo >> 8) != (r.Hi >> 8))
+                {
+                    return true;
+                }
+
+                if (r.List is null && r.Base.Length > 0 && (r.Base[^1] & 0xFF) + (r.Hi - r.Lo) > 0xFF)
+                {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
     /// <summary>Enumerates every code to Unicode mapping of this map (not the parent), expanding ranges, up to <paramref name="limit"/> entries.</summary>
     public List<(uint Code, int Length, string Text)> EnumerateUnicode(int limit = 1 << 20)
     {

@@ -72,18 +72,25 @@ internal static class FontEmbedder
         Array.Copy(baseEnc is { } be ? Encodings.Get(be) : std?.BuiltInEncoding ?? Encodings.Get(PredefinedEncoding.Standard), names, 256);
         SimpleEncoding.ApplyDifferences(names, diffs);
 
-        // The codes to give glyphs to.
+        // The codes to give glyphs to. A font a form may still be filled in with keeps its whole encoding even if the pages show only a few
+        // codes; what the result reports as missing is about the codes the pages do show (null: unknown, so every code counts).
         HashSet<int>? shown = null;
+        HashSet<int>? reportShown = null;
         if (o.Codes is not null)
         {
             shown = [.. o.Codes.Where(static c => c is >= 0 and <= 255)];
+            reportShown = shown;
         }
         else if (o.Subset && font.Reference is { } fr)
         {
             FontUsage usage = FontUsage.Scan(doc, [fr.Number], ct);
-            if (usage.Complete && !usage.Full.Contains(fr.Number) && usage.Used.TryGetValue(fr.Number, out HashSet<int>? seen) && seen.Count > 0)
+            if (usage.Complete)
             {
-                shown = seen;
+                reportShown = usage.Used.TryGetValue(fr.Number, out HashSet<int>? seen) ? seen : [];
+                if (!usage.Full.Contains(fr.Number) && seen is { Count: > 0 })
+                {
+                    shown = seen;
+                }
             }
         }
 
@@ -284,7 +291,7 @@ internal static class FontEmbedder
             FontFile = fileRef,
             BaseFont = newName,
             EmbeddedCodes = [.. gids.Keys],
-            MissingCodes = missing,
+            MissingCodes = reportShown is null ? missing : [.. missing.Where(reportShown.Contains)],
             WidthChanges = changes,
             WidthConflicts = conflicts,
             ToUnicodeWritten = tuWritten,
@@ -387,6 +394,7 @@ internal static class FontEmbedder
         PdfFont pf = doc.GetFont(font);
         var used = new SortedDictionary<uint, (int Cid, int Length)>();
         bool tolerant = true;
+        HashSet<int>? reportShown = null; // the codes the pages show, when that is known
         if (o.Codes is not null)
         {
             tolerant = false;
@@ -404,6 +412,11 @@ internal static class FontEmbedder
         else if (o.Subset && font.Reference is { } fr)
         {
             FontUsage usage = FontUsage.Scan(doc, [fr.Number], ct, new Dictionary<int, PdfFont> { [fr.Number] = pf });
+            if (usage.Complete)
+            {
+                reportShown = usage.UsedComposite.TryGetValue(fr.Number, out Dictionary<uint, (int Cid, int Length)>? shownNow) ? [.. shownNow.Keys.Select(static c => unchecked((int)c))] : [];
+            }
+
             if (usage.Complete && usage.UsedComposite.TryGetValue(fr.Number, out Dictionary<uint, (int Cid, int Length)>? seen) && seen.Count > 0)
             {
                 tolerant = false;
@@ -587,7 +600,7 @@ internal static class FontEmbedder
             FontFile = fileRef,
             BaseFont = newName,
             EmbeddedCodes = [.. codeGid.Keys.Select(static c => (int)c).OrderBy(static c => c)],
-            MissingCodes = missing,
+            MissingCodes = reportShown is null ? missing : [.. missing.Where(reportShown.Contains)],
             WidthChanges = changes,
             WidthConflicts = conflicts,
             ToUnicodeWritten = tuWritten,
