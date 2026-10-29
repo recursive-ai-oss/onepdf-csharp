@@ -118,6 +118,12 @@ Rules the writer enforces:
 
 `PdfTagRole.Annot` is the role for an annotation that is neither a link nor a form widget (stamps, text notes, markup). The happy path adds an `Annot` element holding the annotation after each page's blocks; `PdfTagOptions.TagAnnotations` (default true) turns that off. Links keep `Link`, widgets belong to the form, `Popup`, `TrapNet` and `PrinterMark` are skipped.
 
+ISO 14289-1 7.18.1 wants a description in the annotation's `/Contents`. When an annotation has none, the happy path gives the element an `Alt` made from the text the annotation's appearance stream shows (a running head or footer, a stamp), and applying the plan copies the `Alt` into `/Contents`; a `HeaderFooter` annotation that shows no text gets `Page header or footer`. A `/Contents` that exists is never replaced. In a plan built by hand, set `Alt` yourself.
+
+**Annotations written inline.** An annotation can be a dictionary written directly in `/Annots` instead of a reference. An object reference in the structure tree needs an indirect object, so applying the plan makes the annotation one: the same dictionary instance is kept (annotations read before stay valid), the `/Annots` entry becomes the reference, and `PdfTaggingResult.AnnotationsMadeIndirect` counts them.
+
+**Annotations listed more than once.** Some files list one annotation object many times in `/Annots`. The happy path tags the object once, at its first entry, and warns once per page with the number of repeated entries; the entries stay in `/Annots`. In a plan built by hand, giving the same annotation to two elements throws `DuplicateContent` and the message names the page.
+
 ## Artifacts
 
 Anything painted that no element references becomes an artifact: rules, backgrounds, shapes, invisible text and text the plan leaves out. You can also say what it is:

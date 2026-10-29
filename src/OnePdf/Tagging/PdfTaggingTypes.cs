@@ -307,7 +307,7 @@ public sealed class PdfTagContent
     /// An annotation of the document, typically the link annotation of a <see cref="PdfTagRole.Link"/> element. It is tied to the
     /// element with an object reference and given a <c>/StructParent</c>.
     /// </summary>
-    /// <param name="annotation">An annotation of one of the document's pages; it must be an indirect object.</param>
+    /// <param name="annotation">An annotation of one of the document's pages. One written directly in <c>/Annots</c> is made an indirect object when the plan is applied (see <see cref="PdfTaggingResult.AnnotationsMadeIndirect"/>).</param>
     /// <exception cref="ArgumentNullException">The annotation is null.</exception>
     public static PdfTagContent Annotation(PdfAnnotation annotation)
     {
@@ -594,6 +594,9 @@ public sealed class PdfTaggingResult
 
     /// <summary>How many annotations were tied into the tree.</summary>
     public int AnnotationsTagged { get; internal set; }
+
+    /// <summary>How many of those annotations were written directly in a page's <c>/Annots</c> array and were made indirect objects, which a structure reference needs.</summary>
+    public int AnnotationsMadeIndirect { get; internal set; }
 
     /// <summary>Things worth knowing: an element that ended up without content, a reference that matched nothing, signatures that the change invalidates.</summary>
     public IReadOnlyList<string> Warnings => WarningList;
