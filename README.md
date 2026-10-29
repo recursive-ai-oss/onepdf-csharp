@@ -269,9 +269,9 @@ local system fonts. The code is safe C# with no `unsafe`, `Unsafe.*` or `MemoryM
 
 - No PDF/A validator or converter (existing files are checked and refused, never rewritten into conformance), and no long-term validation data (`/DSS`, PAdES B-LT/B-LTA) when signing. Field scripts are never run, so calculated fields are not recomputed. New text is laid out
   without a shaping engine, so complex scripts (Arabic, Indic and similar) are not shaped.
-- **It does not render pixels.** OnePDF resolves a page into drawing calls; a 2D engine paints them. Rasterizing is planned as a
-  separate package, `RecursiveAI.OneImage.Pdf`, built on [OneImage](https://github.com/recursive-ai-oss/oneimage-csharp); it is
-  not available yet. It will implement OnePDF's device and register PDF as an image format. OnePDF has no imaging dependency.
+- **It does not render pixels.** OnePDF resolves a page into drawing calls; a 2D engine paints them. Rasterizing lives in a
+  separate package, `RecursiveAI.OneImage.Pdf`, built on [OneImage](https://github.com/recursive-ai-oss/oneimage-csharp); it
+  implements OnePDF's device and registers PDF as an image format. OnePDF has no imaging dependency.
 - **No OCR.** Scanned pages without a text layer give no text.
 - **Missing annotation appearances are generated** for form fields and simple markup only (see [appearance generation](https://github.com/recursive-ai-oss/onepdf-csharp/blob/main/docs/appearance-generation.md)); other annotation types without one draw nothing and record a diagnostic.
 - **Public-key encryption** is not supported yet. Encrypted files need the standard handler and the BCL's AES, which

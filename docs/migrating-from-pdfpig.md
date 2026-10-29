@@ -119,8 +119,8 @@ Things that behave differently and can change your output:
 ## Beyond text
 
 PdfPig has no real page rendering. In OnePDF, `page.Interpret(device)` drives an `IPdfDevice` with paths, glyph runs, images,
-shadings and groups; `PdfDisplayList` is the recording device. Producing pixels is planned as a separate
-package, `RecursiveAI.OneImage.Pdf`, built on OneImage; it is not available yet.
+shadings and groups; `PdfDisplayList` is the recording device. Producing pixels is done by a separate
+package, `RecursiveAI.OneImage.Pdf`, built on OneImage.
 
 ## What OnePDF does not have
 
