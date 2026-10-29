@@ -65,6 +65,25 @@ internal static class TaggingSmoke
             return "tagging changed the text or wrote no tree";
         }
 
-        return back.CheckPdfUA().Any(static v => v.Message.Contains("neither tagged", StringComparison.Ordinal)) ? "untagged content after tagging" : null;
+        if (back.CheckPdfUA().Any(static v => v.Message.Contains("neither tagged", StringComparison.Ordinal)))
+        {
+            return "untagged content after tagging";
+        }
+
+        // Taking the tags out again leaves the text as it was and the file taggable.
+        using PdfDocument again = PdfDocument.Open(saved.ToArray(), new PdfOpenOptions { AllowEditing = true });
+        PdfRemoveTagsResult removed = again.RemoveTags();
+        if (!removed.StructureTreeRemoved || removed.SequencesRemoved == 0 || again.StructureTreeRoot is not null)
+        {
+            return "RemoveTags left the tree or removed nothing";
+        }
+
+        if (string.Concat(again.ExtractText(options).Select(static p => p.Text)) != before)
+        {
+            return "RemoveTags changed the text";
+        }
+
+        again.Tag(again.ExtractText(options), static _ => PdfBlockRole.Paragraph);
+        return again.StructureTreeRoot is null ? "tagging after RemoveTags wrote no tree" : null;
     }
 }

@@ -149,7 +149,7 @@ Artifact sequences the file already had are removed and rebuilt, so text the fil
 | `ContentChanged` | the page shows a different number of glyphs than the extraction saw |
 | `ContentUnreadable` | the page cannot be rewritten safely: a form draws itself or nests deeper than the recursion limit, or glyphs do not match their string |
 
-Calls also throw `PdfLimitException` when the tree would be deeper than `PdfLimits.MaxNestingDepth` or hold too many elements (while the plan is built), or when a tagged page would exceed the operator limit; `InvalidOperationException` when the document is not editable or the plan was applied before; `ArgumentException` for a plan from another document; and `OperationCanceledException` on cancellation. Documents that are tagged already are not retagged or merged: remove the structure yourself first if you mean to replace it.
+Calls also throw `PdfLimitException` when the tree would be deeper than `PdfLimits.MaxNestingDepth` or hold too many elements (while the plan is built), or when a tagged page would exceed the operator limit; `InvalidOperationException` when the document is not editable or the plan was applied before; `ArgumentException` for a plan from another document; and `OperationCanceledException` on cancellation. Documents that are tagged already are not retagged or merged: call `doc.RemoveTags()` first if you mean to replace the tags (see [structure.md](structure.md)).
 
 ## What is not done
 
