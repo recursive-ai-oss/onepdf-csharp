@@ -24,7 +24,7 @@ public class TaggingOverlapOrderTests
     public void FakeBoldDrawnTwiceWithTheCopyInTheSameTextObject()
     {
         AssertTaggingKeepsExtraction(
-            "BT /F1 12 Tf 72 700 Td (District Name: TOMBALL) Tj 0.5 0 Td (District Name: TOMBALL) Tj ET\n" +
+            "BT /F1 12 Tf 72 700 Td (District Name: RIVERSIDE) Tj 0.5 0 Td (District Name: RIVERSIDE) Tj ET\n" +
             "BT /F1 12 Tf 72 680 Td (Section I - Page 2) Tj -0.5 0 Td (Section I - Page 2) Tj ET\n");
     }
 

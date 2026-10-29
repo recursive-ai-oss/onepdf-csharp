@@ -22,6 +22,10 @@ internal static class VeraPdf
     [ThreadStatic]
     public static string? LastLog;
 
+    // Each validator run is a JVM that can hold a gigabyte; classes run in parallel, so without a bound a dozen of them can sit beside the
+    // heavy corpus tests and push a memory-capped machine over its limit.
+    private static readonly SemaphoreSlim s_jvms = new(2);
+
     public static string Require()
     {
         string? p = Path;
@@ -51,11 +55,21 @@ internal static class VeraPdf
             psi.ArgumentList.Add("xml");
             psi.ArgumentList.Add(file);
             psi.Environment["JAVA_OPTS"] = "-Xmx1g";
-            using Process p = Process.Start(psi)!;
-            Task<string> err = p.StandardError.ReadToEndAsync();
-            string xml = p.StandardOutput.ReadToEnd();
-            p.WaitForExit();
-            LastLog = err.Result;
+            string xml;
+            s_jvms.Wait();
+            try
+            {
+                using Process p = Process.Start(psi)!;
+                Task<string> err = p.StandardError.ReadToEndAsync();
+                xml = p.StandardOutput.ReadToEnd();
+                p.WaitForExit();
+                LastLog = err.Result;
+            }
+            finally
+            {
+                s_jvms.Release();
+            }
+
             var failures = new List<string>();
             if (!xml.Contains("isCompliant=\"true\"", StringComparison.Ordinal))
             {

@@ -295,6 +295,9 @@ public sealed class PdfStructureNode : PdfStructureItem
     /// appends). The element has <c>/P</c> set to this element and no <c>/K</c>; it inherits this element's <c>/Pg</c>. Fill it with
     /// <see cref="PdfStructureItem.MoveTo"/> or leave it empty, for example a <c>TD</c> standing for a table cell the producer left out
     /// (ISO 14289-1 7.5 needs every row to have the same number of cells). No parent-tree entry is needed until content is moved into it.
+    /// A <c>TH</c> inserted this way has no <see cref="Scope"/>; set it (<c>Column</c> for a cell in a header row, <c>Row</c> for a row header),
+    /// because a table with a header cell without one fails ISO 14289-1 7.5 unless its data cells name their headers with <c>/Headers</c>.
+    /// <see cref="PdfDocument.CheckPdfUA(CancellationToken)"/> reports such cells and <see cref="PdfDocument.PreparePdfUA"/> sets the scope where the row makes it plain.
     /// </summary>
     /// <returns>The new element.</returns>
     /// <exception cref="ArgumentException"><paramref name="type"/> is empty.</exception>

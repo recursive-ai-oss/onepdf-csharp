@@ -72,6 +72,16 @@ internal static class PdfUAPreparer
         }
 
         PrepareAnnotations(doc, ct);
+        PrepareOptionalContentNames(doc, removeAutoState: ua.Part == PdfUAPart.Part1);
+        if (ua.Part == PdfUAPart.Part1)
+        {
+            PrepareTableHeaders(doc, ct);
+            if (ua.RemoveInvisibleNotdefText)
+            {
+                doc.RemoveNotdefText(new PdfNotdefRemoveOptions { Scope = PdfNotdefScope.Invisible }, ct);
+            }
+        }
+
         if (ua.Part == PdfUAPart.Part2)
         {
             PdfUA2.ConvertStructure(doc, ct);
@@ -83,6 +93,69 @@ internal static class PdfUAPreparer
         {
             // With PDF/A the packet is written by the PDF/A preparer, which knows both identifications.
             PdfAPreparer.WriteMetadata(doc, null, pdfUA: true, (int)ua.Part);
+        }
+    }
+
+    // A configuration without a /Name gets one that says what it is: the default one is "Default", the others "Configuration n".
+    // Nothing else about optional content changes (ISO 14289-1 7.10).
+    private static void PrepareOptionalContentNames(PdfDocument doc, bool removeAutoState)
+    {
+        if (doc.Catalog.GetDictionary("OCProperties") is not { } props)
+        {
+            return;
+        }
+
+        int n = 0;
+        foreach ((PdfDictionary config, string where) in PdfUAChecker.OptionalContentConfigurations(props))
+        {
+            n++;
+            // /AS (automatic state changes by event) is not allowed in Part 1; the groups keep the states /D gives them.
+            if (removeAutoState && config.ContainsKey("AS"))
+            {
+                config.RemoveEntry("AS");
+            }
+
+            if (string.IsNullOrWhiteSpace(config.GetString("Name")?.GetText()))
+            {
+                config.SetEntry("Name", PdfString.FromText(where.Contains("/D)", StringComparison.Ordinal) ? "Default" : "Configuration " + n));
+            }
+        }
+    }
+
+    // A header cell without a scope leaves the data cells of its table with no header unless the answer is plain from the layout of its
+    // row (ISO 14289-1 7.5): a row of header cells only heads its columns, and the first cell of a row that also has data cells heads the
+    // row. Anything less clear is left for the checker to report, because it takes a person to say what the cell heads.
+    private static void PrepareTableHeaders(PdfDocument doc, CancellationToken ct)
+    {
+        if (doc.Catalog.GetDictionary("StructTreeRoot") is null)
+        {
+            return;
+        }
+
+        List<(int Element, string Scope)> repairs = new PdfUAChecker(doc, structureOnly: false, ct).HeaderScopeRepairs();
+        if (repairs.Count == 0)
+        {
+            return;
+        }
+
+        PdfStructureTree? tree = doc.StructureTree;
+        if (tree is null)
+        {
+            return;
+        }
+
+        var wanted = new Dictionary<int, string>();
+        foreach ((int element, string scope) in repairs)
+        {
+            wanted[element] = scope;
+        }
+
+        foreach (PdfStructureNode node in tree.Elements())
+        {
+            if (node.Dictionary.Reference is { } r && wanted.TryGetValue(r.Number, out string? scope) && node.Scope is null)
+            {
+                node.Scope = scope == "Row" ? PdfTagScope.Row : PdfTagScope.Column;
+            }
         }
     }
 

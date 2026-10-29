@@ -42,7 +42,9 @@ public sealed partial class PdfDocument
     /// <c>/ViewerPreferences /DisplayDocTitle</c> when there is a title, sets <c>/Tabs /S</c> on pages with annotations, gives link
     /// annotations a <c>/Contents</c> from their structure element's alternate text or their address, embeds Liberation faces for the
     /// standard fonts OnePDF added (<see cref="PdfUAOptions.EmbedLibraryFonts"/>), and writes the XMP packet with the PDF/UA-1
-    /// identification and the title. It never tags content, invents titles or writes alternate text. The changes are made to the document
+    /// identification and the title. Where a row makes it plain it also gives a table header cell without a scope one (a cell in a row of
+    /// header cells heads its column, the first cell of a row with data cells heads the row; ISO 14289-1 7.5), and with
+    /// <see cref="PdfUAOptions.RemoveInvisibleNotdefText"/> it takes <c>.notdef</c> codes out of invisible text (7.21.8). It never tags content, invents titles or writes alternate text. The changes are made to the document
     /// in memory; calling it again changes nothing more.
     /// </summary>
     /// <param name="options">Language and font options; null means defaults.</param>
