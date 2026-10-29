@@ -30,6 +30,7 @@ layout.Save(file, new PdfSaveOptions
 | `PdfSaveOptions.PdfUA` (`PdfUAOptions`) | A full save prepares, checks and writes, or throws `PdfUAException` and writes nothing. With `PdfA` too, the failures of both come in one `PdfAException` (PDF/UA entries have clauses starting `PDF/UA-1`). Needs an editable document. Not available for `SaveIncremental`. |
 | `PdfUAOptions.Language` | A `/Lang` to write when the catalog has none. Without it, a missing language is a violation. |
 | `PdfUAOptions.EmbedLibraryFonts` | Default true: standard fonts added by `AddStandardFont` become embedded Liberation faces when the Fonts package is registered (as for PDF/A). |
+| `PdfUAOptions.EmbedSubstituteFonts` | Default false: fonts the document names but does not embed (Arial, Times New Roman, Courier New, the standard 14) get a Liberation subset, with the document's widths. See [fonts.md](fonts.md). |
 | `PdfAConformance.A`, `PdfAOptions.Language` | PDF/A level A; `Language` is the same fallback. |
 | `PdfDocument.PreparePdfUA(options)` | Makes the repairs below in memory and returns what is still wrong. |
 | `PdfDocument.CheckPdfUA()` | Reports every violation as the document stands; changes nothing; works on read-only documents. |

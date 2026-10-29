@@ -18,6 +18,12 @@ if (OnePdf.AotSmoke.FontSmoke.Run() is { } failure)
     return 1;
 }
 
+if (OnePdf.AotSmoke.FontEmbedSmoke.Run() is { } fontEmbedFailure)
+{
+    Console.Error.WriteLine("font embedding: " + fontEmbedFailure);
+    return 1;
+}
+
 if (OnePdf.AotSmoke.CreationSmoke.Run() is { } creationFailure)
 {
     Console.Error.WriteLine("content creation: " + creationFailure);

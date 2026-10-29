@@ -33,6 +33,19 @@ internal sealed class FontCache
         return _direct.GetOrAdd(dictionary, d => new Lazy<PdfFont>(() => Create(d, provider, -1), LazyThreadSafetyMode.ExecutionAndPublication)).Value;
     }
 
+    /// <summary>Drops the font built for a dictionary, after the dictionary's entries changed.</summary>
+    public void Forget(PdfDictionary dictionary)
+    {
+        if (dictionary.Reference is { } r)
+        {
+            _byObject.TryRemove(r.Number, out _);
+        }
+        else
+        {
+            _direct.TryRemove(dictionary, out _);
+        }
+    }
+
     private PdfFont Create(PdfDictionary dictionary, IPdfFontProvider provider, int objectNumber)
     {
         var ctx = new FontContext(_document, provider, objectNumber);

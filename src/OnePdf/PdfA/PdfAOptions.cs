@@ -45,6 +45,14 @@ public sealed class PdfAOptions
     public bool EmbedLibraryFonts { get; init; } = true;
 
     /// <summary>
+    /// When true, fonts the file names without embedding (Arial, Times New Roman, Courier New and the other standard faces and their common
+    /// aliases) get metric-compatible substitutes embedded by <see cref="PdfDocument.EmbedSubstituteFonts"/>, with the registered font
+    /// provider's faces (Liberation, with the <c>RecursiveAI.OnePdf.Fonts</c> package). Default false, because it changes the letter shapes in
+    /// viewers that had the real font; without it such fonts are reported as violations. Needs the document to be editable.
+    /// </summary>
+    public bool EmbedSubstituteFonts { get; init; }
+
+    /// <summary>
     /// For level A: the language to write as the catalog's <c>/Lang</c> (a BCP 47 tag such as <c>en-US</c>) when the document has none.
     /// Default null: a missing language is reported. An existing <c>/Lang</c> is kept.
     /// </summary>

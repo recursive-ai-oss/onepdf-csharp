@@ -114,6 +114,10 @@ Rules the writer enforces:
 - A blank glyph that nobody claimed (a space the font draws) goes with the text next to it, so a paragraph is not cut up by its spaces.
 - A `Link` element should hold the link's text and its `Annotation`. The annotation gets an object reference (`OBJR`) and a `/StructParent`. If it has no `/Contents`, the writer sets it from the element's `Alt`, else from the link's words (ISO 14289-1 7.18.5).
 
+## Annotations other than links
+
+`PdfTagRole.Annot` is the role for an annotation that is neither a link nor a form widget (stamps, text notes, markup). The happy path adds an `Annot` element holding the annotation after each page's blocks; `PdfTagOptions.TagAnnotations` (default true) turns that off. Links keep `Link`, widgets belong to the form, `Popup`, `TrapNet` and `PrinterMark` are skipped.
+
 ## Artifacts
 
 Anything painted that no element references becomes an artifact: rules, backgrounds, shapes, invisible text and text the plan leaves out. You can also say what it is:
@@ -153,4 +157,5 @@ Calls also throw `PdfLimitException` when the tree would be deeper than `PdfLimi
 - No reading order is derived from the plan beyond the order of elements and their content.
 - The visual result is unchanged by design, which also means defects in the source (fonts that are not embedded, text without a Unicode mapping) stay and are reported by the PDF/UA check.
 - Annotation appearance streams are not tagged; annotations are tied to the tree by an object reference.
+- Fonts that are not embedded stay so (ISO 14289-1 7.21.4.1); embed substitutes first with [fonts.md](fonts.md).
 - Tagging splits a text operator where owners change, which reaches later glyphs by a different sum of the same advances (differences around 1e-13 pt). Extraction is unchanged for every committed test file, but on a page of thousands of overprinted copies, or glyphs with zero advance, a threshold in duplicate collapsing or word spacing can fall the other way for a glyph. Glyph order, text and positions stay the same.

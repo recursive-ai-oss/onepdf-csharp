@@ -49,6 +49,7 @@ internal static class Program
         ["tag"] = TagTarget.Run,
         ["structure"] = StructureTarget.Run,
         ["fontsubset"] = FontSubsetTarget.Run,
+        ["fontembed"] = FontEmbedTarget.Run,
         ["signature"] = SignatureTarget.Run,
         ["pdfa"] = PdfATarget.Run,
     };

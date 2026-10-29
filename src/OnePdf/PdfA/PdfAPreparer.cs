@@ -29,6 +29,11 @@ internal static class PdfAPreparer
             EmbedLibraryFonts(doc, ct);
         }
 
+        if (options.EmbedSubstituteFonts)
+        {
+            doc.EmbedSubstituteFonts(cancellationToken: ct);
+        }
+
         AddOutputIntent(doc);
         WriteMetadata(doc, options, pdfUA);
         if (options.Conformance == PdfAConformance.A)
