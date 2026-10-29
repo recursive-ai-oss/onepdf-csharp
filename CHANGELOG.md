@@ -4,6 +4,10 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ## [Unreleased]
 
+### Added
+
+- `PdfDocument.RemoveTags(options)` takes the tags out of an editable document: the structure tree (`/StructTreeRoot` with its parent tree, id tree, role map and class map), `/MarkInfo`, every `/StructParents` and `/StructParent`, and the marked-content sequences that carry an `/MCID` in pages, form XObjects (nested, shared, used on several pages), patterns, Type 3 glyph procedures, soft-mask groups and annotation appearances. Pages paint and extract exactly as before (checked on display lists, extraction and two renderers). `/Artifact`, optional-content and other marked content stay by default; `PdfRemoveTagsOptions` can turn the sequences into `BMC` instead of dropping them, or drop artifact marks as well. Sequences with an `/ActualText` keep a `BDC` with the text alone, so extraction reads the same. It also cleans half-tagged files (a tree without `/MarkInfo`, identifiers without a tree), after which `Tag` and `ApplyTagging` accept the file. See `docs/structure.md`.
+
 ## [1.11.1] - 2026-10-27
 
 ### Fixed
