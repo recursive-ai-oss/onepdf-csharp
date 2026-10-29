@@ -4,6 +4,8 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ## [Unreleased]
 
+## [1.13.0] - 2026-10-29
+
 ### Added
 
 - `PdfSubstituteOutcome.NoFontProvider`, `PdfSubstituteEmbedReport.FontProviderMissing` and `ProviderMessage`: `EmbedSubstituteFonts` with no font provider (the Fonts package neither registered nor set on the document) now says so, naming `RecursiveAI.OnePdf.Fonts` and the call to make, instead of reporting `NoSubstitute` for every font. A PDF/UA or PDF/A save with `EmbedSubstituteFonts` and no provider throws `InvalidOperationException` with the same message. `NoSubstitute` stays for fonts that have no substitute.
@@ -278,6 +280,7 @@ First release. Two packages, `RecursiveAI.OnePdf` (the library, `net10.0`, no de
 - Limits on by default (`PdfLimits`) and fuzzed parsers, filters and font readers; no `unsafe` code. OnePDF never runs code or touches the network.
 - `RecursiveAI.OnePdf.Fonts`: Liberation and Noto substitute outlines under the SIL Open Font License 1.1, registered with `FontsPackage.Register()`.
 
+[1.13.0]: https://github.com/recursive-ai-oss/onepdf-csharp/releases/tag/v1.13.0
 [1.12.0]: https://github.com/recursive-ai-oss/onepdf-csharp/releases/tag/v1.12.0
 [1.11.1]: https://github.com/recursive-ai-oss/onepdf-csharp/releases/tag/v1.11.1
 [1.11.0]: https://github.com/recursive-ai-oss/onepdf-csharp/releases/tag/v1.11.0
