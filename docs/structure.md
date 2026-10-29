@@ -94,3 +94,21 @@ A stream that cannot be decoded, or an inline image whose end cannot be found, i
 `doc.RemoveTags(new PdfRemoveTagsOptions { DryRun = true })` reads everything a real call reads and returns the same counts, and changes nothing. It does not need `AllowEditing`. A file counts as carrying tags or remnants when `StructureTreeRemoved`, `MarkInfoRemoved`, `StructParentsRemoved` or `SequencesRemoved` is non-zero, which also catches marked content with `/MCID` identifiers but no `/StructTreeRoot` or `/MarkInfo`; `doc.StructureTree` and `IsTagged` do not see that case, and `Tag`/`ApplyTagging` refuse it.
 
 Signatures: a full save invalidates them; an incremental save keeps the signed revision.
+
+## Artifacts for untagged graphics
+
+```csharp
+using PdfDocument doc = PdfDocument.Open("tagged.pdf", new PdfOpenOptions { AllowEditing = true });
+PdfArtifactResult result = doc.ArtifactUntaggedGraphics();
+doc.Save("fixed.pdf");
+```
+
+A file can be tagged and still paint paths, images, shadings, inline images and Form XObjects outside any marked content. ISO 14289-1 7.1 wants every piece of content to be real content or an artifact, and `CheckPdfUA` reports the rest ("neither tagged as real content nor marked as an artifact"). `ArtifactUntaggedGraphics` wraps each such painting operation in an `/Artifact BMC … EMC` sequence in the page content and changes nothing else: a path is wrapped together with its construction operators (`re`, `m`, `l`, … up to `f`, `S`, `B` and the rest), `Do`, `sh` and an inline image (`BI … EI`) are wrapped alone, and a clipping path that is never painted is left alone. The page paints, extracts and interprets as before (checked on display lists, extraction and two renderers).
+
+The scan follows the same rules as the check, so the check's finding goes away when only graphics were behind it:
+
+- a sequence with an `/MCID` is tagged, an `/Artifact` sequence is an artifact, and any other sequence (`/Span BMC`) is neither, so a graphic inside it is wrapped inside it;
+- a Form XObject drawn outside marked content is wrapped where it is drawn, never inside, so the same form drawn within tagged content keeps working there;
+- text is never wrapped. Whether text is decoration is the caller's decision, so untagged text is counted per page (`UntaggedTextOperators`) and the check still reports it. A form that shows text outside marked content, tags content of its own (it needs a decision about which part is which) or cannot be read is left alone and counted in `FormsLeft`.
+
+`result.Wrapped` and `result.Pages` (page index, wrapped, text operators, forms left) say what happened; a page whose content cannot be decoded or ends inside an inline image is left as it is and named in `result.Warnings`. Annotation appearances, and content reached only from patterns or from inside other forms, are not edited. The call needs `AllowEditing`; running it again wraps nothing. Signatures: a full save invalidates them; an incremental save keeps the signed revision.

@@ -29,6 +29,24 @@ internal static class StructureTarget
         }
     }
 
+    // The first page's display list without marked-content brackets and object numbers: what a page draws, not how it is marked.
+    private static string DisplayOf(PdfDocument doc)
+    {
+        var list = new PdfDisplayList();
+        doc.Pages[0].Interpret(list, new PdfInterpretOptions { GenerateAppearances = false });
+        var sb = new System.Text.StringBuilder();
+        foreach (string raw in list.ToText().Split('\n'))
+        {
+            string l = raw.TrimStart();
+            if (!l.StartsWith("begin-mc ", StringComparison.Ordinal) && l != "end-mc")
+            {
+                sb.Append(System.Text.RegularExpressions.Regex.Replace(l, "[0-9]+ 0 R", "N 0 R")).Append('\n');
+            }
+        }
+
+        return sb.ToString();
+    }
+
     public static void Run(ReadOnlySpan<byte> data)
     {
         if (data.Length <= 8)
@@ -137,6 +155,21 @@ internal static class StructureTarget
             if (rng.Next(8) == 0)
             {
                 _ = doc.AddMissingToUnicode();
+            }
+
+            if (rng.Next(5) == 0)
+            {
+                string before = doc.Pages.Count > 0 ? DisplayOf(doc) : string.Empty;
+                PdfArtifactResult marked = doc.ArtifactUntaggedGraphics();
+                if (marked.Wrapped > 0 && DisplayOf(doc) != before)
+                {
+                    throw new InvalidOperationException("ArtifactUntaggedGraphics changed what the first page draws");
+                }
+
+                if (doc.ArtifactUntaggedGraphics().Wrapped != 0)
+                {
+                    throw new InvalidOperationException("a second ArtifactUntaggedGraphics still found something to wrap");
+                }
             }
 
             if (rng.Next(6) == 0)

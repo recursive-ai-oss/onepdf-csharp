@@ -83,6 +83,13 @@ internal static class TaggingSmoke
             return "RemoveTags changed the text";
         }
 
+        // Marking what is painted outside marked content as artifacts leaves the text as it was.
+        again.ArtifactUntaggedGraphics();
+        if (string.Concat(again.ExtractText(options).Select(static p => p.Text)) != before)
+        {
+            return "ArtifactUntaggedGraphics changed the text";
+        }
+
         again.Tag(again.ExtractText(options), static _ => PdfBlockRole.Paragraph);
         if (again.StructureTreeRoot is null)
         {
