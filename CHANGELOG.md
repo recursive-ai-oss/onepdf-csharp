@@ -4,6 +4,8 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ## [Unreleased]
 
+## [1.15.1] - 2026-10-31
+
 ### Fixed
 
 - PDF/A conversion: the `DefaultRGB`/`DefaultCMYK` colour spaces are now also written into the resource dictionaries created while the file is prepared for saving (generated field appearances). Forms with fields that had no appearance, such as the IRS 1040-ES and OPM SF 2823, were refused under 6.2.4.3 although the converter had covered every other resource dictionary.
@@ -317,6 +319,7 @@ First release. Two packages, `RecursiveAI.OnePdf` (the library, `net10.0`, no de
 - Limits on by default (`PdfLimits`) and fuzzed parsers, filters and font readers; no `unsafe` code. OnePDF never runs code or touches the network.
 - `RecursiveAI.OnePdf.Fonts`: Liberation and Noto substitute outlines under the SIL Open Font License 1.1, registered with `FontsPackage.Register()`.
 
+[1.15.1]: https://github.com/recursive-ai-oss/onepdf-csharp/releases/tag/v1.15.1
 [1.15.0]: https://github.com/recursive-ai-oss/onepdf-csharp/releases/tag/v1.15.0
 [1.14.0]: https://github.com/recursive-ai-oss/onepdf-csharp/releases/tag/v1.14.0
 [1.13.0]: https://github.com/recursive-ai-oss/onepdf-csharp/releases/tag/v1.13.0
