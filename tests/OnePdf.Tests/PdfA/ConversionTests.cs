@@ -287,6 +287,101 @@ public class ConversionTests
         AssertConforms(three, "3b");
     }
 
+    [Fact]
+    public void ExistingPdfAClaimIsNotTrustedAndItsPropertiesSurvive()
+    {
+        // A packet that claims PDF/A-2b but uses a namespace it never declares in an extension schema.
+        string xmp = "<?xpacket begin=\"\uFEFF\" id=\"W5M0MpCehiHzreSzNTczkc9d\"?>\n<x:xmpmeta xmlns:x=\"adobe:ns:meta/\"><rdf:RDF xmlns:rdf=\"http://www.w3.org/1999/02/22-rdf-syntax-ns#\">"
+            + "<rdf:Description rdf:about=\"\" xmlns:pdfaid=\"http://www.aiim.org/pdfa/ns/id/\" pdfaid:part=\"2\" pdfaid:conformance=\"B\"/>"
+            + "<rdf:Description rdf:about=\"\" xmlns:dc=\"http://purl.org/dc/elements/1.1/\"><dc:title><rdf:Alt><rdf:li xml:lang=\"x-default\">Only in the packet</rdf:li></rdf:Alt></dc:title></rdf:Description>"
+            + "<rdf:Description rdf:about=\"\" xmlns:undeclared=\"http://example.org/undeclared/\" undeclared:Flavour=\"sweet\"/>"
+            + "</rdf:RDF></x:xmpmeta>\n<?xpacket end=\"w\"?>";
+        var b = new PdfBuilder();
+        b.Obj(1, "<< /Type /Catalog /Pages 2 0 R /Metadata 5 0 R >>");
+        b.Obj(2, "<< /Type /Pages /Kids [3 0 R] /Count 1 >>");
+        b.Obj(3, "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 200 200] >>");
+        b.Stream(5, "/Type /Metadata /Subtype /XML", Encoding.UTF8.GetBytes(xmp));
+        long xref = b.XrefTable(6);
+        byte[] input = b.Trailer("/Size 6 /Root 1 0 R", xref).ToArray();
+
+        (byte[] output, PdfAConversionResult result) = Convert(input);
+        Assert.True(Has(result, PdfAChangeKind.MetadataWritten));
+        using (PdfDocument doc = PdfDocument.Open(output))
+        {
+            Assert.DoesNotContain("undeclared", Encoding.UTF8.GetString(doc.Xmp!.RawBytes.Span), StringComparison.Ordinal);
+            Assert.Equal("Only in the packet", doc.Info.Title);
+            Assert.Equal("Only in the packet", doc.Xmp.Title);
+        }
+
+        AssertConforms(output);
+    }
+
+    [Fact]
+    public void FileWithoutAnIdGetsOne()
+    {
+        (byte[] output, _) = Convert(Build("0 0 10 10 re f"));
+        using PdfDocument doc = PdfDocument.Open(output);
+        PdfArray id = Assert.IsType<PdfArray>(doc.Trailer.Get("ID"));
+        Assert.True(Assert.IsType<PdfString>(id[0]).Bytes.Length > 0);
+    }
+
+    [Fact]
+    public void AlternatePresentationsAndRequirementsAreRemoved()
+    {
+        byte[] input = Build("0 0 10 10 re f", pageExtra: "/PresSteps << /Type /NavNode >>",
+            catalogExtra: "/Names << /AlternatePresentations << /Names [] >> >> /Requirements [ << /S /EnableJavaScripts >> ]");
+        (byte[] output, _) = Convert(input);
+        using (PdfDocument doc = PdfDocument.Open(output))
+        {
+            Assert.False(doc.Catalog.ContainsKey("Requirements"));
+            Assert.Null(doc.Catalog.GetDictionary("Names")?.Get("AlternatePresentations"));
+            Assert.False(doc.Pages[0].Dictionary.ContainsKey("PresSteps"));
+        }
+
+        AssertConforms(output);
+    }
+
+    [Fact]
+    public void Type3GlyphsWithoutResourcesGetThem()
+    {
+        // The glyph procedure paints in DeviceCMYK through a named space it takes from the page.
+        byte[] proc = Encoding.Latin1.GetBytes("1000 0 d0 0 0 0 1 k 0 0 800 800 re f");
+        var b = new PdfBuilder();
+        b.Obj(1, "<< /Type /Catalog /Pages 2 0 R >>");
+        b.Obj(2, "<< /Type /Pages /Kids [3 0 R] /Count 1 >>");
+        b.Obj(3, "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 300 300] /Contents 4 0 R /Resources << /Font << /T3 10 0 R >> >> >>");
+        b.Stream(4, string.Empty, Encoding.Latin1.GetBytes("BT /T3 10 Tf 20 100 Td (a) Tj ET"));
+        b.Obj(10, "<< /Type /Font /Subtype /Type3 /FontBBox [0 0 1000 1000] /FontMatrix [0.001 0 0 0.001 0 0] /CharProcs << /sq 11 0 R >> /Encoding << /Type /Encoding /Differences [97 /sq] >> /FirstChar 97 /LastChar 97 /Widths [1000] >>");
+        b.Stream(11, string.Empty, proc);
+        long xref = b.XrefTable(12);
+        byte[] file = b.Trailer("/Size 12 /Root 1 0 R", xref).ToArray();
+
+        (byte[] output, _) = Convert(file);
+        using (PdfDocument doc = PdfDocument.Open(output))
+        {
+            PdfDictionary font = doc.Pages[0].Resources.GetDictionary("Font")!.GetDictionary("T3")!;
+            Assert.NotNull(font.GetDictionary("Resources"));
+        }
+
+        AssertConforms(output);
+
+        // Widths that disagree with the glyph procedure by more than rounding would move text: refused.
+        string bad = Encoding.Latin1.GetString(file).Replace("/Widths [1000]", "/Widths [0000]", StringComparison.Ordinal);
+        PdfAException ex = Assert.Throws<PdfAException>(() => Convert(Encoding.Latin1.GetBytes(bad)));
+        Assert.Contains(ex.Violations, v => v.Clause == "6.2.11.5");
+    }
+
+    [Theory]
+    [InlineData("BT /F1 12 Tf <48656C6C6> Tj ET")]
+    [InlineData("BT /F1 12 Tf <48656C6CZZ6F> Tj ET")]
+    [InlineData("/Perfect ri 0 0 10 10 re f")]
+    public void MalformedContentIsRefused(string content)
+    {
+        byte[] input = Build(content, resources: "/Font << /F1 10 0 R >>", extra: (10, "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>"));
+        PdfAException ex = Assert.Throws<PdfAException>(() => Convert(input));
+        Assert.NotEmpty(ex.Violations);
+    }
+
     public static TheoryData<string> CorpusFiles =>
     [
         "testdata/govdocs/000162.pdf",

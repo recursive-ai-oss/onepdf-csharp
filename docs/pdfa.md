@@ -67,14 +67,17 @@ The converter does not change how a page looks beyond what is listed, so it refu
 - an embedded font program that lacks a glyph the pages show (it would draw `.notdef`), or whose advance widths differ from the file's by more than 12 units (correcting them would move text), or a TrueType font whose glyph names are outside the Adobe Glyph List with no symbolic cmap to fall back on;
 - a font with no program, no usable substitute for the codes shown, or text in a symbolic simple TrueType font that uses code 0 (validators read it as `.notdef`);
 - spot colours that cannot be made consistent: Separation colours of one name with different alternates, DeviceN spot colorants with no `/Colorants`;
-- content the interpreter cannot read: unknown operators, more than 28 nested `q`, an image or stream whose data cannot be decoded (it would have to be dropped), inline-image LZW, a damaged ICC profile;
+- content the interpreter cannot read or PDF/A forbids in a place the converter does not rewrite: unknown operators, more than 28 nested `q`, an image or stream whose data cannot be decoded (it would have to be dropped), inline-image filters other than the six PDF/A allows (LZW among them), malformed hexadecimal strings, numbers and names beyond the limits of ISO 19005-2 6.1.13, a non-standard rendering intent in a content stream, a damaged ICC profile;
+- fonts and images whose structure PDF/A forbids and the converter cannot change without altering the page: Type 3 widths that differ from the glyph procedures by more than 12 units, a symbolic TrueType program with several cmap subtables and no (3,0) one, a CMap with a different `WMode` or character ids above 65535, one that refers to a CMap outside the predefined list, a JPEG 2000 image in the CIEJab colour space or with an inconsistent header, and (level U) a `/ToUnicode` map that gives a shown code the value U+0000, U+FEFF or U+FFFE;
 - files that cannot be opened at all.
 
 A clean conversion is not proof of conformance; run a validator where it matters.
 
 ### Results on real files
 
-On the committed and seeded samples, every file that converted passed veraPDF (2b, 2u and 3b): 181 of 200 sampled govdocs files, 183 of 200 sampled web-crawl files, 82 of 92 quality-set files, 28 of 30 committed government files and all 7 PDF 2.0 examples converted to 2b; the rest were refused with reasons. The commonest reasons are a font program missing a shown glyph and widths that disagree with the program.
+Every converted file was validated with veraPDF (2b, 2u and 3b), and none failed. Of 200 sampled govdocs files 181 converted to 2b, of 200 web-crawl files 182, of 92 quality-set files 82, of 30 committed government files 28, and all 7 PDF 2.0 examples; the rest were refused with reasons. Against veraPDF's own published corpus (2,906 files, many built to break exactly the rules the converter repairs), 2,694 converted to 2b and all passed. The commonest reasons for a refusal are an embedded font program that lacks a shown glyph, advance widths that disagree with the program by more than 12 units, and a font with no program and no usable substitute.
+
+A packet of XMP already in the file is never trusted to make the claim: the converter always writes its own packet from the Info dictionary, after copying what only the old packet said (title, author, subject, keywords, creator tool, producer) into Info.
 
 ## API
 

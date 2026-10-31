@@ -37,9 +37,14 @@ internal sealed partial class ConversionRepairs
             }
         }
 
-        if (subtype == "CIDFontType2" && !d.ContainsKey("CIDToGIDMap") && d.GetDictionary("FontDescriptor") is { } fd && fd.ContainsKey("FontFile2"))
+        if (subtype == "Type0")
         {
-            // ISO 32000-1 9.7.4.2: without /CIDToGIDMap the mapping is Identity, which 6.2.11.3.2 asks to see written.
+            RepairCidSystemInfo(d);
+        }
+
+        if (subtype == "CIDFontType2" && d.Get("CIDToGIDMap") is not (PdfStream or PdfName { Value: "Identity" }) && d.GetDictionary("FontDescriptor") is { } fd && fd.ContainsKey("FontFile2"))
+        {
+            // ISO 32000-1 9.7.4.2: without /CIDToGIDMap (or with a name other than Identity, which a reader cannot interpret) the mapping is Identity, which 6.2.11.3.2 asks to see written.
             d.SetEntry("CIDToGIDMap", new PdfName("Identity"));
             _log.Add(PdfAChangeKind.FontsRepaired, "The default /CIDToGIDMap Identity was written for embedded TrueType CID fonts.");
         }
@@ -52,6 +57,45 @@ internal sealed partial class ConversionRepairs
         if (subtype == "TrueType" && d.GetDictionary("FontDescriptor") is { } desc)
         {
             RepairTrueTypeEncoding(d, desc);
+        }
+    }
+
+    // ISO 19005-2 6.2.11.3.1: the CIDSystemInfo of the CIDFont and of an embedded CMap name the same registry and ordering, and their supplements agree (a validator
+    // rejects a CIDFont whose supplement differs from the CMap's in either direction). Producers differ in letter case (adobe / Adobe) or in the supplement, which says
+    // nothing about the glyphs; the CIDFont is made to agree with the CMap.
+    private void RepairCidSystemInfo(PdfDictionary type0)
+    {
+        if (type0.Get("Encoding") is not PdfStream cmap || cmap.Dictionary.GetDictionary("CIDSystemInfo") is not { } cmapInfo
+            || type0.Get("DescendantFonts") is not PdfArray { Count: 1 } desc || desc[0] is not PdfDictionary cid || cid.GetDictionary("CIDSystemInfo") is not { } info)
+        {
+            return;
+        }
+
+        string? reg = cmapInfo.GetString("Registry")?.GetText(), ord = cmapInfo.GetString("Ordering")?.GetText();
+        string? creg = info.GetString("Registry")?.GetText(), cord = info.GetString("Ordering")?.GetText();
+        if (reg is null || ord is null || creg is null || cord is null
+            || !string.Equals(reg, creg, StringComparison.OrdinalIgnoreCase) || !string.Equals(ord, cord, StringComparison.OrdinalIgnoreCase))
+        {
+            return;
+        }
+
+        bool changed = false;
+        if (reg != creg || ord != cord)
+        {
+            info.SetEntry("Registry", PdfString.FromText(reg));
+            info.SetEntry("Ordering", PdfString.FromText(ord));
+            changed = true;
+        }
+
+        if (info.GetInt("Supplement") != cmapInfo.GetInt("Supplement"))
+        {
+            info.SetEntry("Supplement", new PdfInteger(cmapInfo.GetInt("Supplement")));
+            changed = true;
+        }
+
+        if (changed)
+        {
+            _log.Add(PdfAChangeKind.FontsRepaired, "The CIDSystemInfo of CID fonts was made to agree with their CMap.");
         }
     }
 
@@ -328,6 +372,7 @@ internal sealed partial class ConversionRepairs
     public void GiveResourcesToForms()
     {
         var done = new HashSet<PdfStream>(ReferenceEqualityComparer.Instance);
+        var doneFonts = new HashSet<PdfDictionary>(ReferenceEqualityComparer.Instance);
         PdfPageCollection pages = _doc.Pages;
         for (int p = 0; p < pages.Count; p++)
         {
@@ -373,12 +418,41 @@ internal sealed partial class ConversionRepairs
 
                     foreach (KeyValuePair<string, PdfObject> e in members.Entries.ToArray())
                     {
+                        if (category == "Font")
+                        {
+                            // A Type 3 font's glyph procedures are content streams too (6.2.2); without /Resources they use the page's.
+                            if (_doc.Resolve(e.Value) is PdfDictionary t3 && t3.GetName("Subtype") == "Type3" && doneFonts.Add(t3))
+                            {
+                                if (t3.Get("Resources") is PdfDictionary t3Own && t3Own.Keys.Any())
+                                {
+                                    stack.Push(t3Own);
+                                }
+                                else if (t3.ContainsKey("CharProcs"))
+                                {
+                                    // A copy without the font category: the page's own dictionary lists this font, and a font whose resources list itself is a cycle.
+                                    var copy = new PdfDictionary();
+                                    foreach (KeyValuePair<string, PdfObject> member in pageResources.Entries)
+                                    {
+                                        if (member.Key != "Font")
+                                        {
+                                            copy.SetEntry(member.Key, member.Value);
+                                        }
+                                    }
+
+                                    t3.SetEntry("Resources", copy);
+                                    _log.Add(PdfAChangeKind.Other, "Form XObjects, patterns and Type 3 fonts without their own /Resources were given the page's.");
+                                }
+                            }
+
+                            continue;
+                        }
+
                         if (_doc.Resolve(e.Value) is not PdfStream form || !(form.Dictionary.GetName("Subtype") == "Form" || form.Dictionary.GetInt("PatternType") == 1) || !done.Add(form))
                         {
                             continue;
                         }
 
-                        if (form.Dictionary.Get("Resources") is not PdfDictionary own)
+                        if (form.Dictionary.Get("Resources") is not PdfDictionary own || !own.Keys.Any())
                         {
                             form.Dictionary.SetEntry("Resources", shared);
                             _log.Add(PdfAChangeKind.Other, "Form XObjects and patterns without their own /Resources were given the page's.");
@@ -393,5 +467,5 @@ internal sealed partial class ConversionRepairs
         }
     }
 
-    private static readonly string[] s_xobjectCategories = ["XObject", "Pattern"];
+    private static readonly string[] s_xobjectCategories = ["XObject", "Pattern", "Font"];
 }

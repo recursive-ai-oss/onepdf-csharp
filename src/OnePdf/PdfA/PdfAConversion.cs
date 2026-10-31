@@ -34,6 +34,7 @@ internal static class PdfAConversion
 
         repairs.RepairEmbeddedFiles();
         repairs.EmbedFonts();
+        repairs.RebuildMetadata();
         repairs.AuditFonts();
         if (options.Conformance == PdfAConformance.U)
         {
@@ -77,11 +78,18 @@ internal static class PdfAConversion
             throw new PdfAException(pa.Name, violations);
         }
 
+        // ISO 19005-2 6.1.3: the trailer has a non-empty /ID. A file without one gets a fresh identifier (a caller who wants the same bytes for the same input passes DocumentId).
+        byte[]? documentId = options.DocumentId;
+        if (documentId is not { Length: > 0 } && !(doc.Trailer.GetArray("ID") is { Count: >= 1 } ids && ids[0] is PdfString { Bytes.Length: > 0 }))
+        {
+            documentId = System.Security.Cryptography.RandomNumberGenerator.GetBytes(16);
+        }
+
         save = new PdfSaveOptions
         {
             PdfA = pa,
             Encryption = encrypted ? PdfEncryptionAction.Remove : PdfEncryptionAction.Keep,
-            DocumentId = options.DocumentId,
+            DocumentId = documentId,
         };
         result = new PdfAConversionResult(pa.Name, log.ToChanges(), log.Warnings);
     }

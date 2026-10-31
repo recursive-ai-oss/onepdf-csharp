@@ -222,6 +222,12 @@ internal sealed partial class ConversionRepairs
                 _log.Add(PdfAChangeKind.ActionsRemoved, "The document-level JavaScript was removed.");
             }
 
+            // ISO 19005-2 6.10: alternate presentations (slide shows) are not allowed.
+            if (names.RemoveEntry("AlternatePresentations"))
+            {
+                _log.Add(PdfAChangeKind.ForbiddenEntriesRemoved, "Alternate presentations were removed.");
+            }
+
             if (Part2 && names.RemoveEntry("EmbeddedFiles"))
             {
                 _log.Add(PdfAChangeKind.EmbeddedFilesRemoved, "Embedded files were removed (PDF/A-2 output; use part 3 to keep them).");
@@ -235,6 +241,12 @@ internal sealed partial class ConversionRepairs
 
         // A conversion rewrites the file, so signatures and the usage rights they grant stop being valid; ISO 19005-2 6.4.3 and 6.1.12 would
         // otherwise find a byte range that does not cover the new file.
+        // A /Requirements array (PDF 2.0 feature requirements) is not allowed in a PDF/A catalog.
+        if (catalog.RemoveEntry("Requirements"))
+        {
+            _log.Add(PdfAChangeKind.ForbiddenEntriesRemoved, "The catalog's /Requirements entry was removed.");
+        }
+
         if (catalog.RemoveEntry("Perms"))
         {
             _log.Add(PdfAChangeKind.ForbiddenEntriesRemoved, "The permissions dictionary (usage rights, certification) was removed.");
@@ -297,6 +309,11 @@ internal sealed partial class ConversionRepairs
         }
 
         string? type = d.GetName("Type");
+        if (type == "Page" && d.RemoveEntry("PresSteps"))
+        {
+            _log.Add(PdfAChangeKind.ForbiddenEntriesRemoved, "Alternate presentations were removed.");
+        }
+
         bool widgetOrField = d.GetName("Subtype") == "Widget" || d.ContainsKey("FT");
         if (type is "Catalog" or "Page" || widgetOrField)
         {
@@ -530,7 +547,7 @@ internal sealed partial class ConversionRepairs
             }
 
             string name = c.GetString("Name")?.GetText() ?? string.Empty;
-            if (c.GetString("Name") is null || !names.Add(name))
+            if (name.Length == 0 || !names.Add(name))
             {
                 string fresh;
                 do
@@ -582,6 +599,10 @@ internal sealed partial class ConversionRepairs
                 else if (Part2 && subtype == "FileAttachment")
                 {
                     why = "file attachment annotations are not allowed in PDF/A-2";
+                }
+                else if (subtype == "FileAttachment" && a.GetDictionary("FS")?.GetDictionary("EF")?.GetStream("F") is null)
+                {
+                    why = "file attachment annotations that name a file outside the document cannot be kept";
                 }
                 else if (!afterPrepare && subtype != "Popup" && a.ContainsKey("F") && (a.GetInt("F") & (1 | 2 | 32 | 256)) != 0)
                 {
@@ -698,6 +719,8 @@ internal sealed partial class ConversionRepairs
             return;
         }
 
+        PruneEmbeddedFileNames();
+
         var specs = new List<PdfDictionary>();
         Walk((d, stream, parent, key) =>
         {
@@ -738,7 +761,7 @@ internal sealed partial class ConversionRepairs
 
             if (spec.GetDictionary("EF")?.GetStream("F") is { } file)
             {
-                if (file.Dictionary.GetName("Subtype") is null)
+                if (file.Dictionary.GetName("Subtype") is not { } mime || !mime.Contains('/', StringComparison.Ordinal))
                 {
                     file.Dictionary.SetEntry("Subtype", new PdfName("application/octet-stream"));
                     _log.Add(PdfAChangeKind.EmbeddedFilesCompleted, "Embedded files were completed with the entries PDF/A-3 requires.");
@@ -782,6 +805,47 @@ internal sealed partial class ConversionRepairs
 
             af.Append(sr);
             _log.Add(PdfAChangeKind.EmbeddedFilesCompleted, "Embedded files were completed with the entries PDF/A-3 requires.");
+        }
+    }
+
+    // A name-tree entry of EmbeddedFiles whose file specification holds no embedded stream (it names a file outside the document) is not an embedded file
+    // (ISO 19005-3 6.8); the entry is dropped.
+    private void PruneEmbeddedFileNames()
+    {
+        if (_doc.Catalog.GetDictionary("Names")?.GetDictionary("EmbeddedFiles") is not { } root)
+        {
+            return;
+        }
+
+        var stack = new Stack<PdfDictionary>();
+        stack.Push(root);
+        int visited = 0;
+        while (stack.Count > 0 && visited++ < 10_000)
+        {
+            PdfDictionary node = stack.Pop();
+            if (node.GetArray("Names") is { } names)
+            {
+                for (int i = names.Count - 2; i >= 0; i -= 2)
+                {
+                    if (names[i + 1] is PdfDictionary spec && spec.GetDictionary("EF")?.GetStream("F") is null)
+                    {
+                        names.RemoveAt(i + 1);
+                        names.RemoveAt(i);
+                        _log.Add(PdfAChangeKind.EmbeddedFilesRemoved, "Entries of the embedded-files name tree that name a file outside the document were removed.");
+                    }
+                }
+            }
+
+            if (node.GetArray("Kids") is { } kids)
+            {
+                for (int i = 0; i < kids.Count; i++)
+                {
+                    if (kids[i] is PdfDictionary kid)
+                    {
+                        stack.Push(kid);
+                    }
+                }
+            }
         }
     }
 
