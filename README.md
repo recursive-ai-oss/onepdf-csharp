@@ -57,7 +57,7 @@ are read through safe, bounds-checked code with size limits on by default.
   carry attachments. A PDF/A or PDF/UA save never drops content it cannot read: a damaged font program, image or content stream
   makes the check report it and the save refuse, naming the object
   ([conformance saves](https://github.com/recursive-ai-oss/onepdf-csharp/blob/main/docs/pdfa.md#a-conformance-save-never-drops-content)). It is not a validator.
-- **Convert existing PDFs to PDF/A.** `PdfAConverter.Convert("in.pdf", "out.pdf")` writes PDF/A-2b (or 2u, 3b) from an arbitrary file: it removes
+- **Convert existing PDFs to PDF/A.** `PdfAConverter.Convert("in.pdf", "out.pdf")` writes PDF/A-2b, 2u, 3b or 3u from an arbitrary file: it removes
   encryption, JavaScript and forbidden annotations, embeds substitute fonts, brings device colours under an output intent and
   fixes what it can without moving anything on the page. What it cannot fix is refused with every reason, and nothing is written
   ([converting](https://github.com/recursive-ai-oss/onepdf-csharp/blob/main/docs/pdfa.md#converting-existing-files)).

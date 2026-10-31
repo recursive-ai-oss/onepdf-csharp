@@ -4,6 +4,12 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ## [Unreleased]
 
+### Fixed
+
+- PDF/A conversion: the `DefaultRGB`/`DefaultCMYK` colour spaces are now also written into the resource dictionaries created while the file is prepared for saving (generated field appearances). Forms with fields that had no appearance, such as the IRS 1040-ES and OPM SF 2823, were refused under 6.2.4.3 although the converter had covered every other resource dictionary.
+- PDF/A conversion: text that draws glyph 0 (`.notdef`) is refused under ISO 19005-2 6.2.11.8 with a message that says so, instead of under 6.2.11.4.1 ("no glyph").
+- Documentation: the PDF/A conversion bullet in the README names 3u, and `docs/pdfa.md` describes when a default colour space covers a device space.
+
 ## [1.15.0] - 2026-10-31
 
 ### Added

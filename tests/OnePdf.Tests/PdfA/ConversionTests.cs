@@ -134,6 +134,24 @@ public class ConversionTests
         AssertConforms(output);
     }
 
+    // Preparing a file for saving generates appearances for fields that have none, and each one brings a new resource dictionary. The
+    // default colour spaces must be in those too: a file that mixes RGB and CMYK is covered by them, not by an output intent.
+    [Theory]
+    [InlineData("b")]
+    [InlineData("u")]
+    public void GeneratedWidgetAppearancesCarryTheDefaultColourSpaces(string level)
+    {
+        string content = "0 0 0 1 k 20 20 100 100 re f 1 0 0 rg 150 20 50 50 re f";
+        byte[] input = Build(content, pageExtra: "/Annots [11 0 R 12 0 R]",
+            catalogExtra: "/AcroForm << /Fields [11 0 R 12 0 R] /DA (/Helv 10 Tf 0 g) /DR << /Font << /Helv 10 0 R >> >> >>",
+            extra: [(10, "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>"),
+                    (11, "<< /Type /Annot /Subtype /Widget /FT /Tx /T (a) /V (one) /Rect [10 200 100 220] /F 4 /DA (/Helv 10 Tf 0 g) >>"),
+                    (12, "<< /Type /Annot /Subtype /Widget /FT /Tx /T (b) /V (two) /Rect [10 230 100 250] /F 4 /DA (/Helv 10 Tf 0 g) >>")]);
+        var options = new PdfAConversionOptions { FontProvider = OnePdf.Fonts.FontsPackage.Provider, Conformance = level == "u" ? PdfAConformance.U : PdfAConformance.B };
+        (byte[] output, _) = Convert(input, options);
+        AssertConforms(output, "2" + level);
+    }
+
     [Fact]
     public void ForbiddenAnnotationIsRemoved()
     {
