@@ -357,6 +357,7 @@ internal sealed class ContentLexer
                 operand.Kind = OperandKind.Number;
                 operand.Num = ParseNumber(word, out bool isInt);
                 operand.IsInteger = isInt;
+                NoteTinyReal(word, operand.Num, isInt);
                 return ContentToken.Operand;
             }
 
@@ -441,6 +442,31 @@ internal sealed class ContentLexer
         }
 
         return result == 0 ? 0 : (neg ? -result : result);
+    }
+
+    /// <summary>True once a real number smaller than 1.175e-38 (not zero) was seen; it reads as 0 here, and PDF/A does not allow it (ISO 19005-2 6.1.13).</summary>
+    internal bool SawTinyReal { get; private set; }
+
+    private void NoteTinyReal(ReadOnlySpan<byte> w, double value, bool isInteger)
+    {
+        if (isInteger || value != 0)
+        {
+            return;
+        }
+
+        foreach (byte c in w)
+        {
+            if (c is >= (byte)'1' and <= (byte)'9')
+            {
+                if (w.Length < 400 && double.TryParse(w, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out double exact)
+                    && exact != 0 && Math.Abs(exact) < 1.175e-38)
+                {
+                    SawTinyReal = true;
+                }
+
+                return;
+            }
+        }
     }
 
     private static double Pow10(int n)
@@ -629,6 +655,9 @@ internal sealed class ContentLexer
         return new ReadOnlyMemory<byte>(outp, 0, n);
     }
 
+    /// <summary>True once a hexadecimal string held a character other than a hex digit or white space (ISO 32000-2 7.3.4.3); it was skipped.</summary>
+    internal bool SawMalformedHexString { get; private set; }
+
     private ReadOnlyMemory<byte> ReadHexString(ReadOnlySpan<byte> s)
     {
         int close = s[_pos..].IndexOf((byte)'>');
@@ -647,6 +676,11 @@ internal sealed class ContentLexer
             int h = Hex(b);
             if (h < 0)
             {
+                if (b is not (0 or 9 or 10 or 12 or 13 or 32))
+                {
+                    SawMalformedHexString = true;
+                }
+
                 continue;
             }
 
@@ -663,6 +697,7 @@ internal sealed class ContentLexer
 
         if (hi >= 0)
         {
+            SawMalformedHexString = true; // an odd number of digits (ISO 19005-2 6.1.6)
             outp[n++] = (byte)(hi << 4);
         }
 
@@ -740,6 +775,7 @@ internal sealed class ContentLexer
                     item.Kind = OperandKind.Number;
                     item.Num = ParseNumber(w, out bool isInt);
                     item.IsInteger = isInt;
+                    NoteTinyReal(w, item.Num, isInt);
                 }
                 else if (w.SequenceEqual("true"u8))
                 {

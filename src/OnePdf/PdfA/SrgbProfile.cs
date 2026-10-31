@@ -30,44 +30,8 @@ internal static class SrgbProfile
 
     private static byte[] Build()
     {
-        // Chromaticities (IEC 61966-2-1 Table 1) and the D65 white point.
-        double[] xy = [0.64, 0.33, 0.30, 0.60, 0.15, 0.06];
-        double[] white65 = XyzOfXy(0.3127, 0.3290);
-        double[] white50 = [0.9642, 1.0, 0.8249]; // ICC PCS illuminant D50 (ICC.1 6.1.3)
-
-        // Column i of M holds the XYZ of primary i scaled so that R=G=B=1 gives the white point.
-        double[][] prim = [XyzOfXy(xy[0], xy[1]), XyzOfXy(xy[2], xy[3]), XyzOfXy(xy[4], xy[5])];
-        double[,] p = new double[3, 3];
-        for (int c = 0; c < 3; c++)
-        {
-            for (int r = 0; r < 3; r++)
-            {
-                p[r, c] = prim[c][r];
-            }
-        }
-
-        double[] s = Multiply(Invert(p), white65);
-        double[,] m = new double[3, 3];
-        for (int c = 0; c < 3; c++)
-        {
-            for (int r = 0; r < 3; r++)
-            {
-                m[r, c] = p[r, c] * s[c];
-            }
-        }
-
-        // Bradford chromatic adaptation D65 -> D50.
-        double[,] bradford =
-        {
-            { 0.8951, 0.2664, -0.1614 },
-            { -0.7502, 1.7135, 0.0367 },
-            { 0.0389, -0.0685, 1.0296 },
-        };
-        double[] src = Multiply(bradford, white65);
-        double[] dst = Multiply(bradford, white50);
-        double[,] scale = { { dst[0] / src[0], 0, 0 }, { 0, dst[1] / src[1], 0 }, { 0, 0, dst[2] / src[2] } };
-        double[,] adapt = Multiply(Invert(bradford), Multiply(scale, bradford));
-        double[,] d50 = Multiply(adapt, m);
+        double[] white50 = White50;
+        double[,] d50 = D50Colorants();
 
         var tags = new List<(string Sig, byte[] Data)>
         {
@@ -132,7 +96,54 @@ internal static class SrgbProfile
         return profile;
     }
 
-    private static void Pad(MemoryStream ms)
+    /// <summary>The ICC PCS illuminant D50 (ICC.1 6.1.3).</summary>
+    internal static double[] White50 => [0.9642, 1.0, 0.8249];
+
+    /// <summary>The sRGB colorants as XYZ under D50 (columns R, G, B): the Rec. 709 primaries and D65 white adapted with the Bradford matrix.</summary>
+    internal static double[,] D50Colorants()
+    {
+        double[] white50 = White50;
+        // Chromaticities (IEC 61966-2-1 Table 1) and the D65 white point.
+        double[] xy = [0.64, 0.33, 0.30, 0.60, 0.15, 0.06];
+        double[] white65 = XyzOfXy(0.3127, 0.3290);
+
+        // Column i of M holds the XYZ of primary i scaled so that R=G=B=1 gives the white point.
+        double[][] prim = [XyzOfXy(xy[0], xy[1]), XyzOfXy(xy[2], xy[3]), XyzOfXy(xy[4], xy[5])];
+        double[,] p = new double[3, 3];
+        for (int c = 0; c < 3; c++)
+        {
+            for (int r = 0; r < 3; r++)
+            {
+                p[r, c] = prim[c][r];
+            }
+        }
+
+        double[] s = Multiply(Invert(p), white65);
+        double[,] m = new double[3, 3];
+        for (int c = 0; c < 3; c++)
+        {
+            for (int r = 0; r < 3; r++)
+            {
+                m[r, c] = p[r, c] * s[c];
+            }
+        }
+
+        // Bradford chromatic adaptation D65 -> D50.
+        double[,] bradford =
+        {
+            { 0.8951, 0.2664, -0.1614 },
+            { -0.7502, 1.7135, 0.0367 },
+            { 0.0389, -0.0685, 1.0296 },
+        };
+        double[] src = Multiply(bradford, white65);
+        double[] dst = Multiply(bradford, white50);
+        double[,] scale = { { dst[0] / src[0], 0, 0 }, { 0, dst[1] / src[1], 0 }, { 0, 0, dst[2] / src[2] } };
+        double[,] adapt = Multiply(Invert(bradford), Multiply(scale, bradford));
+        double[,] d50 = Multiply(adapt, m);
+        return d50;
+    }
+
+    internal static void Pad(MemoryStream ms)
     {
         while ((ms.Length & 3) != 0)
         {
@@ -140,12 +151,12 @@ internal static class SrgbProfile
         }
     }
 
-    private static void Ascii(Span<byte> dest, string s) => Encoding.ASCII.GetBytes(s, dest);
+    internal static void Ascii(Span<byte> dest, string s) => Encoding.ASCII.GetBytes(s, dest);
 
-    private static int Fixed(double v) => (int)Math.Round(v * 65536.0, MidpointRounding.AwayFromZero);
+    internal static int Fixed(double v) => (int)Math.Round(v * 65536.0, MidpointRounding.AwayFromZero);
 
     // Type 'XYZ ' (ICC.1 10.27): signature, 4 reserved bytes, three s15Fixed16 numbers.
-    private static byte[] XyzTag(double x, double y, double z)
+    internal static byte[] XyzTag(double x, double y, double z)
     {
         byte[] b = new byte[20];
         Ascii(b, "XYZ ");
@@ -156,7 +167,7 @@ internal static class SrgbProfile
     }
 
     // Type 'text' (ICC.1 10.18): signature, 4 reserved bytes, a NUL-terminated ASCII string.
-    private static byte[] TextTag(string text)
+    internal static byte[] TextTag(string text)
     {
         byte[] b = new byte[8 + text.Length + 1];
         Ascii(b, "text");
@@ -165,7 +176,7 @@ internal static class SrgbProfile
     }
 
     // Type 'desc' (ICC.1:2001-12 6.5.7, textDescriptionType): ASCII, Unicode and ScriptCode parts; the last two stay empty.
-    private static byte[] DescTag(string text)
+    internal static byte[] DescTag(string text)
     {
         int ascii = text.Length + 1;
         byte[] b = new byte[12 + ascii + 4 + 4 + 2 + 1 + 67];

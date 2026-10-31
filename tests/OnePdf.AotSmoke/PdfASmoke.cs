@@ -50,7 +50,34 @@ internal static class PdfASmoke
         }
         catch (PdfAException ex) when (ex.Violations.Count > 0)
         {
-            return null;
         }
+
+        return Convert();
+    }
+
+    // An ordinary file with device colours and a non-embedded font, converted and read back.
+    private static string? Convert()
+    {
+        using PdfDocument source = PdfDocument.CreateEmpty();
+        source.FontProvider = OnePdf.Fonts.FontsPackage.Provider;
+        PdfPage page = source.InsertBlankPage(0, 300, 200);
+        using (PdfPageContentBuilder b = page.BeginContent())
+        {
+            b.SetFont(source.AddStandardFont("Times-Roman"), 12);
+            b.DrawText("Converted text", 10, 100);
+            b.Commit();
+        }
+
+        using var plain = new MemoryStream();
+        source.Save(plain);
+        using var converted = new MemoryStream();
+        PdfAConversionResult result = PdfAConverter.Convert(new MemoryStream(plain.ToArray()), converted, new PdfAConversionOptions { FontProvider = OnePdf.Fonts.FontsPackage.Provider });
+        using PdfDocument back = PdfDocument.Open(converted.ToArray());
+        if (result.Profile != "PDF/A-2b" || back.CheckPdfA().Count != 0 || !back.ExtractText()[0].Text.Contains("Converted text", StringComparison.Ordinal))
+        {
+            return "a converted file did not read back as PDF/A-2b";
+        }
+
+        return null;
     }
 }

@@ -348,6 +348,65 @@ internal static class SubstituteEmbedder
             }
         }
 
+        // Fonts the walk above does not reach: patterns, soft-mask groups, Type 3 glyph resources, a field's own /DR. The whole object graph is
+        // searched once, so a font any validator would find is found here too.
+        var seenObjects = new HashSet<int>();
+        var work = new Stack<PdfObject>();
+        if (doc.Trailer.GetRaw("Root") is { } root)
+        {
+            work.Push(root);
+        }
+
+        while (work.Count > 0)
+        {
+            ct.ThrowIfCancellationRequested();
+            PdfObject o = work.Pop();
+            if (o is PdfReference rf)
+            {
+                PdfObject target = doc.ResolveChain(rf.Number, 0);
+                if (!seenObjects.Add(target.Reference?.Number ?? rf.Number))
+                {
+                    continue;
+                }
+
+                if (seenObjects.Count > doc.Limits.MaxObjects)
+                {
+                    throw new PdfLimitException($"The document has more than {doc.Limits.MaxObjects} objects.");
+                }
+
+                o = target;
+            }
+
+            switch (o)
+            {
+                case PdfArray arr:
+                    for (int i = arr.Count - 1; i >= 0; i--)
+                    {
+                        work.Push(arr.GetRaw(i));
+                    }
+
+                    break;
+                case PdfStream stream:
+                    work.Push(stream.Dictionary);
+                    break;
+                case PdfDictionary dict:
+                    if (dict.GetName("Subtype") is "Type1" or "TrueType" or "Type0" or "MMType1" && dict.ContainsKey("BaseFont") && seenFonts.Add(dict))
+                    {
+                        result.Add(dict);
+                    }
+
+                    foreach (KeyValuePair<string, PdfObject> e in dict.Entries)
+                    {
+                        if (e.Key is not ("Parent" or "P" or "Prev" or "Last"))
+                        {
+                            work.Push(e.Value);
+                        }
+                    }
+
+                    break;
+            }
+        }
+
         return result;
     }
 }

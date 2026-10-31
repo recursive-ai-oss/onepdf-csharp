@@ -68,6 +68,20 @@ internal sealed class PdfAChecker
     private int _rgbPage = -1, _cmykPage = -1, _grayPage = -1;
     private string? _intentSpace;
     private bool _truncated;
+
+    // ISO 19005-2 6.2.4.3: a device space is also allowed where a device-independent default space replaces it. That holds for the whole
+    // document when every resource dictionary carries the default and no content stream that paints in the space lacks resources.
+    private int _resourceDicts, _defaultRgb, _defaultCmyk, _defaultGray;
+    private bool _uncoveredRgb, _uncoveredCmyk, _uncoveredGray;
+
+    /// <summary>After <see cref="Run"/>: which device colour spaces the document uses (in content, resources, images, shadings and inline images).</summary>
+    public (bool Rgb, bool Gray, bool Cmyk) DeviceColours => (_rgb, _gray, _cmyk);
+
+    /// <summary>After <see cref="Run"/>: true when DeviceCMYK is named as the process colour space of a DeviceN space, which only a CMYK output intent covers (a default space does not).</summary>
+    public bool CmykNeedsIntent => _cmykHard;
+
+    private bool _cmykHard;
+    private readonly Dictionary<string, PdfArray> _separations = new(StringComparer.Ordinal);
     private readonly SortedSet<int> _transparentPages = [];
     private readonly HashSet<int> _pageNumbers = [];
 
@@ -396,9 +410,22 @@ internal sealed class PdfAChecker
         string? type = d.GetName("Type");
         string? subtype = d.GetName("Subtype");
 
+        foreach (string key in d.Keys)
+        {
+            if (key.Length > 40 && Encoding.UTF8.GetByteCount(key) > 127)
+            {
+                Add("6.1.13", "A name is longer than 127 bytes (a dictionary key).", owner, page);
+            }
+        }
+
         if (stream is not null)
         {
             CheckStream(stream, owner, page);
+        }
+
+        if (it.Key == "Resources" && stream is null)
+        {
+            CountDefaultSpaces(d);
         }
 
         if (it.Key == "ColorSpace" && stream is null && type is null && subtype is null && d.GetName("ShadingType") is null)
@@ -443,7 +470,12 @@ internal sealed class PdfAChecker
         {
             CheckPage(d, owner, page);
         }
-        else if (type == "Font" || (stream is null && subtype is "Type1" or "TrueType" or "Type0" or "Type3" or "MMType1" && d.ContainsKey("BaseFont")))
+        else if (type == "Pages")
+        {
+            CheckBoxes(d, owner, page);
+        }
+        else if (type == "Font" || (stream is null && subtype is "Type1" or "TrueType" or "Type0" or "Type3" or "MMType1" && d.ContainsKey("BaseFont"))
+            || (stream is null && subtype == "Type3" && d.ContainsKey("CharProcs")))
         {
             if (_fontDicts.Add(d))
             {
@@ -485,7 +517,7 @@ internal sealed class PdfAChecker
             }
             else if (d.GetInt("PatternType") == 1)
             {
-                ScanContent(stream, d.GetDictionary("Resources") is not null, owner, page);
+                ScanContent(stream, d.GetDictionary("Resources") is { } own && own.Keys.Any(), owner, page);
             }
         }
 
@@ -582,9 +614,152 @@ internal sealed class PdfAChecker
         }
 
         CheckIntentName(d, owner, page);
+        if (s.FilterNames.Count > 0 && s.FilterNames[^1] == "JPXDecode")
+        {
+            CheckJpx(s, owner, page);
+        }
+
         if (page >= 0 && d.Get("SMask") is PdfStream)
         {
             _transparentPages.Add(page);
+        }
+    }
+
+    // ISO 19005-2 6.2.8.3: a JPEG 2000 image does not use the enumerated colour space CIEJab (19). The colour
+    // specification box sits inside the JP2 header box (ISO/IEC 15444-1 I.5.3); only that path is read, with every length checked.
+    private void CheckJpx(PdfStream s, int owner, int page)
+    {
+        ReadOnlyMemory<byte> data;
+        try
+        {
+            ReadOnlyMemory<byte>? lead = s.FilterNames.Count == 1 ? s.GetRawBytes() : s.DecodeLeadingFilters(s.FilterNames.Count - 1, _ct);
+            if (lead is null)
+            {
+                return;
+            }
+
+            data = lead.Value;
+        }
+        catch (PdfException)
+        {
+            return; // an unreadable stream is reported by the content-loss scan
+        }
+
+        ReadOnlySpan<byte> span = data.Span;
+        int pos = 0, end = span.Length, boxes = 0;
+        int headerEnd = -1;
+        while (pos + 8 <= end && boxes++ < 64)
+        {
+            long len = System.Buffers.Binary.BinaryPrimitives.ReadUInt32BigEndian(span[pos..]);
+            string type = Encoding.Latin1.GetString(span.Slice(pos + 4, 4));
+            int header = 8;
+            if (len == 1)
+            {
+                if (pos + 16 > end)
+                {
+                    return;
+                }
+
+                len = (long)System.Buffers.Binary.BinaryPrimitives.ReadUInt64BigEndian(span[(pos + 8)..]);
+                header = 16;
+            }
+            else if (len == 0)
+            {
+                len = end - pos;
+            }
+
+            if (len < header || pos + len > end)
+            {
+                return;
+            }
+
+            if (type == "jp2h")
+            {
+                headerEnd = pos + (int)len;
+                int inner = pos + header;
+                int n = 0;
+                bool bpcBoxNeeded = false, bpcBoxFound = false;
+                int colrBoxes = 0, approxOne = 0;
+                while (inner + 8 <= headerEnd && n++ < 64)
+                {
+                    long ilen = System.Buffers.Binary.BinaryPrimitives.ReadUInt32BigEndian(span[inner..]);
+                    string itype = Encoding.Latin1.GetString(span.Slice(inner + 4, 4));
+                    if (ilen < 8 || inner + ilen > headerEnd)
+                    {
+                        return;
+                    }
+
+                    if (itype == "colr" && ilen >= 11)
+                    {
+                        colrBoxes++;
+                        if (span[inner + 10] == 1)
+                        {
+                            approxOne++;
+                        }
+
+                        int meth = span[inner + 8];
+                        if (meth is not (1 or 2 or 3))
+                        {
+                            Add("6.2.8.3", $"A JPEG 2000 image has a colour specification method {meth}; PDF/A allows 1, 2 and 3.", owner, page);
+                        }
+                        else if (meth == 1 && ilen >= 15)
+                        {
+                            uint enumerated = System.Buffers.Binary.BinaryPrimitives.ReadUInt32BigEndian(span[(inner + 11)..]);
+                            if (enumerated == 19)
+                            {
+                                Add("6.2.8.3", $"A JPEG 2000 image uses the enumerated colour space {enumerated} (CIEJab), which PDF/A does not allow.", owner, page);
+                            }
+                        }
+                    }
+                    else if (itype == "ihdr" && ilen >= 22)
+                    {
+                        int channels = System.Buffers.Binary.BinaryPrimitives.ReadUInt16BigEndian(span[(inner + 16)..]);
+                        if (channels is not (1 or 3 or 4))
+                        {
+                            Add("6.2.8.3", $"A JPEG 2000 image has {channels} colour channels; PDF/A allows 1, 3 and 4.", owner, page);
+                        }
+
+                        int bpc = span[inner + 18];
+                        if (bpc != 255 && (bpc & 0x7F) + 1 > 38)
+                        {
+                            Add("6.2.8.3", $"A JPEG 2000 image has a bit depth of {(bpc & 0x7F) + 1}; PDF/A allows 1 to 38.", owner, page);
+                        }
+                        else if (bpc == 255)
+                        {
+                            bpcBoxNeeded = true;
+                        }
+                    }
+                    else if (itype == "bpcc" && ilen > 8)
+                    {
+                        bpcBoxFound = true;
+                        int first = span[inner + 8] & 0x7F;
+                        for (int k = inner + 8; k < inner + ilen; k++)
+                        {
+                            if ((span[k] & 0x7F) != first || (span[k] & 0x7F) + 1 > 38)
+                            {
+                                Add("6.2.8.3", "A JPEG 2000 image has different or out-of-range bit depths in its bpcc box.", owner, page);
+                                break;
+                            }
+                        }
+                    }
+
+                    inner += (int)ilen;
+                }
+
+                if (colrBoxes > 1 && approxOne != 1)
+                {
+                    Add("6.2.8.3", "A JPEG 2000 image has several colour specification boxes and not exactly one with APPROX 1.", owner, page);
+                }
+
+                if (bpcBoxNeeded && !bpcBoxFound)
+                {
+                    Add("6.2.8.3", "A JPEG 2000 image has varying bit depths but no bpcc box.", owner, page);
+                }
+
+                return;
+            }
+
+            pos += (int)len;
         }
     }
 
@@ -609,7 +784,7 @@ internal sealed class PdfAChecker
             Add("6.2.9", "A form XObject is a reference XObject (/Ref).", owner, page);
         }
 
-        ScanContent(s, d.Get("Resources") is PdfDictionary, owner, page);
+        ScanContent(s, d.Get("Resources") is PdfDictionary own && own.Keys.Any(), owner, page);
     }
 
     private void CheckExtGState(PdfDictionary gs, int owner, int page)
@@ -683,7 +858,8 @@ internal sealed class PdfAChecker
         var lexer = new ContentLexer(data, _doc.Limits.MaxNestingDepth);
         int depth = 0;
         bool usesResources = false;
-        bool reportedDepth = false;
+        bool reportedDepth = false, reportedRange = false;
+        bool paintsRgb = false, paintsCmyk = false, paintsGray = false;
         string? lastName = null;
         long operators = 0;
         while (true)
@@ -700,6 +876,16 @@ internal sealed class PdfAChecker
                 {
                     lastName = operand.Name;
                 }
+                else if (operand.Kind == OperandKind.Number && operand.IsInteger && Math.Abs(operand.Num) > int.MaxValue && !reportedRange)
+                {
+                    reportedRange = true;
+                    Add("6.1.13", $"A content stream holds the integer {operand.Num:0}, outside the 32-bit range.", owner, page);
+                }
+                else if (operand.Kind == OperandKind.String && operand.Str.Length > 32767 && !reportedRange)
+                {
+                    reportedRange = true;
+                    Add("6.1.13", $"A content stream holds a string of {operand.Str.Length} bytes; the limit is 32767.", owner, page);
+                }
 
                 continue;
             }
@@ -711,6 +897,13 @@ internal sealed class PdfAChecker
 
             switch (op)
             {
+                case ContentOp.RenderingIntent:
+                    if (lastName is not null && lastName is not ("RelativeColorimetric" or "AbsoluteColorimetric" or "Perceptual" or "Saturation"))
+                    {
+                        Add("6.2.6", $"A content stream sets the rendering intent {lastName}, which is not one of the four standard values.", owner, page);
+                    }
+
+                    break;
                 case ContentOp.Save:
                     if (++depth > 28 && !reportedDepth)
                     {
@@ -728,14 +921,17 @@ internal sealed class PdfAChecker
                     break;
                 case ContentOp.FillGray:
                 case ContentOp.StrokeGray:
+                    paintsGray = true;
                     NoteGray(owner, page);
                     break;
                 case ContentOp.FillRgb:
                 case ContentOp.StrokeRgb:
+                    paintsRgb = true;
                     NoteRgb(owner, page);
                     break;
                 case ContentOp.FillCmyk:
                 case ContentOp.StrokeCmyk:
+                    paintsCmyk = true;
                     NoteCmyk(owner, page);
                     break;
                 case ContentOp.FillSpaceName:
@@ -769,6 +965,23 @@ internal sealed class PdfAChecker
             }
         }
 
+        if (lexer.SawTinyReal)
+        {
+            Add("6.1.13", "A content stream holds a real number too close to zero for PDF/A (below 1.175e-38).", owner, page);
+        }
+
+        if (lexer.SawMalformedHexString)
+        {
+            Add("6.1.6", "A content stream holds a malformed hexadecimal string (an odd number of digits, or characters other than hex digits and white space).", owner, page);
+        }
+
+        if (!hasResources)
+        {
+            _uncoveredRgb |= paintsRgb;
+            _uncoveredCmyk |= paintsCmyk;
+            _uncoveredGray |= paintsGray;
+        }
+
         if (usesResources && !hasResources)
         {
             Add("6.2.2", "A content stream uses resources but has no /Resources dictionary of its own.", owner, page);
@@ -788,6 +1001,8 @@ internal sealed class PdfAChecker
             UseColourSpace(cs, owner, page, 0);
         }
 
+        CheckIntentName(dict, owner, page);
+
         if (dict.Get("Interpolate") is PdfBoolean { Value: true })
         {
             Add("6.2.8", "An inline image sets /Interpolate (I) to true.", owner, page);
@@ -797,9 +1012,9 @@ internal sealed class PdfAChecker
         IEnumerable<string> names = f is PdfName fn ? [fn.Value] : f is PdfArray fa ? fa.Items.OfType<PdfName>().Select(static x => x.Value) : [];
         foreach (string name in names)
         {
-            if (name is "LZWDecode" or "Crypt")
+            if (name is not ("ASCIIHexDecode" or "ASCII85Decode" or "RunLengthDecode" or "CCITTFaxDecode" or "DCTDecode" or "FlateDecode"))
             {
-                Add("6.1.10", $"An inline image uses the filter {name}.", owner, page);
+                Add("6.1.10", $"An inline image uses the filter {name}, which PDF/A does not allow there.", owner, page);
             }
         }
 
@@ -870,9 +1085,11 @@ internal sealed class PdfAChecker
                         break;
                     case "Separation":
                         UseColourSpace(At(a, 2), owner, page, depth + 1);
+                        CheckSeparation(a, owner, page);
                         break;
                     case "DeviceN":
                         UseColourSpace(At(a, 2), owner, page, depth + 1);
+                        CheckDeviceN(a, owner, page);
                         break;
                     case "Pattern" when a.Count > 1:
                         UseColourSpace(At(a, 1), owner, page, depth + 1);
@@ -886,6 +1103,148 @@ internal sealed class PdfAChecker
                 }
 
                 break;
+        }
+    }
+
+    // 6.2.4.4: Separation arrays with one colorant name must share their alternate space and tint transform.
+    private void CheckSeparation(PdfArray a, int owner, int page)
+    {
+        if (a.Count < 4 || a.GetName(1) is not { } name)
+        {
+            return;
+        }
+
+        if (!_separations.TryGetValue(name, out PdfArray? first))
+        {
+            _separations[name] = a;
+        }
+        else if (!ReferenceEquals(first, a) && !(DeepEquals(first[2], a[2], 0) && DeepEquals(first[3], a[3], 0)))
+        {
+            Add("6.2.4.4", $"Separation colour spaces named {name} have different alternate spaces or tint transforms.", owner, page);
+        }
+    }
+
+    private static readonly HashSet<string> s_processColorants = new(StringComparer.Ordinal) { "Cyan", "Magenta", "Yellow", "Black", "None" };
+
+    // 6.2.4.4: every spot colorant of a DeviceN space has an entry in the attributes' /Colorants dictionary; DeviceCMYK as the process space needs a CMYK intent.
+    private void CheckDeviceN(PdfArray a, int owner, int page)
+    {
+        PdfDictionary? attrs = At(a, 4) as PdfDictionary;
+        PdfDictionary? process = attrs?.GetDictionary("Process");
+        if (process?.Get("ColorSpace") is PdfObject pcs && (pcs is PdfName { Value: "DeviceCMYK" } || (pcs is PdfArray pa && pa.GetName(0) == "DeviceCMYK")))
+        {
+            _cmykHard = true;
+            NoteCmyk(owner, page);
+        }
+
+        if (At(a, 1) is not PdfArray names)
+        {
+            return;
+        }
+
+        var processNames = new HashSet<string>(StringComparer.Ordinal);
+        if (process?.Get("Components") is PdfArray comps)
+        {
+            for (int i = 0; i < comps.Count; i++)
+            {
+                if (comps.GetName(i) is { } c)
+                {
+                    processNames.Add(c);
+                }
+            }
+        }
+
+        PdfDictionary? colorants = attrs?.GetDictionary("Colorants");
+        if (colorants is not null)
+        {
+            // The Separation spaces listed as colorants count with the Separation spaces used directly.
+            foreach (KeyValuePair<string, PdfObject> e in colorants.Entries)
+            {
+                if (_doc.Resolve(e.Value) is PdfArray sep && sep.GetName(0) == "Separation")
+                {
+                    CheckSeparation(sep, owner, page);
+                }
+            }
+        }
+
+        for (int i = 0; i < names.Count; i++)
+        {
+            if (names.GetName(i) is { } n && !s_processColorants.Contains(n) && !processNames.Contains(n) && n != "All" && colorants?.ContainsKey(n) != true)
+            {
+                if (!Limited("devicen"))
+                {
+                    Add("6.2.4.4", $"The DeviceN colorant {n} is a spot colour with no entry in the /Colorants dictionary.", owner, page);
+                }
+
+                break;
+            }
+        }
+    }
+
+    // Structural equality of two PDF objects, deep enough for colour spaces and functions; anything beyond 32 levels counts as different.
+    private static bool DeepEquals(PdfObject? x, PdfObject? y, int depth)
+    {
+        if (depth > 32)
+        {
+            return false;
+        }
+
+        if (ReferenceEquals(x, y))
+        {
+            return true;
+        }
+
+        switch (x)
+        {
+            case PdfName nx:
+                return y is PdfName ny && nx.Value == ny.Value;
+            case PdfInteger ix:
+                return y is PdfInteger iy ? ix.Value == iy.Value : y is PdfReal ry && ry.Value == ix.Value;
+            case PdfReal rx:
+                return y is PdfReal ry2 ? rx.Value == ry2.Value : y is PdfInteger iy2 && iy2.Value == rx.Value;
+            case PdfString sx:
+                return y is PdfString sy && sx.Bytes.Span.SequenceEqual(sy.Bytes.Span);
+            case PdfBoolean bx:
+                return y is PdfBoolean by && bx.Value == by.Value;
+            case PdfArray ax:
+                if (y is not PdfArray ay || ax.Count != ay.Count)
+                {
+                    return false;
+                }
+
+                for (int i = 0; i < ax.Count; i++)
+                {
+                    if (!DeepEquals(ax[i], ay[i], depth + 1))
+                    {
+                        return false;
+                    }
+                }
+
+                return true;
+            case PdfStream stx:
+                return y is PdfStream sty && DeepEquals(stx.Dictionary, sty.Dictionary, depth + 1) && stx.GetRawBytes().Span.SequenceEqual(sty.GetRawBytes().Span);
+            case PdfDictionary dx:
+                if (y is not PdfDictionary dy || dx.Count != dy.Count)
+                {
+                    return false;
+                }
+
+                foreach (KeyValuePair<string, PdfObject> e in dx.Entries)
+                {
+                    if (e.Key == "Length")
+                    {
+                        continue;
+                    }
+
+                    if (!dy.ContainsKey(e.Key) || !DeepEquals(dx.Get(e.Key), dy.Get(e.Key), depth + 1))
+                    {
+                        return false;
+                    }
+                }
+
+                return true;
+            default:
+                return x is null && y is null;
         }
     }
 
@@ -949,23 +1308,42 @@ internal sealed class PdfAChecker
         }
     }
 
+    private void CountDefaultSpaces(PdfDictionary resources)
+    {
+        _resourceDicts++;
+        PdfDictionary? cs = resources.GetDictionary("ColorSpace");
+        if (cs is null)
+        {
+            return;
+        }
+
+        _defaultRgb += IsIndependent(cs.Get("DefaultRGB")) ? 1 : 0;
+        _defaultCmyk += IsIndependent(cs.Get("DefaultCMYK")) ? 1 : 0;
+        _defaultGray += IsIndependent(cs.Get("DefaultGray")) ? 1 : 0;
+    }
+
+    // A default space must be device-independent (ISO 32000-1 8.6.5.6): ICCBased, CalGray, CalRGB or Lab.
+    private static bool IsIndependent(PdfObject? cs) => cs is PdfArray a && a.GetName(0) is "ICCBased" or "CalGray" or "CalRGB" or "Lab";
+
+    private bool Covered(int defaults, bool uncovered) => _resourceDicts > 0 && defaults == _resourceDicts && !uncovered;
+
     private void CheckColourUse()
     {
-        if (_rgb && _intentSpace != "RGB ")
+        if (_rgb && _intentSpace != "RGB " && !Covered(_defaultRgb, _uncoveredRgb))
         {
             Add("6.2.4.3", _intentSpace is null
                 ? "DeviceRGB is used but the file has no PDF/A output intent."
-                : $"DeviceRGB is used but the output intent profile is {_intentSpace.Trim()}, not RGB.", _rgbOwner, _rgbPage);
+                : $"DeviceRGB is used but the output intent profile is {_intentSpace.Trim()}, not RGB, and not every resource dictionary has a DefaultRGB space.", _rgbOwner, _rgbPage);
         }
 
-        if (_cmyk && _intentSpace != "CMYK")
+        if (_cmyk && _intentSpace != "CMYK" && (_cmykHard || !Covered(_defaultCmyk, _uncoveredCmyk)))
         {
             Add("6.2.4.3", _intentSpace is null
                 ? "DeviceCMYK is used but the file has no PDF/A output intent."
-                : $"DeviceCMYK is used but the output intent profile is {_intentSpace.Trim()}, not CMYK. OnePDF has no CMYK profile to offer.", _cmykOwner, _cmykPage);
+                : $"DeviceCMYK is used but the output intent profile is {_intentSpace.Trim()}, not CMYK, and not every resource dictionary has a DefaultCMYK space.", _cmykOwner, _cmykPage);
         }
 
-        if (_gray && _intentSpace is null)
+        if (_gray && _intentSpace is null && !Covered(_defaultGray, _uncoveredGray))
         {
             Add("6.2.4.3", "DeviceGray is used but the file has no PDF/A output intent.", _grayOwner, _grayPage);
         }
@@ -1044,6 +1422,10 @@ internal sealed class PdfAChecker
                 {
                     Add("6.2.11.6", $"The non-symbolic TrueType font {baseFont} needs WinAnsiEncoding or MacRomanEncoding.", owner, page);
                 }
+                else if (FirstUnknownName(enc as PdfDictionary).Length > 0)
+                {
+                    Add("6.2.11.6", $"The non-symbolic TrueType font {baseFont} has /Differences with glyph names that are not in the Adobe Glyph List ({FirstUnknownName(enc as PdfDictionary)}).", owner, page);
+                }
             }
         }
     }
@@ -1078,6 +1460,29 @@ internal sealed class PdfAChecker
             return;
         }
 
+        if (enc is PdfStream cmap && cmap.Dictionary.GetDictionary("CIDSystemInfo") is { } cmapInfo && cid.GetDictionary("CIDSystemInfo") is { } cidInfo
+            && (cmapInfo.GetString("Registry")?.GetText() != cidInfo.GetString("Registry")?.GetText()
+                || cmapInfo.GetString("Ordering")?.GetText() != cidInfo.GetString("Ordering")?.GetText()
+                || cidInfo.GetInt("Supplement") != cmapInfo.GetInt("Supplement")))
+        {
+            Add("6.2.11.3", $"The CIDSystemInfo of the font {baseFont} and of its embedded CMap are not compatible.", owner, page);
+        }
+
+        if (enc is PdfStream use && CmapUsesNonStandard(use) is { } usedName)
+        {
+            Add("6.2.11.3", $"The embedded CMap of the font {baseFont} refers to the CMap {usedName}, which is not one of the predefined CMaps (ISO 32000-1 Table 118).", owner, page);
+        }
+
+        if (enc is PdfStream wm && CmapWModeDiffers(wm))
+        {
+            Add("6.2.11.3", $"The WMode of the embedded CMap of the font {baseFont} differs from the /WMode of its dictionary.", owner, page);
+        }
+
+        if (enc is PdfStream cmapStream && CmapHasHugeCid(cmapStream))
+        {
+            Add("6.1.13", $"The embedded CMap of the font {baseFont} maps a code to a character id above 65535.", owner, page);
+        }
+
         PdfDictionary? fd = cid.GetDictionary("FontDescriptor");
         bool embedded = fd is not null && HasFontFile(fd);
         if (!embedded)
@@ -1095,6 +1500,141 @@ internal sealed class PdfAChecker
         }
     }
 
+    // ISO 19005-2 6.1.13: a character id is at most 65535. The CMap program is read as tokens: cidrange lines are "lo hi cid", cidchar lines "code cid".
+    private bool CmapHasHugeCid(PdfStream cmap)
+    {
+        ReadOnlyMemory<byte> data;
+        try
+        {
+            data = cmap.GetDecodedBytes(_ct);
+        }
+        catch (PdfException)
+        {
+            return false; // reported by the content-loss scan
+        }
+
+        string[] tokens = Encoding.Latin1.GetString(data.Span).Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries);
+        int group = 0;
+        for (int i = 0; i < tokens.Length; i++)
+        {
+            string t = tokens[i];
+            if (t == "begincidrange")
+            {
+                group = 3;
+            }
+            else if (t == "begincidchar")
+            {
+                group = 2;
+            }
+            else if (t.StartsWith("end", StringComparison.Ordinal))
+            {
+                group = 0;
+            }
+            else if (group > 0)
+            {
+                int last = i + group - 1;
+                if (last < tokens.Length && long.TryParse(tokens[last], System.Globalization.NumberStyles.None, System.Globalization.CultureInfo.InvariantCulture, out long id) && id > 65535)
+                {
+                    return true;
+                }
+
+                i = last;
+            }
+        }
+
+        return false;
+    }
+
+    // ISO 19005-2 6.2.11.3.3: a CMap that another one refers to (usecmap, or /UseCMap in the stream dictionary) is itself predefined. Returns the first name that is not.
+    private string? CmapUsesNonStandard(PdfStream cmap)
+    {
+        PdfObject? use = cmap.Dictionary.Get("UseCMap");
+        if (use is PdfName un && !s_predefinedCMaps.Contains(un.Value))
+        {
+            return un.Value;
+        }
+
+        if (use is PdfStream us && !(us.Dictionary.GetName("CMapName") is { } usn && s_predefinedCMaps.Contains(usn)))
+        {
+            return us.Dictionary.GetName("CMapName") ?? "(unnamed)";
+        }
+
+        ReadOnlyMemory<byte> data;
+        try
+        {
+            data = cmap.GetDecodedBytes(_ct);
+        }
+        catch (PdfException)
+        {
+            return null;
+        }
+
+        string text = Encoding.Latin1.GetString(data.Span);
+        int at = 0;
+        while ((at = text.IndexOf("usecmap", at, StringComparison.Ordinal)) >= 0)
+        {
+            int end = at;
+            while (end > 0 && char.IsWhiteSpace(text[end - 1]))
+            {
+                end--;
+            }
+
+            int start = end;
+            while (start > 0 && !char.IsWhiteSpace(text[start - 1]) && text[start - 1] != '/')
+            {
+                start--;
+            }
+
+            if (start > 0 && text[start - 1] == '/' && !s_predefinedCMaps.Contains(text[start..end]))
+            {
+                return text[start..end];
+            }
+
+            at += 7;
+        }
+
+        return null;
+    }
+
+    // ISO 19005-2 6.2.11.3.3: the WMode in the CMap program and in the CMap stream dictionary (default 0) are identical.
+    private bool CmapWModeDiffers(PdfStream cmap)
+    {
+        ReadOnlyMemory<byte> data;
+        try
+        {
+            data = cmap.GetDecodedBytes(_ct);
+        }
+        catch (PdfException)
+        {
+            return false;
+        }
+
+        string text = Encoding.Latin1.GetString(data.Span);
+        int at = text.IndexOf("/WMode", StringComparison.Ordinal);
+        long inProgram = 0;
+        if (at >= 0)
+        {
+            int i = at + 6;
+            while (i < text.Length && char.IsWhiteSpace(text[i]))
+            {
+                i++;
+            }
+
+            int j = i;
+            while (j < text.Length && char.IsAsciiDigit(text[j]))
+            {
+                j++;
+            }
+
+            if (j > i && long.TryParse(text.AsSpan(i, j - i), System.Globalization.NumberStyles.None, System.Globalization.CultureInfo.InvariantCulture, out long v))
+            {
+                inProgram = v;
+            }
+        }
+
+        return inProgram != cmap.Dictionary.GetInt("WMode");
+    }
+
     private void CheckType3(PdfDictionary f, int owner, int page)
     {
         if (f.Get("CharProcs") is PdfDictionary procs)
@@ -1103,7 +1643,7 @@ internal sealed class PdfAChecker
             {
                 if (_doc.Resolve(e.Value) is PdfStream ps)
                 {
-                    ScanContent(ps, true, e.Value is PdfReference r ? r.Number : owner, page);
+                    ScanContent(ps, f.Get("Resources") is PdfDictionary own && own.Keys.Any(), e.Value is PdfReference r ? r.Number : owner, page);
                 }
             }
         }
@@ -1150,6 +1690,23 @@ internal sealed class PdfAChecker
         }
 
         Add("6.2.11.7", $"The font {baseFont} has no /ToUnicode map and is not one of the kinds that need none, so PDF/A level U cannot be claimed.", owner, page);
+    }
+
+    private static string FirstUnknownName(PdfDictionary? enc)
+    {
+        if (enc?.Get("Differences") is PdfArray diff)
+        {
+            for (int i = 0; i < diff.Count; i++)
+            {
+                // .notdef is accepted by validators; uniXXXX and uXXXX names are the Adobe Glyph List specification's algorithmic names.
+                if (diff.GetName(i) is { } name && name != ".notdef" && !GlyphList.TryGetUnicode(name, out _))
+                {
+                    return name;
+                }
+            }
+        }
+
+        return string.Empty;
     }
 
     private static bool DifferencesInGlyphList(PdfDictionary? enc)
@@ -1315,6 +1872,16 @@ internal sealed class PdfAChecker
             CheckXmp(meta);
         }
 
+        if (catalog.GetDictionary("Names")?.ContainsKey("AlternatePresentations") == true)
+        {
+            Add("6.10", "The name dictionary has an /AlternatePresentations entry.", owner, -1);
+        }
+
+        if (catalog.ContainsKey("Requirements"))
+        {
+            Add("6.11", "The catalog has a /Requirements entry.", owner, -1);
+        }
+
         if (catalog.ContainsKey("NeedsRendering"))
         {
             Add("6.4.2", "The catalog has a /NeedsRendering entry.", owner, -1);
@@ -1392,16 +1959,26 @@ internal sealed class PdfAChecker
         }
     }
 
-    private void CheckPage(PdfDictionary page, int owner, int pageIndex)
+    // Page boundaries may sit on a Pages node and be inherited (ISO 32000-1 7.7.3.4); ISO 19005-2 6.1.13 limits their size either way.
+    private void CheckBoxes(PdfDictionary node, int owner, int pageIndex)
     {
         foreach (string box in new[] { "MediaBox", "CropBox", "BleedBox", "TrimBox", "ArtBox" })
         {
-            if (page.Get(box) is PdfArray && PdfRectangle.From(page.Get(box)) is { } r && (r.Width < 3 || r.Width > 14400 || r.Height < 3 || r.Height > 14400))
+            if (node.Get(box) is PdfArray && PdfRectangle.From(node.Get(box)) is { } r && (r.Width < 3 || r.Width > 14400 || r.Height < 3 || r.Height > 14400))
             {
                 Add("6.1.13", $"The {box} is {r.Width:0.##} by {r.Height:0.##} units; PDF/A allows 3 to 14400.", owner, pageIndex);
             }
         }
+    }
 
+    private void CheckPage(PdfDictionary page, int owner, int pageIndex)
+    {
+        CheckBoxes(page, owner, pageIndex);
+
+        if (page.ContainsKey("PresSteps"))
+        {
+            Add("6.10", "A page has a /PresSteps entry (alternate presentation).", owner, pageIndex);
+        }
         if (page.ContainsKey("AA"))
         {
             Add("6.5.2", "The page has an /AA entry.", owner, pageIndex);
@@ -1452,7 +2029,7 @@ internal sealed class PdfAChecker
         var names = new HashSet<string>(StringComparer.Ordinal);
         foreach (PdfDictionary c in configs)
         {
-            if (c.GetString("Name") is not { } nm)
+            if (c.GetString("Name") is not { } nm || nm.GetText().Length == 0)
             {
                 Add("6.9", "An optional content configuration has no /Name.", owner, -1);
             }
@@ -1498,9 +2075,9 @@ internal sealed class PdfAChecker
             }
             else
             {
-                if (file.Dictionary.GetName("Subtype") is null)
+                if (file.Dictionary.GetName("Subtype") is not { } mime || !mime.Contains('/', StringComparison.Ordinal))
                 {
-                    Add("6.8", "An embedded file stream has no /Subtype (MIME type).", file.Reference?.Number ?? owner, -1);
+                    Add("6.8", "An embedded file stream has no /Subtype (MIME type) of the form type/subtype.", file.Reference?.Number ?? owner, -1);
                 }
 
                 if (file.Dictionary.GetDictionary("Params")?.GetString("ModDate") is null)

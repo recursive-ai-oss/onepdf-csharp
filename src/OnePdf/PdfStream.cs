@@ -237,6 +237,42 @@ public sealed class PdfStream : PdfObject
     }
 
     /// <summary>
+    /// Runs only the first <paramref name="count"/> filters of the chain over the stored bytes and returns what they produce, or null when
+    /// the data is damaged or a limit stops it. Used to replace a leading filter (LZW) while the image codec behind it stays.
+    /// </summary>
+    internal ReadOnlyMemory<byte>? DecodeLeadingFilters(int count, CancellationToken ct)
+    {
+        IReadOnlyList<string> all = FilterNames;
+        if (count <= 0 || count > all.Count || all.Contains("Crypt"))
+        {
+            return null;
+        }
+
+        ReadOnlyMemory<byte> stored;
+        DecryptIssues dec;
+        try
+        {
+            stored = GetStoredBytes(all, out dec);
+        }
+        catch (PdfException)
+        {
+            return null;
+        }
+
+        if (dec != DecryptIssues.None)
+        {
+            return null;
+        }
+
+        FilterParameters?[] parameters = FilterParametersReader.ForChain(Dictionary.Get("DecodeParms"), all);
+        PdfLimits lim = _resolver.Doc.Limits;
+        var limits = new DecodeLimits(Math.Min(lim.MaxDecodedStreamBytes, Array.MaxLength), lim.MaxExpansionRatio, lim.ExpansionCheckThreshold, DiscardOnLimit: true);
+        FilterResult r = StreamFilters.DecodeChain([.. all.Take(count)], parameters[..count], stored, limits, 0, ct);
+        const FilterIssues Lossy = FilterIssues.Truncated | FilterIssues.DataError | FilterIssues.LimitExceeded | FilterIssues.BadParameters | FilterIssues.UnsupportedFilter;
+        return (r.Issues & Lossy) != 0 ? null : r.Data;
+    }
+
+    /// <summary>
     /// Reads and decodes the stream the way a save and an interpreter would, and says why the content cannot be relied on: unreadable or
     /// undecryptable bytes, a limit, or filter data that is cut short or invalid. Returns null when the stream is sound. Repairs that lose
     /// nothing (a wrong <c>/Length</c> found by scanning, a missing or wrong checksum, a missing end marker, trailing bytes) are not problems.

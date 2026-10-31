@@ -27,7 +27,57 @@ doc.Save("out.pdf", new PdfSaveOptions
 
 - **It writes PDF/A for documents made or edited with OnePDF**, and for existing files that already meet the requirements. Level B (visual reproducibility) and level U (B plus a Unicode mapping for all text) of parts 2 and 3. Level A (tagged structure) is offered for documents that are already tagged, including existing files tagged through [the tagging API](tagging.md): see [pdfua.md](pdfua.md).
 - **It is not a validator.** `CheckPdfA` verifies what is listed below and nothing else; a clean result does not prove conformance. The tests use the veraPDF command-line validator as a black box (see "Verification").
-- **It does not convert.** No fonts are embedded into foreign content, no transparency or colour is rewritten, nothing is flattened, no JavaScript is removed. A file that breaks a requirement is refused, and the violations tell you what to change.
+- **Saving does not convert; the converter does.** `PdfSaveOptions.PdfA` refuses a file that breaks a requirement and lists the violations. To turn an arbitrary existing file into PDF/A, use the converter below, which repairs what it can without changing how the pages look and refuses the rest.
+
+## Converting existing files
+
+```csharp
+OnePdf.Fonts.FontsPackage.Register();                       // substitute fonts for non-embedded text
+PdfAConversionResult result = PdfAConverter.Convert("in.pdf", "out.pdf");   // PDF/A-2b
+foreach (PdfAChange change in result.Changes) Console.WriteLine(change);
+```
+
+`PdfAConverter.Convert(path|Stream, path|Stream, PdfAConversionOptions?)` and `PdfDocument.ConvertToPdfA(path|Stream, options)` read an arbitrary file, repair it, and write PDF/A-2b by default. Options: `Part` (`Part2` default, `Part3`), `Conformance` (`B` default, `U`; level A is an `ArgumentException`, because it needs a logical structure the converter does not invent: tag the file first), `Password` for encrypted input, `FontProvider`, `EmbedSubstituteFonts` and `SubstituteUnknownFonts` (default true), `RemoveForbiddenFeatures` (default true), `DocumentId` and `Language`. The result lists what changed (`Changes`, by kind with counts) and `Warnings` for the changes a reader may notice.
+
+A file that cannot be converted is refused with `PdfAException`, listing every reason by clause and object, and **nothing is written**: the output stream is untouched and an existing output file is not replaced (the path form writes a temporary file and moves it into place). A converted file is also run through the same check as a save, so the converter never writes a file that claims PDF/A and fails OnePDF's own check. The same caveat as everywhere on this page applies: OnePDF is not a validator. The tests run veraPDF over the output.
+
+### What is repaired
+
+| Problem | What the converter does |
+|---|---|
+| Encryption | Removes it (needs `Password` when the user password is not empty). |
+| JavaScript, Launch, Hide, ResetForm and other forbidden actions; additional actions (`/AA`) | Removed; widgets keep their appearance. Remote go-to actions keep their target as a plain file name. |
+| Forbidden or hidden annotations (Sound, Movie, 3D, hidden, no usable appearance), part 2 file attachments | Removed, with their form-field entries. |
+| Embedded files | Part 2: removed. Part 3: completed with `/AFRelationship`, `/UF`, a MIME type, dates and a listing in `/AF`. |
+| External stream references (`/F`, `/FFilter`, `/FDecodeParms`) | Dropped; the stream keeps its own data. |
+| LZW | Decoded and stored again with Flate (also in front of an image codec). Inline-image LZW is refused. |
+| Fonts that are not embedded | A Liberation (or Noto) subset from the Fonts package, or a caller face, with the PDF's `/Widths`, so text does not move. Unknown non-symbolic fonts get a sans, serif or monospace stand-in by their flags. |
+| Embedded fonts that disagree with the file | Small width differences (up to 12 units of 1/1000 em) are corrected in `/Widths` or `/W`; CFF widths are matched to the file. Wrong `/CIDSet`, `/CharSet`, `/CIDToGIDMap` defaults, `FontFile3` subtypes, non-ASCII font names and TrueType symbolic flags or encodings are repaired. |
+| Level U | Unicode values OnePDF can derive are written to `/ToUnicode`. A code whose glyph names no character is mapped to a private-use code point, which the clause allows, and a warning says so. Padding after the end of a `/ToUnicode` program is removed. |
+| Device colour | Output intent chosen by the colours used: the generated sRGB profile, or a generated CMYK profile for CMYK files; an intent already in the file is kept. Where RGB and CMYK are mixed, `DefaultRGB`/`DefaultCMYK` are written into every resource dictionary. |
+| Graphics states and images | `/TR`, `/TR2`, `/HTP`, halftones, non-standard blend modes and rendering intents, image `/Alternates`, `/OPI`, `/Interpolate true`, and an overprint mode that PDF/A forbids are removed or reset. |
+| Optional content | `/Order` completed, duplicate names made unique, `/AS` removed from configurations. |
+| Signatures | The signature value is removed (a rewritten file cannot carry it); the field stays, empty, and a warning says so. |
+| Metadata | XMP written from the Info dictionary; metadata streams on other objects removed; pages get the `/Resources` they inherit. |
+
+### What is refused
+
+The converter does not change how a page looks beyond what is listed, so it refuses:
+
+- an embedded font program that lacks a glyph the pages show (it would draw `.notdef`), or whose advance widths differ from the file's by more than 12 units (correcting them would move text), or a TrueType font whose glyph names are outside the Adobe Glyph List with no symbolic cmap to fall back on;
+- a font with no program, no usable substitute for the codes shown, or text in a symbolic simple TrueType font that uses code 0 (validators read it as `.notdef`);
+- spot colours that cannot be made consistent: Separation colours of one name with different alternates, DeviceN spot colorants with no `/Colorants`;
+- content the interpreter cannot read or PDF/A forbids in a place the converter does not rewrite: unknown operators, more than 28 nested `q`, an image or stream whose data cannot be decoded (it would have to be dropped), inline-image filters other than the six PDF/A allows (LZW among them), malformed hexadecimal strings, numbers and names beyond the limits of ISO 19005-2 6.1.13, a non-standard rendering intent in a content stream, a damaged ICC profile;
+- fonts and images whose structure PDF/A forbids and the converter cannot change without altering the page: Type 3 widths that differ from the glyph procedures by more than 12 units, a symbolic TrueType program with several cmap subtables and no (3,0) one, a CMap with a different `WMode` or character ids above 65535, one that refers to a CMap outside the predefined list, a JPEG 2000 image in the CIEJab colour space or with an inconsistent header, and (level U) a `/ToUnicode` map that gives a shown code the value U+0000, U+FEFF or U+FFFE;
+- files that cannot be opened at all.
+
+A clean conversion is not proof of conformance; run a validator where it matters.
+
+### Results on real files
+
+Every converted file was validated with veraPDF (2b, 2u and 3b), and none failed. Of 200 sampled govdocs files 181 converted to 2b, of 200 web-crawl files 182, of 92 quality-set files 82, of 30 committed government files 28, and all 7 PDF 2.0 examples; the rest were refused with reasons. Against veraPDF's own published corpus (2,906 files, many built to break exactly the rules the converter repairs), 2,694 converted to 2b and all passed. The commonest reasons for a refusal are an embedded font program that lacks a shown glyph, advance widths that disagree with the program by more than 12 units, and a font with no program and no usable substitute.
+
+A packet of XMP already in the file is never trusted to make the claim: the converter always writes its own packet from the Info dictionary, after copying what only the old packet said (title, author, subject, keywords, creator tool, producer) into Info.
 
 ## API
 
@@ -71,9 +121,9 @@ ISO 19005-2 6.2.4.3 ties the device spaces to the output intent:
 
 - DeviceRGB needs an RGB intent. OnePDF's intent is RGB, so DeviceRGB is fine.
 - DeviceGray needs any intent (an RGB intent is fine).
-- DeviceCMYK needs a CMYK intent. OnePDF has no CMYK profile, so CMYK content is a violation. An existing document that already carries a CMYK `GTS_PDFA1` intent keeps it, and then DeviceRGB is the violation.
+- DeviceCMYK needs a CMYK intent. A plain save has no CMYK profile, so CMYK content is a violation there. An existing document that already carries a CMYK `GTS_PDFA1` intent keeps it, and then DeviceRGB is the violation. The converter generates a CMYK profile (below).
 - ICCBased, CalRGB, Lab, Separation, DeviceN and Indexed spaces are not device spaces; ICC profile headers are checked (class, colour space, version below 5), spot colourant consistency is not.
-- A `DefaultRGB`, `DefaultGray` or `DefaultCMYK` entry is not taken into account: device colour without an intent is reported even when a default space would allow it.
+- A `DefaultRGB`, `DefaultGray` or `DefaultCMYK` entry is not taken into account by the check of a plain save: device colour without an intent is reported even when a default space would allow it. The converter writes these defaults itself where a file mixes RGB and CMYK.
 
 ## A conformance save never drops content
 
