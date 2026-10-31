@@ -68,6 +68,20 @@ internal sealed class PdfAChecker
     private int _rgbPage = -1, _cmykPage = -1, _grayPage = -1;
     private string? _intentSpace;
     private bool _truncated;
+
+    // ISO 19005-2 6.2.4.3: a device space is also allowed where a device-independent default space replaces it. That holds for the whole
+    // document when every resource dictionary carries the default and no content stream that paints in the space lacks resources.
+    private int _resourceDicts, _defaultRgb, _defaultCmyk, _defaultGray;
+    private bool _uncoveredRgb, _uncoveredCmyk, _uncoveredGray;
+
+    /// <summary>After <see cref="Run"/>: which device colour spaces the document uses (in content, resources, images, shadings and inline images).</summary>
+    public (bool Rgb, bool Gray, bool Cmyk) DeviceColours => (_rgb, _gray, _cmyk);
+
+    /// <summary>After <see cref="Run"/>: true when DeviceCMYK is named as the process colour space of a DeviceN space, which only a CMYK output intent covers (a default space does not).</summary>
+    public bool CmykNeedsIntent => _cmykHard;
+
+    private bool _cmykHard;
+    private readonly Dictionary<string, PdfArray> _separations = new(StringComparer.Ordinal);
     private readonly SortedSet<int> _transparentPages = [];
     private readonly HashSet<int> _pageNumbers = [];
 
@@ -401,6 +415,11 @@ internal sealed class PdfAChecker
             CheckStream(stream, owner, page);
         }
 
+        if (it.Key == "Resources" && stream is null)
+        {
+            CountDefaultSpaces(d);
+        }
+
         if (it.Key == "ColorSpace" && stream is null && type is null && subtype is null && d.GetName("ShadingType") is null)
         {
             // A Resources /ColorSpace dictionary: each value is a colour space.
@@ -684,6 +703,7 @@ internal sealed class PdfAChecker
         int depth = 0;
         bool usesResources = false;
         bool reportedDepth = false;
+        bool paintsRgb = false, paintsCmyk = false, paintsGray = false;
         string? lastName = null;
         long operators = 0;
         while (true)
@@ -728,14 +748,17 @@ internal sealed class PdfAChecker
                     break;
                 case ContentOp.FillGray:
                 case ContentOp.StrokeGray:
+                    paintsGray = true;
                     NoteGray(owner, page);
                     break;
                 case ContentOp.FillRgb:
                 case ContentOp.StrokeRgb:
+                    paintsRgb = true;
                     NoteRgb(owner, page);
                     break;
                 case ContentOp.FillCmyk:
                 case ContentOp.StrokeCmyk:
+                    paintsCmyk = true;
                     NoteCmyk(owner, page);
                     break;
                 case ContentOp.FillSpaceName:
@@ -767,6 +790,13 @@ internal sealed class PdfAChecker
 
                     break;
             }
+        }
+
+        if (!hasResources)
+        {
+            _uncoveredRgb |= paintsRgb;
+            _uncoveredCmyk |= paintsCmyk;
+            _uncoveredGray |= paintsGray;
         }
 
         if (usesResources && !hasResources)
@@ -870,9 +900,11 @@ internal sealed class PdfAChecker
                         break;
                     case "Separation":
                         UseColourSpace(At(a, 2), owner, page, depth + 1);
+                        CheckSeparation(a, owner, page);
                         break;
                     case "DeviceN":
                         UseColourSpace(At(a, 2), owner, page, depth + 1);
+                        CheckDeviceN(a, owner, page);
                         break;
                     case "Pattern" when a.Count > 1:
                         UseColourSpace(At(a, 1), owner, page, depth + 1);
@@ -886,6 +918,136 @@ internal sealed class PdfAChecker
                 }
 
                 break;
+        }
+    }
+
+    // 6.2.4.4: Separation arrays with one colorant name must share their alternate space and tint transform.
+    private void CheckSeparation(PdfArray a, int owner, int page)
+    {
+        if (a.Count < 4 || a.GetName(1) is not { } name)
+        {
+            return;
+        }
+
+        if (!_separations.TryGetValue(name, out PdfArray? first))
+        {
+            _separations[name] = a;
+        }
+        else if (!ReferenceEquals(first, a) && !(DeepEquals(first[2], a[2], 0) && DeepEquals(first[3], a[3], 0)))
+        {
+            Add("6.2.4.4", $"Separation colour spaces named {name} have different alternate spaces or tint transforms.", owner, page);
+        }
+    }
+
+    private static readonly HashSet<string> s_processColorants = new(StringComparer.Ordinal) { "Cyan", "Magenta", "Yellow", "Black", "None" };
+
+    // 6.2.4.4: every spot colorant of a DeviceN space has an entry in the attributes' /Colorants dictionary; DeviceCMYK as the process space needs a CMYK intent.
+    private void CheckDeviceN(PdfArray a, int owner, int page)
+    {
+        PdfDictionary? attrs = At(a, 4) as PdfDictionary;
+        PdfDictionary? process = attrs?.GetDictionary("Process");
+        if (process?.Get("ColorSpace") is PdfObject pcs && (pcs is PdfName { Value: "DeviceCMYK" } || (pcs is PdfArray pa && pa.GetName(0) == "DeviceCMYK")))
+        {
+            _cmykHard = true;
+            NoteCmyk(owner, page);
+        }
+
+        if (At(a, 1) is not PdfArray names)
+        {
+            return;
+        }
+
+        var processNames = new HashSet<string>(StringComparer.Ordinal);
+        if (process?.Get("Components") is PdfArray comps)
+        {
+            for (int i = 0; i < comps.Count; i++)
+            {
+                if (comps.GetName(i) is { } c)
+                {
+                    processNames.Add(c);
+                }
+            }
+        }
+
+        PdfDictionary? colorants = attrs?.GetDictionary("Colorants");
+        for (int i = 0; i < names.Count; i++)
+        {
+            if (names.GetName(i) is { } n && !s_processColorants.Contains(n) && !processNames.Contains(n) && n != "All" && colorants?.ContainsKey(n) != true)
+            {
+                if (!Limited("devicen"))
+                {
+                    Add("6.2.4.4", $"The DeviceN colorant {n} is a spot colour with no entry in the /Colorants dictionary.", owner, page);
+                }
+
+                break;
+            }
+        }
+    }
+
+    // Structural equality of two PDF objects, deep enough for colour spaces and functions; anything beyond 32 levels counts as different.
+    private static bool DeepEquals(PdfObject? x, PdfObject? y, int depth)
+    {
+        if (depth > 32)
+        {
+            return false;
+        }
+
+        if (ReferenceEquals(x, y))
+        {
+            return true;
+        }
+
+        switch (x)
+        {
+            case PdfName nx:
+                return y is PdfName ny && nx.Value == ny.Value;
+            case PdfInteger ix:
+                return y is PdfInteger iy ? ix.Value == iy.Value : y is PdfReal ry && ry.Value == ix.Value;
+            case PdfReal rx:
+                return y is PdfReal ry2 ? rx.Value == ry2.Value : y is PdfInteger iy2 && iy2.Value == rx.Value;
+            case PdfString sx:
+                return y is PdfString sy && sx.Bytes.Span.SequenceEqual(sy.Bytes.Span);
+            case PdfBoolean bx:
+                return y is PdfBoolean by && bx.Value == by.Value;
+            case PdfArray ax:
+                if (y is not PdfArray ay || ax.Count != ay.Count)
+                {
+                    return false;
+                }
+
+                for (int i = 0; i < ax.Count; i++)
+                {
+                    if (!DeepEquals(ax[i], ay[i], depth + 1))
+                    {
+                        return false;
+                    }
+                }
+
+                return true;
+            case PdfStream stx:
+                return y is PdfStream sty && DeepEquals(stx.Dictionary, sty.Dictionary, depth + 1) && stx.GetRawBytes().Span.SequenceEqual(sty.GetRawBytes().Span);
+            case PdfDictionary dx:
+                if (y is not PdfDictionary dy || dx.Count != dy.Count)
+                {
+                    return false;
+                }
+
+                foreach (KeyValuePair<string, PdfObject> e in dx.Entries)
+                {
+                    if (e.Key == "Length")
+                    {
+                        continue;
+                    }
+
+                    if (!dy.ContainsKey(e.Key) || !DeepEquals(dx.Get(e.Key), dy.Get(e.Key), depth + 1))
+                    {
+                        return false;
+                    }
+                }
+
+                return true;
+            default:
+                return x is null && y is null;
         }
     }
 
@@ -949,23 +1111,42 @@ internal sealed class PdfAChecker
         }
     }
 
+    private void CountDefaultSpaces(PdfDictionary resources)
+    {
+        _resourceDicts++;
+        PdfDictionary? cs = resources.GetDictionary("ColorSpace");
+        if (cs is null)
+        {
+            return;
+        }
+
+        _defaultRgb += IsIndependent(cs.Get("DefaultRGB")) ? 1 : 0;
+        _defaultCmyk += IsIndependent(cs.Get("DefaultCMYK")) ? 1 : 0;
+        _defaultGray += IsIndependent(cs.Get("DefaultGray")) ? 1 : 0;
+    }
+
+    // A default space must be device-independent (ISO 32000-1 8.6.5.6): ICCBased, CalGray, CalRGB or Lab.
+    private static bool IsIndependent(PdfObject? cs) => cs is PdfArray a && a.GetName(0) is "ICCBased" or "CalGray" or "CalRGB" or "Lab";
+
+    private bool Covered(int defaults, bool uncovered) => _resourceDicts > 0 && defaults == _resourceDicts && !uncovered;
+
     private void CheckColourUse()
     {
-        if (_rgb && _intentSpace != "RGB ")
+        if (_rgb && _intentSpace != "RGB " && !Covered(_defaultRgb, _uncoveredRgb))
         {
             Add("6.2.4.3", _intentSpace is null
                 ? "DeviceRGB is used but the file has no PDF/A output intent."
-                : $"DeviceRGB is used but the output intent profile is {_intentSpace.Trim()}, not RGB.", _rgbOwner, _rgbPage);
+                : $"DeviceRGB is used but the output intent profile is {_intentSpace.Trim()}, not RGB, and not every resource dictionary has a DefaultRGB space.", _rgbOwner, _rgbPage);
         }
 
-        if (_cmyk && _intentSpace != "CMYK")
+        if (_cmyk && _intentSpace != "CMYK" && (_cmykHard || !Covered(_defaultCmyk, _uncoveredCmyk)))
         {
             Add("6.2.4.3", _intentSpace is null
                 ? "DeviceCMYK is used but the file has no PDF/A output intent."
-                : $"DeviceCMYK is used but the output intent profile is {_intentSpace.Trim()}, not CMYK. OnePDF has no CMYK profile to offer.", _cmykOwner, _cmykPage);
+                : $"DeviceCMYK is used but the output intent profile is {_intentSpace.Trim()}, not CMYK, and not every resource dictionary has a DefaultCMYK space.", _cmykOwner, _cmykPage);
         }
 
-        if (_gray && _intentSpace is null)
+        if (_gray && _intentSpace is null && !Covered(_defaultGray, _uncoveredGray))
         {
             Add("6.2.4.3", "DeviceGray is used but the file has no PDF/A output intent.", _grayOwner, _grayPage);
         }
@@ -1043,6 +1224,10 @@ internal sealed class PdfAChecker
                 if (baseEnc is not ("WinAnsiEncoding" or "MacRomanEncoding"))
                 {
                     Add("6.2.11.6", $"The non-symbolic TrueType font {baseFont} needs WinAnsiEncoding or MacRomanEncoding.", owner, page);
+                }
+                else if (FirstUnknownName(enc as PdfDictionary).Length > 0)
+                {
+                    Add("6.2.11.6", $"The non-symbolic TrueType font {baseFont} has /Differences with glyph names that are not in the Adobe Glyph List ({FirstUnknownName(enc as PdfDictionary)}).", owner, page);
                 }
             }
         }
@@ -1150,6 +1335,23 @@ internal sealed class PdfAChecker
         }
 
         Add("6.2.11.7", $"The font {baseFont} has no /ToUnicode map and is not one of the kinds that need none, so PDF/A level U cannot be claimed.", owner, page);
+    }
+
+    private static string FirstUnknownName(PdfDictionary? enc)
+    {
+        if (enc?.Get("Differences") is PdfArray diff)
+        {
+            for (int i = 0; i < diff.Count; i++)
+            {
+                // .notdef is accepted by validators; uniXXXX and uXXXX names are the Adobe Glyph List specification's algorithmic names.
+                if (diff.GetName(i) is { } name && name != ".notdef" && !GlyphList.TryGetUnicode(name, out _))
+                {
+                    return name;
+                }
+            }
+        }
+
+        return string.Empty;
     }
 
     private static bool DifferencesInGlyphList(PdfDictionary? enc)
