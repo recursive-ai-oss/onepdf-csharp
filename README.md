@@ -56,8 +56,16 @@ are read through safe, bounds-checked code with size limits on by default.
   taken care of, and a document that cannot be written as PDF/A is refused with every violation listed, by object. PDF/A-3 files can
   carry attachments. A PDF/A or PDF/UA save never drops content it cannot read: a damaged font program, image or content stream
   makes the check report it and the save refuse, naming the object
-  ([conformance saves](https://github.com/recursive-ai-oss/onepdf-csharp/blob/main/docs/pdfa.md#a-conformance-save-never-drops-content)). It is not a validator and does not convert arbitrary
-  files ([PDF/A](https://github.com/recursive-ai-oss/onepdf-csharp/blob/main/docs/pdfa.md)).
+  ([conformance saves](https://github.com/recursive-ai-oss/onepdf-csharp/blob/main/docs/pdfa.md#a-conformance-save-never-drops-content)). It is not a validator.
+- **Convert existing PDFs to PDF/A.** `PdfAConverter.Convert("in.pdf", "out.pdf")` writes PDF/A-2b (or 2u, 3b) from an arbitrary file: it removes
+  encryption, JavaScript and forbidden annotations, embeds substitute fonts, brings device colours under an output intent and
+  fixes what it can without moving anything on the page. What it cannot fix is refused with every reason, and nothing is written
+  ([converting](https://github.com/recursive-ai-oss/onepdf-csharp/blob/main/docs/pdfa.md#converting-existing-files)).
+  ```csharp
+  OnePdf.Fonts.FontsPackage.Register();
+  PdfAConversionResult result = PdfAConverter.Convert("in.pdf", "out.pdf");
+  foreach (PdfAChange change in result.Changes) Console.WriteLine(change);
+  ```
 - **PDF/UA-1, PDF/UA-2 and PDF/A level A.** Write PDF/UA-1 (ISO 14289-1) and PDF/A-2a/3a, alone or combined, from documents OnePDF
   laid out or created with tags (or existing files tagged with roles you supply: [tagging](https://github.com/recursive-ai-oss/onepdf-csharp/blob/main/docs/tagging.md)), or PDF/UA-2 (ISO 14289-2) on PDF 2.0 with `PdfUAOptions.Part = PdfUAPart.Part2`
   ([PDF/UA-2](https://github.com/recursive-ai-oss/onepdf-csharp/blob/main/docs/pdfua.md#pdfua-2)). `PdfSaveOptions.PdfUA` repairs the clerical parts (language, title display, tab order, link descriptions, XMP
@@ -267,7 +275,7 @@ local system fonts. The code is safe C# with no `unsafe`, `Unsafe.*` or `MemoryM
 
 ## What it does not do
 
-- No PDF/A validator or converter (existing files are checked and refused, never rewritten into conformance), and no long-term validation data (`/DSS`, PAdES B-LT/B-LTA) when signing. Field scripts are never run, so calculated fields are not recomputed. New text is laid out
+- No PDF/A validator (the converter rewrites a file only as far as its documented repairs go; otherwise it refuses), and no long-term validation data (`/DSS`, PAdES B-LT/B-LTA) when signing. Field scripts are never run, so calculated fields are not recomputed. New text is laid out
   without a shaping engine, so complex scripts (Arabic, Indic and similar) are not shaped.
 - **It does not render pixels.** OnePDF resolves a page into drawing calls; a 2D engine paints them. Rasterizing lives in a
   separate package, `RecursiveAI.OneImage.Pdf`, built on [OneImage](https://github.com/recursive-ai-oss/oneimage-csharp); it
