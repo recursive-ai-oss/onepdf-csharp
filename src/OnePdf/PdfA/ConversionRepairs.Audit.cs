@@ -147,7 +147,9 @@ internal sealed partial class ConversionRepairs
             }
 
             FontGlyph g = one[0];
-            if (g.Face != 0 || g.Gid < 0 || !g.Exists || (!isComposite && font.GetName("Subtype") == "TrueType" && !TrueTypeHasGlyph(program, desc, font, (int)code, g)))
+                // Validators read code 0 of a simple TrueType font as a reference to .notdef whatever the cmap says (ISO 19005-2 6.2.11.8).
+            bool zeroOfTrueType = !isComposite && code == 0 && font.GetName("Subtype") == "TrueType";
+            if (zeroOfTrueType || g.Face != 0 || g.Gid < 0 || !g.Exists || (!isComposite && font.GetName("Subtype") == "TrueType" && !TrueTypeHasGlyph(program, desc, font, (int)code, g)))
             {
                 missing.Add(code);
                 continue;
@@ -196,6 +198,76 @@ internal sealed partial class ConversionRepairs
             {
                 _findings.Add(("6.2.11.5", $"The widths of the font {name} disagree with its embedded program and could not be corrected."));
             }
+        }
+    }
+
+    /// <summary>
+    /// Level U: every shown code needs a Unicode value (ISO 19005-2 6.2.11.7.2). Values OnePDF can derive are written into <c>/ToUnicode</c>; a code whose glyph
+    /// carries no character (a subset's <c>gid00132</c>) is mapped to a private-use code point, which the clause allows, and the result says so.
+    /// </summary>
+    public void AddUnicodeMaps()
+    {
+        TrimToUnicodeTails();
+        var options = new PdfToUnicodeOptions
+        {
+            CodeToText = code => char.ConvertFromUtf32(0xE000 + (int)((uint)code.Code % 0x1800u)),
+        };
+        PdfToUnicodeReport report = _doc.AddMissingToUnicode(options, _ct);
+        if (report.CodesAdded > 0)
+        {
+            _log.Add(PdfAChangeKind.FontsRepaired, "ToUnicode maps were written for fonts that lacked them.", report.FontsChanged);
+        }
+
+        int privateUse = report.Entries.Sum(static e => e.CodesFromCaller);
+        if (privateUse > 0)
+        {
+            _log.Warn($"{privateUse} character code(s) whose glyph names no character were mapped to private-use code points in /ToUnicode.");
+        }
+    }
+
+    // Some producers pad a ToUnicode stream with bytes after the closing "end end" of the CMap program; a validator's CMap reader then rejects the whole map.
+    private void TrimToUnicodeTails()
+    {
+        foreach (PdfDictionary font in FontEmbedding.SubstituteEmbedder.CollectFonts(_doc, _ct))
+        {
+            if (font.Get("ToUnicode") is not PdfStream map)
+            {
+                continue;
+            }
+
+            ReadOnlyMemory<byte> data;
+            try
+            {
+                data = map.GetDecodedBytes(_ct);
+            }
+            catch (PdfException)
+            {
+                continue;
+            }
+
+            string text = Encoding.Latin1.GetString(data.Span);
+            int endCmap = text.LastIndexOf("endcmap", StringComparison.Ordinal);
+            if (endCmap < 0)
+            {
+                continue;
+            }
+
+            int pop = text.IndexOf("pop", endCmap, StringComparison.Ordinal);
+            int end1 = pop < 0 ? -1 : text.IndexOf("end", pop, StringComparison.Ordinal);
+            int end2 = end1 < 0 ? -1 : text.IndexOf("end", end1 + 3, StringComparison.Ordinal);
+            if (end2 < 0)
+            {
+                continue;
+            }
+
+            int cut = end2 + 3;
+            if (text.AsSpan(cut).IsWhiteSpace())
+            {
+                continue;
+            }
+
+            map.SetData(data.Span[..cut], compress: true);
+            _log.Add(PdfAChangeKind.FontsRepaired, "Bytes after the end of a ToUnicode map were removed.");
         }
     }
 

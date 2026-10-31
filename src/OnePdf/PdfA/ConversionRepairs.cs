@@ -275,6 +275,13 @@ internal sealed partial class ConversionRepairs
                     d.RemoveEntry(key);
                     _log.Add(PdfAChangeKind.ActionsRemoved, "Scripts and actions that PDF/A forbids were removed (JavaScript, Launch, Hide, ResetForm, ...).");
                 }
+                else if (act.GetName("S") is "GoToR" or "GoToE" && act.Get("F") is PdfDictionary target && !target.ContainsKey("EF")
+                    && (target.GetString("UF") ?? target.GetString("F")) is { } path)
+                {
+                    // ISO 19005-3 6.8 treats every file specification dictionary as an attachment; the plain string form names the same file.
+                    act.SetEntry("F", path);
+                    _log.Add(PdfAChangeKind.ForbiddenEntriesRemoved, "File specification dictionaries of remote go-to actions were written as plain file names.");
+                }
             }
             else if (v is PdfArray list && key == "Next")
             {
@@ -401,7 +408,7 @@ internal sealed partial class ConversionRepairs
         }
 
         Drop("HTP", "Transfer functions (/TR, /TR2, /HTP) were removed from graphics states.");
-        if (gs.Get("HT") is PdfDictionary ht && (ht.GetInt("HalftoneType") is not (1 or 5) || ht.ContainsKey("HalftoneName") || HasTransferFunction(ht)))
+        if (gs.Get("HT") is PdfDictionary ht && (ht.GetInt("HalftoneType") is not 1 || ht.ContainsKey("HalftoneName") || HasTransferFunction(ht)))
         {
             Drop("HT", "A halftone that PDF/A forbids was removed from a graphics state.");
         }

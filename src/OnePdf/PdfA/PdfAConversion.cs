@@ -35,6 +35,11 @@ internal static class PdfAConversion
         repairs.RepairEmbeddedFiles();
         repairs.EmbedFonts();
         repairs.AuditFonts();
+        if (options.Conformance == PdfAConformance.U)
+        {
+            repairs.AddUnicodeMaps();
+        }
+
         // Which device colours the file uses decides the output intent (the probe is a plain check run; its findings are not used).
         var probe = new PdfAChecker(doc, pa, saving: true, decrypting: encrypted, ct);
         probe.Run();

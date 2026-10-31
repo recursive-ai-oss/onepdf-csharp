@@ -260,6 +260,16 @@ internal sealed class FontUsage
 
             switch (op)
             {
+                case ContentOp.BeginInline:
+                    // The image dictionary and its binary data are not operands: skip them so the data is not read as content.
+                    if (lx.ReadInlineImageDictionary() is null)
+                    {
+                        Complete = false;
+                        return;
+                    }
+
+                    _ = lx.ReadInlineImageData(-1, out _);
+                    break;
                 case ContentOp.Save:
                     if (fonts.Count >= MaxStack)
                     {

@@ -131,6 +131,18 @@ internal sealed partial class ConversionRepairs
                 desc.SetEntry("Flags", new PdfInteger((flags & ~32L) | 4));
                 _log.Add(PdfAChangeKind.FontsRepaired, "TrueType fonts with glyph names outside the Adobe Glyph List were made symbolic.");
             }
+            else if (desc.GetStream("FontFile2") is { } ttf3 && HasOnlySymbolicCmap(ttf3))
+            {
+                // A non-symbolic font is read through a (3,1) or (1,0) cmap and the glyph names (ISO 32000-2 9.6.5.4); a program that offers only a (3,0) cmap
+                // is read through the code itself, which is what a symbolic font does.
+                font.RemoveEntry("Encoding");
+                desc.SetEntry("Flags", new PdfInteger((flags & ~32L) | 4));
+                _log.Add(PdfAChangeKind.FontsRepaired, "TrueType fonts whose program has only a symbolic (3,0) cmap were made symbolic.");
+            }
+            else
+            {
+                DropDifferencesWithoutUnicodeCmap(font, desc);
+            }
 
             return;
         }
@@ -171,11 +183,24 @@ internal sealed partial class ConversionRepairs
         {
             desc.SetEntry("Flags", new PdfInteger((flags & ~4L) | 32));
             _log.Add(PdfAChangeKind.FontsRepaired, "Symbolic TrueType fonts with a named encoding and a Unicode cmap were made non-symbolic.");
+            DropDifferencesWithoutUnicodeCmap(font, desc);
         }
         else
         {
             font.RemoveEntry("Encoding");
             _log.Add(PdfAChangeKind.FontsRepaired, "The /Encoding of symbolic TrueType fonts was removed.");
+        }
+    }
+
+    private void DropDifferencesWithoutUnicodeCmap(PdfDictionary font, PdfDictionary desc)
+    {
+        if (font.Get("Encoding") is PdfDictionary enc && enc.ContainsKey("Differences") && desc.GetStream("FontFile2") is { } program && !HasUnicodeCmap(program))
+        {
+            // Validators resolve /Differences through the (3,1) cmap of the program (ISO 19005-2 6.2.11.6); without one they find no mapping.
+            // The named encoding stays, so only the codes the array changed fall back to it.
+            enc.RemoveEntry("Differences");
+            _log.Add(PdfAChangeKind.FontsRepaired, "The /Differences of TrueType fonts whose program has no Unicode cmap were removed.");
+            _log.Warn("A TrueType font without a Unicode cmap lost its /Differences; codes the array remapped now use the named encoding.");
         }
     }
 
@@ -190,6 +215,39 @@ internal sealed partial class ConversionRepairs
         }
 
         return false;
+    }
+
+    private bool HasUnicodeCmap(PdfStream file)
+    {
+        try
+        {
+            return SfntFont.Parse(file.GetDecodedBytes(_ct), 0, GlyphPrograms.Never).FindCmap(3, 1) is not null;
+        }
+        catch (PdfException)
+        {
+            return true;
+        }
+        catch (FontProgramException)
+        {
+            return true;
+        }
+    }
+
+    private bool HasOnlySymbolicCmap(PdfStream file)
+    {
+        try
+        {
+            SfntFont program = SfntFont.Parse(file.GetDecodedBytes(_ct), 0, GlyphPrograms.Never);
+            return program.FindCmap(3, 1) is null && program.FindCmap(3, 0) is not null;
+        }
+        catch (PdfException)
+        {
+            return false;
+        }
+        catch (FontProgramException)
+        {
+            return false;
+        }
     }
 
     private bool HasSymbolicCmap(PdfStream file)
