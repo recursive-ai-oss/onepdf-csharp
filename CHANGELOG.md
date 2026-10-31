@@ -4,6 +4,8 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ## [Unreleased]
 
+## [1.15.0] - 2026-10-31
+
 ### Added
 
 - `PdfAConverter.Convert` and `PdfDocument.ConvertToPdfA` (`PdfAConversionOptions`, `PdfAConversionResult`, `PdfAChange`, `PdfAChangeKind`): convert an arbitrary existing PDF to PDF/A-2b, 2u, 3b or 3u. The converter removes encryption, JavaScript and other forbidden actions, forbidden annotations, part 2 attachments and external stream references, stores LZW streams with Flate, embeds substitute fonts with the PDF's widths, corrects small width disagreements, repairs font dictionaries, writes `/ToUnicode` maps for level U, brings device colours under a generated sRGB or CMYK output intent, and removes graphics-state entries PDF/A forbids. A file that cannot be converted is refused with `PdfAException` listing every reason, and nothing is written. See `docs/pdfa.md`.
@@ -309,6 +311,7 @@ First release. Two packages, `RecursiveAI.OnePdf` (the library, `net10.0`, no de
 - Limits on by default (`PdfLimits`) and fuzzed parsers, filters and font readers; no `unsafe` code. OnePDF never runs code or touches the network.
 - `RecursiveAI.OnePdf.Fonts`: Liberation and Noto substitute outlines under the SIL Open Font License 1.1, registered with `FontsPackage.Register()`.
 
+[1.15.0]: https://github.com/recursive-ai-oss/onepdf-csharp/releases/tag/v1.15.0
 [1.14.0]: https://github.com/recursive-ai-oss/onepdf-csharp/releases/tag/v1.14.0
 [1.13.0]: https://github.com/recursive-ai-oss/onepdf-csharp/releases/tag/v1.13.0
 [1.12.0]: https://github.com/recursive-ai-oss/onepdf-csharp/releases/tag/v1.12.0
