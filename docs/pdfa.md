@@ -54,7 +54,7 @@ A file that cannot be converted is refused with `PdfAException`, listing every r
 | Fonts that are not embedded | A Liberation (or Noto) subset from the Fonts package, or a caller face, with the PDF's `/Widths`, so text does not move. Unknown non-symbolic fonts get a sans, serif or monospace stand-in by their flags. |
 | Embedded fonts that disagree with the file | Small width differences (up to 12 units of 1/1000 em) are corrected in `/Widths` or `/W`; CFF widths are matched to the file. Wrong `/CIDSet`, `/CharSet`, `/CIDToGIDMap` defaults, `FontFile3` subtypes, non-ASCII font names and TrueType symbolic flags or encodings are repaired. |
 | Level U | Unicode values OnePDF can derive are written to `/ToUnicode`. A code whose glyph names no character is mapped to a private-use code point, which the clause allows, and a warning says so. Padding after the end of a `/ToUnicode` program is removed. |
-| Device colour | Output intent chosen by the colours used: the generated sRGB profile, or a generated CMYK profile for CMYK files; an intent already in the file is kept. Where RGB and CMYK are mixed, `DefaultRGB`/`DefaultCMYK` are written into every resource dictionary. |
+| Device colour | Output intent chosen by the colours used: the generated sRGB profile, or a generated CMYK profile for CMYK files; an intent already in the file is kept. Where RGB and CMYK are mixed, `DefaultRGB`/`DefaultCMYK` are written into every resource dictionary, including the ones created for generated field appearances. |
 | Graphics states and images | `/TR`, `/TR2`, `/HTP`, halftones, non-standard blend modes and rendering intents, image `/Alternates`, `/OPI`, `/Interpolate true`, and an overprint mode that PDF/A forbids are removed or reset. |
 | Optional content | `/Order` completed, duplicate names made unique, `/AS` removed from configurations. |
 | Signatures | The signature value is removed (a rewritten file cannot carry it); the field stays, empty, and a warning says so. |
@@ -64,7 +64,7 @@ A file that cannot be converted is refused with `PdfAException`, listing every r
 
 The converter does not change how a page looks beyond what is listed, so it refuses:
 
-- an embedded font program that lacks a glyph the pages show (it would draw `.notdef`), or whose advance widths differ from the file's by more than 12 units (correcting them would move text), or a TrueType font whose glyph names are outside the Adobe Glyph List with no symbolic cmap to fall back on;
+- text that draws `.notdef` (6.2.11.8): a code that selects glyph 0, as when a layout engine shows a character its font lacks and the face is drawn as its missing-glyph box. Removing it would change what the page shows, so the converter names the font and refuses. An embedded font program that lacks any other glyph the pages show (6.2.11.4.1), or whose advance widths differ from the file's by more than 12 units (correcting them would move text), or a TrueType font whose glyph names are outside the Adobe Glyph List with no symbolic cmap to fall back on;
 - a font with no program, no usable substitute for the codes shown, or text in a symbolic simple TrueType font that uses code 0 (validators read it as `.notdef`);
 - spot colours that cannot be made consistent: Separation colours of one name with different alternates, DeviceN spot colorants with no `/Colorants`;
 - content the interpreter cannot read or PDF/A forbids in a place the converter does not rewrite: unknown operators, more than 28 nested `q`, an image or stream whose data cannot be decoded (it would have to be dropped), inline-image filters other than the six PDF/A allows (LZW among them), malformed hexadecimal strings, numbers and names beyond the limits of ISO 19005-2 6.1.13, a non-standard rendering intent in a content stream, a damaged ICC profile;
@@ -123,7 +123,7 @@ ISO 19005-2 6.2.4.3 ties the device spaces to the output intent:
 - DeviceGray needs any intent (an RGB intent is fine).
 - DeviceCMYK needs a CMYK intent. A plain save has no CMYK profile, so CMYK content is a violation there. An existing document that already carries a CMYK `GTS_PDFA1` intent keeps it, and then DeviceRGB is the violation. The converter generates a CMYK profile (below).
 - ICCBased, CalRGB, Lab, Separation, DeviceN and Indexed spaces are not device spaces; ICC profile headers are checked (class, colour space, version below 5), spot colourant consistency is not.
-- A `DefaultRGB`, `DefaultGray` or `DefaultCMYK` entry is not taken into account by the check of a plain save: device colour without an intent is reported even when a default space would allow it. The converter writes these defaults itself where a file mixes RGB and CMYK.
+- A `DefaultRGB`, `DefaultGray` or `DefaultCMYK` entry (an ICC-based, Cal or Lab space) stands in for the intent only when every resource dictionary of the file carries it and no content stream that paints in the space lacks resources; one dictionary without it, or DeviceCMYK as the process space of a DeviceN space, brings the violation back. The converter writes the defaults into every resource dictionary where the intent does not cover a space the file uses (also into dictionaries it creates while preparing the file).
 
 ## A conformance save never drops content
 

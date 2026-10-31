@@ -255,6 +255,7 @@ internal sealed partial class ConversionRepairs
             ? 1000.0 / sfnt.UnitsPerEm
             : Math.Abs(program.FontMatrix[0] == 0 ? 0.001 : program.FontMatrix[0]) * 1000.0;
         var missing = new List<uint>();
+        var notdef = new List<uint>();
         var fixes = new SortedDictionary<int, double>();   // code or cid -> program width
         var unfixable = new List<(int Code, double Pdf, double Program)>();
         var one = new List<FontGlyph>();
@@ -284,7 +285,8 @@ internal sealed partial class ConversionRepairs
             bool zeroOfTrueType = !isComposite && code == 0 && font.GetName("Subtype") == "TrueType";
             if (zeroOfTrueType || g.Face != 0 || g.Gid < 0 || !g.Exists || (!isComposite && font.GetName("Subtype") == "TrueType" && !TrueTypeHasGlyph(program, desc, font, (int)code, g)))
             {
-                missing.Add(code);
+                // A code that selects glyph 0 draws .notdef (6.2.11.8); any other code without a glyph is a missing glyph (6.2.11.4.1).
+                (zeroOfTrueType || (g.Face == 0 && g.Gid == 0) ? notdef : missing).Add(code);
                 continue;
             }
 
@@ -317,6 +319,11 @@ internal sealed partial class ConversionRepairs
         if (badUnicode > 0)
         {
             _findings.Add(("6.2.11.7.2", $"The font {name} maps {badUnicode} shown code(s) to U+0000, U+FEFF or U+FFFE, which are not valid text (level U)."));
+        }
+
+        if (notdef.Count > 0)
+        {
+            _findings.Add(("6.2.11.8", $"The font {name} shows glyph 0 (.notdef) for {notdef.Count} code(s) (first: {notdef[0]}): the text uses a character the embedded program has no glyph for, and PDF/A forbids drawing .notdef."));
         }
 
         if (missing.Count > 0)

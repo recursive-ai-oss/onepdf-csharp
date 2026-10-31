@@ -53,6 +53,7 @@ internal static class PdfAConversion
 
         int before = doc.Pages.Count;
         PdfAPreparer.Prepare(doc, pa, ct);
+        repairs.CoverNewResources();
         if (options.RemoveForbiddenFeatures)
         {
             repairs.AfterPrepare();

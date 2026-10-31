@@ -6,7 +6,19 @@ namespace OnePdf.PdfA;
 // Output intent and device colour.
 internal sealed partial class ConversionRepairs
 {
-    private bool _usesIccCmyk;
+    private bool _usesIccCmyk, _defaultRgbNeeded, _defaultCmykNeeded;
+
+    /// <summary>
+    /// Preparing the file for saving can create resource dictionaries (generated widget appearances, for one). The checker wants the default
+    /// spaces in every resource dictionary, so they are added to the new ones too.
+    /// </summary>
+    public void CoverNewResources()
+    {
+        if (_defaultRgbNeeded || _defaultCmykNeeded)
+        {
+            AddDefaultSpaces(_defaultRgbNeeded, _defaultCmykNeeded);
+        }
+    }
 
     /// <summary>
     /// ISO 19005-2 6.2.3 and 6.2.4.3: DeviceRGB needs an RGB output intent (or a DefaultRGB space), DeviceCMYK a CMYK one (or DefaultCMYK), DeviceGray any.
@@ -120,6 +132,8 @@ internal sealed partial class ConversionRepairs
 
         bool needRgb = rgb && space != "RGB ";
         bool needCmyk = cmyk && space != "CMYK";
+        _defaultRgbNeeded = needRgb;
+        _defaultCmykNeeded = needCmyk;
         if (needRgb || needCmyk)
         {
             AddDefaultSpaces(needRgb, needCmyk);
@@ -192,7 +206,10 @@ internal sealed partial class ConversionRepairs
                 added++;
             }
         });
-        _log.Add(PdfAChangeKind.ColourSpacesAdded, "DefaultRGB/DefaultCMYK colour spaces were added so device colours agree with the output intent.", added);
+        if (added > 0)
+        {
+            _log.Add(PdfAChangeKind.ColourSpacesAdded, "DefaultRGB/DefaultCMYK colour spaces were added so device colours agree with the output intent.", added);
+        }
     }
 
     private static PdfArray IccArray(PdfReference profile)
