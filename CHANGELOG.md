@@ -4,6 +4,8 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ## [Unreleased]
 
+## [1.17.1] - 2026-10-31
+
 ### Fixed
 
 - `VerifySignatures` no longer reports an earlier signature as invalid (`EarlierRevisionDisallowedChanges`) when a signature is added to the document after it. The page's `/Annots` and the form's `/Fields` are compared as lists: appending new signature fields is allowed whether the list is absent, direct or an indirect array (an indirect `/Annots` array used to count as an annotation change, which only level 3 allows), and an empty signature field gaining `/V` and `/Lock` is part of signing.
@@ -355,6 +357,7 @@ First release. Two packages, `RecursiveAI.OnePdf` (the library, `net10.0`, no de
 - Limits on by default (`PdfLimits`) and fuzzed parsers, filters and font readers; no `unsafe` code. OnePDF never runs code or touches the network.
 - `RecursiveAI.OnePdf.Fonts`: Liberation and Noto substitute outlines under the SIL Open Font License 1.1, registered with `FontsPackage.Register()`.
 
+[1.17.1]: https://github.com/recursive-ai-oss/onepdf-csharp/releases/tag/v1.17.1
 [1.17.0]: https://github.com/recursive-ai-oss/onepdf-csharp/releases/tag/v1.17.0
 [1.16.0]: https://github.com/recursive-ai-oss/onepdf-csharp/releases/tag/v1.16.0
 [1.15.1]: https://github.com/recursive-ai-oss/onepdf-csharp/releases/tag/v1.15.1
