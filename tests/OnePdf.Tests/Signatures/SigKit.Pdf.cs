@@ -215,7 +215,7 @@ internal static class SignedPdf
     }
 
     /// <summary>A document time-stamp in an incremental update (object 12, in a field "TS" object 13 added to the page).</summary>
-    public static byte[] AppendDocumentTimestamp(byte[] file, DateTimeOffset time)
+    public static byte[] AppendDocumentTimestamp(byte[] file, DateTimeOffset time, IReadOnlyDictionary<int, string>? extra = null)
     {
         var objs = new Dictionary<int, string>
         {
@@ -223,7 +223,12 @@ internal static class SignedPdf
             [13] = "<< /Type /Annot /Subtype /Widget /FT /Sig /T (TS) /Rect [0 0 0 0] /P 3 0 R /F 132 /V 12 0 R >>",
             [5] = "<< /Fields [4 0 R 8 0 R 9 0 R 10 0 R 13 0 R] /SigFlags 3 /DA (/Helv 0 Tf 0 g) /DR << /Font << /Helv << /Type /Font /Subtype /Type1 /BaseFont /Helvetica >> >> >> >>",
         };
-        return Sign(Append(file, objs, 14), digest => CmsKit.Timestamp(digest(HashAlgorithmName.SHA256), HashAlgorithmName.SHA256, time));
+        foreach ((int n, string body) in extra ?? new Dictionary<int, string>())
+        {
+            objs[n] = body;
+        }
+
+        return Sign(Append(file, objs, Math.Max(14, objs.Keys.Max() + 1)), digest => CmsKit.Timestamp(digest(HashAlgorithmName.SHA256), HashAlgorithmName.SHA256, time));
     }
 
     /// <summary>An update that is only a cross-reference section: it points object numbers at offsets that already hold a definition.</summary>

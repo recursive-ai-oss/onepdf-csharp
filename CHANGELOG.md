@@ -4,6 +4,12 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ## [Unreleased]
 
+### Fixed
+
+- `VerifySignatures` no longer reports an earlier signature as invalid (`EarlierRevisionDisallowedChanges`) when a signature is added to the document after it. The page's `/Annots` and the form's `/Fields` are compared as lists: appending new signature fields is allowed whether the list is absent, direct or an indirect array (an indirect `/Annots` array used to count as an annotation change, which only level 3 allows), and an empty signature field gaining `/V` and `/Lock` is part of signing.
+- A document time-stamp added to a document certified with `PdfCertificationLevel.NoChanges` no longer breaks the certification in `VerifySignatures`: the signature-shaped changes of a time-stamp's own update are allowed at every level (ISO 32000-2 Table 257). A regular signature at that level is still flagged.
+- Modification analysis is stricter where it was too loose: an update that appended a signature field but also dropped or reordered other fields or annotations, cleared `/SigFlags`, or replaced `/DR` resources was accepted at levels 2 and below; it is now flagged.
+
 ## [1.17.0] - 2026-10-31
 
 ### Added

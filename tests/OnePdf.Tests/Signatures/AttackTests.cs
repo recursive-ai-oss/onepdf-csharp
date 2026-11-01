@@ -689,6 +689,143 @@ public class AttackTests
         AssertRejected(v);
     }
 
+    // ---- Adding a signature: what the update may and may not carry ---------------------------------------------------------
+
+    private const string FormWith = "<< /Fields [{0}] /SigFlags 3 /DA (/Helv 0 Tf 0 g) /DR << /Font << /Helv << /Type /Font /Subtype /Type1 /BaseFont /Helvetica >> >> >> >>";
+
+    private static byte[] AppendUpdate(byte[] file, Dictionary<int, string> objects) =>
+        SignedPdf.Append(file, objects, 16);
+
+    [Theory]
+    [InlineData("4 0 R 8 0 R 9 0 R 12 0 R")]
+    [InlineData("4 0 R 9 0 R 8 0 R 10 0 R 12 0 R")]
+    [InlineData("12 0 R 4 0 R 8 0 R 9 0 R 10 0 R")]
+    public void SigAppendThatAlsoRemovesOrReordersAnnotationsIsDetected(string annots)
+    {
+        // A new signature field is appended, but an existing annotation is dropped or the list is reordered on the way.
+        byte[] file = AppendUpdate(Certified(2, WithAppearanceObject()), new Dictionary<int, string> { [3] = PageWith(annots), [12] = UnsignedSignatureField });
+        PdfSignatureVerification v = Check(file);
+        AssertRejected(v);
+        Assert.Contains(v.Changes, static c => c.Category == PdfChangeCategory.Annotation && !c.Allowed);
+    }
+
+    [Fact]
+    public void SigAppendOfAnExistingObjectIsDetectedBelowLevel3()
+    {
+        // Object 11 (a font) was in the file already; listing it as an annotation is not adding a signature field.
+        byte[] file = AppendUpdate(Certified(2, new SignedPdf.Options { FontObject = true }), new Dictionary<int, string> { [3] = PageWith("4 0 R 8 0 R 9 0 R 10 0 R 11 0 R") });
+        AssertRejected(Check(file));
+    }
+
+    [Fact]
+    public void SigAppendOfASignatureFieldIsAllowedAtLevel2AndUncertified()
+    {
+        byte[] certified = AppendUpdate(Certified(2, WithAppearanceObject()), new Dictionary<int, string> { [3] = PageWith("4 0 R 8 0 R 9 0 R 10 0 R 12 0 R"), [12] = UnsignedSignatureField });
+        PdfSignatureVerification v = Check(certified);
+        Assert.True(v.IsValid, string.Join("; ", v.Warnings));
+        Assert.Contains(v.Changes, static c => c.ObjectNumber == 3 && c.Allowed);
+        Assert.Contains(v.Changes, static c => c.ObjectNumber == 12 && c.Category == PdfChangeCategory.FormFieldValue && c.Allowed);
+
+        // Level 3 allows it as well; level 1 does not (SsaUnsignedSignatureFieldWithAnAppearanceIsDetectedAtLevel1).
+        Assert.True(Check(AppendUpdate(Certified(3, WithAppearanceObject()), new Dictionary<int, string> { [3] = PageWith("4 0 R 8 0 R 9 0 R 10 0 R 12 0 R"), [12] = UnsignedSignatureField })).IsValid);
+    }
+
+    [Fact]
+    public void SigAppendNonSignatureFieldIsAFormChangeNotASignature()
+    {
+        // A text field appended through the same shape: allowed at level 2 as a form change (as EvilWidget above), never as a signature.
+        PdfSignatureVerification v = Check(AppendUpdate(Certified(2, WithAppearanceObject()), new Dictionary<int, string> { [3] = PageWith("4 0 R 8 0 R 9 0 R 10 0 R 12 0 R"), [12] = EvilWidget }));
+        Assert.True(v.IsValid);
+        Assert.DoesNotContain(v.Changes, static c => c.Category == PdfChangeCategory.NewSignature);
+    }
+
+    [Theory]
+    [InlineData("fields-drop")]
+    [InlineData("fields-reorder")]
+    [InlineData("sigflags-cleared")]
+    [InlineData("dr-font-replaced")]
+    [InlineData("extra-key")]
+    public void SigAppendThatAlsoAltersTheFormIsDetected(string kind)
+    {
+        string form = kind switch
+        {
+            "fields-drop" => FormWith.Replace("{0}", "4 0 R 8 0 R 10 0 R 12 0 R", StringComparison.Ordinal),
+            "fields-reorder" => FormWith.Replace("{0}", "4 0 R 9 0 R 8 0 R 10 0 R 12 0 R", StringComparison.Ordinal),
+            "sigflags-cleared" => FormWith.Replace("{0}", "4 0 R 8 0 R 9 0 R 10 0 R 12 0 R", StringComparison.Ordinal).Replace("/SigFlags 3", "/SigFlags 0", StringComparison.Ordinal),
+            "dr-font-replaced" => FormWith.Replace("{0}", "4 0 R 8 0 R 9 0 R 10 0 R 12 0 R", StringComparison.Ordinal).Replace("/BaseFont /Helvetica", "/BaseFont /Courier", StringComparison.Ordinal),
+            _ => FormWith.Replace("{0}", "4 0 R 8 0 R 9 0 R 10 0 R 12 0 R", StringComparison.Ordinal).Replace("/SigFlags 3", "/SigFlags 3 /XFA 13 0 R", StringComparison.Ordinal),
+        };
+        byte[] file = AppendUpdate(Certified(2, WithAppearanceObject()), new Dictionary<int, string> { [3] = PageWith("4 0 R 8 0 R 9 0 R 10 0 R 12 0 R"), [5] = form, [12] = UnsignedSignatureField });
+        AssertRejected(Check(file));
+    }
+
+    [Fact]
+    public void SigAppendWithTheFormOnlyGrowingIsAllowed()
+    {
+        string form = FormWith.Replace("{0}", "4 0 R 8 0 R 9 0 R 10 0 R 12 0 R", StringComparison.Ordinal).Replace("/Helv << /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>", "/Helv << /Type /Font /Subtype /Type1 /BaseFont /Helvetica >> /Extra << /Type /Font /Subtype /Type1 /BaseFont /Courier >>", StringComparison.Ordinal);
+        byte[] file = AppendUpdate(Certified(2, WithAppearanceObject()), new Dictionary<int, string> { [3] = PageWith("4 0 R 8 0 R 9 0 R 10 0 R 12 0 R"), [5] = form, [12] = UnsignedSignatureField });
+        PdfSignatureVerification v = Check(file);
+        Assert.True(v.IsValid, string.Join("; ", v.Warnings));
+    }
+
+    [Fact]
+    public void SigAppendOfAContentStreamChangeIsStillDetected()
+    {
+        // The signing shape plus a changed content stream: the shape is allowed, the content is not.
+        byte[] file = AppendUpdate(Certified(2, WithAppearanceObject()), new Dictionary<int, string>
+        {
+            [3] = PageWith("4 0 R 8 0 R 9 0 R 10 0 R 12 0 R"),
+            [12] = UnsignedSignatureField,
+            [7] = "<< /Length 19 >>\nstream\nBT (Pay 9999) Tj ET\nendstream",
+        });
+        AssertRejected(Check(file));
+    }
+
+    private static Dictionary<int, string> TimestampOnPage(string widget) => new()
+    {
+        [3] = PageWith("4 0 R 8 0 R 9 0 R 10 0 R 13 0 R"),
+        [13] = widget,
+    };
+
+    private const string TimestampWidget = "<< /Type /Annot /Subtype /Widget /FT /Sig /T (TS) /Rect [0 0 0 0] /P 3 0 R /F 132 /V 12 0 R >>";
+
+    [Fact]
+    public void DocumentTimestampWithItsFieldOnThePageLeavesLevel1Valid()
+    {
+        // ISO 32000-2 Table 257: document time-stamp updates are not changes, whatever the permission level.
+        byte[] file = SignedPdf.AppendDocumentTimestamp(Certified(1), DateTimeOffset.UtcNow, TimestampOnPage(TimestampWidget));
+        PdfSignatureVerification v = Check(file);
+        Assert.True(v.IsValid, string.Join("; ", v.Warnings));
+        Assert.All(v.Changes, static c => Assert.True(c.Allowed, c.Description));
+    }
+
+    [Fact]
+    public void DocumentTimestampUpdateCannotCarryOtherChangesAtLevel1()
+    {
+        // A text field value changed in the time-stamp's update, a text field added beside it, or an annotation: all still detected.
+        byte[] value = SignedPdf.AppendDocumentTimestamp(Certified(1), DateTimeOffset.UtcNow, new Dictionary<int, string>
+        {
+            [8] = "<< /Type /Annot /Subtype /Widget /FT /Tx /T (Name) /Rect [10 100 100 120] /P 3 0 R /F 4 /V (changed) /DA (/Helv 10 Tf 0 g) >>",
+        });
+        AssertRejected(Check(value));
+
+        byte[] widget = SignedPdf.AppendDocumentTimestamp(Certified(1, WithAppearanceObject()), DateTimeOffset.UtcNow, new Dictionary<int, string>
+        {
+            [3] = PageWith("4 0 R 8 0 R 9 0 R 10 0 R 13 0 R 15 0 R"),
+            [13] = TimestampWidget,
+            [15] = EvilWidget,
+        });
+        AssertRejected(Check(widget));
+
+        byte[] annotation = SignedPdf.AppendDocumentTimestamp(Certified(1, WithAppearanceObject()), DateTimeOffset.UtcNow, new Dictionary<int, string>
+        {
+            [3] = PageWith("4 0 R 8 0 R 9 0 R 10 0 R 13 0 R 15 0 R"),
+            [13] = TimestampWidget,
+            [15] = EvilAnnotation,
+        });
+        AssertRejected(Check(annotation));
+    }
+
     [Fact]
     public void SsaSignatureAddedAtLevel1IsDetected()
     {

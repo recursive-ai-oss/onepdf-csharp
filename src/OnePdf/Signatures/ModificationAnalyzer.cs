@@ -85,7 +85,7 @@ internal static class ModificationAnalyzer
             }
         }
 
-        var ctx = new Context(doc, signed, newest, effective, locks);
+        var ctx = new Context(doc, signed, newest, effective, locks, revs, r + 1, last);
         var changes = new List<PdfSignatureChange>();
         if (unsignedTail)
         {
@@ -125,6 +125,7 @@ internal static class ModificationAnalyzer
                 continue;
             }
 
+            ctx.Current = n;
             Verdict verdict = after is null ? ctx.Deleted(n, before) : ctx.Classify(n, before, after);
             changes.Add(new PdfSignatureChange(n, verdict.Category, verdict.Allowed, verdict.Description));
             if (after is not null)
@@ -255,6 +256,7 @@ internal static class ModificationAnalyzer
                 }
 
                 (PdfChangeCategory Cat, bool Allowed, string Why) mine = verdict;
+                ctx.Current = target;
                 if (IsSignatureDictionary(obj))
                 {
                     mine = ctx.SignatureVerdict(obj);
@@ -290,6 +292,7 @@ internal static class ModificationAnalyzer
             }
             else if (IsSignatureDictionary(o))
             {
+                ctx.Current = n;
                 (PdfChangeCategory cat, bool allowed, string why) = ctx.SignatureVerdict(o);
                 changes.Add(new PdfSignatureChange(n, cat, allowed, "new object: " + why));
             }
@@ -506,9 +509,20 @@ internal static class ModificationAnalyzer
         private readonly List<PdfSignatureLock> _locks;
         private HashSet<int>? _pageOwned;
         private HashSet<int>? _annotArrays;
+        private HashSet<int>? _fieldArrays;
+        private readonly IReadOnlyList<PdfRevision> _revs;
+        private readonly int _first;
+        private readonly int _lastRev;
+        private readonly Dictionary<int, bool> _timestampRevision = [];
 
-        public Context(PdfDocument doc, PdfRevision signed, PdfRevision newest, int level, List<PdfSignatureLock> locks)
+        /// <summary>The object number being classified; decides whether a document time-stamp's own update made it.</summary>
+        public int Current = -1;
+
+        public Context(PdfDocument doc, PdfRevision signed, PdfRevision newest, int level, List<PdfSignatureLock> locks, IReadOnlyList<PdfRevision> revs, int first, int lastRev)
         {
+            _revs = revs;
+            _first = first;
+            _lastRev = lastRev;
             _doc = doc;
             _signed = signed;
             _newest = newest;
@@ -558,9 +572,9 @@ internal static class ModificationAnalyzer
                 return ClassifyCatalog(b, a, keys);
             }
 
-            if (n == AcroFormNumber() && keys.TrueForAll(AcroFormKeys.Contains))
+            if (n == AcroFormNumber())
             {
-                return Gate(PdfChangeCategory.FormFieldValue, 2, "the form's field list or flags changed", null);
+                return AcroFormVerdict(b, a);
             }
 
             if (type == "Page")
@@ -577,10 +591,16 @@ internal static class ModificationAnalyzer
             {
                 string? name = FieldName(a);
                 bool isSig = FieldType(a) == "Sig";
+                // Signing an empty signature field sets /V and may add the field's lock (12.7.5.5); nothing else changes.
+                bool newSig = isSig && b.Get("V") is null && a.Get("V") is PdfDictionary;
+                if (newSig && !b.ContainsKey("Lock") && keys.TrueForAll(static k => FillKeys.Contains(k) || k == "Lock"))
+                {
+                    return Gate(PdfChangeCategory.NewSignature, 2, "signature field signed", name, signing: true);
+                }
+
                 if (keys.TrueForAll(FillKeys.Contains))
                 {
-                    bool newSig = isSig && b.Get("V") is null && a.Get("V") is PdfDictionary;
-                    return Gate(newSig ? PdfChangeCategory.NewSignature : PdfChangeCategory.FormFieldValue, 2, newSig ? "signature field signed" : "form field value or appearance changed", name);
+                    return Gate(PdfChangeCategory.FormFieldValue, 2, "form field value or appearance changed", name);
                 }
 
                 if (keys.TrueForAll(static k => FillKeys.Contains(k) || AnnotKeys.Contains(k)))
@@ -606,9 +626,17 @@ internal static class ModificationAnalyzer
 
         private Verdict ClassifyNonDictionary(int n, PdfObject before, PdfObject after)
         {
-            if (before is PdfArray && after is PdfArray && IsAnnotArray(n))
+            if (before is PdfArray ba && after is PdfArray aa)
             {
-                return Gate(PdfChangeCategory.Annotation, 3, "the page's annotation list changed", null);
+                if (IsAnnotArray(n))
+                {
+                    return JudgeAppended(ba, aa, "the page's annotation list");
+                }
+
+                if (IsFieldArray(n))
+                {
+                    return JudgeAppended(ba, aa, "the form's field list");
+                }
             }
 
             if (IsPageOwned(n))
@@ -641,21 +669,18 @@ internal static class ModificationAnalyzer
                         break;
                     case "AcroForm":
                         {
-                            PdfObject? ar = b.GetRaw("AcroForm");
-                            PdfObject? nr = a.GetRaw("AcroForm");
-                            bool ok = ar is null || (ar is PdfDictionary x && nr is PdfDictionary y && DiffKeys(x, y).TrueForAll(AcroFormKeys.Contains)) || (ar is PdfReference rx && nr is PdfReference ry && rx.Number == ry.Number);
-                            if (nr is PdfDictionary nd && ar is null && !nd.Keys.All(AcroFormKeys.Contains))
+                            PdfDictionary? old = _signed.Resolve(b.GetRaw("AcroForm")) as PdfDictionary;
+                            PdfObject? nr = _newest.Resolve(a.GetRaw("AcroForm"));
+                            Verdict form = nr is PdfDictionary nd
+                                ? AcroFormVerdict(old, nd)
+                                : new Verdict(PdfChangeCategory.Other, false, "the form definition was removed or replaced");
+                            why.Add("form definition (" + form.Description + ")");
+                            if (Severity(form.Category) > Severity(cat))
                             {
-                                ok = false;
+                                cat = form.Category;
                             }
 
-                            why.Add("form definition");
-                            if (Severity(PdfChangeCategory.FormFieldValue) > Severity(cat))
-                            {
-                                cat = PdfChangeCategory.FormFieldValue;
-                            }
-
-                            allowed &= ok && _level >= 2;
+                            allowed &= form.Allowed;
                             break;
                         }
 
@@ -677,50 +702,162 @@ internal static class ModificationAnalyzer
                 return new Verdict(PdfChangeCategory.PageContent, false, "page dictionary changed (" + string.Join(", ", keys.Where(static k => k != "Annots")) + ")");
             }
 
-            // Which annotations came or went, and are the new ones form widgets?
-            var oldRefs = new HashSet<int>();
-            if (b.GetArray("Annots") is { } oldArr)
+            // The list may be absent, direct or indirect in either revision; what matters is the list it resolves to.
+            return JudgeAppended(_signed.Resolve(b.GetRaw("Annots")) as PdfArray, _newest.Resolve(a.GetRaw("Annots")) as PdfArray, "the page's annotation list");
+        }
+
+        // ISO 32000-2 12.8.2.2 Table 257 (P = 2): signing and filling in forms are permitted; a list that gained entries at its end,
+        // all of them new signature fields or widgets, is exactly what signing does, and new form fields stay a permitted form
+        // change at P = 2. Everything else about the list (an entry removed, replaced or reordered, an existing object appended,
+        // a new annotation that is not a form widget) is an annotation change, which needs P = 3.
+        private Verdict JudgeAppended(PdfArray? before, PdfArray? after, string what)
+        {
+            var added = new List<PdfObject>();
+            if (!AppendsOnly(before, after, added))
             {
-                for (int i = 0; i < Math.Min(oldArr.Count, 1 << 16); i++)
+                return Gate(PdfChangeCategory.Annotation, 3, what + " had entries removed, replaced or reordered", null);
+            }
+
+            if (added.Count == 0)
+            {
+                return new Verdict(PdfChangeCategory.FormFieldValue, true, what + " is unchanged");
+            }
+
+            // New fields are told apart from other new things; a new object is required, so that appending an annotation that
+            // already existed elsewhere in the file (to make it appear on this page) is not mistaken for a field.
+            bool allFields = true;
+            bool allSignatures = true;
+            foreach (PdfObject raw in added)
+            {
+                PdfDictionary? d = raw is PdfReference r && _signed.GetObject(r.Number) is null ? _newest.Resolve(raw) as PdfDictionary : null;
+                if (d is null || !IsFieldOrWidget(d) || d.GetName("Subtype") is { } st && st != "Widget")
                 {
-                    if (oldArr.GetRaw(i) is PdfReference r)
-                    {
-                        oldRefs.Add(r.Number);
-                    }
+                    allFields = false;
+                    allSignatures = false;
+                    break;
+                }
+
+                allSignatures &= IsSignatureField(d);
+            }
+
+            if (allSignatures)
+            {
+                return Gate(PdfChangeCategory.FormFieldValue, 2, "signature fields were added to " + what, null, signing: true);
+            }
+
+            return allFields
+                ? Gate(PdfChangeCategory.FormFieldValue, 2, "form fields were added to " + what, null)
+                : Gate(PdfChangeCategory.Annotation, 3, "annotations or existing objects were added to " + what, null);
+        }
+
+        // A field or widget of type Sig that is empty or holds a signature dictionary.
+        private static bool IsSignatureField(PdfDictionary d) =>
+            FieldType(d) == "Sig" && (d.GetRaw("V") is null || (d.Get("V") is PdfDictionary v && IsSignatureDictionary(v)));
+
+        private static bool AppendsOnly(PdfArray? before, PdfArray? after, List<PdfObject> added)
+        {
+            int old = before?.Count ?? 0;
+            int now = after?.Count ?? 0;
+            if (now < old || now > MaxCompareNodes)
+            {
+                return false;
+            }
+
+            for (int i = 0; i < old; i++)
+            {
+                if (!DeepEqual(before!.GetRaw(i), after!.GetRaw(i)))
+                {
+                    return false;
                 }
             }
 
-            bool removed = false;
-            bool onlyWidgets = true;
-            bool anyAdded = false;
-            var newRefs = new HashSet<int>();
-            if (a.GetArray("Annots") is { } newArr)
+            for (int i = old; i < now; i++)
             {
-                for (int i = 0; i < Math.Min(newArr.Count, 1 << 16); i++)
+                added.Add(after!.GetRaw(i));
+            }
+
+            return true;
+        }
+
+        // The form dictionary may gain signature fields, set /SigFlags bits and extend /DR; the other defaults are form-fill state.
+        private Verdict AcroFormVerdict(PdfDictionary? before, PdfDictionary after)
+        {
+            List<string> keys = before is null ? [.. after.Keys] : DiffKeys(before, after);
+            if (!keys.TrueForAll(AcroFormKeys.Contains))
+            {
+                return new Verdict(PdfChangeCategory.Other, false, "the form dictionary changed (" + string.Join(", ", keys.Where(static k => !AcroFormKeys.Contains(k))) + ")");
+            }
+
+            bool allowed = true;
+            var why = new List<string>();
+            foreach (string k in keys)
+            {
+                Verdict v;
+                switch (k)
                 {
-                    if (newArr.GetRaw(i) is PdfReference r)
+                    case "Fields":
+                        v = JudgeAppended(_signed.Resolve(before?.GetRaw("Fields")) as PdfArray, _newest.Resolve(after.GetRaw("Fields")) as PdfArray, "the form's field list");
+                        break;
+                    case "SigFlags":
+                        long was = before?.GetInt("SigFlags") ?? 0;
+                        v = (was & ~after.GetInt("SigFlags")) == 0
+                            ? Gate(PdfChangeCategory.FormFieldValue, 2, "signature flags set", null, signing: true)
+                            : new Verdict(PdfChangeCategory.Other, false, "signature flags were cleared");
+                        break;
+                    case "DR":
+                        v = DefaultResourcesGrow(before, after)
+                            ? Gate(PdfChangeCategory.FormFieldValue, 2, "default resources extended", null, signing: true)
+                            : new Verdict(PdfChangeCategory.Other, false, "the form's default resources were changed");
+                        break;
+                    default:
+                        v = Gate(PdfChangeCategory.FormFieldValue, 2, "form defaults changed", null);
+                        break;
+                }
+
+                allowed &= v.Allowed;
+                why.Add(v.Description);
+            }
+
+            return new Verdict(allowed ? PdfChangeCategory.FormFieldValue : PdfChangeCategory.Other, allowed, string.Join("; ", why));
+        }
+
+        // /DR may gain resources (a font an appearance names); every resource it had must stay as it was.
+        private bool DefaultResourcesGrow(PdfDictionary? before, PdfDictionary after)
+        {
+            if (before?.GetRaw("DR") is not { } oldRaw)
+            {
+                return true;
+            }
+
+            if (_signed.Resolve(oldRaw) is not PdfDictionary oldDr || _newest.Resolve(after.GetRaw("DR")) is not PdfDictionary newDr)
+            {
+                return false;
+            }
+
+            foreach (KeyValuePair<string, PdfObject> kv in oldDr.Entries)
+            {
+                if (newDr.GetRaw(kv.Key) is not { } now)
+                {
+                    return false;
+                }
+
+                if (_signed.Resolve(kv.Value) is PdfDictionary oldCat && _newest.Resolve(now) is PdfDictionary newCat)
+                {
+                    foreach (KeyValuePair<string, PdfObject> e in oldCat.Entries)
                     {
-                        newRefs.Add(r.Number);
-                        if (!oldRefs.Contains(r.Number))
+                        if (newCat.GetRaw(e.Key) is not { } same || !DeepEqual(e.Value, same))
                         {
-                            anyAdded = true;
-                            onlyWidgets &= newArr[i] is PdfDictionary d && d.GetName("Subtype") == "Widget";
+                            return false;
                         }
                     }
-                    else
-                    {
-                        onlyWidgets = false;
-                    }
+                }
+                else if (!DeepEqual(kv.Value, now))
+                {
+                    return false;
                 }
             }
 
-            removed = oldRefs.Any(o => !newRefs.Contains(o));
-            if (anyAdded && onlyWidgets && !removed)
-            {
-                return Gate(PdfChangeCategory.FormFieldValue, 2, "form widgets were added to the page", null);
-            }
-
-            return Gate(PdfChangeCategory.Annotation, 3, removed ? "annotations were removed from the page" : "annotations were added to the page", null);
+            return true;
         }
 
         // An annotation that is a new object, judged as the annotation it is.
@@ -730,7 +867,9 @@ internal static class ModificationAnalyzer
             {
                 if (d.GetName("Subtype") == "Widget")
                 {
-                    Verdict w = Gate(PdfChangeCategory.FormFieldValue, 2, "form widget", FieldName(d));
+                    Verdict w = IsSignatureField(d)
+                        ? Gate(PdfChangeCategory.FormFieldValue, 2, "signature widget", FieldName(d), signing: true)
+                        : Gate(PdfChangeCategory.FormFieldValue, 2, "form widget", FieldName(d));
                     return (w.Category, w.Allowed, w.Description);
                 }
 
@@ -752,9 +891,11 @@ internal static class ModificationAnalyzer
             return (PdfChangeCategory.NewSignature, _level >= 2, _level >= 2 ? "signature added" : "signature added, which the permission level forbids");
         }
 
-        private Verdict Gate(PdfChangeCategory category, int minLevel, string description, string? field)
+        // A change that only adds a signature is part of signing: a document time-stamp's own update may make it at any level,
+        // because ISO 32000-2 Table 257 does not count document time-stamps as changes.
+        private Verdict Gate(PdfChangeCategory category, int minLevel, string description, string? field, bool signing = false)
         {
-            bool allowed = _level >= minLevel;
+            bool allowed = _level >= minLevel || (signing && IsTimestampUpdate());
             if (!allowed)
             {
                 description += $" (not allowed at permission level {_level})";
@@ -767,6 +908,54 @@ internal static class ModificationAnalyzer
             }
 
             return new Verdict(category, allowed, description);
+        }
+
+        // True when every revision after the signed one that touched the current object is a document time-stamp's update.
+        private bool IsTimestampUpdate()
+        {
+            bool touched = false;
+            for (int k = _first; k <= _lastRev; k++)
+            {
+                if (!_revs[k].Changes(Current))
+                {
+                    continue;
+                }
+
+                touched = true;
+                if (!IsTimestampRevision(k))
+                {
+                    return false;
+                }
+            }
+
+            return touched;
+        }
+
+        private bool IsTimestampRevision(int k)
+        {
+            if (_timestampRevision.TryGetValue(k, out bool known))
+            {
+                return known;
+            }
+
+            bool found = false;
+            foreach (int m in _revs[k].ChangedObjectNumbers)
+            {
+                try
+                {
+                    if (_revs[k].GetObject(m) is PdfDictionary d && d.GetName("Type") == "DocTimeStamp" && d.ContainsKey("ByteRange") && d.ContainsKey("Contents"))
+                    {
+                        found = true;
+                        break;
+                    }
+                }
+                catch (PdfFormatException)
+                {
+                }
+            }
+
+            _timestampRevision[k] = found;
+            return found;
         }
 
         private bool IsLocked(string field)
@@ -839,6 +1028,12 @@ internal static class ModificationAnalyzer
             return _annotArrays!.Contains(n);
         }
 
+        private bool IsFieldArray(int n)
+        {
+            EnsureOwnership();
+            return _fieldArrays!.Contains(n);
+        }
+
         private bool IsPageOwned(int n)
         {
             EnsureOwnership();
@@ -855,6 +1050,12 @@ internal static class ModificationAnalyzer
 
             _pageOwned = [];
             _annotArrays = [];
+            _fieldArrays = [];
+            if (_signed.Catalog?.GetDictionary("AcroForm") is { } form && form.GetRaw("Fields") is PdfReference fr)
+            {
+                _fieldArrays.Add(fr.Number);
+            }
+
             var stack = new Stack<PdfObject>();
             foreach (PdfPageNode page in _doc.WalkPages(_signed.Catalog, "signed revision"))
             {
