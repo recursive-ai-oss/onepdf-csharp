@@ -246,6 +246,14 @@ public sealed class PdfSigningOptions
     /// <see cref="PdfSigningError.ContentsTooSmall"/> is thrown. At most 4 MiB.
     /// </summary>
     public int? ContentsReserve { get; init; }
+
+    /// <summary>
+    /// The <c>/SubFilter</c> name to write (for example <c>ETSI.CAdES.detached</c> or <c>adbe.pkcs7.detached</c>), overriding the one
+    /// <see cref="Format"/> implies. Only <see cref="PdfDocument.AddSignaturePlaceholder(Stream, PdfSigningOptions?, int, CancellationToken)"/>
+    /// reads it; <c>Sign</c> ignores it because OnePDF builds that CMS itself. Default null. A name starting <c>ETSI.</c> also declares
+    /// the ESIC extension.
+    /// </summary>
+    public string? SubFilter { get; init; }
 }
 
 /// <summary>Settings for <see cref="PdfDocument.AddDocumentTimestamp(Stream, PdfTimestampCallback, PdfTimestampOptions?, CancellationToken)"/>.</summary>
@@ -298,6 +306,9 @@ public enum PdfSigningError
 
     /// <summary>The document was already used for a signing attempt; reopen the output (or the file) to sign again.</summary>
     DocumentUsed,
+
+    /// <summary>The bytes at the given offsets are not an empty, zero-filled <c>/Contents</c> hole (wrong offsets, already filled, or a different file).</summary>
+    BadHole,
 }
 
 /// <summary>Signing failed; <see cref="Reason"/> says why. No output was written to the stream or file.</summary>

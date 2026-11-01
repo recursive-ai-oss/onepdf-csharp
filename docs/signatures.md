@@ -185,11 +185,61 @@ document time-stamp), written as twice as many hex digits and patched in place a
 `ContentsTooSmall` carries `RequiredBytes`; `PdfSigningResult.ContentsUsed` tells what an earlier signature of the same kind took. The
 `/Contents` string of a signature dictionary is never encrypted (ISO 32000-2 7.6.2), and the reader does not decrypt it: the string of a dictionary with `/Type /Sig` or `/DocTimeStamp`, or one holding `/ByteRange`, is returned as stored. The rest of the update is encrypted like the document.
 
+### Two-phase and external CMS signing
+
+`Sign` builds the CMS itself and only knows RSA and ECDSA keys. When the CMS comes from somewhere else (an Ed25519, Ed448 or post-quantum
+key, a hardware or remote signer that returns whole CMS structures, long-term-validation data added by another library, or a signer in
+another process), use `AddSignaturePlaceholder`. It writes the same incremental update as `Sign`, with the same field handling (new or
+existing field, appearance, `Certify`, `FieldLock`, `/Filter Adobe.PPKLite`) and the same one-attempt-per-instance and hardening rules, but
+leaves `/Contents` as an empty reserved hex string and tells you where it is:
+
+    using var doc = PdfDocument.Open("contract.pdf", new PdfOpenOptions { AllowEditing = true });
+    PdfSignaturePlaceholder p = doc.AddSignaturePlaceholder("contract-signed.pdf", new PdfSigningOptions
+    {
+        FieldName = "Approval",
+        SubFilter = "ETSI.CAdES.detached",     // or "adbe.pkcs7.detached"; any plain name is written as given
+        Hash = HashAlgorithmName.SHA384,        // the digest returned in p.Digest
+        SignerName = "Example Signer",
+    }, contentsReserve: 20_000);
+
+    byte[] cms = MyCmsBuilder.Build(p.Digest, p.HashAlgorithm);   // detached CMS over p.Digest, any algorithm
+    p.Fill("contract-signed.pdf", cms);                           // or PdfSignatureHole.Fill(path, p.HoleStart, p.HoleEnd, cms)
+
+The second step needs only the file and two numbers, so it can run in another process or on another machine: keep `p.HoleStart` and
+`p.HoleEnd`, recompute the digest with `PdfSignatureHole.ComputeDigest(stream, start, end, hash)` if you did not keep `p.Digest`, and call
+`PdfSignatureHole.Fill`. The signature of an existing document is read back with `PdfSignature.OpenSignedData()` (below).
+
+**The hole.** `HoleStart` is the offset of the `<` that opens the `/Contents` hex string and `HoleEnd` is the offset just after the closing
+`>`: both delimiters belong to the hole and are not signed. `/ByteRange` is `[0 HoleStart HoleEnd SignedLength-HoleEnd]` (ISO 32000-2
+12.8.1, the form `SignatureVerifier` expects), so the signed bytes are the file with exactly the hole cut out. Between the delimiters are
+`2 * contentsReserve` hex digits, all `0`; so `contentsReserve` counts **bytes of CMS**, the hole is `2 * contentsReserve + 2` bytes long,
+and it can be 64 bytes to 4 MiB. `Fill` writes the CMS as uppercase hex from the first digit and leaves the rest `0`, which readers
+ignore as trailing zero bytes after the DER. Nothing else in the file changes, so no offset moves.
+
+`Fill` checks before it writes: the stream must seek, read and write; the offsets must be a hole of the right shape holding only
+`0` digits (`PdfSigningError.BadHole`: wrong offsets, a file that is not the placeholder output, or a hole already filled); and the CMS must
+fit, otherwise `PdfSigningException` with `ContentsTooSmall` and `RequiredBytes`. A failed `Fill` has written nothing and the stream
+position is restored, so you can retry with a smaller CMS; if the CMS can never fit, run `AddSignaturePlaceholder` again on a freshly
+opened document with a larger reserve. The output is not a valid signature until the hole is filled; `Sign`'s memory use applies (the update
+is built in memory), while `Fill` and `ComputeDigest` stream.
+
+`PdfSigningOptions.SubFilter` (placeholder only) overrides the sub-filter that `Format` implies; names starting `ETSI.` also declare
+`/Extensions /ESIC` on a first signature. `Timestamp`, `RsaPadding` and `ContentsReserve` are not used by the placeholder; the CMS you
+build decides them. Without a certificate the visible appearance and `/Name` use `SignerName` only.
+
+### Reading the signed bytes
+
+`PdfSignature.OpenSignedData()` returns a read-only, seekable `Stream` over the two byte ranges concatenated, the bytes the CMS digest
+covers. It reads through the document's source on demand (nothing is copied into memory, however large the file), the ranges were
+already checked against the file length, and it returns `null` when `/ByteRange` is missing, malformed, does not start at 0, overlaps or
+reaches beyond the file. It does not say whether the signature verifies; `Verify` does. `PdfSignature.Contents` holds the raw
+`/Contents` bytes (DER followed by the zero padding).
+
 ### Not done in signing
 
 The time-stamp authority's own signature is not checked when signing. A time-stamp token is embedded as the callback returned it (a BER
 token is not re-encoded to DER). Long-term validation data (`/DSS`, PAdES B-LT and B-LTA), several signers in one CMS, signature policies,
-commitment types and `/Prop_Build` are not written. Ed25519 and Ed448 keys are not supported (the platform has no such primitive).
+commitment types and `/Prop_Build` are not written. `Sign` does not support Ed25519 and Ed448 keys (the platform has no such primitive); build that CMS yourself with `AddSignaturePlaceholder`.
 
 ## Not done in verification
 

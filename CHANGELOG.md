@@ -4,6 +4,16 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ## [Unreleased]
 
+### Added
+
+- `PdfDocument.AddSignaturePlaceholder` (stream and path overloads), `PdfSignaturePlaceholder` and `PdfSignatureHole` (`Fill`, `ComputeDigest`): two-phase signing. The incremental update is written with `/ByteRange` filled and `/Contents` as a zero-filled reserved hex string; the caller hashes the ranges, builds the CMS with any key type (Ed25519, Ed448, post-quantum, a remote signer) and writes it into the hole, possibly in another process, from the offsets alone. `PdfSigningOptions.SubFilter` chooses the `/SubFilter` name. See `docs/signatures.md`.
+- `PdfSignature.OpenSignedData()`: a bounded, read-only, seekable stream over the two signed byte ranges, read in place from the source.
+- `PdfSigningError.BadHole`.
+
+### Fixed
+
+- `PdfDocument.TryOpen` accepted a damaged file whose trailer `/Root` led nowhere and that had no catalog, so `GetSignatures`, `Pages`, `Form` and the other catalog-based accessors then threw `PdfFormatException` ("The document has no catalog"). Opening now falls back to the last `/Type /Catalog` object with a diagnostic, and rejects the file when there is none.
+
 ## [1.15.1] - 2026-10-31
 
 ### Fixed

@@ -109,6 +109,24 @@ public sealed class PdfSignature
     /// </summary>
     public ReadOnlyMemory<byte> Contents => RawContents;
 
+    /// <summary>
+    /// Opens the signed bytes: the two <c>/ByteRange</c> ranges concatenated, which is what the signature's digest covers (ISO 32000-2
+    /// 12.8.1). The stream is read-only and seekable, reads through the document's source in place (the file is not copied into
+    /// memory), and stays valid only while the document is open.
+    /// </summary>
+    /// <remarks>It returns the bytes the ranges name even when the signature does not verify; use <see cref="Verify"/> for a verdict.</remarks>
+    /// <returns>The stream, or null when <c>/ByteRange</c> is missing, malformed, does not start at 0, overlaps itself or lies outside the file.</returns>
+    public Stream? OpenSignedData()
+    {
+        Internal.ByteRangeInfo r = _range.Value;
+        if (r.Status is PdfByteRangeStatus.Missing or PdfByteRangeStatus.Malformed or PdfByteRangeStatus.DoesNotStartAtZero or PdfByteRangeStatus.OverlapOrGap or PdfByteRangeStatus.OutsideFile)
+        {
+            return null;
+        }
+
+        return new SignedDataStream(Document, r.HoleStart, r.SecondStart, r.SecondLength);
+    }
+
     internal ReadOnlyMemory<byte> RawContents { get; }
 
     /// <summary>True when <c>/Contents</c> or <c>/ByteRange</c> (or a number in it) is an indirect reference.</summary>
