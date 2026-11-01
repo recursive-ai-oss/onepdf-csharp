@@ -42,6 +42,8 @@ public sealed class PdfRevision
 
     internal IEnumerable<int> ChangedObjectNumbers => _section.Entries.Keys;
 
+    internal bool Changes(int objectNumber) => _section.Entries.ContainsKey(objectNumber);
+
     /// <summary>The catalog as of this revision, or null if it does not resolve to a dictionary.</summary>
     public PdfDictionary? Catalog => Resolve(_section.Trailer.GetRaw("Root") ?? _doc.Trailer.GetRaw("Root")) as PdfDictionary;
 

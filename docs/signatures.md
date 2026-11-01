@@ -83,6 +83,14 @@ in *r* (structural equality, so rewriting an object unchanged is not a change). 
 - **Always allowed:** `/DSS` validation data; document time-stamps; cross-reference and object-stream objects; a changed document information
   dictionary or catalog `/Metadata` (reported as `Other`, allowed).
 - **Level 2:** a field's `/V`, `/AP`, `/AS`, `/I`; adding fields to `/AcroForm` and widgets to a page's `/Annots`; adding a signature.
+  Adding a signature is judged by its shape, not by which objects it touches. Allowed: the new signature field and widget (with its
+  appearance stream and resources), the signature dictionary, an empty signature field gaining `/V` (and its `/Lock`), `/SigFlags` bits
+  set, `/DR` that only gains resources, and an append at the end of the page's `/Annots` and of the form's `/Fields`. The lists may be
+  absent, direct or indirect arrays before and after, and the form may be created by the update. Flagged: an entry removed, replaced or
+  reordered in either list, an existing object appended to `/Annots`, a non-widget annotation appended (level 3), `/SigFlags` cleared,
+  `/DR` entries changed or removed, any other key of the page, the form or the catalog. A signature widget with an appearance is permitted
+  at every level above 1, even when it draws over the page; that is the specification's rule, so it is listed (`FormFieldValue`,
+  allowed), not rejected.
 - **Level 3:** also adding, removing and changing other annotations.
 - **Field locks:** a `/Lock` dictionary on a signature field, or a FieldMDP transform in the signature's `/Reference`, of this or an earlier
   signature: `All`, `Include` or `Exclude` with field names. A change to a locked field is not allowed whatever the level.
@@ -191,8 +199,10 @@ certification, so `Sign` and `AddSignaturePlaceholder` refuse up front with `Pdf
 `PdfSigningError.CertificationForbidsChanges`, before anything is written or the document is marked used. Set
 `PdfSigningOptions.AllowBreakingCertification = true` to sign anyway, knowing viewers will report the certification as broken.
 `AddDocumentTimestamp` is **allowed** at every level: Table 257 says that updates holding only the data needed to add a document
-time-stamp (or DSS) are not changes. Note that `VerifySignatures` is stricter than the specification here: the time-stamp's own new
-field and widget are listed as disallowed changes to a P=1 certification (the time-stamp itself verifies).
+time-stamp (or DSS) are not changes. `VerifySignatures` agrees: the signature-shaped changes (new signature field and widget, the
+appends to `/Annots` and `/Fields`, `/SigFlags`) made by an update that holds a document time-stamp are allowed at every level, so the
+certification stays valid. Only those changes: a form value, a non-signature field or an annotation in the same update is still flagged,
+and a regular signature added at P=1 (with `AllowBreakingCertification`) is flagged.
 
 **Documents with no pages.** A new signature field is a widget annotation on a page, even an invisible one, so a document whose page
 tree is empty is refused with `PdfSigningError.NoPage` by `Sign`, `AddSignaturePlaceholder` and `AddDocumentTimestamp`. Signing an
