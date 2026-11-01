@@ -55,7 +55,32 @@ public sealed partial class PdfDocument
         }
 
         SetupEncryption();
+        RequireCatalog();
         BuildRevisions();
+    }
+
+    // A trailer can name a /Root that is missing or not a dictionary even after rebuilding (a damaged or truncated file). Fall back
+    // to the last catalog object the scan saw; with none, the file has no document structure to read, so it is rejected here rather
+    // than letting every catalog-based accessor throw later.
+    private void RequireCatalog()
+    {
+        if (Trailer.GetDictionary("Root") is not null)
+        {
+            return;
+        }
+
+        int found = _scan.Value.LastCatalog;
+        if (found >= 0)
+        {
+            Trailer.Set("Root", new PdfReference(found, 0));
+            if (Trailer.GetDictionary("Root") is not null)
+            {
+                _diag.Warn("The trailer's /Root does not lead to a dictionary; the last /Type /Catalog object was used.", found);
+                return;
+            }
+        }
+
+        throw new PdfFormatException("The document has no catalog: the trailer's /Root does not lead to a dictionary and the file has no /Type /Catalog object.");
     }
 
     // ISO 32000-2 7.5.2: the header is the first line, but writers put junk before it; look in the first KiB.

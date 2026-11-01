@@ -110,6 +110,115 @@ public sealed partial class PdfDocument
         return result;
     }
 
+
+    /// <summary>
+    /// Writes the incremental update for a signature whose CMS the caller builds: the signature dictionary has its
+    /// <c>/ByteRange</c> filled in and <c>/Contents</c> is a zero-filled hex string of <paramref name="contentsReserve"/> bytes. The
+    /// caller takes the digest of the signed ranges (returned), builds the CMS with any key type or algorithm, and writes it into the
+    /// hole with <see cref="PdfSignatureHole.Fill(Stream, long, long, ReadOnlySpan{byte})"/>, possibly in another process.
+    /// </summary>
+    /// <remarks>
+    /// <para>It shares the incremental signing path with <see cref="Sign(Stream, PdfSigningCredential, PdfSigningOptions?, CancellationToken)"/>:
+    /// field creation or reuse, visible appearance, certification (<see cref="PdfSigningOptions.Certify"/>), field locks,
+    /// <c>/Filter</c> <c>Adobe.PPKLite</c> and the sub-filter (<see cref="PdfSigningOptions.SubFilter"/>, else from
+    /// <see cref="PdfSigningOptions.Format"/>). <see cref="PdfSigningOptions.Timestamp"/>, <see cref="PdfSigningOptions.RsaPadding"/> and
+    /// <see cref="PdfSigningOptions.ContentsReserve"/> are ignored; <see cref="PdfSigningOptions.Hash"/> chooses the digest returned.
+    /// Without a certificate the signer name comes from <see cref="PdfSigningOptions.SignerName"/> only.</para>
+    /// <para><b>The hole.</b> <see cref="PdfSignaturePlaceholder.HoleStart"/> is the offset of the opening <c>&lt;</c> of <c>/Contents</c>
+    /// and <see cref="PdfSignaturePlaceholder.HoleEnd"/> is the offset just after the closing <c>&gt;</c>, so both delimiters are inside
+    /// the hole and outside the signed bytes, and <c>/ByteRange</c> is <c>[0 HoleStart HoleEnd SignedLength-HoleEnd]</c>
+    /// (ISO 32000-2 12.8.1). Between the delimiters are exactly <c>2 * contentsReserve</c> hex digits, all <c>0</c>. A CMS shorter than
+    /// the reserve is written as uppercase hex from the first digit and the rest stays <c>0</c>; readers ignore the trailing zero bytes
+    /// after the DER. The reserve counts CMS bytes, not hex digits.</para>
+    /// <para>The same rules as <see cref="Sign(Stream, PdfSigningCredential, PdfSigningOptions?, CancellationToken)"/> apply to the
+    /// document (<see cref="PdfOpenOptions.AllowEditing"/>, one signing attempt per instance, output held in memory, nothing written on
+    /// failure). The output is not a valid signature until the hole is filled.</para>
+    /// </remarks>
+    /// <param name="output">A writable stream that does not have to seek; left open. Not the file the document was read from.</param>
+    /// <param name="options">Null means an invisible approval signature in a new field with a SHA-256 digest.</param>
+    /// <param name="contentsReserve">Bytes reserved for the CMS, 64 to 4 MiB. Default 16 KiB.</param>
+    /// <param name="cancellationToken">Checked between steps.</param>
+    /// <returns>The field name, the hole offsets, and the digest of the signed ranges.</returns>
+    /// <exception cref="InvalidOperationException">The document was not opened with <see cref="PdfOpenOptions.AllowEditing"/>.</exception>
+    /// <exception cref="PdfSigningException">The field is unusable, certification is not first, or the document was already used.</exception>
+    /// <exception cref="ArgumentException">An option is out of range or the stream is not writable.</exception>
+    public PdfSignaturePlaceholder AddSignaturePlaceholder(Stream output, PdfSigningOptions? options = null, int contentsReserve = 16 << 10, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(output);
+        if (!output.CanWrite)
+        {
+            throw new ArgumentException("The stream is not writable.", nameof(output));
+        }
+
+        (byte[] buffer, int length, PdfSignaturePlaceholder result) = PlaceholderToMemory(options, contentsReserve, cancellationToken);
+        output.Write(buffer, 0, length);
+        return result;
+    }
+
+    /// <summary>Like <see cref="AddSignaturePlaceholder(Stream, PdfSigningOptions?, int, CancellationToken)"/>, to a file created or replaced only once the update is complete.</summary>
+    /// <param name="path">The output file. Not the file the document was read from.</param>
+    /// <param name="options">Null means an invisible approval signature.</param>
+    /// <param name="contentsReserve">Bytes reserved for the CMS, 64 to 4 MiB.</param>
+    /// <param name="cancellationToken">Checked between steps.</param>
+    /// <returns>The field name, the hole offsets, and the digest.</returns>
+    public PdfSignaturePlaceholder AddSignaturePlaceholder(string path, PdfSigningOptions? options = null, int contentsReserve = 16 << 10, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(path);
+        (byte[] buffer, int length, PdfSignaturePlaceholder result) = PlaceholderToMemory(options, contentsReserve, cancellationToken);
+        using var file = new FileStream(path, FileMode.Create, FileAccess.Write, FileShare.None, 1, FileOptions.SequentialScan);
+        file.Write(buffer, 0, length);
+        return result;
+    }
+
+    private (byte[] Buffer, int Length, PdfSignaturePlaceholder Result) PlaceholderToMemory(PdfSigningOptions? options, int reserve, CancellationToken ct)
+    {
+        options ??= new PdfSigningOptions();
+        if (!Enum.IsDefined(options.Format))
+        {
+            throw new ArgumentException("The format is not a defined value.", nameof(options));
+        }
+
+        if (options.Hash != HashAlgorithmName.SHA256 && options.Hash != HashAlgorithmName.SHA384 && options.Hash != HashAlgorithmName.SHA512)
+        {
+            throw new PdfSigningException(PdfSigningError.UnsupportedAlgorithm, "The digest must be SHA-256, SHA-384 or SHA-512.");
+        }
+
+        if (options.SubFilter is { } sub && !IsPlainName(sub))
+        {
+            throw new ArgumentException("The sub-filter must be 1 to 64 letters, digits, '.', '-' or '_'.", nameof(options));
+        }
+
+        var job = new SigningJob
+        {
+            Placeholder = true,
+            Options = options,
+            FieldName = options.FieldName,
+            PageIndex = options.PageIndex,
+            Hash = options.Hash,
+            Reserve = reserve,
+        };
+        (byte[] buffer, int length, PdfSigningResult r) = Execute(job, ct);
+        return (buffer, length, new PdfSignaturePlaceholder(r.FieldName, job.HoleStart, job.HoleEnd, reserve, length, options.Hash, job.Digest!));
+    }
+
+    private static bool IsPlainName(string s)
+    {
+        if (s.Length is 0 or > 64)
+        {
+            return false;
+        }
+
+        foreach (char c in s)
+        {
+            if (!(char.IsAsciiLetterOrDigit(c) || c is '.' or '-' or '_'))
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
     private sealed class SigningJob
     {
         public CmsSigner? Signer { get; init; }
@@ -128,7 +237,16 @@ public sealed partial class PdfDocument
 
         public int Reserve { get; init; }
 
-        public bool IsDocumentTimestamp => Signer is null;
+        /// <summary>True for a placeholder-only update: the caller builds the CMS.</summary>
+        public bool Placeholder { get; init; }
+
+        public long HoleStart { get; set; }
+
+        public long HoleEnd { get; set; }
+
+        public byte[]? Digest { get; set; }
+
+        public bool IsDocumentTimestamp => Signer is null && !Placeholder;
     }
 
     private (byte[] Buffer, int Length, PdfSigningResult Result) SignToMemory(PdfSigningCredential credential, PdfSigningOptions? options, CancellationToken ct)
@@ -261,6 +379,14 @@ public sealed partial class PdfDocument
 
         byte[] digest = HashRanges(buffer, lt, gt + 1, length, job.Hash);
         ct.ThrowIfCancellationRequested();
+        if (job.Placeholder)
+        {
+            job.HoleStart = lt;
+            job.HoleEnd = gt + 1;
+            job.Digest = digest;
+            return (buffer, length, new PdfSigningResult(fieldName, job.Reserve, 0, length, false));
+        }
+
         byte[] cms;
         if (job.Signer is { } signer)
         {
@@ -348,7 +474,7 @@ public sealed partial class PdfDocument
         var sig = new PdfDictionary();
         sig.SetEntry("Type", new PdfName(timestampOnly ? "DocTimeStamp" : "Sig"));
         sig.SetEntry("Filter", new PdfName("Adobe.PPKLite"));
-        sig.SetEntry("SubFilter", new PdfName(timestampOnly ? "ETSI.RFC3161" : so!.Format == PdfSignatureFormat.PadesBaseline ? "ETSI.CAdES.detached" : "adbe.pkcs7.detached"));
+        sig.SetEntry("SubFilter", new PdfName(timestampOnly ? "ETSI.RFC3161" : so!.SubFilter ?? (so.Format == PdfSignatureFormat.PadesBaseline ? "ETSI.CAdES.detached" : "adbe.pkcs7.detached")));
         var range = new PdfArray();
         range.Append(new PdfInteger(0));
         for (int i = 0; i < 3; i++)
@@ -362,7 +488,7 @@ public sealed partial class PdfDocument
         {
             string date = "D:" + when.UtcDateTime.ToString("yyyyMMddHHmmss", CultureInfo.InvariantCulture) + "+00'00'";
             sig.SetEntry("M", PdfString.FromText(date));
-            string? name = so!.SignerName ?? job.Signer!.Certificate.GetNameInfo(X509NameType.SimpleName, false);
+            string? name = so!.SignerName ?? job.Signer?.Certificate.GetNameInfo(X509NameType.SimpleName, false);
             if (!string.IsNullOrEmpty(name))
             {
                 sig.SetEntry("Name", PdfString.FromText(name));
@@ -404,7 +530,7 @@ public sealed partial class PdfDocument
         acro.SetEntry("SigFlags", new PdfInteger(Math.Max(acro.GetInt("SigFlags"), 0) | 3));
         if (existingSignatures == 0)
         {
-            DeclareExtensions(timestampOnly || so!.Format == PdfSignatureFormat.PadesBaseline, timestampOnly ? 1 : 2);
+            DeclareExtensions(timestampOnly || (so!.SubFilter is { } sf ? sf.StartsWith("ETSI.", StringComparison.Ordinal) : so.Format == PdfSignatureFormat.PadesBaseline), timestampOnly ? 1 : 2);
         }
 
         PdfDictionary widget;
@@ -448,7 +574,7 @@ public sealed partial class PdfDocument
             PdfRectangle visible = PdfRectangle.From(widget.Get("Rect")) ?? new PdfRectangle(0, 0, 0, 0);
             if (!visible.IsEmpty && (so!.Appearance is not null || widget.GetDictionary("AP") is null))
             {
-                BuildSignatureAppearance(widget, visible, so, job.Signer!.Certificate, when);
+                BuildSignatureAppearance(widget, visible, so, job.Signer?.Certificate, when);
             }
 
             if (so!.Certify is not null)
@@ -551,7 +677,7 @@ public sealed partial class PdfDocument
     }
 
     // The visible look: an optional image on the left and wrapped text lines, in a Form XObject with the box's size.
-    private void BuildSignatureAppearance(PdfDictionary widget, PdfRectangle rect, PdfSigningOptions so, X509Certificate2 cert, DateTimeOffset when)
+    private void BuildSignatureAppearance(PdfDictionary widget, PdfRectangle rect, PdfSigningOptions so, X509Certificate2? cert, DateTimeOffset when)
     {
         PdfSignatureAppearance look = so.Appearance ?? new PdfSignatureAppearance();
         double w = rect.Width;
@@ -577,7 +703,7 @@ public sealed partial class PdfDocument
             left = 3 + area + 3;
         }
 
-        string signer = so.SignerName ?? cert.GetNameInfo(X509NameType.SimpleName, false);
+        string signer = so.SignerName ?? cert?.GetNameInfo(X509NameType.SimpleName, false) ?? string.Empty;
         IReadOnlyList<string> lines = look.Lines ?? DefaultLines(signer, so, when);
         string text = string.Join('\n', lines);
         double boxWidth = Math.Max(1, w - left - 3);

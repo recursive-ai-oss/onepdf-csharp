@@ -29,6 +29,28 @@ public sealed partial class PdfDocument
         return buf;
     }
 
+    /// <summary>Fills <paramref name="destination"/> from the source at <paramref name="position"/> without an intermediate array; the range must lie inside the file.</summary>
+    internal void ReadInto(long position, Span<byte> destination)
+    {
+        ThrowIfDisposed();
+        _source.EnsureUnchanged();
+        if (position < 0 || position > _source.Length || destination.Length > _source.Length - position)
+        {
+            throw new PdfSourceChangedException("A read lies outside the file.");
+        }
+
+        if (_source.TryGetMemory(out ReadOnlyMemory<byte> all))
+        {
+            all.Span.Slice((int)position, destination.Length).CopyTo(destination);
+            return;
+        }
+
+        if (_source.Read(position, destination) != destination.Length)
+        {
+            throw new PdfSourceChangedException("The source returned fewer bytes than it had at open.");
+        }
+    }
+
     /// <summary>Follows a reference (and references to references, up to the recursion limit) as seen by one revision's view.</summary>
     internal PdfObject ResolveReference(PdfReference r, int view) => ResolveChain(r.Number, view);
 
