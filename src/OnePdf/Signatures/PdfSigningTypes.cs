@@ -189,7 +189,7 @@ public sealed class PdfSigningOptions
     /// </summary>
     public string? FieldName { get; init; }
 
-    /// <summary>The page a new field is placed on (zero-based). Default 0. Ignored for an existing field.</summary>
+    /// <summary>The page a new field is placed on (zero-based). Default 0. Ignored for an existing field. A document with no pages is refused with <see cref="PdfSigningError.NoPage"/>; an index outside a document that has pages is an <see cref="ArgumentOutOfRangeException"/>.</summary>
     public int PageIndex { get; init; }
 
     /// <summary>
@@ -254,6 +254,14 @@ public sealed class PdfSigningOptions
     /// the ESIC extension.
     /// </summary>
     public string? SubFilter { get; init; }
+
+    /// <summary>
+    /// Allows adding this signature to a document that a certification signature locked with
+    /// <see cref="PdfCertificationLevel.NoChanges"/> (DocMDP <c>/P 1</c>, ISO 32000-2 12.8.2.2). By default that is refused with
+    /// <see cref="PdfSigningError.CertificationForbidsChanges"/>, because any viewer will report the certification as broken.
+    /// Default false. Has no effect at levels 2 and 3, which permit signing.
+    /// </summary>
+    public bool AllowBreakingCertification { get; init; }
 }
 
 /// <summary>Settings for <see cref="PdfDocument.AddDocumentTimestamp(Stream, PdfTimestampCallback, PdfTimestampOptions?, CancellationToken)"/>.</summary>
@@ -309,6 +317,12 @@ public enum PdfSigningError
 
     /// <summary>The bytes at the given offsets are not an empty, zero-filled <c>/Contents</c> hole (wrong offsets, already filled, or a different file).</summary>
     BadHole,
+
+    /// <summary>The document has no page to put a new signature field on. An invisible signature is still a widget annotation on a page, so a document with no pages is refused.</summary>
+    NoPage,
+
+    /// <summary>The document is certified with <see cref="PdfCertificationLevel.NoChanges"/>, which forbids adding a signature; see <see cref="PdfSigningOptions.AllowBreakingCertification"/>.</summary>
+    CertificationForbidsChanges,
 }
 
 /// <summary>Signing failed; <see cref="Reason"/> says why. No output was written to the stream or file.</summary>

@@ -1,7 +1,15 @@
-# Signature verification
+# Signatures: verifying, signing, two-phase signing and the signed bytes
 
-OnePDF reads the signatures in a PDF as data and checks them. It never runs anything in the file and never touches a network: no
-certificate downloads, no OCSP or CRL fetches, no time-stamp requests. Verification is on demand; opening a document does no signature work. Signing is described [below](#signing).
+OnePDF reads the signatures in a PDF as data, checks them, and writes new ones. It never runs anything in the file and never touches a
+network: no certificate downloads, no OCSP or CRL fetches, no time-stamp requests (the time-stamp authority and any remote signer are
+reached only through callbacks you supply). Verification is on demand; opening a document does no signature work.
+
+- [Verifying](#verifying) (`VerifySignatures`): what is checked, changes after signing, known attacks, limits.
+- [Signing](#signing) (`Sign`, `AddDocumentTimestamp`): PAdES and `adbe.pkcs7.detached`, certification, visible signatures.
+- [Two-phase signing](#two-phase-and-external-cms-signing) (`AddSignaturePlaceholder`, `PdfSignatureHole`): you build the CMS.
+- [The signed bytes and the whole file](#reading-the-signed-bytes) (`OpenSignedData`, `OpenRead`).
+
+## Verifying
 
     using var doc = PdfDocument.Open("contract.pdf");
     var options = new PdfSignatureVerifyOptions { TrustAnchors = [rootCertificate] };
@@ -14,7 +22,7 @@ certificate downloads, no OCSP or CRL fetches, no time-stamp requests. Verificat
 `doc.GetSignatures()` lists `PdfSignature` objects without verifying (name, reason, location, contact, `/M`, `/SubFilter`, `/ByteRange`,
 `Contents`, `CertificationLevel`, `FieldLock`, `CoveredRevision`). `PdfFormField.GetSignature()` gives one field's.
 
-## What is checked
+### What is checked
 
 Each check has its own result; `IsValid` is true only when the byte range is valid, the digest matches, the signature verifies, the chain is
 `Trusted` at the validation time, any time-stamp is valid, revocation is not `Revoked`, and no disallowed change follows. A weak algorithm and
@@ -33,7 +41,7 @@ unchecked revocation are warnings, not failures.
 
 A check that cannot run (an unsupported algorithm, no signer certificate) is `NotChecked` with a warning, never a crash.
 
-### Byte range (ISO 32000-2 12.8.1)
+#### Byte range (ISO 32000-2 12.8.1)
 
 The range must be four non-negative integers `[0 b c d]`; the bytes from `b` to `c` must be exactly the hex string `<...>` that is the value
 of `/Contents` (a range that leaves out only the digits between the brackets is accepted with a warning); `c + d` must be where a revision
@@ -41,7 +49,7 @@ ends (an update's `%%EOF`), possibly followed only by white space, or the end of
 length before anything is read. Linearized files chain their first-page cross-reference section after the main one although it lies earlier
 in the file; it counts as the same revision, not as an update. `CoveredRevision` is the index in `PdfDocument.Revisions`.
 
-### Algorithms
+#### Algorithms
 
 | Kind | Supported |
 |---|---|
@@ -54,7 +62,7 @@ The signature algorithm must agree with the digest algorithm of the signer info;
 2048 bits are flagged weak. The CMS reader accepts BER (including indefinite lengths) and checks every length before slicing; it is bounded
 (nesting 32, 16 signers, 256 certificates, 64 attributes per set, 1 MiB of embedded content).
 
-### Time and chains
+#### Time and chains
 
 The validation time is, in order: `PdfSignatureVerifyOptions.ValidationTime` if set; the time of a verified time-stamp token
 (`TimePolicy.Auto`); the `signingTime` attribute (or `/M`), flagged as the signer's unverified claim; otherwise now. `TimePolicy.Now` forces now.
@@ -64,7 +72,7 @@ The chain is built with the platform's `X509Chain` with downloads and revocation
 Revocation: pass `RevocationCheck`, a function that answers for a certificate and its issuer from CRLs or OCSP responses you already hold.
 Without it the result says revocation was not checked. Revocation data embedded in a signature is not used.
 
-## Changes after signing
+### Changes after signing
 
 The file is compared as revisions. For a signature covering revision *r*, every object written by later revisions is compared with its state
 in *r* (structural equality, so rewriting an object unchanged is not a change). The rules are advisory; a viewer may be stricter.
@@ -85,7 +93,7 @@ New objects take the category of the changed object that refers to them. Each `P
 reason. `Coverage` is `WholeDocument` (nothing follows), `EarlierRevisionAllowedChanges`, `EarlierRevisionDisallowedChanges`, or `Unknown`
 (the byte range is not valid). Set `AnalyzeModifications = false` to skip the comparison.
 
-## Known attacks and what the result says
+### Known attacks and what the result says
 
 The published attacks on PDF signature validation (universal signature forgery, incremental saving, signature wrapping, shadow and
 certification attacks) are each reproduced by a crafted file in `tests/OnePdf.Tests/Signatures/AttackTests.cs`. **Detected** means
@@ -112,10 +120,15 @@ must include document signing, e-mail protection, Adobe PDF signing or any purpo
 Two things the result does not do: it reads signatures from the newest catalog only, so a later `/Root` whose catalog has no `/AcroForm`
 shows no signatures (the report says so and is never "all valid"); and a field whose `/FT` is not `/Sig` is not treated as a signature.
 
-## Limits
+### Limits
 
 A signature value larger than the file cannot occur; the excluded area is capped by `PdfLimits.MaxMetadataBytes`; object comparison is capped
 at 2^18 nodes per object and 2^20 changed objects. Cancellation is checked while the byte ranges are hashed and between signatures.
+
+### Not done in verification
+
+The public-key security handler, long-term validation data (`/DSS`) beyond noting it, CRL/OCSP parsing, and Ed25519/Ed448 (the platform
+has no such primitive) are not part of verification.
 
 ## Signing
 
@@ -171,6 +184,21 @@ field (`Timestamp1`, ...) whose token covers the whole file before it.
 `PdfSigningOptions.Certify` adds the DocMDP transform (`/Reference`) and `/Perms /DocMDP`; only the first signature of a document may
 certify (`CertificationNotFirst`). `FieldLock` writes a `/Lock` dictionary on the signature field.
 
+**Signing a certified document.** The level is read from the certifying signature's own revision, as verification does, so a later
+update cannot lower it (the lowest level wins if several signatures declare one). At levels 2 and 3 signing is permitted
+(ISO 32000-2 12.8.2.2, Table 257) and nothing changes. At level 1 (`PdfCertificationLevel.NoChanges`) every change invalidates the
+certification, so `Sign` and `AddSignaturePlaceholder` refuse up front with `PdfSigningException` and
+`PdfSigningError.CertificationForbidsChanges`, before anything is written or the document is marked used. Set
+`PdfSigningOptions.AllowBreakingCertification = true` to sign anyway, knowing viewers will report the certification as broken.
+`AddDocumentTimestamp` is **allowed** at every level: Table 257 says that updates holding only the data needed to add a document
+time-stamp (or DSS) are not changes. Note that `VerifySignatures` is stricter than the specification here: the time-stamp's own new
+field and widget are listed as disallowed changes to a P=1 certification (the time-stamp itself verifies).
+
+**Documents with no pages.** A new signature field is a widget annotation on a page, even an invisible one, so a document whose page
+tree is empty is refused with `PdfSigningError.NoPage` by `Sign`, `AddSignaturePlaceholder` and `AddDocumentTimestamp`. Signing an
+existing unsigned signature field (`FieldName`) does not need a page and still works. A `PageIndex` outside a document that has
+pages is an `ArgumentOutOfRangeException`.
+
 ### Visible signatures
 
 A rectangle (or an existing field with one) gives a visible signature. Its normal appearance is a Form XObject built with the content
@@ -185,7 +213,13 @@ document time-stamp), written as twice as many hex digits and patched in place a
 `ContentsTooSmall` carries `RequiredBytes`; `PdfSigningResult.ContentsUsed` tells what an earlier signature of the same kind took. The
 `/Contents` string of a signature dictionary is never encrypted (ISO 32000-2 7.6.2), and the reader does not decrypt it: the string of a dictionary with `/Type /Sig` or `/DocTimeStamp`, or one holding `/ByteRange`, is returned as stored. The rest of the update is encrypted like the document.
 
-### Two-phase and external CMS signing
+### Not done in signing
+
+The time-stamp authority's own signature is not checked when signing. A time-stamp token is embedded as the callback returned it (a BER
+token is not re-encoded to DER). Long-term validation data (`/DSS`, PAdES B-LT and B-LTA), several signers in one CMS, signature policies,
+commitment types and `/Prop_Build` are not written. `Sign` does not support Ed25519 and Ed448 keys (the platform has no such primitive); build that CMS yourself with `AddSignaturePlaceholder`.
+
+## Two-phase and external CMS signing
 
 `Sign` builds the CMS itself and only knows RSA and ECDSA keys. When the CMS comes from somewhere else (an Ed25519, Ed448 or post-quantum
 key, a hardware or remote signer that returns whole CMS structures, long-term-validation data added by another library, or a signer in
@@ -211,7 +245,7 @@ The second step needs only the file and two numbers, so it can run in another pr
 
 **The hole.** `HoleStart` is the offset of the `<` that opens the `/Contents` hex string and `HoleEnd` is the offset just after the closing
 `>`: both delimiters belong to the hole and are not signed. `/ByteRange` is `[0 HoleStart HoleEnd SignedLength-HoleEnd]` (ISO 32000-2
-12.8.1, the form `SignatureVerifier` expects), so the signed bytes are the file with exactly the hole cut out. Between the delimiters are
+12.8.1, the form `VerifySignatures` accepts), so the signed bytes are the file with exactly the hole cut out. Between the delimiters are
 `2 * contentsReserve` hex digits, all `0`; so `contentsReserve` counts **bytes of CMS**, the hole is `2 * contentsReserve + 2` bytes long,
 and it can be 64 bytes to 4 MiB. `Fill` writes the CMS as uppercase hex from the first digit and leaves the rest `0`, which readers
 ignore as trailing zero bytes after the DER. Nothing else in the file changes, so no offset moves.
@@ -227,7 +261,7 @@ is built in memory), while `Fill` and `ComputeDigest` stream.
 `/Extensions /ESIC` on a first signature. `Timestamp`, `RsaPadding` and `ContentsReserve` are not used by the placeholder; the CMS you
 build decides them. Without a certificate the visible appearance and `/Name` use `SignerName` only.
 
-### Reading the signed bytes
+## Reading the signed bytes
 
 `PdfSignature.OpenSignedData()` returns a read-only, seekable `Stream` over the two byte ranges concatenated, the bytes the CMS digest
 covers. It reads through the document's source on demand (nothing is copied into memory, however large the file), the ranges were
@@ -235,13 +269,12 @@ already checked against the file length, and it returns `null` when `/ByteRange`
 reaches beyond the file. It does not say whether the signature verifies; `Verify` does. `PdfSignature.Contents` holds the raw
 `/Contents` bytes (DER followed by the zero padding).
 
-### Not done in signing
+## The whole file as a stream
 
-The time-stamp authority's own signature is not checked when signing. A time-stamp token is embedded as the callback returned it (a BER
-token is not re-encoded to DER). Long-term validation data (`/DSS`, PAdES B-LT and B-LTA), several signers in one CMS, signature policies,
-commitment types and `/Prop_Build` are not written. `Sign` does not support Ed25519 and Ed448 keys (the platform has no such primitive); build that CMS yourself with `AddSignaturePlaceholder`.
-
-## Not done in verification
-
-The public-key security handler, long-term validation data (`/DSS`) beyond noting it, CRL/OCSP parsing, and Ed25519/Ed448 (the platform
-has no such primitive) are not part of verification.
+`PdfDocument.OpenRead()` returns a read-only, seekable `Stream` over the document's bytes exactly as they were when it was opened: the
+file, the seekable stream, the copy made from a non-seekable stream, or the `ReadOnlyMemory<byte>`. In-memory edits and signing updates
+are never in it, so it is the input a two-phase signer or a hash of the original needs. It reads on demand through the document's
+source and holds no copy, so a large file is not loaded a second time. A file or stream that changed length since open throws
+`PdfSourceChangedException` on the next read. After the document is disposed, reading or seeking throws `ObjectDisposedException`, as does
+the stream's own disposal; disposing the stream does not affect the document. Memory the caller passed in is referenced, so changing
+it while the document is open is the caller's error.

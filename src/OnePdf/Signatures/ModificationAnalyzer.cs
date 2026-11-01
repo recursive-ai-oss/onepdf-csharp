@@ -185,7 +185,7 @@ internal static class ModificationAnalyzer
         }
     }
 
-    private static int? DocMdpLevel(PdfRevision rev)
+    internal static int? DocMdpLevel(PdfRevision rev)
     {
         if (rev.Catalog?.GetDictionary("Perms")?.GetDictionary("DocMDP") is not { } sd || sd.Get("Reference") is not PdfArray refs)
         {

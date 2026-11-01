@@ -113,7 +113,7 @@ Encrypted documents are refused unless the save also sets `Encryption = PdfEncry
 
 ### The sRGB profile
 
-`SrgbProfile` builds an ICC.1:2001-12 (version 2.1) display profile of 2,612 bytes from the published parameters: the Rec. 709 primaries and D65 white point (IEC 61966-2-1 Table 1), adapted to the D50 profile connection space with the Bradford matrix, and the sRGB decoding curve sampled at 1024 points. Class `mntr`, colour space `RGB `, PCS `XYZ `, tags `desc`, `cprt`, `wtpt`, `rXYZ`, `gXYZ`, `bXYZ`, `rTRC`, `gTRC`, `bTRC` (one curve shared by the three). The creation date is fixed so the bytes never change. It is embedded once, Flate-compressed, as the intent's `/DestOutputProfile` with `/N 3`. The code is original; no vendor profile is copied.
+The generated sRGB profile is an ICC.1:2001-12 (version 2.1) display profile of 2,612 bytes from the published parameters: the Rec. 709 primaries and D65 white point (IEC 61966-2-1 Table 1), adapted to the D50 profile connection space with the Bradford matrix, and the sRGB decoding curve sampled at 1024 points. Class `mntr`, colour space `RGB `, PCS `XYZ `, tags `desc`, `cprt`, `wtpt`, `rXYZ`, `gXYZ`, `bXYZ`, `rTRC`, `gTRC`, `bTRC` (one curve shared by the three). The creation date is fixed so the bytes never change. It is embedded once, Flate-compressed, as the intent's `/DestOutputProfile` with `/N 3`. The code is original; no vendor profile is copied.
 
 ### Device colour
 

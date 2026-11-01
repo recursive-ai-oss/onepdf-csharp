@@ -25,6 +25,7 @@ One executable (`fuzz/OnePdf.Fuzz`) holds one target per input surface. SharpFuz
 | `type4` | 2 parameter bytes, then program text | PostScript calculator functions |
 | `save` | a PDF (seeded from the test files) | open for editing, change objects, full and incremental save, reopen what was written |
 | `signature` | a mode byte, then a CMS blob or a whole PDF | CMS and ASN.1 parsing, certificates, signature and time-stamp checks, chain building, byte ranges, change analysis |
+| `placeholder` | six parameter bytes (field name, page, rectangle, certification level, sub-filter and hash, reason, name and lock flags, reserve), then a PDF | two-phase signing: `AddSignaturePlaceholder` on any openable file, `PdfSignatureHole.Fill` with a dummy CMS, reopen, `GetSignatures`, `OpenSignedData`; `PdfDocument.OpenRead` equals the input; every option is legal, so only typed exceptions may come out |
 | `pdfa` | a PDF (seeded from the test files) | PDF/A and PDF/UA check, preparation and save, and (bit 1 of the selector) removing `.notdef` text from page and form content; a file that is written must pass the checker |
 | `extraction` | an options byte, then 10-byte glyph records | text layout, plain-text modes, extraction JSON, bidirectional reordering |
 | `svg` | an SVG document (any bytes; the committed sample SVGs seed it) | an SVG picture in `OnePdf.Layout` (same project as `layout`, picked by the target name): parse, lay out tagged or untagged, save twice (same bytes), reopen and extract; limits tightened so one input stays cheap |

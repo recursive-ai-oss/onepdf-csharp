@@ -140,7 +140,7 @@ public class SigningTests
     public void SecondSignatureAfterNoChangesCertificationIsDisallowedButLevel2AllowsIt()
     {
         byte[] noChanges = SignToBytes(Editable(UnsignedPdf()), Credential(TestPki.Shared.RsaSigner), new PdfSigningOptions { Certify = PdfCertificationLevel.NoChanges });
-        byte[] twice = SignToBytes(Editable(noChanges), Credential(TestPki.Shared.EcSigner), new PdfSigningOptions());
+        byte[] twice = SignToBytes(Editable(noChanges), Credential(TestPki.Shared.EcSigner), new PdfSigningOptions { AllowBreakingCertification = true });
         using (PdfDocument check = PdfDocument.Open(twice))
         {
             PdfSignatureReport report = check.VerifySignatures(Trust);

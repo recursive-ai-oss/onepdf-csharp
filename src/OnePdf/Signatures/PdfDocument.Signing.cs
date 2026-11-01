@@ -41,8 +41,10 @@ public sealed partial class PdfDocument
     /// <param name="cancellationToken">Checked between steps.</param>
     /// <returns>The field name and the sizes, useful for tuning <see cref="PdfSigningOptions.ContentsReserve"/>.</returns>
     /// <exception cref="InvalidOperationException">The document was not opened with <see cref="PdfOpenOptions.AllowEditing"/>.</exception>
-    /// <exception cref="PdfSigningException">The credential, field, timestamp or reserved space is unusable; see <see cref="PdfSigningException.Reason"/>.</exception>
-    /// <exception cref="ArgumentException">An option is out of range (page index, reserve, rectangle, field name), or the stream is not writable.</exception>
+    /// <exception cref="PdfSigningException">The credential, field, timestamp or reserved space is unusable, the document has no page for a new field
+    /// (<see cref="PdfSigningError.NoPage"/>), or it is certified with <see cref="PdfCertificationLevel.NoChanges"/>
+    /// (<see cref="PdfSigningError.CertificationForbidsChanges"/>); see <see cref="PdfSigningException.Reason"/>.</exception>
+    /// <exception cref="ArgumentException">An option is out of range (page index of a non-empty document, reserve, rectangle), or the stream is not writable.</exception>
     /// <exception cref="PdfFormatException">The file was rebuilt by scanning on open, so there is nothing to chain an update to.</exception>
     /// <exception cref="OperationCanceledException">Cancelled.</exception>
     public PdfSigningResult Sign(Stream output, PdfSigningCredential credential, PdfSigningOptions? options = null, CancellationToken cancellationToken = default)
@@ -85,7 +87,9 @@ public sealed partial class PdfDocument
     /// <param name="cancellationToken">Checked between steps.</param>
     /// <returns>The field name and the sizes.</returns>
     /// <exception cref="InvalidOperationException">The document was not opened with <see cref="PdfOpenOptions.AllowEditing"/>.</exception>
-    /// <exception cref="PdfSigningException">The token was refused or does not fit; see <see cref="PdfSigningException.Reason"/>.</exception>
+    /// <exception cref="PdfSigningException">The token was refused or does not fit, or the document has no page for the field
+    /// (<see cref="PdfSigningError.NoPage"/>); see <see cref="PdfSigningException.Reason"/>. A document certified with
+    /// <see cref="PdfCertificationLevel.NoChanges"/> still takes a time-stamp (ISO 32000-2 12.8.2.2.1).</exception>
     public PdfSigningResult AddDocumentTimestamp(Stream output, PdfTimestampCallback timestamp, PdfTimestampOptions? options = null, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(output);
@@ -140,7 +144,9 @@ public sealed partial class PdfDocument
     /// <param name="cancellationToken">Checked between steps.</param>
     /// <returns>The field name, the hole offsets, and the digest of the signed ranges.</returns>
     /// <exception cref="InvalidOperationException">The document was not opened with <see cref="PdfOpenOptions.AllowEditing"/>.</exception>
-    /// <exception cref="PdfSigningException">The field is unusable, certification is not first, or the document was already used.</exception>
+    /// <exception cref="PdfSigningException">The field is unusable, certification is not first, the document was already used, it has no page for a new
+    /// field (<see cref="PdfSigningError.NoPage"/>), or it is certified with <see cref="PdfCertificationLevel.NoChanges"/> and
+    /// <see cref="PdfSigningOptions.AllowBreakingCertification"/> is not set.</exception>
     /// <exception cref="ArgumentException">An option is out of range or the stream is not writable.</exception>
     public PdfSignaturePlaceholder AddSignaturePlaceholder(Stream output, PdfSigningOptions? options = null, int contentsReserve = 16 << 10, CancellationToken cancellationToken = default)
     {
@@ -292,11 +298,6 @@ public sealed partial class PdfDocument
             throw new ArgumentOutOfRangeException(null, "The reserved /Contents size must be between 64 bytes and 4 MiB.");
         }
 
-        if (job.PageIndex < 0 || job.PageIndex >= Pages.Count)
-        {
-            throw new ArgumentOutOfRangeException(null, "The page index is outside the document.");
-        }
-
         if (Revisions.Count == 0 || Revisions[^1].XrefOffset < 0)
         {
             throw new PdfFormatException("The file was rebuilt by scanning, so there is no cross-reference section to chain a signature update to; save it with Save and sign the result.");
@@ -305,6 +306,21 @@ public sealed partial class PdfDocument
         IReadOnlyList<PdfSignature> existing = GetSignatures();
         PdfSigningOptions? so = job.Options;
         (PdfFormField? field, string resolvedName) = ResolveField(job, existing.Count);
+        if (field is null)
+        {
+            // A new field is a widget on a page, visible or not (ISO 32000-2 12.5.6.19), so there must be one.
+            int pageCount = Pages.Count;
+            if (pageCount == 0)
+            {
+                throw new PdfSigningException(PdfSigningError.NoPage, "The document has no pages, so a new signature field has nowhere to go; add a page or sign an existing signature field.");
+            }
+
+            if (job.PageIndex < 0 || job.PageIndex >= pageCount)
+            {
+                throw new ArgumentOutOfRangeException(null, "The page index is outside the document.");
+            }
+        }
+
         if (so?.Certify is { } level)
         {
             if (!Enum.IsDefined(level))
@@ -316,6 +332,13 @@ public sealed partial class PdfDocument
             {
                 throw new PdfSigningException(PdfSigningError.CertificationNotFirst, "Only the first signature of a document can certify it; this document already has signatures.");
             }
+        }
+
+        if (!job.IsDocumentTimestamp && job.Options is not { AllowBreakingCertification: true } && CertificationLevelOf(existing) == 1)
+        {
+            // A document time-stamp is not a change in the sense of DocMDP (ISO 32000-2 12.8.4), so only signatures are refused.
+            throw new PdfSigningException(PdfSigningError.CertificationForbidsChanges,
+                "The document is certified with permission level 1 (no changes), which does not allow another signature; set PdfSigningOptions.AllowBreakingCertification to sign anyway.");
         }
 
         if (so?.Rectangle is { } r && (!double.IsFinite(r.Left + r.Bottom + r.Right + r.Top)))
@@ -348,29 +371,52 @@ public sealed partial class PdfDocument
         byte[] buffer = segment.Array;
         int length = checked((int)ms.Length);
 
-        // Locate the placeholders in the update; the original bytes before it can hold anything.
+        // Locate the placeholders in the update; the original bytes before it can hold anything. Rewritten objects are copied into
+        // the update too, so a string in one of them may spell the same text: only a /ByteRange placeholder that is followed by a
+        // /Contents hole of exactly the reserved size and nothing else counts, and there must be exactly one of those.
         Span<byte> update = buffer.AsSpan((int)originalLength, length - (int)originalLength);
         ReadOnlySpan<byte> marker = Encoding.ASCII.GetBytes(ByteRangePlaceholder);
-        int rangeAt = update.IndexOf(marker);
-        if (rangeAt < 0 || update[(rangeAt + marker.Length)..].IndexOf(marker) >= 0)
-        {
-            throw new InvalidOperationException("The signature placeholder was not found exactly once in the update.");
-        }
-
-        rangeAt += (int)originalLength;
-        int hexAt = buffer.AsSpan(rangeAt, length - rangeAt).IndexOf("/Contents<"u8);
-        if (hexAt < 0)
-        {
-            throw new InvalidOperationException("The /Contents placeholder was not found.");
-        }
-
-        int lt = rangeAt + hexAt + "/Contents".Length;
         int hexDigits = job.Reserve * 2;
-        int gt = lt + 1 + hexDigits;
-        if (gt >= length || buffer[gt] != (byte)'>')
+        int rangeAt = -1;
+        int lt = -1;
+        for (int from = 0; from < update.Length;)
         {
-            throw new InvalidOperationException("The /Contents placeholder has an unexpected size.");
+            int found = update[from..].IndexOf(marker);
+            if (found < 0)
+            {
+                break;
+            }
+
+            int at = from + found;
+            from = at + 1;
+            int after = at + marker.Length;
+            int hexAt = update[after..].IndexOf("/Contents<"u8);
+            if (hexAt is < 0 or > 64)
+            {
+                continue;
+            }
+
+            int open = after + hexAt + "/Contents".Length;
+            if (open + 1 + hexDigits >= update.Length || update[open + 1 + hexDigits] != (byte)'>' || update.Slice(open + 1, hexDigits).IndexOfAnyExcept((byte)'0') >= 0)
+            {
+                continue;
+            }
+
+            if (rangeAt >= 0)
+            {
+                throw new PdfFormatException("The document contains text identical to the signature placeholder, so the signature cannot be located safely.");
+            }
+
+            rangeAt = (int)originalLength + at;
+            lt = (int)originalLength + open;
         }
+
+        if (rangeAt < 0)
+        {
+            throw new PdfFormatException("The signature placeholder was not found in the update.");
+        }
+
+        int gt = lt + 1 + hexDigits;
 
         long covered = length;
         long second = covered - (gt + 1);
@@ -414,6 +460,26 @@ public sealed partial class PdfDocument
         }
 
         return (buffer, length, new PdfSigningResult(fieldName, job.Reserve, cms.Length, length, job.Timestamp is not null));
+    }
+
+    // The DocMDP level the document is certified at, read from the signed revision as the verifier does so a later update cannot
+    // lower it; the lowest level wins if several signatures claim one. Null when the document is not certified.
+    private int? CertificationLevelOf(IReadOnlyList<PdfSignature> signatures)
+    {
+        int? lowest = null;
+        foreach (PdfSignature sig in signatures)
+        {
+            if (sig.CertificationLevel is not { } declared)
+            {
+                continue;
+            }
+
+            int covered = sig.CoveredRevision;
+            int level = (covered >= 0 && covered < Revisions.Count ? ModificationAnalyzer.DocMdpLevel(Revisions[covered]) : null) ?? declared;
+            lowest = Math.Min(lowest ?? 3, level);
+        }
+
+        return lowest;
     }
 
     private static byte[] HashRanges(byte[] buffer, int holeStart, int holeEnd, int length, HashAlgorithmName name)
