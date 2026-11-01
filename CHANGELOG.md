@@ -4,6 +4,22 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ## [Unreleased]
 
+### Added
+
+- `PdfDocument.OpenRead()`: a read-only, seekable stream over the document's original source bytes as opened (file, stream, copied non-seekable stream or memory), read in place. In-memory edits are not in it; `PdfSourceChangedException` applies; reading after the document is disposed throws `ObjectDisposedException`.
+- `PdfSigningOptions.AllowBreakingCertification`, `PdfSigningError.CertificationForbidsChanges` and `PdfSigningError.NoPage`.
+- Fuzz target `placeholder` for two-phase signing.
+
+### Changed
+
+- `Sign` and `AddSignaturePlaceholder` on a document certified with `PdfCertificationLevel.NoChanges` (DocMDP `/P 1`) now throw `PdfSigningException` (`CertificationForbidsChanges`) before writing anything, unless `AllowBreakingCertification` is set. Levels 2 and 3 are unchanged. `AddDocumentTimestamp` stays allowed at every level (ISO 32000-2 Table 257).
+
+### Fixed
+
+- `AddSignaturePlaceholder`, `Sign` and `AddDocumentTimestamp` on a document with no pages threw `ArgumentOutOfRangeException`; they now throw `PdfSigningException` (`NoPage`). A page index outside a document that has pages is still an `ArgumentOutOfRangeException`, and an existing signature field no longer needs a valid `PageIndex`.
+- Signing a document in which a rewritten object held a string spelling the signature placeholder text threw `InvalidOperationException`. The real placeholder is now picked by its `/Contents` hole, and a complete lookalike is refused with `PdfFormatException`.
+- `docs/signatures.md` is retitled and reorganised (verifying, signing, two-phase, signed bytes) and no longer names an internal type; `docs/repair.md` describes the missing-catalog fallback.
+
 ## [1.16.0] - 2026-10-31
 
 ### Added

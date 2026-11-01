@@ -19,6 +19,13 @@ them throws `PdfFormatException` instead. Informational notes (Info) never throw
    does not lead to a dictionary, the whole file is scanned and the cross-reference data is replaced by what the scan
    finds. Diagnostic: "the cross-reference data is unusable (...); rebuilt by scanning the file for objects".
 
+After the chain has run, the document needs a catalog. If the trailer's `/Root` is missing, free, or not a dictionary (even after a
+rebuild, which is what a truncated or damaged file often looks like), OnePDF uses the **last `/Type /Catalog` object** the file
+has and records a warning: "The trailer's /Root does not lead to a dictionary; the last /Type /Catalog object was used." If the file
+has no such object either, there is no document structure to read, and opening **throws `PdfFormatException`** (the document has no
+catalog). `PdfDocument.TryOpen` returns `false` for such a file and returns the exception in `error`, so a file that `TryOpen` accepts always has a
+catalog. In `PdfOpenOptions.Strict` mode the fallback itself is an error.
+
 Limit violations (`PdfLimitException`) are never repaired: they propagate.
 
 ## Rules in detail

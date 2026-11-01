@@ -185,7 +185,7 @@ public static class PdfSignatureHole
     }
 }
 
-/// <summary>A read-only seekable stream over a signature's two signed byte ranges, read through the document's source.</summary>
+/// <summary>A read-only seekable stream over one or two byte ranges of a document's source, read in place.</summary>
 internal sealed class SignedDataStream : Stream
 {
     private readonly PdfDocument _doc;
@@ -193,6 +193,7 @@ internal sealed class SignedDataStream : Stream
     private readonly long _secondStart;
     private readonly long _length;
     private long _position;
+    private bool _closed;
 
     public SignedDataStream(PdfDocument doc, long firstLength, long secondStart, long secondLength)
     {
@@ -228,6 +229,7 @@ internal sealed class SignedDataStream : Stream
 
     public override int Read(Span<byte> destination)
     {
+        ObjectDisposedException.ThrowIf(_closed, this);
         int total = 0;
         while (!destination.IsEmpty && _position < _length)
         {
@@ -256,6 +258,7 @@ internal sealed class SignedDataStream : Stream
 
     public override long Seek(long offset, SeekOrigin origin)
     {
+        ObjectDisposedException.ThrowIf(_closed, this);
         long target = origin switch
         {
             SeekOrigin.Begin => offset,
@@ -266,6 +269,12 @@ internal sealed class SignedDataStream : Stream
         ArgumentOutOfRangeException.ThrowIfNegative(target);
         _position = target;
         return target;
+    }
+
+    protected override void Dispose(bool disposing)
+    {
+        _closed = true;
+        base.Dispose(disposing);
     }
 
     public override void Flush()

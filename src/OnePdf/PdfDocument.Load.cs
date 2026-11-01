@@ -51,6 +51,29 @@ public sealed partial class PdfDocument
         }
     }
 
+    /// <summary>
+    /// Opens a read-only, seekable stream over the document's bytes exactly as they were when it was opened: the file, the stream
+    /// (copied at open if it could not seek) or the memory the document was opened from. Edits made through the mutable view
+    /// (<see cref="PdfOpenOptions.AllowEditing"/>) and signing updates are not in it.
+    /// </summary>
+    /// <remarks>
+    /// <para>The stream reads from the document's source on demand and holds no copy, so it costs no memory beyond its reads, and a
+    /// large file is never loaded a second time. Every read checks the source as the rest of the library does: a file or seekable
+    /// stream whose length changed since open throws <see cref="PdfSourceChangedException"/>. Memory the caller opened the document
+    /// from is referenced, not copied, so changing it while the document is open is the caller's error.</para>
+    /// <para>Several streams may be open at once, each with its own position, and they may be read from several threads when each
+    /// thread uses its own stream. The stream belongs to the document: reading or seeking it after the document is disposed throws
+    /// <see cref="ObjectDisposedException"/>, and so does reading after the stream itself is disposed. Disposing the stream does not
+    /// affect the document. Its length is the length of the source, including any bytes before the <c>%PDF-</c> header.</para>
+    /// </remarks>
+    /// <returns>A stream positioned at 0 that cannot be written.</returns>
+    /// <exception cref="ObjectDisposedException">The document is disposed.</exception>
+    public Stream OpenRead()
+    {
+        ThrowIfDisposed();
+        return new SignedDataStream(this, _source.Length, 0, 0);
+    }
+
     /// <summary>Follows a reference (and references to references, up to the recursion limit) as seen by one revision's view.</summary>
     internal PdfObject ResolveReference(PdfReference r, int view) => ResolveChain(r.Number, view);
 

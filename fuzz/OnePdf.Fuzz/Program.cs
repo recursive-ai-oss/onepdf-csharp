@@ -51,6 +51,7 @@ internal static class Program
         ["fontsubset"] = FontSubsetTarget.Run,
         ["fontembed"] = FontEmbedTarget.Run,
         ["signature"] = SignatureTarget.Run,
+        ["placeholder"] = PlaceholderTarget.Run,
         ["pdfa"] = PdfATarget.Run,
     };
 

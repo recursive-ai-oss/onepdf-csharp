@@ -258,6 +258,26 @@ internal static class Seeds
 
                 break;
 
+            case "placeholder":
+                {
+                    foreach (byte[] seed in PlaceholderTarget.Seeds())
+                    {
+                        PutData("ph", seed);
+                    }
+
+                    int n = 0;
+                    foreach (string f in pdfs)
+                    {
+                        if (new FileInfo(f).Length <= MaxPdfBytes)
+                        {
+                            n++;
+                            PutData("pdf", File.ReadAllBytes(f), [(byte)n, (byte)(n * 7), (byte)(n * 13), (byte)(n * 29), (byte)(n * 3), (byte)(n * 11)]);
+                        }
+                    }
+
+                    break;
+                }
+
             case "cmap":
                 PutData("tounicode", Encoding.ASCII.GetBytes(
                     "/CIDInit /ProcSet findresource begin 12 dict begin begincmap /CMapName /Adobe-Identity-UCS def /CMapType 2 def\n" +
