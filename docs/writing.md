@@ -27,7 +27,7 @@ doc.Save("out-clean.pdf", new PdfSaveOptions { XrefFormat = PdfXrefFormat.Stream
 - **Cross-reference form.** `Table` (a classic `xref` table, no object streams), `Stream` (a cross-reference stream with the "up" PNG predictor and, unless `UseObjectStreams` is false, object streams of up to 100 objects or 1 MiB), or `Auto` (the newest revision's form). The catalog is always a plain object, and so are streams and the `/Encrypt` dictionary: readers that need the catalog before they have the key must not have to open an object stream first.
 - **Version.** The highest of the document's, `MinimumVersion` and what is needed: 1.5 for cross-reference streams, 1.6 for AES-128, 2.0 for AES-256. A header is rewritten with the binary comment line.
 - **Streams** keep their filters and bytes. `CompressStreams` Flate-compresses streams with no filter (not metadata, not when it would not shrink them). A `/Crypt` filter, which only named the decryption just undone, is dropped.
-- **`/ID`.** Kept as it is; a document without one gets two random strings.
+- **`/ID`.** Kept as it is; a document without one gets one made from a SHA-256 of the bytes written, so saving the same document twice gives the same file (an incremental save derives its new second string from the previous one and the update the same way). `PdfSaveOptions.DocumentId` overrides both.
 - **Repaired files** save as clean files; dangling references become `null`.
 - **Limits.** `PdfLimits.MaxObjects` bounds the output; a classic table beyond 10 digits of offset throws `PdfLimitException` (use `Stream`). A stream larger than `MaxDecodedStreamBytes` throws `PdfLimitException` as when reading it.
 

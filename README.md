@@ -43,6 +43,9 @@ are read through safe, bounds-checked code with size limits on by default.
 - **Content creation.** Draw text, paths, images and reusable forms onto new or existing pages (over or under what is there),
   with the 14 standard fonts or TrueType/OpenType fonts embedded as subsets with `ToUnicode` maps, and stamp or watermark pages
   ([content creation](https://github.com/recursive-ai-oss/onepdf-csharp/blob/main/docs/content-creation.md)).
+- **Markup annotations.** Add Highlight, StrikeOut, Underline, Squiggly and Caret annotations to existing pages with generated
+  appearances and an optional pop-up, as a full or an incremental save
+  ([markup annotations](https://github.com/recursive-ai-oss/onepdf-csharp/blob/main/docs/markup-annotations.md)).
 - **Signatures.** Find signatures and document time-stamps, check byte ranges, digests, RSA (PKCS#1 and PSS) and ECDSA
   signatures, RFC 3161 time-stamps and certificate chains (to anchors you supply; nothing is fetched), and classify what changed after
   each signature in later revisions. Sign as an incremental update: approval or certification signatures (PAdES baseline B-B, B-T with a

@@ -351,6 +351,31 @@ if (mergedBack.PageCount != 3 || partPages != 3 || mergedBack.Outline.Count != 2
     return 1;
 }
 
+// Markup annotations: one of each kind with a pop-up, saved incrementally and read back.
+using PdfDocument markup = PdfDocument.Open(mergedBytes.ToArray(), new PdfOpenOptions { AllowEditing = true });
+int annotationsBefore = markup.Pages[0].Annotations.Count;
+foreach (PdfMarkupKind kind in new[] { PdfMarkupKind.Highlight, PdfMarkupKind.StrikeOut, PdfMarkupKind.Underline, PdfMarkupKind.Squiggly, PdfMarkupKind.Caret })
+{
+    markup.Pages[0].AddMarkupAnnotation(new PdfMarkupAnnotationOptions
+    {
+        Kind = kind,
+        Quads = kind == PdfMarkupKind.Caret ? [] : [PdfMarkupQuad.FromRectangle(new PdfRectangle(10, 10, 60, 22))],
+        Rectangle = kind == PdfMarkupKind.Caret ? new PdfRectangle(10, 30, 20, 42) : null,
+        Color = [1, 0, 0],
+        Contents = "note",
+        Popup = new PdfMarkupPopup(new PdfRectangle(50, 50, 90, 90)),
+    });
+}
+
+using var markupBytes = new System.IO.MemoryStream();
+markup.SaveIncremental(markupBytes);
+using PdfDocument markupBack = PdfDocument.Open(markupBytes.ToArray());
+if (markupBack.Pages[0].Annotations.Count != annotationsBefore + 10 || markupBack.Pages[0].Annotations[annotationsBefore].GetAppearanceStream() is null)
+{
+    Console.Error.WriteLine("markup annotations did not round trip");
+    return 1;
+}
+
 Console.WriteLine("ok");
 return 0;
 

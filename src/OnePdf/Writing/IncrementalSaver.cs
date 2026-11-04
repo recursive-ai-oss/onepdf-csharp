@@ -46,6 +46,7 @@ internal sealed class IncrementalSaver : SaverBase
         }
 
         Writer = new ObjectWriter(Doc, IdentityMapper.Instance, Options);
+        Sink.StartHash();
         var entries = new List<(int Num, XrefEntry E)>(dirty.Length + 2);
         var freed = new List<int>();
         foreach (int n in dirty)
@@ -78,6 +79,7 @@ internal sealed class IncrementalSaver : SaverBase
             entries.Sort(static (a, b) => a.Num.CompareTo(b.Num));
         }
 
+        byte[] updateHash = Sink.FinishHash();
         int size = Math.Max(lookup.Size, dirty.Length > 0 ? dirty[^1] + 1 : 0);
         PdfDictionary old = Doc.Trailer;
         var core = new PdfDictionary(null);
@@ -91,12 +93,28 @@ internal sealed class IncrementalSaver : SaverBase
 
         // The first /ID string names the document and stays; the second says this revision is a different file.
         (byte[] First, byte[] Second)? id = ReadId(Doc);
-        byte[] first = id?.First ?? RandomNumberGenerator.GetBytes(16);
-        core.Set("ID", MakeId(first, RandomNumberGenerator.GetBytes(16)));
+        byte[] first = id?.First ?? (Options.DocumentId is { Length: > 0 } given ? given : SHA256.HashData(updateHash)[..16]);
+        core.Set("ID", MakeId(first, NewSecondId(id?.Second ?? first, updateHash)));
         core.Set("Prev", new PdfInteger(newest.XrefOffset - bias));
 
         int xrefNumber = size;
         WriteXref(entries, stream ? size + 1 : size, core, stream, xrefNumber, bias);
+    }
+
+    // The second /ID string tells this revision from the one before (ISO 32000-2 14.4). It comes from the options when the caller
+    // fixed one, and otherwise from the previous string and the bytes of this update, so the same document and the same changes give
+    // the same file: no clock and no random source.
+    private byte[] NewSecondId(byte[] previous, byte[] updateHash)
+    {
+        if (Options.DocumentId is { Length: > 0 } fixedId)
+        {
+            return fixedId;
+        }
+
+        byte[] input = new byte[previous.Length + updateHash.Length];
+        previous.CopyTo(input, 0);
+        updateHash.CopyTo(input, previous.Length);
+        return SHA256.HashData(input)[..16];
     }
 }
 

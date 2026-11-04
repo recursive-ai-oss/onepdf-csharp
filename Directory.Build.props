@@ -37,6 +37,13 @@
     <ContinuousIntegrationBuild Condition="'$(CI)' == 'true' and $(_ProjectDir.StartsWith('$(_SrcDir)'))">true</ContinuousIntegrationBuild>
   </PropertyGroup>
 
+  <PropertyGroup Label="Package validation">
+    <!-- Every pack compares the public API with the last published version, so a breaking change cannot ship by accident.
+         Move the baseline to the new version when a release is published. -->
+    <EnablePackageValidation>true</EnablePackageValidation>
+    <PackageValidationBaselineVersion>1.17.1</PackageValidationBaselineVersion>
+  </PropertyGroup>
+
   <PropertyGroup Label="Package metadata">
     <Authors>Recursive AI, LLC</Authors>
     <Company>Recursive AI, LLC</Company>

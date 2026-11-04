@@ -70,9 +70,12 @@ public sealed class PdfSaveOptions
     public string? MinimumVersion { get; init; }
 
     /// <summary>
-    /// Sixteen bytes to write as both strings of the trailer's <c>/ID</c> in a full save, replacing any existing ID, so that the same
-    /// document always saves to the same bytes. Default null: an existing ID is kept and a document without one gets random strings.
-    /// Encrypted output is still not reproducible (random IVs and salts).
+    /// Sixteen bytes to write as both strings of the trailer's <c>/ID</c> in a full save, replacing any existing ID, and as the
+    /// second string in an incremental save (the first string stays), so that the same document always saves to the same bytes.
+    /// Default null: an existing ID is kept; a document without one gets an ID derived from the bytes written, and an incremental
+    /// save derives its new second string from the previous one and the update, so neither uses a random source. Encryption set up by
+    /// a full save (<see cref="PdfEncryptionAction.Set"/>) still gets random strings, and encrypted output is not reproducible anyway
+    /// (random IVs and salts).
     /// </summary>
     public byte[]? DocumentId { get; init; }
 

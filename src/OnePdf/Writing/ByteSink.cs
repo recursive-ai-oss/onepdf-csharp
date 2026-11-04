@@ -10,6 +10,7 @@ internal sealed class ByteSink
     private byte[] _buf;
     private int _n;
     private long _flushed;
+    private System.Security.Cryptography.IncrementalHash? _tap;
 
     /// <param name="output">Where the bytes go.</param>
     /// <param name="startPosition">The position the first byte counts from.</param>
@@ -34,6 +35,24 @@ internal sealed class ByteSink
         }
     }
 
+    /// <summary>Starts hashing (SHA-256) everything written from here on, so a caller can derive a value from the bytes it wrote.</summary>
+    public void StartHash()
+    {
+        FlushBuffer();
+        _tap?.Dispose();
+        _tap = System.Security.Cryptography.IncrementalHash.CreateHash(System.Security.Cryptography.HashAlgorithmName.SHA256);
+    }
+
+    /// <summary>The SHA-256 of the bytes written since <see cref="StartHash"/>; stops hashing.</summary>
+    public byte[] FinishHash()
+    {
+        FlushBuffer();
+        byte[] h = _tap!.GetHashAndReset();
+        _tap.Dispose();
+        _tap = null;
+        return h;
+    }
+
     /// <summary>Number of bytes written so far, counting from the start position.</summary>
     public long Position => _flushed + _n;
 
@@ -42,6 +61,7 @@ internal sealed class ByteSink
         if (data.Length >= _buf.Length)
         {
             FlushBuffer();
+            _tap?.AppendData(data);
             _out.Write(data);
             _flushed += data.Length;
             return;
@@ -105,6 +125,7 @@ internal sealed class ByteSink
     {
         if (_n > 0)
         {
+            _tap?.AppendData(_buf, 0, _n);
             _out.Write(_buf, 0, _n);
             _flushed += _n;
             _n = 0;

@@ -12,7 +12,7 @@ internal static class MarkupAppearance
     private const double MaxExtent = 1e7;
 
     public static bool Supports(string subtype) => subtype is "Square" or "Circle" or "Line" or "Polygon" or "PolyLine" or "Ink"
-        or "Highlight" or "Underline" or "StrikeOut" or "Squiggly" or "FreeText" or "Text";
+        or "Highlight" or "Underline" or "StrikeOut" or "Squiggly" or "Caret" or "FreeText" or "Text";
 
     private sealed class Geo
     {
@@ -196,6 +196,43 @@ internal static class MarkupAppearance
 
                 break;
 
+            case "Caret":
+            {
+                if (!haveRect)
+                {
+                    c.Warn("The Caret annotation has an empty rectangle; no appearance was generated");
+                    return null;
+                }
+
+                // ISO 32000-2 12.5.6.11: /RD gives the distances from /Rect to the caret itself.
+                double dl = 0, db = 0, dr = 0, dt = 0;
+                if (c.Annotation.GetArray("RD") is { Count: >= 4 } rd)
+                {
+                    dl = rd.GetDouble(0);
+                    db = rd.GetDouble(1);
+                    dr = rd.GetDouble(2);
+                    dt = rd.GetDouble(3);
+                }
+
+                double cl = rect.Left + dl, cb0 = rect.Bottom + db, cr = rect.Right - dr, ct = rect.Top - dt;
+                if (!double.IsFinite(cl + cb0 + cr + ct) || !(cr > cl && ct > cb0))
+                {
+                    c.Warn("The Caret annotation's /RD leaves no room for the caret; no appearance was generated");
+                    return null;
+                }
+
+                // A filled wedge that rises from both bottom corners to a point at the top centre, with concave sides.
+                double w = cr - cl, h = ct - cb0, mid = cl + (w / 2);
+                cb.Color(stroke ?? [0], false);
+                cb.Move(cl, cb0);
+                cb.Raw(Num(cl + (w * 0.4)) + " " + Num(cb0) + " " + Num(mid - (w * 0.05)) + " " + Num(cb0 + (h * 0.45)) + " " + Num(mid) + " " + Num(ct) + " c\n");
+                cb.Raw(Num(mid + (w * 0.05)) + " " + Num(cb0 + (h * 0.45)) + " " + Num(cr - (w * 0.4)) + " " + Num(cb0) + " " + Num(cr) + " " + Num(cb0) + " c\n");
+                cb.Raw("h f\n");
+                geo.Add(cl, cb0);
+                geo.Add(cr, ct);
+                break;
+            }
+
             case "FreeText":
                 if (!haveRect)
                 {
@@ -219,7 +256,7 @@ internal static class MarkupAppearance
             return null;
         }
 
-        double pad = subtype is "Highlight" or "FreeText" ? 0 : Math.Max(bw, 0) / 2 + (subtype is "Line" or "Polygon" or "PolyLine" ? Math.Max(8, bw * 4) : 0);
+        double pad = subtype is "Highlight" or "Caret" or "FreeText" ? 0 : Math.Max(bw, 0) / 2 + (subtype is "Line" or "Polygon" or "PolyLine" ? Math.Max(8, bw * 4) : 0);
         double l0 = geo.L - pad, b0 = geo.B - pad, r0 = geo.R + pad, t0 = geo.T + pad;
         if (haveRect)
         {
@@ -252,6 +289,8 @@ internal static class MarkupAppearance
         PdfDictionary form = GenContext.Form([l0, b0, r0, t0], GenContext.Resources(chain, used, gs));
         return new PdfGeneratedAppearance(form, cb.ToBytes(), new PdfRectangle(l0, b0, r0, t0), description);
     }
+
+    private static string Num(double v) => v.ToString("0.####", CultureInfo.InvariantCulture);
 
     private static string PaintOp(bool filled, bool stroked) => filled ? (stroked ? "B\n" : "f\n") : (stroked ? "S\n" : "n\n");
 

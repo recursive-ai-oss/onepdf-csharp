@@ -118,7 +118,9 @@ internal sealed class FullSaver : SaverBase, IReferenceMapper, IDisposable
             }
         }
 
-        id ??= (RandomNumberGenerator.GetBytes(16), RandomNumberGenerator.GetBytes(16));
+        // A document with no /ID gets one made from what is written (a SHA-256 of every byte before the trailer), not from a random
+        // source, so saving the same document twice gives the same file. Encryption set up here needs its ID first and keeps random ones.
+        bool deriveId = id is null;
 
         bool stream = Options.XrefFormat == PdfXrefFormat.Stream
             || (Options.XrefFormat == PdfXrefFormat.Auto && Doc.Revisions.Count > 0 && Doc.Revisions[^1].IsXrefStream);
@@ -131,6 +133,11 @@ internal sealed class FullSaver : SaverBase, IReferenceMapper, IDisposable
         string version = Options.ExactVersion ?? Higher(Higher(Doc.Version ?? "1.4", minVersion), Options.MinimumVersion ?? "1.0");
 
         Sink = new ByteSink(output);
+        if (deriveId)
+        {
+            Sink.StartHash();
+        }
+
         Writer = new ObjectWriter(Doc, this, Options);
         Sink.Ascii("%PDF-" + version + "\n%");
         Sink.Write([0xE2, 0xE3, 0xCF, 0xD3]);
@@ -181,7 +188,13 @@ internal sealed class FullSaver : SaverBase, IReferenceMapper, IDisposable
             core.Set("Encrypt", encryptRef);
         }
 
-        core.Set("ID", MakeId(id.Value.First, id.Value.Second));
+        if (deriveId)
+        {
+            byte[] derived = SHA256.HashData(Sink.FinishHash())[..16];
+            id = (derived, derived);
+        }
+
+        core.Set("ID", MakeId(id!.Value.First, id.Value.Second));
 
         int xrefNumber = stream ? _next++ : -1;
         var list = new List<(int Num, XrefEntry E)>(_entries.Count + 2) { (0, new XrefEntry(0, 0, 65535)) };
