@@ -230,6 +230,27 @@ public sealed class PdfPage
     /// <summary>The annotations of the page in array order (including links and widgets). Entries that are not dictionaries are skipped with a diagnostic. Computed once.</summary>
     public IReadOnlyList<PdfAnnotation> Annotations => _annotations.Value;
 
+    internal void ResetAnnotations() =>
+        _annotations = new Lazy<IReadOnlyList<PdfAnnotation>>(LoadAnnotations, LazyThreadSafetyMode.ExecutionAndPublication);
+
+    /// <summary>
+    /// Adds a text markup annotation (Highlight, StrikeOut, Underline, Squiggly or Caret) to this page with a generated normal
+    /// appearance, and returns it. The change is written by the next <see cref="PdfDocument.Save(Stream, PdfSaveOptions?, CancellationToken)"/>
+    /// or <see cref="PdfDocument.SaveIncremental"/>; an incremental save keeps the original bytes, so earlier signatures stay valid
+    /// when their certification allows annotations (ISO 32000-2 Table 257).
+    /// </summary>
+    /// <remarks>
+    /// Everything written comes from <paramref name="options"/>; nothing is read from the clock or a random source. New objects take
+    /// the next free numbers in a fixed order (annotation, appearance, pop-up), so the same file and the same calls always give the
+    /// same bytes. The annotation is appended to <c>/Annots</c> (a pop-up after it). The page's <see cref="Annotations"/> list is
+    /// refreshed, but earlier <see cref="PdfAnnotation"/> instances stay as they were.
+    /// </remarks>
+    /// <param name="options">What to write.</param>
+    /// <exception cref="InvalidOperationException">The document was not opened with <see cref="PdfOpenOptions.AllowEditing"/>.</exception>
+    /// <exception cref="ArgumentException">The options are invalid, or no appearance can be drawn from the geometry. The document is unchanged.</exception>
+    /// <exception cref="PdfLimitException">Too many quadrilaterals, or the document would exceed <see cref="PdfLimits.MaxObjects"/> objects.</exception>
+    public PdfAnnotation AddMarkupAnnotation(PdfMarkupAnnotationOptions options) => MarkupAnnotationWriter.Add(this, options);
+
     /// <summary>The annotations whose subtype is <c>Link</c>.</summary>
     public IReadOnlyList<PdfAnnotation> Links => [.. Annotations.Where(static a => a.Subtype == "Link")];
 

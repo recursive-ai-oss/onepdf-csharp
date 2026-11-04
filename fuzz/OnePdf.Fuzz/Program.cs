@@ -52,6 +52,7 @@ internal static class Program
         ["fontembed"] = FontEmbedTarget.Run,
         ["signature"] = SignatureTarget.Run,
         ["placeholder"] = PlaceholderTarget.Run,
+        ["markup"] = MarkupTarget.Run,
         ["pdfa"] = PdfATarget.Run,
     };
 

@@ -17,6 +17,13 @@ public sealed partial class PdfDocument
     /// </summary>
     internal void NoteReference(int number)
     {
+        // A number at or above the object limit is never handed out, so pointing there is harmless; counting it would switch the
+        // protection off for every smaller number (AddObject skips it when the maximum is beyond the limit).
+        if (number >= Limits.MaxObjects)
+        {
+            return;
+        }
+
         int seen = Volatile.Read(ref _maxReferenced);
         while (number > seen)
         {

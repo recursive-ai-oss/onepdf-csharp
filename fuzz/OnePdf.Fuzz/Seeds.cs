@@ -258,6 +258,35 @@ internal static class Seeds
 
                 break;
 
+            case "markup":
+                {
+                    foreach (byte[] seed in MarkupTarget.Seeds())
+                    {
+                        PutData("mk", seed);
+                    }
+
+                    int n = 0;
+                    foreach (string f in pdfs)
+                    {
+                        if (new FileInfo(f).Length <= MaxPdfBytes)
+                        {
+                            n++;
+                            byte[] head = new byte[37];
+                            head[0] = (byte)n;
+                            for (int i = 1; i < head.Length; i++)
+                            {
+                                head[i] = (byte)((n * 31) + (i * 17));
+                            }
+
+                            head[3] = 3;
+                            head[2] = (byte)(n % 3);
+                            PutData("pdf", File.ReadAllBytes(f), head);
+                        }
+                    }
+
+                    break;
+                }
+
             case "placeholder":
                 {
                     foreach (byte[] seed in PlaceholderTarget.Seeds())

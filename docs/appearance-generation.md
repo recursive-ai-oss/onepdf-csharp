@@ -38,6 +38,7 @@ Common: `/C` stroke (default black; yellow for Highlight), `/IC` fill, `/CA` opa
 | Line | `/L` with `/LE` endings (None, Square, Circle, Diamond, OpenArrow, ClosedArrow, Butt, ROpenArrow, RClosedArrow, Slash) and leader lines `/LL /LLE /LLO`. Captions (`/Cap`) are not drawn. |
 | Polygon, PolyLine | `/Vertices`, closed and filled (Polygon) or open with `/LE` endings (PolyLine). |
 | Ink | Each `/InkList` stroke with round caps and joins. |
+| Caret | A filled wedge with concave sides inside `/Rect` shrunk by `/RD` (ISO 32000-2 12.5.6.11), in `/C` (black by default). |
 | Highlight, Underline, StrikeOut, Squiggly | One shape per `/QuadPoints` quadrilateral in the order viewers write (upper left, upper right, lower left, lower right); with no quad points the rectangle. |
 | FreeText | Background `/C`, border only when `/BS` or `/Border` is present, colour from `/DA`, text from `/Contents` wrapped and aligned by `/Q`, callout `/CL` with the `/LE` ending. Rich text `/RC` is not used. |
 | Text | A 20 by 20 note icon at the upper left of the rectangle: Note, Comment and Help have their own shapes, other names draw as Note. Colour `/C`, default yellow. |
