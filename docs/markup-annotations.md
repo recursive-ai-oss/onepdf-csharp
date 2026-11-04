@@ -51,7 +51,14 @@ The same input and the same calls give the same bytes, for `Save` and for `SaveI
 ## Signed files
 
 An incremental save keeps every signed byte. Whether `VerifySignatures` still calls an earlier signature valid depends on its
-permission level (ISO 32000-2 Table 257): with a certification at level 3 (`PdfCertificationLevel.FormFillingAndAnnotations`) the added
-annotations are allowed changes; at level 2 and 1 they are reported as disallowed `Annotation` changes. A signature with no certification is
-treated as level 2 by the analyzer (`docs/signatures.md`), so annotations after it are flagged too.
+permission level (ISO 32000-2 12.8.2.2, Table 257):
+
+- **Approval signature (no certification):** the added markup annotations and their pop-ups are an allowed change, and the earlier
+  signature stays valid, as long as the update only appends them to the page's `/Annots`. The analyzer allows exactly Highlight,
+  StrikeOut, Underline, Squiggly and Caret annotations, and Popups whose `/Parent` is one of those new annotations. Any other change in
+  the same update (another annotation subtype, a changed existing annotation, page content) is flagged as at level 2. Table 257 attaches
+  permissions to certification, so this is the library's own conservative default.
+- **Certification at P=3** (`PdfCertificationLevel.FormFillingAndAnnotations`): allowed.
+- **Certification at P=2 or P=1:** reported as disallowed `Annotation` changes.
+
 A full `Save` rewrites the file and drops signatures' coverage: use `SaveIncremental` on signed documents.

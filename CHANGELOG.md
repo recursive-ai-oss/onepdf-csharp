@@ -12,6 +12,7 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ### Changed
 
+- `VerifySignatures`: after an approval signature (no DocMDP), a revision that only appends new Highlight, StrikeOut, Underline, Squiggly or Caret annotations and Popups whose `/Parent` is one of them is an allowed change. Other annotation subtypes and every other change are judged as before; certified documents are unchanged.
 - Saving is reproducible without a `PdfSaveOptions.DocumentId`: a full save of a document with no trailer `/ID` derives one from the bytes written (it was random), and an incremental save derives the new second `/ID` string from the previous one and the update (it was random). `DocumentId` now also sets the second string of an incremental save. Encrypted output still varies.
 - Package validation against the last published version (1.17.1) runs on every pack.
 

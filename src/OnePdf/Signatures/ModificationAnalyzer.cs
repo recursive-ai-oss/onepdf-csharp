@@ -8,13 +8,22 @@ namespace OnePdf.Internal;
 /// <list type="bullet">
 /// <item>Permission level: the <c>/P</c> of the DocMDP transform of the certifying signature recorded in <c>/Perms /DocMDP</c>
 /// of the signed revision (1 no changes, 2 form fill and signing, 3 also annotations). A lock dictionary's <c>/P</c> lowers it.
-/// With no certification the level is taken as 2, so form fill, signing and validation data pass and anything else is flagged.</item>
+/// With no certification the level is taken as 2, so form fill, signing and validation data pass and anything else is flagged,
+/// except that an approval signature also tolerates appended text markup annotations (see below).</item>
 /// <item>Always allowed: <c>/DSS</c> validation data, document time-stamps, the cross-reference and object-stream objects
 /// themselves, and a changed document information dictionary or catalog <c>/Metadata</c> (reported as "other", since tools
 /// refresh both whenever they save).</item>
-/// <item>Level 2 allows: changing <c>/V</c>, <c>/AP</c>, <c>/AS</c> or <c>/I</c> of a field, adding signature or form fields to
-/// <c>/AcroForm</c> and to a page's <c>/Annots</c>, and adding a signature.</item>
+/// <item>Level 2 allows: changing <c>/V</c>, <c>/AP</c>, <c>/AS</c> or <c>/I</c> of a field, and adding a signature, judged by its
+/// shape: appending new signature fields, form fields or widgets at the end of a page's <c>/Annots</c> and of the form's
+/// <c>/Fields</c> (each list may be absent, direct or indirect), an empty signature field gaining <c>/V</c> and <c>/Lock</c>,
+/// <c>/SigFlags</c> bits set, and <c>/DR</c> that only gains resources. An entry removed, replaced or reordered, an existing object
+/// appended, or a new annotation that is not a form widget is an annotation change and needs level 3.</item>
 /// <item>Level 3 also allows adding, removing and changing annotations.</item>
+/// <item>With no certification at all (an approval signature), a revision that only appends new Highlight, StrikeOut, Underline,
+/// Squiggly or Caret annotations, and Popup annotations whose <c>/Parent</c> is one of those new annotations, to a page's
+/// <c>/Annots</c> is allowed (category <c>Annotation</c>). ISO 32000-2 12.8.2.2 and Table 257: certification sets the permitted
+/// changes and an approval signature carries none, so this limit is this library's own conservative default. Every other annotation
+/// subtype and every other change is judged as at level 2.</item>
 /// <item>A field covered by a lock (<c>/Action /All</c>, <c>/Include</c>, <c>/Exclude</c>) of this or an earlier signature may not
 /// change at all.</item>
 /// <item>Everything else (page content, resources, the page tree, the catalog, deleted objects) is a disallowed change.</item>
@@ -67,6 +76,7 @@ internal static class ModificationAnalyzer
             }
         }
 
+        bool approvalOnly = level is null;
         int effective = level ?? 2;
         PdfRevision signed = revs[r];
         PdfRevision newest = revs[last];
@@ -85,7 +95,7 @@ internal static class ModificationAnalyzer
             }
         }
 
-        var ctx = new Context(doc, signed, newest, effective, locks, revs, r + 1, last);
+        var ctx = new Context(doc, signed, newest, effective, approvalOnly, locks, revs, r + 1, last);
         var changes = new List<PdfSignatureChange>();
         if (unsignedTail)
         {
@@ -506,6 +516,7 @@ internal static class ModificationAnalyzer
         private readonly PdfRevision _signed;
         private readonly PdfRevision _newest;
         private readonly int _level;
+        private readonly bool _approvalOnly;
         private readonly List<PdfSignatureLock> _locks;
         private HashSet<int>? _pageOwned;
         private HashSet<int>? _annotArrays;
@@ -518,7 +529,7 @@ internal static class ModificationAnalyzer
         /// <summary>The object number being classified; decides whether a document time-stamp's own update made it.</summary>
         public int Current = -1;
 
-        public Context(PdfDocument doc, PdfRevision signed, PdfRevision newest, int level, List<PdfSignatureLock> locks, IReadOnlyList<PdfRevision> revs, int first, int lastRev)
+        public Context(PdfDocument doc, PdfRevision signed, PdfRevision newest, int level, bool approvalOnly, List<PdfSignatureLock> locks, IReadOnlyList<PdfRevision> revs, int first, int lastRev)
         {
             _revs = revs;
             _first = first;
@@ -527,6 +538,7 @@ internal static class ModificationAnalyzer
             _signed = signed;
             _newest = newest;
             _level = level;
+            _approvalOnly = approvalOnly;
             _locks = locks;
         }
 
@@ -745,9 +757,51 @@ internal static class ModificationAnalyzer
                 return Gate(PdfChangeCategory.FormFieldValue, 2, "signature fields were added to " + what, null, signing: true);
             }
 
+            if (!allFields && _approvalOnly && AllNewMarkup(added))
+            {
+                return new Verdict(PdfChangeCategory.Annotation, true, "text markup annotations were added to " + what + " (allowed after an approval signature)");
+            }
+
             return allFields
                 ? Gate(PdfChangeCategory.FormFieldValue, 2, "form fields were added to " + what, null)
                 : Gate(PdfChangeCategory.Annotation, 3, "annotations or existing objects were added to " + what, null);
+        }
+
+        // Every added entry is a reference to an object that did not exist in the signed revision and is either a text markup annotation
+        // or a Popup whose /Parent is a text markup annotation added in this same list. A Popup that points at an existing annotation, a
+        // new annotation of another subtype, or a markup annotation outside the list does not qualify.
+        private bool AllNewMarkup(List<PdfObject> added)
+        {
+            var markup = new HashSet<int>();
+            foreach (PdfObject raw in added)
+            {
+                if (raw is not PdfReference r || _signed.GetObject(r.Number) is not null || _newest.Resolve(raw) is not PdfDictionary d)
+                {
+                    return false;
+                }
+
+                if (d.GetName("Subtype") is "Highlight" or "StrikeOut" or "Underline" or "Squiggly" or "Caret")
+                {
+                    markup.Add(r.Number);
+                }
+            }
+
+            foreach (PdfObject raw in added)
+            {
+                var r = (PdfReference)raw;
+                var d = (PdfDictionary)_newest.Resolve(raw)!;
+                if (markup.Contains(r.Number))
+                {
+                    continue;
+                }
+
+                if (d.GetName("Subtype") != "Popup" || d.GetRaw("Parent") is not PdfReference parent || !markup.Contains(parent.Number))
+                {
+                    return false;
+                }
+            }
+
+            return true;
         }
 
         // A field or widget of type Sig that is empty or holds a signature dictionary.

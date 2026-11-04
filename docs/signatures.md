@@ -79,7 +79,7 @@ in *r* (structural equality, so rewriting an object unchanged is not a change). 
 
 - **Level.** The `/P` of the DocMDP transform of the certifying signature (`/Perms /DocMDP` in revision *r*): 1 no changes, 2 form fill and
   signing, 3 also annotations. A field lock's `/P` can lower it. With no certification the level is taken as **2**: form fill and signing pass,
-  everything else is flagged.
+  everything else is flagged, with one exception for approval signatures (next item).
 - **Always allowed:** `/DSS` validation data; document time-stamps; cross-reference and object-stream objects; a changed document information
   dictionary or catalog `/Metadata` (reported as `Other`, allowed).
 - **Level 2:** a field's `/V`, `/AP`, `/AS`, `/I`; adding fields to `/AcroForm` and widgets to a page's `/Annots`; adding a signature.
@@ -92,6 +92,13 @@ in *r* (structural equality, so rewriting an object unchanged is not a change). 
   at every level above 1, even when it draws over the page; that is the specification's rule, so it is listed (`FormFieldValue`,
   allowed), not rejected.
 - **Level 3:** also adding, removing and changing other annotations.
+- **Approval signatures and text markup.** A signature with no DocMDP (no certification) also allows a revision that only appends new
+  Highlight, StrikeOut, Underline, Squiggly or Caret annotations, plus Popup annotations whose `/Parent` is one of those new annotations,
+  to a page's `/Annots` (with their appearance streams; category `Annotation`, allowed). ISO 32000-2 12.8.2.2 and Table 257 set the
+  permitted changes through certification and an approval signature carries none, so this limit is the library's own conservative
+  default. Every other annotation subtype (FreeText, Stamp, Ink, Link, Widget, Square, ...), a Popup whose parent is an existing
+  annotation, an existing annotation appended or changed, and any other change are judged as at level 2. Certified documents are
+  unaffected: P=1 and P=2 flag added markup, P=3 allows it. Field locks apply as before.
 - **Field locks:** a `/Lock` dictionary on a signature field, or a FieldMDP transform in the signature's `/Reference`, of this or an earlier
   signature: `All`, `Include` or `Exclude` with field names. A change to a locked field is not allowed whatever the level.
 - **Everything else** is not allowed: page content and resources, the page tree, other catalog entries, deleted objects.

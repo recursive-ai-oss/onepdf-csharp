@@ -263,8 +263,8 @@ public class MarkupAnnotationTests
     });
 
     [Theory]
-    // No certification: the analyzer reads an approval signature as permission level 2 (docs/signatures.md), which flags annotations.
-    [InlineData(0, false)]
+    // No certification: an approval signature tolerates appended text markup (docs/signatures.md).
+    [InlineData(0, true)]
     [InlineData(3, true)]
     [InlineData(2, false)]
     [InlineData(1, false)]
