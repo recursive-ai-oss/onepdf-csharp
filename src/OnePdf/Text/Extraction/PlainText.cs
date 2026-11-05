@@ -7,8 +7,8 @@ internal static class PlainText
 {
     internal static string Build(PdfPageText page, PdfTextMode mode, PdfTextOptions o) => mode switch
     {
-        PdfTextMode.ContentOrder => ContentOrder(page),
-        PdfTextMode.Layout => Layout(page),
+        PdfTextMode.ContentOrder => ContentOrder(page, o.RemoveBidiControls),
+        PdfTextMode.Layout => Layout(page, o.RemoveBidiControls),
         _ => ReadingOrder(page, o),
     };
 
@@ -60,7 +60,7 @@ internal static class PlainText
         return sb.ToString();
     }
 
-    internal static string ContentOrder(PdfPageText page)
+    internal static string ContentOrder(PdfPageText page, bool stripBidi = false)
     {
         StringBuilder sb = new();
         PdfTextGlyph[] g = page.GlyphArray;
@@ -75,6 +75,11 @@ internal static class PlainText
             }
 
             Item it = TextLayout.MakeItem(g[i], i);
+            if (stripBidi)
+            {
+                t = BidiControls.Strip(t);
+            }
+
             if (it.Space)
             {
                 if (sb.Length > 0 && sb[^1] != ' ' && sb[^1] != '\n')
@@ -164,7 +169,7 @@ internal static class PlainText
         return sb.ToString();
     }
 
-    internal static string Layout(PdfPageText page)
+    internal static string Layout(PdfPageText page, bool stripBidi = false)
     {
         PdfTextGlyph[] g = page.GlyphArray;
         if (g.Length == 0)
@@ -190,13 +195,13 @@ internal static class PlainText
                 sb.Append("\n\n");
             }
 
-            LayoutClass(g, grouped, start[k], cnt, k, sb);
+            LayoutClass(g, grouped, start[k], cnt, k, sb, stripBidi);
         }
 
         return sb.ToString();
     }
 
-    private static void LayoutClass(PdfTextGlyph[] g, int[] idx, int offset, int n, int k, StringBuilder sb)
+    private static void LayoutClass(PdfTextGlyph[] g, int[] idx, int offset, int n, int k, StringBuilder sb, bool stripBidi)
     {
         using LayoutWork w = new();
         Item[] items = TextLayout.MakeItems(w, g, idx, offset, n, k);
@@ -264,6 +269,11 @@ internal static class PlainText
                 }
 
                 string text = LogicalWord(ws.ToString());
+                if (stripBidi)
+                {
+                    text = BidiControls.Strip(text);
+                }
+
                 if (text.Length == 0)
                 {
                     continue;

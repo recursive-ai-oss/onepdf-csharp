@@ -126,6 +126,11 @@ internal static class TagTarget
 
     // The glyphs, in order, are the same and sit in the same places. Words and lines are not compared: they come from thresholds on gaps,
     // which a sum of advances taken in another order can tip on files whose glyphs have zero advance.
+    // "The same places" means the same stored position. Positions are put on a grid (TextGlyphDevice.OriginGrid), and a split text operator reaches a
+    // place by another sum, so a position that lies within about 1e-12 of a grid boundary comes out one step away: the difference is the grid step
+    // (plus the rounding of the subtraction), never more. Anything beyond one step is a real move of the glyph.
+    private const double OneGridStep = 1.0 / OnePdf.Text.TextGlyphDevice.OriginGrid + 1e-9;
+
     private static void CheckSaved(PdfDocument doc, int pageCount, List<PdfTextGlyph> before, PdfTextOptions options)
     {
         using var ms = new MemoryStream();
@@ -139,7 +144,7 @@ internal static class TagTarget
 
         for (int i = 0; i < before.Count; i++)
         {
-            if (before[i].Text != after[i].Text || Math.Abs(before[i].Matrix.E - after[i].Matrix.E) > 1e-6 || Math.Abs(before[i].Matrix.F - after[i].Matrix.F) > 1e-6)
+            if (before[i].Text != after[i].Text || Math.Abs(before[i].Matrix.E - after[i].Matrix.E) > OneGridStep || Math.Abs(before[i].Matrix.F - after[i].Matrix.F) > OneGridStep)
             {
                 throw new InvalidOperationException($"tagging changed glyph {i}: '{before[i].Text}' at {before[i].Matrix.E},{before[i].Matrix.F} became '{after[i].Text}' at {after[i].Matrix.E},{after[i].Matrix.F}");
             }

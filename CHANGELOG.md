@@ -6,12 +6,14 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ### Added
 
+- `PdfTextOptions.RemoveBidiControls` (default false): leaves U+202A–U+202E, U+2066–U+2069, U+200E, U+200F and U+061C out of the word, line, block and page texts, the plain-text modes and the extraction JSON. U+200C and U+200D are never removed and `Glyphs` is unchanged. Extraction keeps these characters by default, as it does on left-to-right lines. See `docs/text-layout.md`.
 - `PdfPage.AddMarkupAnnotation(PdfMarkupAnnotationOptions)`: writes Highlight, StrikeOut, Underline, Squiggly and Caret annotations onto pages of an editable document, with `/QuadPoints`, colour, opacity, `/Contents`, `/T`, `/NM`, `/M` supplied by the caller, an optional linked Popup, and a generated normal appearance. New types: `PdfMarkupKind`, `PdfCaretSymbol`, `PdfMarkupQuad`, `PdfMarkupPopup`, `PdfMarkupAnnotationOptions`. See `docs/markup-annotations.md`.
 - Generated appearances for Caret annotations (a filled wedge in `/Rect` inset by `/RD`); the interpreter draws them too when a Caret has no appearance.
 - Fuzz target `markup`.
 
 ### Fixed
 
+- Tagging: a split text operator (`TJ`, `Tj`, `'`, `"`) wrote its kerning numbers and `Tw`/`Tc` values rounded to six decimals and added neighbouring numbers together, so a glyph after the split could sit up to 5e-10 em from where it was; they are now written with 15 significant digits, one number at a time. Visible output does not change.
 - Text extraction, right-to-left text: a left-to-right line that quotes Arabic or Hebrew (`abc <Arabic words> def`) is no longer read as a right-to-left line when the quoted letters outnumber the rest of the block; it came out with the whole line reversed (`def <words> abc`). A mixed block's direction now comes from its words rather than its letters; a single line, or a block with as many words each way, is judged by the first and last strong letters of each line, and a page of at least 85% right-to-left letters keeps its own direction (`PdfTextLine.Direction` follows). A bracket pair that encloses a right-to-left run and stands closing-first on the page stays with the run. See `docs/text-layout.md`.
 - Text extraction: an Arabic word drawn with tatweel (U+0640), or with a kashida that is only a stretch between connected letters, is one word again instead of several fragments; U+0640 stays in the text.
 - Text extraction: Persian `می‌خواهم` (ZWNJ, U+200C) and other words with U+200C or U+200D are one word with the character kept. A joining control is treated as a point at the junction of its neighbours, and the gap a non-joining form leaves does not end the word.

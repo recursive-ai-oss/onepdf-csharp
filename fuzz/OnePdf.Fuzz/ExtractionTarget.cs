@@ -76,6 +76,7 @@ internal static class ExtractionTarget
 
         // Another option bit, kept out of Decode so the recorded golden output of the seeds stays as it is.
         o.RetainGlyphs = (data[0] & 16) == 0;
+        o.RemoveBidiControls = (data[0] & 32) != 0;
         PdfPageText page = PdfTextExtractor.Analyze(new PdfPageGlyphs(0, 600, 800, glyphs), o);
         foreach (PdfTextWord w in page.Words)
         {
@@ -98,7 +99,18 @@ internal static class ExtractionTarget
             throw new InvalidOperationException("glyphs kept although not requested");
         }
 
-        _ = page.GetText(PdfTextMode.ReadingOrder);
+        string reading = page.GetText(PdfTextMode.ReadingOrder);
+        if (o.RemoveBidiControls)
+        {
+            foreach (char c in reading)
+            {
+                if (c is >= '\u202A' and <= '\u202E' or >= '\u2066' and <= '\u2069' or '\u200E' or '\u200F' or '\u061C')
+                {
+                    throw new InvalidOperationException("a directional control is left in the text");
+                }
+            }
+        }
+
         PdfTextExtractor.FlagHeadersAndFooters([page, page]);
         using JsonDocument d = JsonDocument.Parse(PdfExtractionJson.ToJson([page]));
 

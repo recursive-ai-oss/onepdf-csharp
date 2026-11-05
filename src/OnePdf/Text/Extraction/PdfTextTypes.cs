@@ -83,6 +83,15 @@ public sealed class PdfTextOptions
     /// </summary>
     public bool? RetainGlyphs { get; set; }
 
+    /// <summary>
+    /// Leave the explicit directional formatting characters out of every text the extraction builds: U+202A–U+202E (LRE, RLE, PDF, LRO, RLO), U+2066–U+2069
+    /// (LRI, RLI, FSI, PDI), U+200E and U+200F (LRM, RLM) and U+061C (ALM). They are removed from <see cref="PdfTextWord.Text"/>, <see cref="PdfTextLine.Text"/>,
+    /// <see cref="PdfPageText.Text"/> in every <see cref="PdfTextMode"/> and the JSON form's texts after the page has been put into logical order (they take part
+    /// in that ordering as the text layer has them). A word that held nothing else is dropped. U+200C and U+200D (ZWNJ and ZWJ) are never removed: they change
+    /// how letters join and what an emoji sequence means. <see cref="PdfPageText.Glyphs"/> is not changed. Default false: extraction keeps every character of the text layer.
+    /// </summary>
+    public bool RemoveBidiControls { get; set; }
+
     /// <summary>Pages processed at once by whole-document extraction. 0 (the default) means min(4, processor count); 1 is sequential.</summary>
     public int MaxDegreeOfParallelism { get; set; }
 }
