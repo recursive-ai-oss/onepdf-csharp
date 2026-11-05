@@ -12,6 +12,18 @@ internal static class LayoutParameters
     /// <summary>The same for ideographs, kana and hangul, which are written without spaces.</summary>
     internal const double CjkWordGapEm = 0.6;
 
+    /// <summary>
+    /// Two connecting Arabic letters on a line that writes its word spaces as glyphs stay one word across a gap up to this wide (em): the gap is a kashida
+    /// stretch of the positions, not a space, because a space would have been a glyph.
+    /// </summary>
+    internal const double KashidaMaxEm = 1.0;
+
+    /// <summary>
+    /// A line that gives too little to go by (it is alone in its block, or has as many right-to-left words as left-to-right ones) is judged by its first and last
+    /// letters, unless at least this share of the letters of the page's text are right to left: then it takes the direction of the page.
+    /// </summary>
+    internal const double RtlPageShare = 0.85;
+
     /// <summary>A gap wider than this (em) between two glyphs on a line splits the line into fragments (cells or columns).</summary>
     internal const double FragmentGapEm = 1.25;
 

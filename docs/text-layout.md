@@ -87,12 +87,38 @@ Within a fragment, glyphs sorted along the line start a new word at a space glyp
 and hangul, which are written without spaces). The first word of each fragment after the first starts a cell. A space glyph drawn over the glyph before it (by more than half of its own width; some producers park the
 trailing space of a line at its start) neither ends the word nor adds text.
 
+A gap too wide for one word still does not end it when
+
+- either glyph is a zero-width joiner or non-joiner (U+200D, U+200C) or its text holds one (the non-joining form leaves a visible gap; Persian `می‌خواهم` is one word). A glyph
+  whose text is only joining controls is a point at the junction of its neighbours, sorted before a glyph that starts at the same place, whatever advance its font declares;
+- either glyph is a tatweel (U+0640) or its text holds one (a kashida, which justification stretches beyond the glyph's declared width); or
+- the line writes every word space as a glyph and the two glyphs are Arabic letters that connect (the earlier letter of the word can join forward and the later one
+  is not hamza), with a gap up to 1 em: a kashida that is only a stretch of the positions. "Writes every word space as a glyph" means that at least one word-sized gap of the
+  line holds a space glyph and no word-sized gap is bare unless it could itself be a kashida or joiner gap (two connecting letters, a tatweel or a joining control). On a
+  line where some word spaces are only positions, a gap between connecting letters cannot be told from a word space and ends the word.
+
+U+0640 and the joining controls are kept in the text.
+
 ## Bidirectional text (UAX #9)
 
 Lines are read in visual order (by x) and put into logical order by running the Unicode Bidirectional Algorithm (UAX #9, Unicode 17 data, rules
 X1–X10, W1–W7, N0–N2, I1–I2, L1, L2 in `Bidi.cs`) on the visual string and reordering it: applying the reordering to text that a layout engine already reordered
-gives back the logical text. The paragraph direction of a block is right-to-left when its right-to-left letters (R, AL) outnumber its left-to-right letters.
-Words and the words of a line come out in logical order. Mirrored-bracket glyph substitution (rule L4) is not undone; brackets are taken as extracted.
+gives back the logical text. Glyph positions decide the visual order, so it does not matter whether the content stream shows right-to-left text in logical or in
+visual order. Words and the words of a line come out in logical order.
+
+- **Base direction.** The text cannot tell whether `abc ARABIC def` is a left-to-right line quoting Arabic or the mirror image of a right-to-left line: both look the same on
+  the page. A block with only one kind of letter has that direction. In a mixed block of more than one line the direction is that of the majority of its **words** (words, not
+  letters: Arabic and Hebrew words run longer than English ones, so letter counts call an English sentence that quotes three Arabic words right-to-left). A block of one line, or
+  one with as many words each way, judges each line by its ends: when the first and the last strong letters (left to right on the page) are of the same kind, that is the
+  direction; otherwise the letter majority decides. The exception is a page of which at least 85% of the letters are right to left: there such a line follows the page (a list
+  item that starts and ends with an English word is still part of an Arabic page). `PdfTextLine.Direction` is the direction used.
+- **Characters removed by rule X9 stay in the text.** Joining controls (U+200C, U+200D), soft hyphens, other format characters and embedding or override marks take the
+  level of the character before them (UAX #9 5.2), so ordering keeps them in place. Nothing the text layer holds is dropped by the bidi step.
+- **Brackets.** Mirrored-bracket glyph substitution (rule L4) is not undone: a bracket is the character its glyph's `/ToUnicode` gives. Producers that map a mirrored glyph
+  to the logical character put a bracket pair inside right-to-left text on the page as `)ab(`, closing bracket first; such a pair that encloses only right-to-left letters is
+  recognised and treated as part of the run, so it stays attached to it. A producer that writes the mirrored shape's own character (`(ab)` on the page) is taken as extracted.
+- A number that follows a right-to-left run with only a space between can be read either as part of the run or as separate text; the first reading is taken.
+
 Conformance: all 91,707 cases of `BidiCharacterTest.txt` (Unicode 17.0.0) pass (set `ONEPDF_UNICODE` to its directory to run them).
 
 ## Structure tree

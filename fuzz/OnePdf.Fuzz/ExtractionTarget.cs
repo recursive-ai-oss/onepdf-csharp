@@ -15,7 +15,7 @@ internal static class ExtractionTarget
     private static readonly string[] Texts =
     [
         "a", "b", "e", "f", " ", "-", "1", "2", ".", "\uFB01", "\uFB03", "\u05D0", "\u05D1", "\u05E9", "\u0627", "\u0644", "\u0661", "\u3042", "\u6F22", "\uD800",
-        "\u2F00", "\uFB50", "\uFE70", "\uFDFA", "\U0002F800", "\u202B", "\u202E", "\u202C", "\u2067", "\u2069", "\u200F", "(", ")", "\uD83D\uDE00", "", "ab",
+        "\u2F00", "\uFB50", "\uFE70", "\uFDFA", "\U0002F800", "\u202B", "\u202E", "\u202C", "\u2067", "\u2069", "\u200F", "(", ")", "\uD83D\uDE00", "", "ab", "\u200C", "\u200D", "\u0640", "\u0645", "\u06CC",
     ];
 
     /// <summary>Reads the options and glyphs a fuzz input stands for; null when the input is too short.</summary>
@@ -133,6 +133,27 @@ internal static class ExtractionTarget
             }
 
             seen[ord[i]] = true;
+        }
+
+        // With the removed characters kept (what extraction does) every character is placed exactly once.
+        byte[] kept = new byte[arr.Length];
+        Bidi.ResolveLevels(arr, (data[0] >> 4) % 3 - 1, kept, ReadOnlySpan<bool>.Empty);
+        Bidi.KeepRemoved(kept, 0);
+        int[] ord2 = new int[arr.Length];
+        if (Bidi.VisualOrder(kept, ord2) != arr.Length)
+        {
+            throw new InvalidOperationException("a character was lost in reordering");
+        }
+
+        bool[] seen2 = new bool[arr.Length];
+        foreach (int o2 in ord2)
+        {
+            if ((uint)o2 >= (uint)arr.Length || seen2[o2])
+            {
+                throw new InvalidOperationException("reordering with kept controls is not a permutation");
+            }
+
+            seen2[o2] = true;
         }
     }
 }

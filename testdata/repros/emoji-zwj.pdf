@@ -1,0 +1,147 @@
+%PDF-1.7
+%‚„œ”
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Kids [3 0 R] /Count 1 >>
+endobj
+3 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 400 400] /Contents 4 0 R /Resources << /Font << /F1 5 0 R >> >> >>
+endobj
+4 0 obj
+<<  /Length 955 >>
+stream
+BT /F1 20 Tf 1 0 0 1 20 360 Tm <01> Tj ET
+BT /F1 20 Tf 1 0 0 1 30 360 Tm <02> Tj ET
+BT /F1 20 Tf 1 0 0 1 35 360 Tm <03> Tj ET
+BT /F1 20 Tf 1 0 0 1 55 360 Tm <04> Tj ET
+BT /F1 20 Tf 1 0 0 1 55 360 Tm <05> Tj ET
+BT /F1 20 Tf 1 0 0 1 75 360 Tm <04> Tj ET
+BT /F1 20 Tf 1 0 0 1 75 360 Tm <06> Tj ET
+BT /F1 20 Tf 1 0 0 1 95 360 Tm <02> Tj ET
+BT /F1 20 Tf 1 0 0 1 100 360 Tm <07> Tj ET
+BT /F1 20 Tf 1 0 0 1 20 315 Tm <01> Tj ET
+BT /F1 20 Tf 1 0 0 1 30 315 Tm <02> Tj ET
+/Span << /ActualText <FEFFD83DDC68200DD83DDC69200DD83DDC67> >> BDC
+BT /F1 20 Tf 1 0 0 1 35 315 Tm <03> Tj ET
+BT /F1 20 Tf 1 0 0 1 55 315 Tm <05> Tj ET
+BT /F1 20 Tf 1 0 0 1 75 315 Tm <06> Tj ET
+EMC
+BT /F1 20 Tf 1 0 0 1 95 315 Tm <02> Tj ET
+BT /F1 20 Tf 1 0 0 1 100 315 Tm <07> Tj ET
+BT /F1 20 Tf 1 0 0 1 20 270 Tm <01> Tj ET
+BT /F1 20 Tf 1 0 0 1 30 270 Tm <02> Tj ET
+BT /F1 20 Tf 1 0 0 1 35 270 Tm <08> Tj ET
+BT /F1 20 Tf 1 0 0 1 55 270 Tm <02> Tj ET
+BT /F1 20 Tf 1 0 0 1 60 270 Tm <07> Tj ET
+
+endstream
+endobj
+5 0 obj
+<< /Type /Font /Subtype /Type3 /FontBBox [0 0 1000 800] /FontMatrix [0.001 0 0 0.001 0 0] /CharProcs << /g1 7 0 R /g2 8 0 R /g3 9 0 R /g4 10 0 R /g5 11 0 R /g6 12 0 R /g7 13 0 R /g8 14 0 R >> /Encoding << /Type /Encoding /Differences [1 /g1 /g2 /g3 /g4 /g5 /g6 /g7 /g8 ] >> /FirstChar 1 /LastChar 8 /Widths [500 250 1000 0 1000 1000 500 1000 ] /ToUnicode 6 0 R >>
+endobj
+6 0 obj
+<<  /Length 383 >>
+stream
+/CIDInit /ProcSet findresource begin 12 dict begin begincmap /CMapName /Adobe-Identity-UCS def /CMapType 2 def
+1 begincodespacerange <00> <FF> endcodespacerange
+8 beginbfchar
+<01> <0061>
+<02> <0020>
+<03> <D83DDC68>
+<04> <200D>
+<05> <D83DDC69>
+<06> <D83DDC67>
+<07> <0062>
+<08> <D83DDC68200DD83DDC69200DD83DDC67>
+endbfchar
+endcmap CMapName currentdict /CMap defineresource pop end end
+
+endstream
+endobj
+7 0 obj
+<<  /Length 27 >>
+stream
+500 0 d0
+40 0 420 700 re f
+
+endstream
+endobj
+8 0 obj
+<<  /Length 27 >>
+stream
+250 0 d0
+40 0 170 700 re f
+
+endstream
+endobj
+9 0 obj
+<<  /Length 28 >>
+stream
+1000 0 d0
+40 0 920 700 re f
+
+endstream
+endobj
+10 0 obj
+<<  /Length 7 >>
+stream
+0 0 d0
+
+endstream
+endobj
+11 0 obj
+<<  /Length 28 >>
+stream
+1000 0 d0
+40 0 920 700 re f
+
+endstream
+endobj
+12 0 obj
+<<  /Length 28 >>
+stream
+1000 0 d0
+40 0 920 700 re f
+
+endstream
+endobj
+13 0 obj
+<<  /Length 27 >>
+stream
+500 0 d0
+40 0 420 700 re f
+
+endstream
+endobj
+14 0 obj
+<<  /Length 28 >>
+stream
+1000 0 d0
+40 0 920 700 re f
+
+endstream
+endobj
+xref
+0 15
+0000000000 65535 f 
+0000000015 00000 n 
+0000000064 00000 n 
+0000000121 00000 n 
+0000000247 00000 n 
+0000001254 00000 n 
+0000001633 00000 n 
+0000002068 00000 n 
+0000002146 00000 n 
+0000002224 00000 n 
+0000002303 00000 n 
+0000002361 00000 n 
+0000002441 00000 n 
+0000002521 00000 n 
+0000002600 00000 n 
+trailer
+<< /Size 15 /Root 1 0 R >>
+startxref
+2680
+%%EOF

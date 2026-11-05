@@ -55,7 +55,7 @@ internal static class Bidi
     /// <summary>True for a strong right-to-left class (R or AL).</summary>
     internal static bool IsRtl(BidiClass c) => c is BidiClass.R or BidiClass.AL;
 
-    private static int BracketType(int cp, out int paired)
+    internal static int BracketType(int cp, out int paired)
     {
         ReadOnlySpan<int> t = BidiData.Brackets;
         int lo = 0, hi = t.Length / 3 - 1;
@@ -91,7 +91,13 @@ internal static class Bidi
     /// <param name="requestedLevel">0 for left-to-right, 1 for right-to-left, anything else for automatic (rules P2–P3).</param>
     /// <param name="levels">Receives one level per code point; <see cref="Removed"/> for characters removed by X9.</param>
     /// <returns>The paragraph embedding level.</returns>
-    internal static int ResolveLevels(ReadOnlySpan<int> text, int requestedLevel, Span<byte> levels)
+    internal static int ResolveLevels(ReadOnlySpan<int> text, int requestedLevel, Span<byte> levels) => ResolveLevels(text, requestedLevel, levels, default);
+
+    /// <summary>
+    /// As <see cref="ResolveLevels(ReadOnlySpan{int}, int, Span{byte})"/>, with the characters flagged in <paramref name="forceRtl"/> (empty for none) taken as
+    /// strong right-to-left letters whatever their class.
+    /// </summary>
+    internal static int ResolveLevels(ReadOnlySpan<int> text, int requestedLevel, Span<byte> levels, ReadOnlySpan<bool> forceRtl)
     {
         int n = text.Length;
         if (levels.Length < n)
@@ -107,7 +113,7 @@ internal static class Bidi
         BidiClass[] orig = new BidiClass[n];
         for (int i = 0; i < n; i++)
         {
-            orig[i] = GetClass(text[i]);
+            orig[i] = i < forceRtl.Length && forceRtl[i] ? BidiClass.R : GetClass(text[i]);
         }
 
         // BD9: matching isolate initiators and PDIs.
@@ -714,6 +720,110 @@ internal static class Bidi
             {
                 t[k] = set;
             }
+        }
+    }
+
+    /// <summary>
+    /// Finds bracket pairs that stand the wrong way round in a line given in visual order: a closing bracket followed by its opening one, with only
+    /// right-to-left letters (and numbers and neutrals) between. Producers that give each glyph the code point of the character it was shaped from
+    /// write a pair inside right-to-left text as <c>)ab(</c> from left to right, because the layout engine mirrored the glyphs and swapped their places
+    /// (UAX #9 rule L4); read as logical text the pair is not matched, so the neutral rules put the closing bracket outside the run it belongs to.
+    /// A pair that is the right way round at the lowest level is not flagged. <paramref name="force"/> receives true for both brackets of each
+    /// pair found (at most <see cref="MaxBracketStack"/> open at once, pairs spanning at most 1,024 characters).
+    /// </summary>
+    internal static bool FindInvertedBrackets(ReadOnlySpan<int> text, Span<bool> force)
+    {
+        Span<int> stackCp = stackalloc int[MaxBracketStack];
+        Span<int> stackPos = stackalloc int[MaxBracketStack];
+        int sp = 0;
+        bool any = false;
+        for (int i = 0; i < text.Length; i++)
+        {
+            int type = BracketType(text[i], out int paired);
+            if (type == 2)
+            {
+                if (sp == MaxBracketStack)
+                {
+                    continue;
+                }
+
+                stackCp[sp] = CanonicalBracket(text[i]);
+                stackPos[sp] = i;
+                sp++;
+            }
+            else if (type == 1)
+            {
+                int want = CanonicalBracket(paired);
+                for (int k = sp - 1; k >= 0; k--)
+                {
+                    if (stackCp[k] != want)
+                    {
+                        continue;
+                    }
+
+                    int a = stackPos[k];
+                    sp = k;
+                    if (i - a > 1024)
+                    {
+                        break;
+                    }
+
+                    bool rtl = false, ltr = false;
+                    for (int q = a + 1; q < i; q++)
+                    {
+                        BidiClass c = GetClass(text[q]);
+                        rtl |= IsRtl(c);
+                        ltr |= c == BidiClass.L;
+                    }
+
+                    if (rtl && !ltr)
+                    {
+                        force[a] = true;
+                        force[i] = true;
+                        any = true;
+                    }
+
+                    break;
+                }
+            }
+        }
+
+        return any;
+    }
+
+    /// <summary>
+    /// Gives the characters X9 removed (joiners, soft hyphens and other format controls, embedding and override marks) the level of the character
+    /// before them, or of the one after when none comes before, so <see cref="VisualOrder"/> keeps them. UAX #9 5.2 allows this: removal serves only to
+    /// resolve levels, and extraction must not lose characters of the text layer.
+    /// </summary>
+    internal static void KeepRemoved(Span<byte> levels, int paragraphLevel)
+    {
+        int prev = -1;
+        for (int i = 0; i < levels.Length; i++)
+        {
+            if (levels[i] != Removed)
+            {
+                prev = levels[i];
+            }
+            else if (prev >= 0)
+            {
+                levels[i] = (byte)prev;
+            }
+        }
+
+        int next = paragraphLevel;
+        for (int i = levels.Length - 1; i >= 0; i--)
+        {
+            if (levels[i] != Removed)
+            {
+                next = levels[i];
+            }
+        }
+
+        // Leading removed characters (nothing before them) take the level of the first kept character.
+        for (int i = 0; i < levels.Length && levels[i] == Removed; i++)
+        {
+            levels[i] = (byte)next;
         }
     }
 

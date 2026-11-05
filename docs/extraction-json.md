@@ -45,7 +45,7 @@ Block = {
 }
 
 Line = {
-  "direction": "ltr" | "rtl",        base direction used to put the line in logical order
+  "direction": "ltr" | "rtl",        base direction used to put the line in logical order (decided per line, see text-layout.md)
   "vertical": <bool>,                vertical writing
   "bounds": [l, b, r, t],
   "cells": [ <int>, ... ],           indices into "words" where a cell (a run set apart by a wide gap) starts; first is 0
