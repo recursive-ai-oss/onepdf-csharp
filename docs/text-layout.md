@@ -106,10 +106,12 @@ X1–X10, W1–W7, N0–N2, I1–I2, L1, L2 in `Bidi.cs`) on the visual string a
 gives back the logical text. Glyph positions decide the visual order, so it does not matter whether the content stream shows right-to-left text in logical or in
 visual order. Words and the words of a line come out in logical order.
 
-- **Base direction of a line.** The text cannot tell whether `abc ARABIC def` is a left-to-right line quoting Arabic or the mirror image of a right-to-left line, so the
-  ends of the line decide: when the first and the last strong letters (left to right on the page) are of the same kind, the line has that direction. Otherwise, and for a
-  line with no letters, the block's direction decides: right-to-left when its right-to-left letters (R, AL) outnumber its left-to-right letters. `PdfTextLine.Direction` is
-  the direction used.
+- **Base direction.** The text cannot tell whether `abc ARABIC def` is a left-to-right line quoting Arabic or the mirror image of a right-to-left line: both look the same on
+  the page. A block with only one kind of letter has that direction. In a mixed block of more than one line the direction is that of the majority of its **words** (words, not
+  letters: Arabic and Hebrew words run longer than English ones, so letter counts call an English sentence that quotes three Arabic words right-to-left). A block of one line, or
+  one with as many words each way, judges each line by its ends: when the first and the last strong letters (left to right on the page) are of the same kind, that is the
+  direction; otherwise the letter majority decides. The exception is a page of which at least 85% of the letters are right to left: there such a line follows the page (a list
+  item that starts and ends with an English word is still part of an Arabic page). `PdfTextLine.Direction` is the direction used.
 - **Characters removed by rule X9 stay in the text.** Joining controls (U+200C, U+200D), soft hyphens, other format characters and embedding or override marks take the
   level of the character before them (UAX #9 5.2), so ordering keeps them in place. Nothing the text layer holds is dropped by the bidi step.
 - **Brackets.** Mirrored-bracket glyph substitution (rule L4) is not undone: a bracket is the character its glyph's `/ToUnicode` gives. Producers that map a mirrored glyph
