@@ -114,6 +114,11 @@ visual order. Words and the words of a line come out in logical order.
   item that starts and ends with an English word is still part of an Arabic page). `PdfTextLine.Direction` is the direction used.
 - **Characters removed by rule X9 stay in the text.** Joining controls (U+200C, U+200D), soft hyphens, other format characters and embedding or override marks take the
   level of the character before them (UAX #9 5.2), so ordering keeps them in place. Nothing the text layer holds is dropped by the bidi step.
+> **Security: untrusted documents.** Extracted text keeps the document's directional formatting characters by default, so text from a
+> PDF you don't trust can carry bidirectional overrides and isolates that make it display differently from its logical order (the
+> "Trojan Source" technique, CVE-2021-42574). Set `PdfTextOptions.RemoveBidiControls = true` before you display, compare, index or
+> otherwise process such text.
+
 - **Directional formatting characters.** U+202A–U+202E, U+2066–U+2069, U+200E, U+200F and U+061C are kept in the text by default, like every other character of the text layer.
   `PdfTextOptions.RemoveBidiControls` (default false) removes them from the words, lines, blocks, page text in all three modes and the JSON texts, after the line has been put
   into logical order (they take part in that ordering). A word that held nothing else is dropped. U+200C and U+200D are never removed. `PdfPageText.Glyphs` keeps them.

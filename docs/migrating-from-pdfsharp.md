@@ -9,8 +9,9 @@ replacement.
 
 PDFsharp is first of all a library for *creating* PDF files: you draw with `XGraphics`, use `XFont`, `XImage` and MigraDoc. OnePDF
 reads, extracts, interprets into a device and edits existing files. It also draws text, images and shapes onto new or existing
-pages ([content creation](https://github.com/recursive-ai-oss/onepdf-csharp/blob/main/docs/content-creation.md)), but it has no
-layout engine like MigraDoc and no text shaping. If your program relies on MigraDoc layout, keep PDFsharp for that part.
+pages ([content creation](https://github.com/recursive-ai-oss/onepdf-csharp/blob/main/docs/content-creation.md)). Where you use
+MigraDoc, use the layout package `RecursiveAI.OnePdf.Layout` ([layout](https://github.com/recursive-ai-oss/onepdf-csharp/blob/main/docs/layout.md)):
+paragraphs with shaped and bidirectional text, tables, lists, headers, footers and page numbers, written as a tagged PDF.
 
 ## The differences that matter first
 

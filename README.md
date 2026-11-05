@@ -151,6 +151,11 @@ decomposed, presentation forms (Kangxi radicals, Arabic and Hebrew forms) are fo
 The Unicode chain is ToUnicode, then glyph names through the Adobe Glyph List, then the font's own cmap, then predefined CMaps,
 then U+FFFD. OnePDF does no OCR.
 
+> **Untrusted documents:** extracted text keeps the file's bidirectional control characters (U+202A–U+202E, U+2066–U+2069, U+200E,
+> U+200F, U+061C) by default, so a hostile PDF can make text display in a different order from the one it is read in ("Trojan
+> Source"). Set `PdfTextOptions.RemoveBidiControls = true` before you display or process text from files you don't trust; see
+> [text layout](https://github.com/recursive-ai-oss/onepdf-csharp/blob/main/docs/text-layout.md).
+
 Whole-document `doc.ExtractText()` does not keep each page's glyph list, so a long document stays small; words, lines, blocks and every
 plain-text mode are still there, and `pageText.ReadGlyphs()` reads a page's glyphs on request. Single-page `page.ExtractText()` keeps
 them. Set `PdfTextOptions.RetainGlyphs` to choose either way.
@@ -278,8 +283,8 @@ local system fonts. The code is safe C# with no `unsafe`, `Unsafe.*` or `MemoryM
 
 ## What it does not do
 
-- No PDF/A validator (the converter rewrites a file only as far as its documented repairs go; otherwise it refuses), and no long-term validation data (`/DSS`, PAdES B-LT/B-LTA) when signing. Field scripts are never run, so calculated fields are not recomputed. New text is laid out
-  without a shaping engine, so complex scripts (Arabic, Indic and similar) are not shaped.
+- No PDF/A validator (the converter rewrites a file only as far as its documented repairs go; otherwise it refuses), and no long-term validation data (`/DSS`, PAdES B-LT/B-LTA) when signing. Field scripts are never run, so calculated fields are not recomputed. The core content builder
+  does no shaping (it draws glyph runs a shaping engine has chosen); shaped complex-script text comes from `RecursiveAI.OnePdf.Layout`.
 - **It does not render pixels.** OnePDF resolves a page into drawing calls; a 2D engine paints them. Rasterizing lives in a
   separate package, `RecursiveAI.OneImage.Pdf`, built on [OneImage](https://github.com/recursive-ai-oss/oneimage-csharp); it
   implements OnePDF's device and registers PDF as an image format. OnePDF has no imaging dependency.

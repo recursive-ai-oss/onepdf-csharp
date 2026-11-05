@@ -4,6 +4,11 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ## [Unreleased]
 
+### Documentation
+
+- README and `docs/text-layout.md`: a warning that text extracted from untrusted files keeps bidirectional override and isolate characters by default; set `PdfTextOptions.RemoveBidiControls` before display or processing.
+- The PdfPig, PDFsharp and QuestPDF migration guides no longer say OnePDF lacks shaping, layout, multi-column flow, a table of contents, SVG or inline elements; `docs/structure.md` lost a duplicate heading.
+
 ## [1.18.0] - 2026-11-05
 
 ### Added

@@ -54,8 +54,6 @@ Reading never throws and never loops. It is iterative, stops at `PdfLimits.MaxNe
 
 ## Removing tags
 
-## Removing tags
-
 ```csharp
 using PdfDocument doc = PdfDocument.Open("in.pdf", new PdfOpenOptions { AllowEditing = true });
 PdfRemoveTagsResult result = doc.RemoveTags();
