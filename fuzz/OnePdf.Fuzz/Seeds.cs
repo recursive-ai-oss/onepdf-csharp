@@ -418,6 +418,7 @@ internal static class Seeds
                     ("columns", 0b1001, [0, 1, 2, 3, 4, 0, 1, 2], 0),
                     ("rtl-mixed", 0b1011, [11, 12, 13, 14, 4, 0, 1, 15], 0),
                     ("vertical", 0b1001, [17, 18, 17, 18, 17, 18, 17, 18], 4),
+                    ("joiners", 0b1011, [39, 40, 36, 14, 38, 38, 4, 0, 1, 31, 15, 32, 37], 0),
                 })
                 {
                     var rec = new List<byte> { flags };

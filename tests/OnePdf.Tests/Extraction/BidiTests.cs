@@ -42,6 +42,46 @@ public class BidiTests
     }
 
     [Fact]
+    public void RemovedCharactersCanBeKeptAndStayBesideTheirNeighbour()
+    {
+        int[] c = Cps("می‌خو");
+        byte[] lev = new byte[c.Length];
+        Bidi.ResolveLevels(c, 1, lev);
+        Assert.Equal(Bidi.Removed, lev[2]);
+        Bidi.KeepRemoved(lev, 1);
+        Assert.Equal(lev[1], lev[2]);
+        int[] ord = new int[c.Length];
+        Assert.Equal(c.Length, Bidi.VisualOrder(lev, ord));
+        Assert.Equal([4, 3, 2, 1, 0], ord);
+
+        // Leading controls take the level of what follows them.
+        int[] lead = Cps("‍ab");
+        byte[] ll = new byte[lead.Length];
+        Bidi.ResolveLevels(lead, 0, ll);
+        Bidi.KeepRemoved(ll, 0);
+        Assert.Equal([0, 0, 0], ll);
+    }
+
+    [Fact]
+    public void BracketsThatStandTheWrongWayRoundAroundRtlTextAreFound()
+    {
+        static bool[] Find(string s)
+        {
+            int[] c = Cps(s);
+            bool[] f = new bool[c.Length];
+            Bidi.FindInvertedBrackets(c, f);
+            return f;
+        }
+
+        // Closing bracket first, only Arabic between: the shape of "(كتاب)" inside right-to-left text.
+        Assert.Equal([true, false, false, false, false, true], Find(")باتك("));
+        // The right way round, or around Latin text, or unrelated brackets, are left alone.
+        Assert.DoesNotContain(true, Find("(باتك)"));
+        Assert.DoesNotContain(true, Find(")abc("));
+        Assert.DoesNotContain(true, Find("1) first (see ب"));
+    }
+
+    [Fact]
     public void ConformanceBidiCharacterTest()
     {
         string? dir = Environment.GetEnvironmentVariable("ONEPDF_UNICODE");

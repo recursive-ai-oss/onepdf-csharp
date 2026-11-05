@@ -152,6 +152,7 @@ internal static class PlainText
         int[] a = cps.ToArray();
         byte[] lev = new byte[a.Length];
         Bidi.ResolveLevels(a, -1, lev);
+        Bidi.KeepRemoved(lev, 0);
         int[] ord = new int[a.Length];
         int m = Bidi.VisualOrder(lev, ord);
         StringBuilder sb = new();
@@ -250,7 +251,9 @@ internal static class PlainText
             int l = order[oi].Idx;
             row.Clear();
             int p = lineStart[l], end = lineStart[l + 1];
-            while (TextLayout.NextWord(items, ids, ref p, end, out int wStart, out int wLen))
+            bool spaceGlyphs = TextLayout.WritesSpaceGlyphs(items, ids, p, end);
+
+            while (TextLayout.NextWord(items, ids, ref p, end, spaceGlyphs, out int wStart, out int wLen))
             {
                 ws.Clear();
                 double x0 = double.MaxValue;

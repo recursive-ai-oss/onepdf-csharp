@@ -13,6 +13,12 @@ internal struct Item
     internal bool Cjk;
     internal int Line;
     internal int FirstCp;
+
+    /// <summary>The last code point of the glyph's text (0 when it has none).</summary>
+    internal int LastCp;
+
+    /// <summary>A combination of <see cref="TextLayout.JoinControl"/>, <see cref="TextLayout.HasTatweel"/> and <see cref="TextLayout.JoinerOnly"/>.</summary>
+    internal byte Flags;
 }
 
 /// <summary>A run of items on one line with no wide gap inside; its items are <c>ids[Start .. Start + Count)</c> of the class's item-id array.</summary>
@@ -23,6 +29,9 @@ internal struct Frag
     internal int Count;
     internal double X0, X1, Top, Bot, Base, Size;
     internal int NonSpace;
+
+    /// <summary>True when the fragment's producer writes its word spaces as glyphs (see <see cref="TextLayout.WritesSpaceGlyphs"/>).</summary>
+    internal bool SpaceGlyphs;
 }
 
 /// <summary>A sort key with the index it belongs to.</summary>
@@ -212,26 +221,64 @@ internal static class TextLayout
 
         string t = g.Text ?? "";
         bool space;
-        int first;
+        int first, last;
+        byte flags = 0;
         if (t.Length == 1 && !char.IsSurrogate(t[0]))
         {
             // The common case: one BMP character.
-            first = t[0];
+            first = last = t[0];
             space = char.IsWhiteSpace(t[0]);
+            if (first is 0x200C or 0x200D)
+            {
+                flags = JoinControl | JoinerOnly;
+            }
+            else if (first == 0x0640)
+            {
+                flags = HasTatweel;
+            }
         }
         else
         {
             space = t.Length > 0;
+            bool allJoin = t.Length > 0;
             for (int i = 0; i < t.Length; i++)
             {
-                if (!char.IsWhiteSpace(t[i]))
+                char c = t[i];
+                if (!char.IsWhiteSpace(c))
                 {
                     space = false;
-                    break;
+                }
+
+                if (c is '‌' or '‍')
+                {
+                    flags |= JoinControl;
+                }
+                else
+                {
+                    allJoin = false;
+                    if (c == 'ـ')
+                    {
+                        flags |= HasTatweel;
+                    }
                 }
             }
 
+            if (allJoin)
+            {
+                flags |= JoinerOnly;
+            }
+
             first = t.Length > 0 ? char.ConvertToUtf32(t, 0) : 0;
+            last = t.Length == 0 ? 0 : char.IsLowSurrogate(t[^1]) && t.Length > 1 && char.IsHighSurrogate(t[^2]) ? char.ConvertToUtf32(t, t.Length - 2) : t[^1];
+        }
+
+        if ((flags & JoinerOnly) != 0)
+        {
+            // A zero-width joiner has no extent of its own: layout engines put it at the junction of its neighbours, and a font's nominal advance
+            // for it would make its box overlap the next glyph. It is a point, sorted just before a glyph that starts at the same place
+            // (the junction is where the next glyph's pen position is, in either writing direction).
+            x0 -= 1e-7 * Math.Max(g.Size, 1e-6);
+            x1 = x0;
         }
 
         return new Item
@@ -247,8 +294,89 @@ internal static class TextLayout
             Space = space,
             Cjk = IsCjk(first),
             FirstCp = first,
+            LastCp = last,
+            Flags = flags,
             Line = -1,
         };
+    }
+
+    /// <summary>The glyph's text holds U+200C or U+200D.</summary>
+    internal const byte JoinControl = 1;
+
+    /// <summary>The glyph's text holds U+0640 ARABIC TATWEEL (kashida).</summary>
+    internal const byte HasTatweel = 2;
+
+    /// <summary>The glyph's text is only joining controls.</summary>
+    internal const byte JoinerOnly = 4;
+
+    /// <summary>Arabic-script letters (Unicode block Arabic, Arabic Supplement, Arabic Extended-A and -B letters).</summary>
+    private static bool IsArabicLetter(int cp) =>
+        (cp >= 0x0620 && cp <= 0x064A) || (cp >= 0x066E && cp <= 0x066F) || (cp >= 0x0671 && cp <= 0x06D3) || cp == 0x06D5 || (cp >= 0x06EE && cp <= 0x06EF) ||
+        (cp >= 0x06FA && cp <= 0x06FF) || (cp >= 0x0750 && cp <= 0x077F) || (cp >= 0x08A0 && cp <= 0x08C9);
+
+    /// <summary>
+    /// Letters that join only to the letter before them (Joining_Type R in ArabicShaping.txt, listed by block ranges) or to none (hamza):
+    /// they never connect forward to the next letter, so no kashida can follow them.
+    /// </summary>
+    private static bool NoForwardJoin(int cp) =>
+        cp is 0x0621 or 0x0622 or 0x0623 or 0x0624 or 0x0625 or 0x0627 or 0x0629 or 0x062F or 0x0630 or 0x0631 or 0x0632 or 0x0648 or 0x0674 or 0x06C0 or 0x06D5 or 0x06EE or 0x06EF
+        || (cp >= 0x0671 && cp <= 0x0673) || (cp >= 0x0675 && cp <= 0x0677) || (cp >= 0x0688 && cp <= 0x0699) || (cp >= 0x06C3 && cp <= 0x06CB) || cp == 0x06CD || cp == 0x06CF
+        || cp == 0x06D2 || cp == 0x06D3 || (cp >= 0x0759 && cp <= 0x075B) || (cp >= 0x076B && cp <= 0x076C) || cp == 0x0771 || (cp >= 0x0773 && cp <= 0x0774) || cp == 0x0778 || cp == 0x0779;
+
+    /// <summary>
+    /// True when two neighbouring glyphs on a line, with a gap too wide for one word, are still one word because of what they are: a tatweel or a
+    /// joining control on either side (the gap is a kashida or the room a non-joining form leaves), or, on a line whose producer writes every word space
+    /// as a glyph (<see cref="WritesSpaceGlyphs"/>), two Arabic letters that connect (a kashida drawn as a stretch of the positions only).
+    /// <paramref name="left"/> is the glyph further left on the page, which for Arabic is the later letter of the word.
+    /// </summary>
+    private static bool BridgesGap(in Item left, in Item right, double gap, double size, bool spaceGlyphs) =>
+        ((left.Flags | right.Flags) & (JoinControl | HasTatweel)) != 0 || (spaceGlyphs && JoinablePair(left, right, gap, size));
+
+    /// <summary>Two Arabic letters of which the earlier (right) can join forward and the later (left) is not hamza, no further apart than <see cref="LayoutParameters.KashidaMaxEm"/>.</summary>
+    private static bool JoinablePair(in Item left, in Item right, double gap, double size) =>
+        gap <= LayoutParameters.KashidaMaxEm * size && IsArabicLetter(left.FirstCp) && IsArabicLetter(right.LastCp) && left.FirstCp != 0x0621 && left.FirstCp != 0x0674 && !NoForwardJoin(right.LastCp);
+
+    /// <summary>
+    /// True when the items <c>ids[start .. end)</c> of a line show that their producer writes the word spaces as glyphs: at least one word-sized gap holds a
+    /// space glyph, and no word-sized gap is bare (without a space glyph) unless it could be a kashida or joiner gap. A producer that leaves some word spaces
+    /// to the positions leaves all gaps ambiguous, because a bare gap between two connecting letters is then as likely a word space as a stretch.
+    /// </summary>
+    internal static bool WritesSpaceGlyphs(Item[] items, int[] ids, int start, int end)
+    {
+        bool spaced = false, spaceSeen = false;
+        int prev = -1;
+        for (int p = start; p < end; p++)
+        {
+            ref Item it = ref items[ids[p]];
+            if (it.Space)
+            {
+                spaceSeen = true;
+                continue;
+            }
+
+            if (prev >= 0)
+            {
+                ref Item left = ref items[ids[prev]];
+                double size = (left.Size + it.Size) / 2;
+                double gap = it.X0 - left.X1;
+                if (gap > (left.Cjk || it.Cjk ? LayoutParameters.CjkWordGapEm : LayoutParameters.WordGapEm) * size)
+                {
+                    if (spaceSeen)
+                    {
+                        spaced = true;
+                    }
+                    else if (((left.Flags | it.Flags) & (JoinControl | HasTatweel)) == 0 && !JoinablePair(left, it, gap, size))
+                    {
+                        return false;
+                    }
+                }
+            }
+
+            prev = p;
+            spaceSeen = false;
+        }
+
+        return spaced;
     }
 
     internal static bool IsCjk(int cp) =>
@@ -413,6 +541,7 @@ internal static class TextLayout
         w.InitLines(lineCount);
         int[] ids = BucketLines(w, items, n, lineCount, out int[] lineStart);
         Frag[] frags = Fragment(w, items, ids, lineCount, lineStart, out int nf);
+        bool rtlPage = IsMostlyRtl(items, n);
 
         // XY-cut: regions are runs of the fragment-id array; a split reorders a region in place and pushes its parts.
         // Room beyond the first nf entries is for the fragments and regions a narrow-gutter column cut creates; n (the glyph count) bounds them.
@@ -428,7 +557,7 @@ internal static class TextLayout
         int leaves = XyCut(w, frags, items, ids, nf, n, reg, leafStart, leafLen, leafTable, ct);
         for (int i = 0; i < leaves; i++)
         {
-            PdfTextBlock? b = MakeBlock(w, g, items, ids, frags, reg, leafStart[i], leafLen[i], leafTable[i] != 0);
+            PdfTextBlock? b = MakeBlock(w, g, items, ids, frags, reg, leafStart[i], leafLen[i], leafTable[i] != 0, rtlPage);
             if (b is not null)
             {
                 output.Add(b);
@@ -751,6 +880,7 @@ internal static class TextLayout
         }
 
         f.NonSpace = ns;
+        f.SpaceGlyphs = WritesSpaceGlyphs(items, ids, start, end);
         if (ns == 0)
         {
             ref Item it0 = ref items[ids[start]];
@@ -1621,7 +1751,7 @@ internal static class TextLayout
 
     // ---- blocks, lines, words ---------------------------------------------------------------------------------------------------
 
-    private static PdfTextBlock? MakeBlock(LayoutWork w, PdfTextGlyph[] g, Item[] items, int[] ids, Frag[] f, int[] reg, int s, int len, bool table)
+    private static PdfTextBlock? MakeBlock(LayoutWork w, PdfTextGlyph[] g, Item[] items, int[] ids, Frag[] f, int[] reg, int s, int len, bool table, bool rtlPage)
     {
         // Lines in order of first appearance, then sorted by the baseline of their first fragment.
         int gen = ++w.Generation;
@@ -1672,6 +1802,42 @@ internal static class TextLayout
         }
 
         int para = rtl > ltr ? 1 : 0;
+        bool edges = false;
+        if (rtl > 0 && ltr > 0)
+        {
+            // Mixed block: words, not letters, tell the paragraph's direction. Arabic and Hebrew words run longer than English ones, so a left-to-right
+            // sentence quoting a few Arabic words has more right-to-left letters than left-to-right ones.
+            int rw = 0, lw = 0;
+            for (int i = 0; i < len; i++)
+            {
+                ref Frag fr = ref f[reg[s + i]];
+                int p = fr.Start, end = fr.Start + fr.Count;
+                while (NextWord(items, ids, ref p, end, fr.SpaceGlyphs, out int ws, out int wl))
+                {
+                    int d = WordDirection(items, ids, ws, wl);
+                    if (d > 0)
+                    {
+                        rw++;
+                    }
+                    else if (d == 0)
+                    {
+                        lw++;
+                    }
+                }
+            }
+
+            if (rw != lw && nl > 1)
+            {
+                para = rw > lw ? 1 : 0;
+            }
+            else
+            {
+                // A single line, or as many words one way as the other: too little to go by, so each line is judged by its ends, unless the page is
+                // right-to-left through and through (a list item that starts and ends with an English word is still part of an Arabic page).
+                edges = !rtlPage;
+            }
+        }
+
         KeyIdx[] ks2 = w.Keys.Rent(len);
         List<PdfTextLine> outLines = new(nl);
         double bl = double.MaxValue, bb = double.MaxValue, br = double.MinValue, bt = double.MinValue;
@@ -1693,7 +1859,7 @@ internal static class TextLayout
                 }
             }
 
-            PdfTextLine? line = MakeLine(w, g, items, ids, f, bk, os, oc, para);
+            PdfTextLine? line = MakeLine(w, g, items, ids, f, bk, os, oc, para, edges);
             if (line is null)
             {
                 continue;
@@ -1711,9 +1877,10 @@ internal static class TextLayout
 
     /// <summary>
     /// Finds the next word in <c>ids[p .. end)</c>, starting at <paramref name="p"/>: runs of non-space items, split at gaps wider than the word-gap thresholds.
-    /// Space items are skipped. Returns false at the end.
+    /// Space items are skipped. A gap that <see cref="BridgesGap"/> accepts does not end the word.
+    /// <paramref name="spaceGlyphs"/> says the line writes its word spaces as glyphs. Returns false at the end.
     /// </summary>
-    internal static bool NextWord(Item[] items, int[] ids, ref int p, int end, out int start, out int length)
+    internal static bool NextWord(Item[] items, int[] ids, ref int p, int end, bool spaceGlyphs, out int start, out int length)
     {
         while (p < end && items[ids[p]].Space)
         {
@@ -1728,6 +1895,7 @@ internal static class TextLayout
 
         start = p;
         ref Item prev = ref items[ids[p]];
+        bool spaceBetween = false; // a space glyph drawn over the glyph before it was skipped since the last glyph
         p++;
         while (p < end)
         {
@@ -1737,6 +1905,7 @@ internal static class TextLayout
                 // A space drawn on top of the previous glyph (a producer that parks the trailing space of a line at its start) is no separator.
                 if (it.X0 < prev.X1 - LayoutParameters.SpaceOverlapRatio * (it.X1 - it.X0))
                 {
+                    spaceBetween = true;
                     p++;
                     continue;
                 }
@@ -1747,10 +1916,12 @@ internal static class TextLayout
             double gap = it.X0 - prev.X1;
             double size = (prev.Size + it.Size) / 2;
             double thr = (prev.Cjk || it.Cjk ? LayoutParameters.CjkWordGapEm : LayoutParameters.WordGapEm) * size;
-            if (gap > thr)
+            if (gap > thr && (spaceBetween || !BridgesGap(prev, it, gap, size, spaceGlyphs)))
             {
                 break;
             }
+
+            spaceBetween = false;
 
             prev = ref it;
             p++;
@@ -1916,7 +2087,7 @@ internal static class TextLayout
         return pos;
     }
 
-    private static PdfTextLine? MakeLine(LayoutWork w, PdfTextGlyph[] g, Item[] items, int[] ids, Frag[] f, int[] bk, int off, int nfr, int para)
+    private static PdfTextLine? MakeLine(LayoutWork w, PdfTextGlyph[] g, Item[] items, int[] ids, Frag[] f, int[] bk, int off, int nfr, int para, bool judgeByEnds)
     {
         int total = 0;
         for (int fi = 0; fi < nfr; fi++)
@@ -1931,7 +2102,7 @@ internal static class TextLayout
             ref Frag fr = ref f[bk[off + fi]];
             int p = fr.Start, end = fr.Start + fr.Count;
             bool first = true;
-            while (NextWord(items, ids, ref p, end, out int ws, out int wl))
+            while (NextWord(items, ids, ref p, end, fr.SpaceGlyphs, out int ws, out int wl))
             {
                 wr[wc++] = new WordRec { Start = ws, Len = wl, Cell = first && fi > 0 };
                 first = false;
@@ -1945,20 +2116,23 @@ internal static class TextLayout
 
         wr[0].Cell = true;
 
-        bool needBidi = para == 1;
-        for (int i = 0; i < wc && !needBidi; i++)
+        bool anyRtl = false;
+        for (int i = 0; i < wc && !anyRtl; i++)
         {
-            for (int k = 0; k < wr[i].Len && !needBidi; k++)
+            for (int k = 0; k < wr[i].Len && !anyRtl; k++)
             {
                 string t = g[items[ids[wr[i].Start + k]].G].Text;
-                needBidi = t.Length > 0 && MayBeRtl(t);
+                anyRtl = t.Length > 0 && MayBeRtl(t);
             }
         }
 
+        // A line with right-to-left letters is reordered by the bidirectional algorithm; so is any line of a right-to-left block, to keep numbers
+        // and neutrals where a reader finds them.
         string[]? logical = null;
         int[]? order = null;
         bool[]? cellStart = null;
-        if (needBidi)
+        bool needBidi = false;
+        if (para == 1 || anyRtl)
         {
             string[] visual = new string[wc];
             cellStart = new bool[wc];
@@ -1968,7 +2142,16 @@ internal static class TextLayout
                 cellStart[i] = wr[i].Cell;
             }
 
-            Reorder(visual, cellStart, para, out logical, out order, out cellStart);
+            if (judgeByEnds)
+            {
+                para = LineDirection(visual, para);
+            }
+
+            needBidi = para == 1 || anyRtl;
+            if (needBidi)
+            {
+                Reorder(visual, cellStart, para, out logical, out order, out cellStart);
+            }
         }
 
         // A result that drops its glyphs keeps each word as a small record; PdfTextLine makes the word objects only if its Words are read.
@@ -2135,6 +2318,101 @@ internal static class TextLayout
             : new PdfTextLine(outWords, new PdfRectangle(ll, lb, lr, lt), direction, vertical, cellStarts, lineText);
     }
 
+    /// <summary>The direction of a word's first letter with a direction of its own: 1 for right to left, 0 for left to right, -1 for none (numbers, punctuation).</summary>
+    private static int WordDirection(Item[] items, int[] ids, int start, int len)
+    {
+        for (int k = 0; k < len; k++)
+        {
+            int cp = items[ids[start + k]].FirstCp;
+            if (cp == 0)
+            {
+                continue;
+            }
+
+            BidiClass c = Bidi.GetClass(cp);
+            if (Bidi.IsRtl(c))
+            {
+                return 1;
+            }
+
+            if (c == BidiClass.L)
+            {
+                return 0;
+            }
+        }
+
+        return -1;
+    }
+
+    /// <summary>
+    /// The base direction of a line given in visual order, for a block that gives too little to go by (one line, or as many right-to-left words as left-to-right ones). The text cannot say it:
+    /// <c>abc ARABIC def</c> in a left-to-right paragraph and the mirror image of a right-to-left line look the same when both ends are left-to-right,
+    /// so the ends are read as a producer would have laid them out. When the first and the last strong letters (left to right on the page) are of the
+    /// same kind, that is the direction: a paragraph that starts and ends with the same kind of letter is of that kind far more often than not. When they
+    /// differ, or the line has no letters, <paramref name="blockDirection"/> (the letter majority) decides.
+    /// </summary>
+    private static int LineDirection(string[] visual, int blockDirection)
+    {
+        int first = -1, last = -1;
+        foreach (string s in visual)
+        {
+            for (int i = 0; i < s.Length; i++)
+            {
+                int cp = char.IsHighSurrogate(s[i]) && i + 1 < s.Length && char.IsLowSurrogate(s[i + 1]) ? char.ConvertToUtf32(s[i], s[i + 1]) : s[i];
+                if (cp > 0xFFFF)
+                {
+                    i++;
+                }
+
+                BidiClass c = Bidi.GetClass(cp);
+                int d = c == BidiClass.L ? 0 : Bidi.IsRtl(c) ? 1 : -1;
+                if (d >= 0)
+                {
+                    if (first < 0)
+                    {
+                        first = d;
+                    }
+
+                    last = d;
+                }
+            }
+        }
+
+        return first >= 0 && first == last ? first : blockDirection;
+    }
+
+    /// <summary>True when at least <see cref="LayoutParameters.RtlPageShare"/> of the letters of the items are right to left.</summary>
+    private static bool IsMostlyRtl(Item[] items, int n)
+    {
+        int rtl = 0, ltr = 0;
+        for (int i = 0; i < n; i++)
+        {
+            int cp = items[i].FirstCp;
+            if (cp < 0x0590)
+            {
+                // Nothing below Hebrew is right to left; count letters only (ASCII, and Latin and other left-to-right scripts from U+00C0).
+                if ((cp >= 'a' && cp <= 'z') || (cp >= 'A' && cp <= 'Z') || (cp >= 0xC0 && cp != 0xD7 && cp != 0xF7))
+                {
+                    ltr++;
+                }
+
+                continue;
+            }
+
+            BidiClass c = Bidi.GetClass(cp);
+            if (Bidi.IsRtl(c))
+            {
+                rtl++;
+            }
+            else if (c == BidiClass.L)
+            {
+                ltr++;
+            }
+        }
+
+        return rtl > 0 && rtl >= LayoutParameters.RtlPageShare * (rtl + ltr);
+    }
+
     private static bool MayBeRtl(string t)
     {
         for (int k = 0; k < t.Length; k++)
@@ -2182,7 +2460,9 @@ internal static class TextLayout
 
         int[] arr = cps.ToArray();
         byte[] levels = new byte[arr.Length];
-        Bidi.ResolveLevels(arr, para, levels);
+        bool[] force = new bool[arr.Length];
+        Bidi.ResolveLevels(arr, para, levels, Bidi.FindInvertedBrackets(arr, force) ? force : default);
+        Bidi.KeepRemoved(levels, para);
         int[] vis = new int[arr.Length];
         int m = Bidi.VisualOrder(levels, vis);
 

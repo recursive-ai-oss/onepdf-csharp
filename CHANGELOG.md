@@ -10,6 +10,13 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 - Generated appearances for Caret annotations (a filled wedge in `/Rect` inset by `/RD`); the interpreter draws them too when a Caret has no appearance.
 - Fuzz target `markup`.
 
+### Fixed
+
+- Text extraction, right-to-left text: a left-to-right line that quotes Arabic or Hebrew (`abc <Arabic words> def`) is no longer read as a right-to-left line when the quoted letters outnumber the rest of the block; it came out with the whole line reversed (`def <words> abc`). The base direction is now decided per line from its first and last strong letters, and the block majority only breaks ties (`PdfTextLine.Direction` follows). Brackets that enclose a right-to-left run and sit at its edge stay with the run.
+- Text extraction: an Arabic word drawn with tatweel (U+0640), or with a kashida that is only a stretch between connected letters, is one word again instead of several fragments; U+0640 stays in the text.
+- Text extraction: Persian `می‌خواهم` (ZWNJ, U+200C) and other words with U+200C or U+200D are one word with the character kept. A joining control is treated as a point at the junction of its neighbours, and the gap a non-joining form leaves does not end the word.
+- Text extraction: U+200C, U+200D (emoji ZWJ sequences included) and other characters that the bidirectional algorithm removes (X9) are no longer dropped from `Text` of lines that go through reordering, and `PdfPage.ExtractText().Text`, line, block and word text and the plain-text modes keep them.
+
 ### Changed
 
 - `VerifySignatures`: after an approval signature (no DocMDP), a revision that only appends new Highlight, StrikeOut, Underline, Squiggly or Caret annotations and Popups whose `/Parent` is one of them is an allowed change. Other annotation subtypes and every other change are judged as before; certified documents are unchanged.
