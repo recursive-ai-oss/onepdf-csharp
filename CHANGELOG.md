@@ -4,6 +4,8 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ## [Unreleased]
 
+## [1.18.0] - 2026-11-05
+
 ### Added
 
 - `PdfTextOptions.RemoveBidiControls` (default false): leaves U+202A–U+202E, U+2066–U+2069, U+200E, U+200F and U+061C out of the word, line, block and page texts, the plain-text modes and the extraction JSON. U+200C and U+200D are never removed and `Glyphs` is unchanged. Extraction keeps these characters by default, as it does on left-to-right lines. See `docs/text-layout.md`.
@@ -378,6 +380,7 @@ First release. Two packages, `RecursiveAI.OnePdf` (the library, `net10.0`, no de
 - Limits on by default (`PdfLimits`) and fuzzed parsers, filters and font readers; no `unsafe` code. OnePDF never runs code or touches the network.
 - `RecursiveAI.OnePdf.Fonts`: Liberation and Noto substitute outlines under the SIL Open Font License 1.1, registered with `FontsPackage.Register()`.
 
+[1.18.0]: https://github.com/recursive-ai-oss/onepdf-csharp/releases/tag/v1.18.0
 [1.17.1]: https://github.com/recursive-ai-oss/onepdf-csharp/releases/tag/v1.17.1
 [1.17.0]: https://github.com/recursive-ai-oss/onepdf-csharp/releases/tag/v1.17.0
 [1.16.0]: https://github.com/recursive-ai-oss/onepdf-csharp/releases/tag/v1.16.0
