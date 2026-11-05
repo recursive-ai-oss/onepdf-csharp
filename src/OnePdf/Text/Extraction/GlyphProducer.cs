@@ -40,7 +40,7 @@ internal sealed class TextGlyphDevice(int pageIndex) : PdfDevice
     // matrices in a different order and differs in the last bits. Every ordering decision below compares positions, and an exact tie
     // that becomes a difference of 1e-14 sorts another way, so the stored matrix is put on a fixed grid. Dividing the rounded integer
     // by the power of ten gives the double nearest the decimal value, which is identical on every platform and prints short.
-    private const double OriginGrid = 1e6;
+    internal const double OriginGrid = 1e6;
     private const double MatrixGrid = 1e9;
 
     private static double Snap(double v, double grid) => Math.Round(v * grid) / grid;

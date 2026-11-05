@@ -103,6 +103,9 @@ internal sealed class LayoutWork : IDisposable
     /// <summary>False when the words of the result will not keep their glyph indices, so they need not be collected.</summary>
     internal bool KeepWordGlyphs = true;
 
+    /// <summary>Leave the explicit directional formatting characters out of the texts built from the glyphs (<see cref="PdfTextOptions.RemoveBidiControls"/>).</summary>
+    internal bool StripBidiControls;
+
     internal int[] Aux1 = [];
     internal int[] Aux2 = [];
     internal int[] Aux3 = [];
@@ -487,15 +490,15 @@ internal static class TextLayout
     }
 
     /// <summary>Lays out the glyphs of <paramref name="subset"/> (indices into <paramref name="g"/>) and returns blocks in reading order.</summary>
-    internal static List<PdfTextBlock> Run(PdfTextGlyph[] g, ReadOnlySpan<int> subset, CancellationToken ct) => RunCore(g, subset, false, subset.Length, true, ct);
+    internal static List<PdfTextBlock> Run(PdfTextGlyph[] g, ReadOnlySpan<int> subset, CancellationToken ct, bool stripBidi = false) => RunCore(g, subset, false, subset.Length, true, stripBidi, ct);
 
     /// <summary>Lays out every glyph of <paramref name="g"/>.</summary>
-    internal static List<PdfTextBlock> RunAll(PdfTextGlyph[] g, CancellationToken ct) => RunCore(g, default, true, g.Length, true, ct);
+    internal static List<PdfTextBlock> RunAll(PdfTextGlyph[] g, CancellationToken ct, bool stripBidi = false) => RunCore(g, default, true, g.Length, true, stripBidi, ct);
 
     /// <summary>Lays out the first <paramref name="count"/> glyphs of <paramref name="g"/>, which may be longer.</summary>
-    internal static List<PdfTextBlock> RunAll(PdfTextGlyph[] g, int count, bool keepWordGlyphs, CancellationToken ct) => RunCore(g, default, true, count, keepWordGlyphs, ct);
+    internal static List<PdfTextBlock> RunAll(PdfTextGlyph[] g, int count, bool keepWordGlyphs, CancellationToken ct, bool stripBidi = false) => RunCore(g, default, true, count, keepWordGlyphs, stripBidi, ct);
 
-    private static List<PdfTextBlock> RunCore(PdfTextGlyph[] g, ReadOnlySpan<int> subset, bool all, int count, bool keepWordGlyphs, CancellationToken ct)
+    private static List<PdfTextBlock> RunCore(PdfTextGlyph[] g, ReadOnlySpan<int> subset, bool all, int count, bool keepWordGlyphs, bool stripBidi, CancellationToken ct)
     {
         List<PdfTextBlock> result = [];
         if (count == 0)
@@ -516,7 +519,7 @@ internal static class TextLayout
             }
 
             ct.ThrowIfCancellationRequested();
-            LayoutClass(g, grouped, start[k], cnt, k, result, keepWordGlyphs, ct);
+            LayoutClass(g, grouped, start[k], cnt, k, result, keepWordGlyphs, stripBidi, ct);
         }
 
         return result;
@@ -533,9 +536,9 @@ internal static class TextLayout
         return items;
     }
 
-    private static void LayoutClass(PdfTextGlyph[] g, int[] idx, int offset, int n, int k, List<PdfTextBlock> output, bool keepWordGlyphs, CancellationToken ct)
+    private static void LayoutClass(PdfTextGlyph[] g, int[] idx, int offset, int n, int k, List<PdfTextBlock> output, bool keepWordGlyphs, bool stripBidi, CancellationToken ct)
     {
-        using LayoutWork w = new() { KeepWordGlyphs = keepWordGlyphs };
+        using LayoutWork w = new() { KeepWordGlyphs = keepWordGlyphs, StripBidiControls = stripBidi };
         Item[] items = MakeItems(w, g, idx, offset, n, k);
         int lineCount = ClusterLines(w, items, n);
         w.InitLines(lineCount);
@@ -2154,8 +2157,33 @@ internal static class TextLayout
             }
         }
 
+        // With the bidi controls left out, the words' texts are built here (no slices of the line's text), since a word's text no longer equals its glyphs'.
+        bool materialized = needBidi;
+        if (w.StripBidiControls)
+        {
+            if (!needBidi)
+            {
+                logical = new string[wc];
+                order = new int[wc];
+                cellStart = new bool[wc];
+                for (int i = 0; i < wc; i++)
+                {
+                    logical[i] = WordText(g, items, ids, wr[i].Start, wr[i].Len);
+                    order[i] = i;
+                    cellStart[i] = wr[i].Cell;
+                }
+
+                materialized = true;
+            }
+
+            for (int i = 0; i < wc; i++)
+            {
+                logical![i] = BidiControls.Strip(logical[i]);
+            }
+        }
+
         // A result that drops its glyphs keeps each word as a small record; PdfTextLine makes the word objects only if its Words are read.
-        bool lazy = !w.KeepWordGlyphs && !needBidi;
+        bool lazy = !w.KeepWordGlyphs && !materialized;
         PdfTextWord[] outWords = lazy ? [] : new PdfTextWord[wc];
         PdfTextWordRecord[] records = lazy ? new PdfTextWordRecord[wc] : [];
         int ow = 0;
@@ -2166,9 +2194,9 @@ internal static class TextLayout
         double ll = double.MaxValue, lb = double.MaxValue, lr = double.MinValue, lt = double.MinValue;
         for (int i = 0; i < wc; i++)
         {
-            WordRec rec = needBidi ? wr[order![i]] : wr[i];
-            string? text = needBidi ? logical![i] : null;
-            int textLen = needBidi ? text!.Length : WordTextLength(g, items, ids, rec.Start, rec.Len);
+            WordRec rec = materialized ? wr[order![i]] : wr[i];
+            string? text = materialized ? logical![i] : null;
+            int textLen = materialized ? text!.Length : WordTextLength(g, items, ids, rec.Start, rec.Len);
             if (textLen == 0)
             {
                 continue;
@@ -2209,19 +2237,19 @@ internal static class TextLayout
                 vis |= g[gx].IsVisible;
             }
 
-            if (needBidi ? cellStart![i] : rec.Cell)
+            if (materialized ? cellStart![i] : rec.Cell)
             {
                 cells[cellCount++] = ow;
             }
 
-            kept[ow] = needBidi ? 0 : i;
+            kept[ow] = materialized ? 0 : i;
             if (lazy)
             {
                 records[ow++] = new PdfTextWordRecord(textPos, textLen, new PdfRectangle(wl, wbm, wr2, wt), vis);
             }
             else
             {
-                outWords[ow++] = needBidi
+                outWords[ow++] = materialized
                     ? new PdfTextWord(text!, new PdfRectangle(wl, wbm, wr2, wt), gi, vis)
                     : new PdfTextWord(textPos, textLen, new PdfRectangle(wl, wbm, wr2, wt), gi, vis);
             }
@@ -2257,7 +2285,7 @@ internal static class TextLayout
         // Words are separated by a space, and a word that starts a cell by a tab.
         int lineLen = textPos - 1;
         string lineText;
-        if (needBidi)
+        if (materialized)
         {
             lineText = string.Create(lineLen, (outWords, cellStarts), static (span, st) =>
             {
@@ -2512,5 +2540,38 @@ internal static class TextLayout
         {
             cells[0] = true;
         }
+    }
+}
+
+/// <summary>The explicit directional formatting characters (<see cref="PdfTextOptions.RemoveBidiControls"/>).</summary>
+internal static class BidiControls
+{
+    internal static bool Is(char c) => c is >= '‪' and <= '‮' or >= '⁦' and <= '⁩' or '‎' or '‏' or '؜';
+
+    /// <summary>The text without its directional formatting characters; the same instance when it has none.</summary>
+    internal static string Strip(string s)
+    {
+        int i = 0;
+        while (i < s.Length && !Is(s[i]))
+        {
+            i++;
+        }
+
+        if (i == s.Length)
+        {
+            return s;
+        }
+
+        var sb = new StringBuilder(s.Length);
+        sb.Append(s, 0, i);
+        for (; i < s.Length; i++)
+        {
+            if (!Is(s[i]))
+            {
+                sb.Append(s[i]);
+            }
+        }
+
+        return sb.ToString();
     }
 }

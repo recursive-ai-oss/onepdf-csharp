@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Linq;
 using OnePdf.Content;
 using OnePdf.Redaction;
@@ -739,7 +740,7 @@ internal sealed class ContentTagger : PdfDevice, IContentTap
                 prefix = "\nT* ";
                 break;
             default:
-                prefix = "\n" + ContentRedactor.FormatNum(operands[^3].Num) + " Tw " + ContentRedactor.FormatNum(operands[^2].Num) + " Tc T* ";
+                prefix = "\n" + FormatExact(operands[^3].Num) + " Tw " + FormatExact(operands[^2].Num) + " Tc T* ";
                 elements = [operands[^1]];
                 break;
         }
@@ -821,17 +822,25 @@ internal sealed class ContentTagger : PdfDevice, IContentTap
         return pieces;
     }
 
-    private static void AddNum(List<Tok> toks, double v)
+    /// <summary>
+    /// A number for a text operator, with all the digits a double carries (15 significant). The adjustments of a split <c>TJ</c> move the following glyphs by
+    /// that many thousandths of the text size; rounding them to six decimals, as redaction does for its own output, would move glyphs by up to 5e-10 em, enough
+    /// to land a glyph on the other side of a rounding step of the extracted position.
+    /// </summary>
+    private static string FormatExact(double v)
     {
-        if (toks.Count > 0 && toks[^1].IsNum)
+        if (!double.IsFinite(v) || Math.Abs(v) < 1e-15)
         {
-            toks[^1].Num += v;
+            return "0";
         }
-        else
-        {
-            toks.Add(new Tok { IsNum = true, Num = v });
-        }
+
+        string t = v.ToString("0.###############", CultureInfo.InvariantCulture);
+        return t is "-0" or "" ? "0" : t;
     }
+
+    // Each number stays a token of its own: the interpreter moves the text position by one number at a time, and adding two of them first would
+    // reach the same place by a different sum.
+    private static void AddNum(List<Tok> toks, double v) => toks.Add(new Tok { IsNum = true, Num = v });
 
     private void EmitPiece(List<TagCtx.TextPiece> pieces, List<Tok> toks, int owner, ref bool first, string prefix)
     {
@@ -847,7 +856,7 @@ internal sealed class ContentTagger : PdfDevice, IContentTap
         {
             if (t.IsNum)
             {
-                o.Add(ContentRedactor.FormatNum(t.Num));
+                o.Add(FormatExact(t.Num));
                 o.Add((byte)' ');
             }
             else

@@ -164,7 +164,7 @@ public sealed class PdfTextExtractor
         {
             try
             {
-                List<PdfTextBlock> found = TextLayout.RunAll(g, count, false, ct);
+                List<PdfTextBlock> found = TextLayout.RunAll(g, count, false, ct, o.RemoveBidiControls);
                 PdfPageText bare = PdfPageText.WithoutGlyphs(page.PageIndex, page.Width, page.Height, found.ToArray(), [], o, wordsAlreadyClear: true);
                 bare.SourceGlyphCount = sourceCount;
                 return bare;
@@ -200,7 +200,7 @@ public sealed class PdfTextExtractor
 
                 if (total > 0 && covered >= LayoutParameters.StructureCoverage * total)
                 {
-                    blocks = ByStructure(g, structure, page.Height, ct);
+                    blocks = ByStructure(g, structure, page.Height, o.RemoveBidiControls, ct);
                     used = true;
                 }
                 else if (total > 0)
@@ -217,7 +217,7 @@ public sealed class PdfTextExtractor
 
         if (blocks is null)
         {
-            blocks = TextLayout.RunAll(g, ct);
+            blocks = TextLayout.RunAll(g, ct, o.RemoveBidiControls);
         }
 
         return new PdfPageText(page.PageIndex, page.Width, page.Height, g, blocks.ToArray(), used, diag, o) { SourceGlyphCount = sourceCount };
@@ -236,7 +236,7 @@ public sealed class PdfTextExtractor
         return true;
     }
 
-    private static List<PdfTextBlock> ByStructure(PdfTextGlyph[] g, PageStructure s, double pageHeight, CancellationToken ct)
+    private static List<PdfTextBlock> ByStructure(PdfTextGlyph[] g, PageStructure s, double pageHeight, bool stripBidi, CancellationToken ct)
     {
         SortedDictionary<int, List<int>> groups = [];
         List<int> orphans = [];
@@ -259,7 +259,7 @@ public sealed class PdfTextExtractor
 
         List<PdfTextBlock> result = [];
         List<PdfTextBlock> tail = [];
-        foreach (PdfTextBlock b in TextLayout.Run(g, orphans.ToArray(), ct))
+        foreach (PdfTextBlock b in TextLayout.Run(g, orphans.ToArray(), ct, stripBidi))
         {
             // Untagged text (artifacts such as running heads) goes where it sits: above the content or below it.
             if ((b.Bounds.Bottom + b.Bounds.Top) / 2 > pageHeight * (1 - 2 * LayoutParameters.FurnitureBand))
@@ -274,7 +274,7 @@ public sealed class PdfTextExtractor
 
         foreach (List<int> group in groups.Values)
         {
-            result.AddRange(TextLayout.Run(g, group.ToArray(), ct));
+            result.AddRange(TextLayout.Run(g, group.ToArray(), ct, stripBidi));
         }
 
         result.AddRange(tail);
