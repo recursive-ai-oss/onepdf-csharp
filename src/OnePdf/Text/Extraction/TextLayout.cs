@@ -283,6 +283,13 @@ internal static class TextLayout
             x0 -= 1e-7 * Math.Max(g.Size, 1e-6);
             x1 = x0;
         }
+        else if (t.Length == 0 && g.ActualTextSpan != 0)
+        {
+            // A glyph whose text was replaced by an enclosing /ActualText span has no text and no extent. It is a point at the start of the
+            // span's box, sorted just before the glyph that carries the text, so it never opens a gap between the letters around it.
+            x0 -= 1e-7 * Math.Max(g.Size, 1e-6);
+            x1 = x0;
+        }
 
         return new Item
         {

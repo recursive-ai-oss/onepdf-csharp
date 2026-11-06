@@ -318,6 +318,7 @@ internal sealed class EmbeddedCreatedFont : PdfCreatedFont
     private readonly int _faceIndex;
     private readonly List<int> _glyphs = []; // _glyphs[code - 1] = original glyph, subset numbering
     private readonly List<string?> _unicodes = []; // text of each glyph for /ToUnicode; null when none is known
+    private readonly List<bool> _weakText = []; // the glyph's text is a stand-in taken from a multi-glyph cluster; the glyph's own text replaces it
     private readonly Dictionary<int, int> _codeOfGlyph = [];
     private readonly Dictionary<int, int> _indexOfGlyph = []; // position in _glyphs / _unicodes
     private readonly HashSet<int> _reported = [];
@@ -606,6 +607,7 @@ internal sealed class EmbeddedCreatedFont : PdfCreatedFont
         _indexOfGlyph[gid] = _glyphs.Count;
         _glyphs.Add(gid);
         _unicodes.Add(text);
+        _weakText.Add(false);
         _codeOfGlyph[gid] = code;
         _widthOfCode[code] = (int)Math.Round(AdvanceUnits(gid));
         return code;
@@ -614,9 +616,11 @@ internal sealed class EmbeddedCreatedFont : PdfCreatedFont
     /// <summary>
     /// The code for glyph <paramref name="gid"/> chosen by a shaping engine rather than by the character map. The glyph's /ToUnicode
     /// text is <paramref name="text"/> when the glyph has none yet; <paramref name="conflict"/> is true when it already has a
-    /// different one, so the caller must wrap this use in /ActualText.
+    /// different one, so the caller must wrap this use in /ActualText. With <paramref name="weak"/> the text is only a stand-in for a
+    /// glyph of a multi-glyph cluster (the use is inside /ActualText anyway): it never conflicts, and the glyph's own text, if another
+    /// use gives it one, replaces it.
     /// </summary>
-    internal int CodeForGlyph(int gid, ReadOnlySpan<char> text, out bool conflict, out int widthOfCode)
+    internal int CodeForGlyph(int gid, ReadOnlySpan<char> text, bool weak, out bool conflict, out int widthOfCode)
     {
         if ((uint)gid >= (uint)_font.GlyphCount)
         {
@@ -634,16 +638,34 @@ internal sealed class EmbeddedCreatedFont : PdfCreatedFont
         }
 
         // The text is made into a string only for a glyph the font has not seen; the usual call finds it known and allocates nothing.
-        int code = _codeOfGlyph.TryGetValue(gid, out int existing) ? existing : CodeFor(gid, text.IsEmpty ? null : text.ToString());
+        bool isNew = !_codeOfGlyph.TryGetValue(gid, out int existing);
+        int code = isNew ? CodeFor(gid, text.IsEmpty ? null : text.ToString()) : existing;
         int index = _indexOfGlyph[gid];
-        string? known = _unicodes[index];
-        if (known is null && !text.IsEmpty)
+        if (isNew)
         {
-            _unicodes[index] = text.ToString();
+            _weakText[index] = weak && !text.IsEmpty;
         }
-        else if (known is not null && !text.IsEmpty && !text.SequenceEqual(known))
+
+        string? known = _unicodes[index];
+        if (!text.IsEmpty)
         {
-            conflict = true;
+            if (known is null)
+            {
+                _unicodes[index] = text.ToString();
+                _weakText[index] = weak;
+            }
+            else if (_weakText[index])
+            {
+                if (!weak)
+                {
+                    _unicodes[index] = text.ToString();
+                    _weakText[index] = false;
+                }
+            }
+            else if (!weak && !text.SequenceEqual(known))
+            {
+                conflict = true;
+            }
         }
 
         widthOfCode = _widthOfCode[code];
@@ -764,10 +786,10 @@ internal sealed class EmbeddedCreatedFont : PdfCreatedFont
         var entries = new List<(int Code, string Text)>();
         for (int i = 0; i < _glyphs.Count; i++)
         {
-            if (_unicodes[i] is not { Length: > 0 } glyphText)
-            {
-                continue; // a glyph drawn only inside /ActualText sequences has no text of its own
-            }
+            // A glyph that only appeared inside /ActualText sequences, behind the first glyph of its cluster, has no text of its own.
+            // Every used code still needs a non-empty entry (ISO 14289-1 7.21.7). A zero-width non-joiner adds no visible text, so the
+            // glyph does not duplicate its cluster's text in readers that ignore /ActualText (ISO 32000-2 9.10.3).
+            string glyphText = _unicodes[i] is { Length: > 0 } own && own.AsSpan().IndexOfAnyExcept((char)0, (char)0xFEFF, (char)0xFFFE) >= 0 ? _unicodes[i]! : "\u200C";
 
             int code = _subset ? i + 1 : _codeOfGlyph[_glyphs[i]];
             entries.Add((code, glyphText));

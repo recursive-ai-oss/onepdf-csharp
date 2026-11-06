@@ -10,6 +10,8 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ### Fixed
 
+- Shaped text (`PdfContentBuilder.DrawGlyphRun`, so everything `RecursiveAI.OnePdf.Layout` draws) now gives every used character code of an embedded font a `/ToUnicode` entry. Glyphs inside multi-glyph clusters (Arabic base letters with marks, Thai sara am and stacked marks, Indic syllables) and glyphs drawn only inside `/ActualText` spans had none, which failed PDF/UA-1 rule 7.21.7 (ISO 14289-1). The first glyph of such a cluster maps to the cluster's text and the others to U+200C; a glyph's own text from another use replaces a stand-in. See `docs/content-creation.md`.
+- Text extraction put gaps inside words whose glyphs sit in an `/ActualText` span: `سَلَامٌ` extracted as `سَ لَا مٌ`, Thai and Devanagari syllables split in the same way. The span's text now sits on one box covering the whole cluster, and the span's other glyphs are points at its start.
 - `Save` of a file whose page tree lists entries that are not pages (a damaged file that open recovered only partly) wrote the tree as it was, with a stale `/Count` and null `/Kids` entries. The saved tree now holds only pages that exist, with matching `/Count` values. A leaf dictionary whose `/Type` is not `/Page` (a font, say) is no longer counted as a page.
 - `SaveIncremental` throws `PdfFormatException` for such a file instead of appending to the inconsistent tree; use `Save`.
 

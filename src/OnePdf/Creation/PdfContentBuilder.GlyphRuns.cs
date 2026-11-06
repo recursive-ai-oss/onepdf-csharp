@@ -28,13 +28,15 @@ public abstract partial class PdfContentBuilder
     /// to right in <em>drawing</em> order: for right-to-left text the glyphs are given in visual order, as shaping engines return them.
     /// </summary>
     /// <remarks>
-    /// <para>The text each glyph stands for is kept so that extraction returns the logical text (ISO 32000-2 9.10, 14.9.4):</para>
+    /// <para>The text each glyph stands for is kept so that extraction returns the logical text (ISO 32000-2 9.10, 14.9.4) and every code
+    /// used has a <c>/ToUnicode</c> entry (ISO 14289-1 7.21.7):</para>
     /// <list type="bullet">
     /// <item>a cluster of one glyph (a letter, or a ligature standing for several characters) adds the cluster's text to the font's
     /// <c>/ToUnicode</c> map, one glyph to one or more characters;</item>
     /// <item>a cluster of several glyphs (a reordered or split Indic syllable, a base with several marks), a glyph that the
     /// map already ties to different text, or a cluster value that returns after other clusters, is wrapped in a
-    /// <c>/Span</c> with <c>/ActualText</c> holding the cluster's text.</item>
+    /// <c>/Span</c> with <c>/ActualText</c> holding the cluster's text. The first glyph of a multi-glyph cluster also gets the cluster's
+    /// text as a stand-in map entry (replaced if the glyph is drawn alone elsewhere) and its other glyphs get U+200C.</item>
     /// </list>
     /// <para>Each glyph is placed from the given advance and offsets, whatever the font's own widths are; the font's <c>/W</c> array
     /// still records its design widths. Character spacing set with <see cref="SetCharacterSpacing"/> is compensated, so the pen moves
@@ -180,7 +182,7 @@ public abstract partial class PdfContentBuilder
                 int width0 = 0;
                 if (count == 1)
                 {
-                    code0 = font.CodeForGlyph(glyphs[gi].GlyphId, groupText, out bool conflict, out width0);
+                    code0 = font.CodeForGlyph(glyphs[gi].GlyphId, groupText, false, out bool conflict, out width0);
                     needsActual |= conflict;
                 }
                 else
@@ -193,7 +195,7 @@ public abstract partial class PdfContentBuilder
 
                     for (int k = 0; k < count; k++)
                     {
-                        codes[k] = font.CodeForGlyph(glyphs[gi + k].GlyphId, default, out bool conflict, out widths![k]);
+                        codes[k] = font.CodeForGlyph(glyphs[gi + k].GlyphId, k == 0 ? groupText : default, true, out bool conflict, out widths![k]);
                         needsActual |= conflict;
                     }
                 }
