@@ -69,7 +69,7 @@ public sealed partial class PdfDocument
     /// <param name="output">A writable stream; it does not have to seek and is left open.</param>
     /// <param name="options">Only <see cref="PdfSaveOptions.CompressStreams"/> applies; encryption must stay <see cref="PdfEncryptionAction.Keep"/>.</param>
     /// <param name="cancellationToken">Checked between objects.</param>
-    /// <exception cref="PdfFormatException">The file was rebuilt by scanning on open.</exception>
+    /// <exception cref="PdfFormatException">The file was rebuilt by scanning on open, or its page tree lists entries that are not pages (<see cref="LostPages"/>); a full save writes a corrected tree.</exception>
     /// <exception cref="ArgumentException">The options ask to change the encryption, or the stream is not writable.</exception>
     /// <exception cref="PdfSourceChangedException">The source changed since the document was opened.</exception>
     public void SaveIncremental(Stream output, PdfSaveOptions? options = null, CancellationToken cancellationToken = default)
@@ -105,6 +105,13 @@ public sealed partial class PdfDocument
         if (Revisions.Count == 0 || Revisions[^1].XrefOffset < 0)
         {
             throw new PdfFormatException("The file was rebuilt by scanning, so there is no cross-reference section to chain an update to; use Save instead.");
+        }
+
+        // The update cannot carry a corrected page tree for a tree that has lost entries without rewriting objects the caller did not
+        // change, and appending to a tree known to be inconsistent would pass the damage on as if it were sound.
+        if (LostPages.Count > 0)
+        {
+            throw new PdfFormatException("The page tree lists " + LostPages.Count + " entries that are not pages, so an incremental update would keep an inconsistent page tree; use Save, which writes a corrected one.");
         }
 
         CreationState.FinishFonts(this);

@@ -18,6 +18,9 @@ internal sealed class FullSaver : SaverBase, IReferenceMapper, IDisposable
     private readonly Dictionary<int, int> _map = [];
     private readonly Queue<(PdfObject Obj, int Num)> _queue = new();
     private readonly Dictionary<int, XrefEntry> _entries = [];
+
+    // Page-tree nodes written in a corrected form because the document's tree lists entries that are not pages.
+    private Dictionary<int, PdfDictionary>? _treeFixes;
     private int _next = 1;
     private int _encryptNumber = -1;
     private SecurityDecryptor? _enc;
@@ -44,6 +47,11 @@ internal sealed class FullSaver : SaverBase, IReferenceMapper, IDisposable
         }
 
         int old = target.Reference?.Number ?? reference.Number;
+        if (_treeFixes is not null && _treeFixes.TryGetValue(old, out PdfDictionary? fixedNode))
+        {
+            target = fixedNode;
+        }
+
         if (!_map.TryGetValue(old, out int n))
         {
             n = Allocate(target);
@@ -86,6 +94,8 @@ internal sealed class FullSaver : SaverBase, IReferenceMapper, IDisposable
         {
             throw new PdfFormatException("The document has no catalog to save.");
         }
+
+        _treeFixes = PageTreeRepair.Compute(Doc);
 
         // Encryption: keep (the document's own key), remove, or set up new.
         (byte[] First, byte[] Second)? id = Options.DocumentId is { Length: > 0 } fixedId ? (fixedId, fixedId) : ReadId(Doc);

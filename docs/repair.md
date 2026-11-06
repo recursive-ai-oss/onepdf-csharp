@@ -66,8 +66,41 @@ Limit violations (`PdfLimitException`) are never repaired: they propagate.
 - **Page tree.** `Pages` (and `PageCount`) walk `/Pages` iteratively once; the inheritable attributes `Resources`,
   `MediaBox`, `CropBox` and `Rotate` come from the nearest ancestor that has them. A page without a usable `MediaBox`
   is US Letter (warning); a `CropBox` is clipped to the `MediaBox`; a `Rotate` that is not a multiple of 90 is 0 (warning).
-  Nesting beyond `MaxNestingDepth` is skipped (warning). A node reached twice is skipped (warning); a kid that is not a
-  dictionary is skipped (warning); a node without `/Kids` is a page unless `/Type` is `/Pages`.
+  A page tree entry that does not lead to a page is dropped (warning) and reported as a `PdfLostPage` (below). A node
+  without `/Kids` is a page when its `/Type` is `/Page`, or when it has no `/Type` and has `/Contents`, `/MediaBox`,
+  `/Resources` or `/Parent`; any other type (a font, an annotation) is not a page, and a `/Type /Pages` node without
+  `/Kids` is an empty node that holds no page. Nesting beyond `MaxNestingDepth` is dropped too.
+
+### Lost pages and the saved page tree
+
+A repaired file can declare pages it no longer holds: a damaged region takes some page objects, and the page tree
+still lists them. The tree entries that do not lead to a page are:
+
+| `PdfLostPageReason` | Entry |
+|---|---|
+| `Null` | a direct null in `/Kids` |
+| `MissingObject` | a reference to an object the file does not contain, or that could not be recovered |
+| `NotADictionary` | a number, name, array or other non-dictionary |
+| `NotAPage` | a dictionary that is not a page or a page-tree node |
+| `Repeated` | a node already visited: a page listed twice, or a cycle (the first occurrence is kept) |
+| `TooDeep` | beyond `MaxNestingDepth` |
+
+`PdfDocument.LostPages` lists them in declared order after open, without saving. Each `PdfLostPage` has the `Index` the
+entry would have had if every entry were a page (the pages after a lost one keep their `Pages` index shifted down by the
+number of lost entries before them), the `Reason`, the `ObjectNumber` it pointed at and the `ParentObjectNumber` of the
+node that listed it. `PageCount` and `Pages` already exclude them, so `Pages.Count` is the number of pages a save writes.
+
+**Full save** (`Save`, including the PDF/A and PDF/UA paths) writes the tree with only the pages that exist (ISO 32000-2
+7.7.3.2): lost entries are left out, a page-tree node left with no page is left out, and every node's `/Count` is the number
+of pages below it. Pages keep their own dictionaries and their `/Parent`, so inherited attributes (7.7.3.4) still come from
+the same ancestors. A sound tree is written as it is. The document itself is not changed. Reopening the saved file gives the
+same pages and no page-tree diagnostics.
+
+**Incremental save** (`SaveIncremental`) throws `PdfFormatException` when `LostPages` is not empty. It appends to the original
+bytes, which hold the inconsistent tree, and it only writes objects the caller changed; it would either pass the damage on
+or rewrite the tree behind the caller's back. Use `Save`. A page operation that rewrites the tree (insert, delete, reorder, move, import, merge; not rotate) builds a new,
+consistent tree, after which `LostPages` is empty and an incremental save is allowed again (a file rebuilt by scanning is
+refused for its own reason, see above). A wrong `/Count` on its own, with no lost entry, does not stop an incremental save.
 - **External streams.** A stream with `/F` reads as empty (warning). Nothing outside the document is ever opened.
 - **Encryption.** `/Encrypt` is read as soon as the cross-reference data is, before the catalog or any object stream is
   trusted (a file rebuilt by scanning authenticates before its object streams are opened). `PdfOpenOptions.Password`

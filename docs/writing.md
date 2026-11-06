@@ -28,7 +28,7 @@ doc.Save("out-clean.pdf", new PdfSaveOptions { XrefFormat = PdfXrefFormat.Stream
 - **Version.** The highest of the document's, `MinimumVersion` and what is needed: 1.5 for cross-reference streams, 1.6 for AES-128, 2.0 for AES-256. A header is rewritten with the binary comment line.
 - **Streams** keep their filters and bytes. `CompressStreams` Flate-compresses streams with no filter (not metadata, not when it would not shrink them). A `/Crypt` filter, which only named the decryption just undone, is dropped.
 - **`/ID`.** Kept as it is; a document without one gets one made from a SHA-256 of the bytes written, so saving the same document twice gives the same file (an incremental save derives its new second string from the previous one and the update the same way). `PdfSaveOptions.DocumentId` overrides both.
-- **Repaired files** save as clean files; dangling references become `null`.
+- **Repaired files** save as clean files; dangling references become `null`, except in the page tree: entries that are not pages (`PdfDocument.LostPages`) are left out and every `/Count` matches, see [repair.md](repair.md).
 - **Limits.** `PdfLimits.MaxObjects` bounds the output; a classic table beyond 10 digits of offset throws `PdfLimitException` (use `Stream`). A stream larger than `MaxDecodedStreamBytes` throws `PdfLimitException` as when reading it.
 
 A full save copies each stream as stored and writes `null` for a reference to an object that does not exist, so a damaged file stays as damaged as it was. A PDF/A or PDF/UA save does not: it refuses to write a file that has lost a part it could not read (see "A conformance save never drops content" in [pdfa.md](pdfa.md)).
