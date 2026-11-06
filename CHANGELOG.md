@@ -4,6 +4,8 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ## [Unreleased]
 
+## [1.19.0] - 2026-11-06
+
 ### Added
 
 - `PdfDocument.LostPages`, with `PdfLostPage` and `PdfLostPageReason`: the page-tree entries a repaired file declares but no longer holds (null or missing `/Kids` entries, dictionaries that are not pages, repeated nodes), with their declared index, object number and reason. See `docs/repair.md`.
@@ -19,6 +21,7 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 - README and `docs/text-layout.md`: a warning that text extracted from untrusted files keeps bidirectional override and isolate characters by default; set `PdfTextOptions.RemoveBidiControls` before display or processing.
 - The PdfPig, PDFsharp and QuestPDF migration guides no longer say OnePDF lacks shaping, layout, multi-column flow, a table of contents, SVG or inline elements; `docs/structure.md` lost a duplicate heading.
+- README: the note that new text is not shaped now applies only to the core builder's `DrawText`; `RecursiveAI.OnePdf.Layout` shapes Arabic, Devanagari and other complex scripts.
 
 ## [1.18.0] - 2026-11-05
 
@@ -396,6 +399,7 @@ First release. Two packages, `RecursiveAI.OnePdf` (the library, `net10.0`, no de
 - Limits on by default (`PdfLimits`) and fuzzed parsers, filters and font readers; no `unsafe` code. OnePDF never runs code or touches the network.
 - `RecursiveAI.OnePdf.Fonts`: Liberation and Noto substitute outlines under the SIL Open Font License 1.1, registered with `FontsPackage.Register()`.
 
+[1.19.0]: https://github.com/recursive-ai-oss/onepdf-csharp/releases/tag/v1.19.0
 [1.18.0]: https://github.com/recursive-ai-oss/onepdf-csharp/releases/tag/v1.18.0
 [1.17.1]: https://github.com/recursive-ai-oss/onepdf-csharp/releases/tag/v1.17.1
 [1.17.0]: https://github.com/recursive-ai-oss/onepdf-csharp/releases/tag/v1.17.0
