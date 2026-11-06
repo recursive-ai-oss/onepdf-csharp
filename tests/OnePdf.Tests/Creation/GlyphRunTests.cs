@@ -219,6 +219,88 @@ public class GlyphRunTests
         b.DrawGlyphRun(0, 0, [new(0, 0, 500)], "\uFFFD");
     }
 
+    // The ToUnicode map of the first font of the page: code -> text.
+    private static Dictionary<int, string> ToUnicodeOf(byte[] pdf)
+    {
+        using PdfDocument d = PdfDocument.Open(pdf);
+        var fonts = (PdfDictionary)((PdfDictionary)d.Pages[0].Dictionary.Get("Resources")!).Get("Font")!;
+        var font = (PdfDictionary)fonts.Get(fonts.Keys.First())!;
+        string cmap = System.Text.Encoding.Latin1.GetString(((PdfStream)font.Get("ToUnicode")!).GetDecodedBytes().Span);
+        var map = new Dictionary<int, string>();
+        foreach (System.Text.RegularExpressions.Match e in System.Text.RegularExpressions.Regex.Matches(cmap, "<([0-9A-F]{4})> <([0-9A-F]+)>"))
+        {
+            string hex = e.Groups[2].Value;
+            var chars = new char[hex.Length / 4];
+            for (int i = 0; i < chars.Length; i++)
+            {
+                chars[i] = (char)Convert.ToInt32(hex.Substring(i * 4, 4), 16);
+            }
+
+            map[Convert.ToInt32(e.Groups[1].Value, 16)] = new string(chars);
+        }
+
+        return map;
+    }
+
+    [Fact]
+    public void EveryGlyphOfAMultiGlyphClusterGetsAToUnicodeEntry()
+    {
+        byte[] font = TestFont("NotoSansDevanagari-Subset-Regular.ttf");
+        int ka = Gid(font, 0x0915);
+        int i = Gid(font, 0x093F);
+        int ssa = Gid(font, 0x0937);
+        // "कि" is drawn as the i-matra first and the base after it, one cluster of two glyphs; "ष" follows alone.
+        byte[] pdf = Draw(font, (b, f) =>
+        {
+            b.SetFont(f, 20);
+            b.DrawGlyphRun(40, 100, [new(i, 0, 300), new(ka, 0, 500), new(ssa, 2, 500)], "किष");
+        }, out PdfDocument doc);
+        using (doc)
+        {
+            Assert.Equal("किष", CreationSupport.Normalize(CreationSupport.AllText(pdf)));
+            Dictionary<int, string> map = ToUnicodeOf(pdf);
+            Assert.Equal(3, map.Keys.Count(c => c != 0));
+            Assert.All(map.Values, v => Assert.True(v.Length > 0 && v.Any(ch => ch is not ('\0' or '\uFEFF' or '\uFFFE'))));
+            // The first glyph of the cluster carries the cluster's text, the other one a zero-width non-joiner.
+            Assert.Contains("कि", map.Values);
+            Assert.Contains("\u200C", map.Values);
+        }
+    }
+
+    [Fact]
+    public void AGlyphsOwnTextReplacesAStandInTakenFromAnEarlierCluster()
+    {
+        byte[] font = CreationSupport.RequireFont("LiberationSerif-Regular.ttf");
+        int e = Gid(font, 'e');
+        int acute = Gid(font, 0x00B4);
+        // First 'e' is the first glyph of a two-glyph cluster "é" (stand-in text), then 'e' stands alone for "e": no conflict, no second span.
+        byte[] pdf = Draw(font, (b, f) =>
+        {
+            b.SetFont(f, 20);
+            b.DrawGlyphRun(40, 100, [new(e, 0, 500), new(acute, 0, 0), new(e, 1, 500)], "ée");
+        }, out PdfDocument doc);
+        using (doc)
+        {
+            Assert.Equal("ée", CreationSupport.Normalize(CreationSupport.AllText(pdf)));
+            Assert.True(CountOf(Decoded(pdf), "/ActualText") == 1, Decoded(pdf));
+            Dictionary<int, string> map = ToUnicodeOf(pdf);
+            Assert.Contains("e", map.Values);
+            Assert.DoesNotContain("é", map.Values);
+        }
+    }
+
+    [Theory]
+    [InlineData("shaped-arabic-rtl-actualtext-gaps.pdf", "مرحبا بكم في هذا المستند التجريبي. هذا نص عربي طويل يلتف على عدة أسطر لاختبار الاتجاه من اليمين إلى اليسار وكسر الأسطر.")]
+    [InlineData("shaped-thai-actualtext-gaps.pdf", "นี่คือย่อหน้าภาษาไทยสำหรับทดสอบการแบ่งบรรทัด")]
+    public void ShapedWordsOfAnEarlierWriterExtractWithoutGaps(string file, string expected)
+    {
+        string path = Path.Combine(CreationSupport.Root(), "testdata", "repros", file);
+        using PdfDocument doc = PdfDocument.Open(path);
+        string got = CreationSupport.Normalize(string.Join(" ", doc.ExtractText().Select(t => t.Text)));
+        got = new string([.. got.Where(ch => ch is not ((>= '\u202A' and <= '\u202E') or '\u200E' or '\u200F' or (>= '\u2066' and <= '\u2069')))]);
+        Assert.Equal(expected, got);
+    }
+
     [Fact]
     public void MarkedContentMustNestWithSavedStates()
     {

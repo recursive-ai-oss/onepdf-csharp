@@ -47,6 +47,8 @@ internal static class GlyphPrep
             int curSpan = 0;
             bool replacing = false;
             bool first = false;
+            PdfTextMatrix spanOrigin = default;
+            bool haveOrigin = false;
 
             for (int i = 0; i < n; i++)
             {
@@ -79,6 +81,8 @@ internal static class GlyphPrep
                 }
 
                 string text = g.Text ?? "";
+                bool joinSpan = false;
+                PdfTextGlyph? firstAdj = null;
                 if (g.ActualTextSpan != 0)
                 {
                     if (g.ActualTextSpan != curSpan)
@@ -86,10 +90,22 @@ internal static class GlyphPrep
                         curSpan = g.ActualTextSpan;
                         replacing = g.ActualText is not null;
                         first = true;
+                        haveOrigin = false;
                     }
 
                     if (replacing)
                     {
+                        if (first)
+                        {
+                            firstAdj = SpanExtended(src, i, n);
+                            spanOrigin = firstAdj?.Matrix ?? g.Matrix;
+                            haveOrigin = true;
+                        }
+                        else
+                        {
+                            joinSpan = haveOrigin;
+                        }
+
                         text = first ? g.ActualText! : "";
                         first = false;
                     }
@@ -115,6 +131,37 @@ internal static class GlyphPrep
                     }
 
                     text = Sanitize(text);
+                }
+
+                if (joinSpan)
+                {
+                    // The other glyphs of a replaced span carry no text and no width of their own. Left where they were drawn they
+                    // sort between the neighbouring letters (a mark after its base lands beside the next base) and look like a word gap,
+                    // so they sit at the span's first glyph instead.
+                    PdfTextGlyph moved = g with { Text = text, Advance = 0, Matrix = g.Matrix with { E = spanOrigin.E, F = spanOrigin.F } };
+                    if (collapse)
+                    {
+                        ex![kept] = moved.Matrix.E;
+                        ef![kept] = moved.Matrix.F;
+                        es![kept] = moved.Size;
+                    }
+
+                    work[kept++] = moved;
+                    continue;
+                }
+
+                if (firstAdj is { } adj)
+                {
+                    PdfTextGlyph widened = adj.WithText(text);
+                    if (collapse)
+                    {
+                        ex![kept] = widened.Matrix.E;
+                        ef![kept] = widened.Matrix.F;
+                        es![kept] = widened.Size;
+                    }
+
+                    work[kept++] = widened;
+                    continue;
                 }
 
                 if (collapse)
@@ -150,6 +197,69 @@ internal static class GlyphPrep
 
         count = kept;
         return work;
+    }
+
+    /// <summary>
+    /// The first glyph of an /ActualText span, widened to the extent the whole span covers along its baseline, or null when nothing changes. The
+    /// replacement text then sits on one box spanning the cluster, as a ligature does, instead of on the first glyph alone (a base letter whose marks
+    /// and neighbouring parts follow it would leave a gap in the word that is not there). Only horizontal glyphs on the same line (within one em
+    /// of the first glyph's baseline) count.
+    /// </summary>
+    private static PdfTextGlyph? SpanExtended(ReadOnlySpan<PdfTextGlyph> src, int start, int n)
+    {
+        PdfTextGlyph f = src[start];
+        if (f.IsVertical)
+        {
+            return null;
+        }
+
+        PdfTextMatrix m = f.Matrix;
+        double det = (m.A * m.D) - (m.B * m.C);
+        if (!double.IsFinite(det) || Math.Abs(det) < 1e-12)
+        {
+            return null;
+        }
+
+        double lo = 0, hi = f.Advance;
+        bool grew = false;
+        for (int j = start + 1; j < n && src[j].ActualTextSpan == f.ActualTextSpan; j++)
+        {
+            ref readonly PdfTextGlyph k = ref src[j];
+            if (k.IsVertical || !IsFinite(k.Matrix) || !double.IsFinite(k.Advance))
+            {
+                continue;
+            }
+
+            (double ex, double ey) = k.Matrix.Apply(k.Advance, 0);
+            for (int e = 0; e < 2; e++)
+            {
+                double px = (e == 0 ? k.Matrix.E : ex) - m.E;
+                double py = (e == 0 ? k.Matrix.F : ey) - m.F;
+                double u = ((m.D * px) - (m.C * py)) / det;
+                double v = ((m.A * py) - (m.B * px)) / det;
+                if (double.IsFinite(u) && Math.Abs(v) <= 1)
+                {
+                    if (u < lo)
+                    {
+                        lo = u;
+                        grew = true;
+                    }
+
+                    if (u > hi)
+                    {
+                        hi = u;
+                        grew = true;
+                    }
+                }
+            }
+        }
+
+        if (!grew)
+        {
+            return null;
+        }
+
+        return f with { Advance = hi - lo, Matrix = m with { E = m.E + (m.A * lo), F = m.F + (m.B * lo) } };
     }
 
     private static bool IsFinite(in PdfTextMatrix m) =>
