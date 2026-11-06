@@ -283,8 +283,9 @@ local system fonts. The code is safe C# with no `unsafe`, `Unsafe.*` or `MemoryM
 
 ## What it does not do
 
-- No PDF/A validator (the converter rewrites a file only as far as its documented repairs go; otherwise it refuses), and no long-term validation data (`/DSS`, PAdES B-LT/B-LTA) when signing. Field scripts are never run, so calculated fields are not recomputed. The core content builder
-  does no shaping (it draws glyph runs a shaping engine has chosen); shaped complex-script text comes from `RecursiveAI.OnePdf.Layout`.
+- No PDF/A validator (the converter rewrites a file only as far as its documented repairs go; otherwise it refuses), and no long-term validation data (`/DSS`, PAdES B-LT/B-LTA) when signing. Field scripts are never run, so calculated fields are not recomputed. The core content builder's
+  `DrawText` does no shaping, so complex scripts drawn with it are not shaped (`DrawGlyphRun` takes glyphs a shaping engine has
+  chosen). `RecursiveAI.OnePdf.Layout` shapes Arabic, Devanagari and other complex scripts.
 - **It does not render pixels.** OnePDF resolves a page into drawing calls; a 2D engine paints them. Rasterizing lives in a
   separate package, `RecursiveAI.OneImage.Pdf`, built on [OneImage](https://github.com/recursive-ai-oss/oneimage-csharp); it
   implements OnePDF's device and registers PDF as an image format. OnePDF has no imaging dependency.
