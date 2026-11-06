@@ -46,6 +46,7 @@ public sealed partial class PdfDocument
         _pageLabels = null;
         _pageCount = new Lazy<int>(CountPagesLean, LazyThreadSafetyMode.ExecutionAndPublication);
         _treeWalkReported = false;
+        _lostPages = null;
     }
 
     internal void ResetOutline() => _outline = null;

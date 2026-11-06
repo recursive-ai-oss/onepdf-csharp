@@ -4,6 +4,15 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ## [Unreleased]
 
+### Added
+
+- `PdfDocument.LostPages`, with `PdfLostPage` and `PdfLostPageReason`: the page-tree entries a repaired file declares but no longer holds (null or missing `/Kids` entries, dictionaries that are not pages, repeated nodes), with their declared index, object number and reason. See `docs/repair.md`.
+
+### Fixed
+
+- `Save` of a file whose page tree lists entries that are not pages (a damaged file that open recovered only partly) wrote the tree as it was, with a stale `/Count` and null `/Kids` entries. The saved tree now holds only pages that exist, with matching `/Count` values. A leaf dictionary whose `/Type` is not `/Page` (a font, say) is no longer counted as a page.
+- `SaveIncremental` throws `PdfFormatException` for such a file instead of appending to the inconsistent tree; use `Save`.
+
 ### Documentation
 
 - README and `docs/text-layout.md`: a warning that text extracted from untrusted files keeps bidirectional override and isolate characters by default; set `PdfTextOptions.RemoveBidiControls` before display or processing.

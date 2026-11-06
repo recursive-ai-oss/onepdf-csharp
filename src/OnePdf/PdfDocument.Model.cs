@@ -84,28 +84,82 @@ public sealed partial class PdfDocument
         return count;
     }
 
+    // One stack entry of the page-tree walk. An entry is either a node to visit or a kid that was already found to be lost; keeping
+    // the lost ones on the stack, in order, gives each its place in the declared order.
+    private readonly record struct WalkItem(PdfDictionary? Node, Inherited Inh, int Depth, int Parent, PdfLostPageReason Lost, int LostObject);
+
+    /// <summary>
+    /// Whether a dictionary reached as a leaf of the page tree is a page (ISO 32000-2 7.7.3.3: <c>/Type /Page</c>). A leaf without
+    /// <c>/Type</c> is taken for a page when it has an entry only pages have, because some producers leave the type out; a leaf
+    /// with any other type (a font, an annotation) is not a page.
+    /// </summary>
+    internal static bool IsPageLeaf(PdfDictionary leaf)
+    {
+        string? type = leaf.GetName("Type");
+        if (type is not null)
+        {
+            return type == "Page";
+        }
+
+        return leaf.ContainsKey("Contents") || leaf.ContainsKey("MediaBox") || leaf.ContainsKey("Resources") || leaf.ContainsKey("Parent");
+    }
+
+    // Why a /Kids entry that does not resolve to a dictionary is lost, and the object it pointed at.
+    internal static (PdfLostPageReason Reason, int Object) ClassifyBadKid(PdfObject? raw, PdfObject? resolved)
+    {
+        int number = raw is PdfReference r ? r.Number : -1;
+        if (resolved is PdfNull or null)
+        {
+            return (raw is PdfReference ? PdfLostPageReason.MissingObject : PdfLostPageReason.Null, number);
+        }
+
+        return (PdfLostPageReason.NotADictionary, number);
+    }
+
     private List<PdfPageNode> WalkPagesCore(PdfDictionary? catalog, string scope, bool countOnly, bool quiet, out int count)
     {
         count = 0;
         DiagnosticBag? diag = quiet ? null : _diag;
+        bool report = scope == "document";
+        List<PdfLostPage>? lost = report ? [] : null;
         var pages = new List<PdfPageNode>();
         PdfDictionary? root = catalog?.GetDictionary("Pages");
         if (root is null)
         {
             diag?.Warn($"The catalog of the {scope} has no page tree.");
+            if (report)
+            {
+                _lostPages = lost;
+            }
+
             return pages;
         }
 
         var visited = new HashSet<int>();
-        var stack = new Stack<(PdfDictionary Node, Inherited Inh, int Depth)>();
-        stack.Push((root, default, 0));
+        var stack = new Stack<WalkItem>();
+        stack.Push(new WalkItem(root, default, 0, -1, default, -1));
         long nodes = 0;
+        int slot = 0;
         while (stack.Count > 0)
         {
-            (PdfDictionary node, Inherited inh, int depth) = stack.Pop();
+            WalkItem item = stack.Pop();
+            PdfDictionary? node = item.Node;
+            if (node is null)
+            {
+                lost?.Add(new PdfLostPage(slot, item.Lost, item.LostObject, item.Parent));
+                slot++;
+                diag?.Warn("A page tree entry is not a dictionary; skipped.", item.Parent);
+                continue;
+            }
+
+            Inherited inh = item.Inh;
+            int depth = item.Depth;
+            int ownNumber = node.Reference?.Number ?? -1;
             if (node.Reference is { } r && !visited.Add(r.Number))
             {
                 diag?.Warn("The page tree visits an object twice (a cycle or a shared page); the repeat was skipped.", r.Number);
+                lost?.Add(new PdfLostPage(slot, PdfLostPageReason.Repeated, r.Number, item.Parent));
+                slot++;
                 continue;
             }
 
@@ -116,7 +170,9 @@ public sealed partial class PdfDocument
 
             if (depth > Limits.MaxNestingDepth)
             {
-                diag?.Warn("The page tree is nested too deeply; the deeper pages were ignored.", node.Reference?.Number ?? -1);
+                diag?.Warn("The page tree is nested too deeply; the deeper pages were ignored.", ownNumber);
+                lost?.Add(new PdfLostPage(slot, PdfLostPageReason.TooDeep, ownNumber, item.Parent));
+                slot++;
                 continue;
             }
 
@@ -129,13 +185,25 @@ public sealed partial class PdfDocument
             PdfArray? kids = node.GetArray("Kids");
             if (kids is null)
             {
-                if (node.GetName("Type") != "Pages")
+                if (node.GetName("Type") == "Pages")
                 {
-                    count++;
-                    if (!countOnly)
-                    {
-                        pages.Add(new PdfPageNode(node, here.Resources, here.MediaBox, here.CropBox, here.Rotate));
-                    }
+                    // A page-tree node with no kids holds no pages; it is not a lost page.
+                    continue;
+                }
+
+                if (!IsPageLeaf(node))
+                {
+                    diag?.Warn("A page tree entry is a dictionary that is not a page; skipped.", ownNumber);
+                    lost?.Add(new PdfLostPage(slot, PdfLostPageReason.NotAPage, ownNumber, item.Parent));
+                    slot++;
+                    continue;
+                }
+
+                count++;
+                slot++;
+                if (!countOnly)
+                {
+                    pages.Add(new PdfPageNode(node, here.Resources, here.MediaBox, here.CropBox, here.Rotate));
                 }
 
                 continue;
@@ -145,11 +213,12 @@ public sealed partial class PdfDocument
             {
                 if (kids[i] is PdfDictionary child)
                 {
-                    stack.Push((child, here, depth + 1));
+                    stack.Push(new WalkItem(child, here, depth + 1, ownNumber, default, -1));
                 }
                 else
                 {
-                    diag?.Warn("A page tree entry is not a dictionary; skipped.", node.Reference?.Number ?? -1);
+                    (PdfLostPageReason reason, int obj) = ClassifyBadKid(kids.GetRaw(i), kids[i]);
+                    stack.Push(new WalkItem(null, default, depth + 1, ownNumber, reason, obj));
                 }
             }
         }
@@ -159,6 +228,36 @@ public sealed partial class PdfDocument
             count = pages.Count;
         }
 
+        if (report)
+        {
+            _lostPages = lost;
+        }
+
         return pages;
+    }
+
+    // The lost entries of the document's own page tree, set by the walk that completes.
+    private volatile List<PdfLostPage>? _lostPages;
+
+    /// <summary>
+    /// The entries of the page tree that do not lead to a page, in the order the tree declares them: null or missing
+    /// <c>/Kids</c> entries, dictionaries that are not pages, and repeated nodes (a page listed twice, a cycle). Empty for an
+    /// intact tree. <see cref="Pages"/> and <see cref="PageCount"/> already leave these out; this says what was left out, so a
+    /// caller can notice that a repaired file lost pages. The same entries are recorded as warnings in
+    /// <see cref="Diagnostics"/>. A full save writes a page tree without them (<see cref="Save(Stream, PdfSaveOptions?, CancellationToken)"/>).
+    /// </summary>
+    /// <remarks>Reading this walks the page tree once if nothing has yet. After a page operation the list describes the new tree, which has none.</remarks>
+    public IReadOnlyList<PdfLostPage> LostPages
+    {
+        get
+        {
+            ThrowIfDisposed();
+            if (_lostPages is null)
+            {
+                _ = PageCount;
+            }
+
+            return _lostPages?.AsReadOnly() ?? (IReadOnlyList<PdfLostPage>)[];
+        }
     }
 }
