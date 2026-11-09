@@ -248,6 +248,17 @@ doc.Save("print.pdf");
 
 See [docs/page-geometry.md](docs/page-geometry.md).
 
+### Print preferences
+
+The catalog's `/ViewerPreferences` (print scaling, duplex, copies, page ranges, tray by page size, the deprecated area and clip boxes) is
+read and written, for new and edited documents. Page ranges are one-based, as stored. See [docs/print-preferences.md](docs/print-preferences.md).
+
+```csharp
+using var doc = PdfDocument.Open("in.pdf", new PdfOpenOptions { AllowEditing = true });
+doc.SetPrintPreferences(PdfPrintScaling.None, PdfDuplex.DuplexFlipLongEdge, copies: 2);
+doc.Save("out.pdf");
+```
+
 ## Redaction
 
 `doc.Redact(regions, options)` removes the glyphs, paths, image samples, annotations and form values under given areas by

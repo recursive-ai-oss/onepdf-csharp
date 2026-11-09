@@ -29,6 +29,13 @@ public sealed class PdfDocumentWriterOptions
     /// <summary>Ask viewers to show the document title instead of the file name (<c>/ViewerPreferences /DisplayDocTitle</c>). Default false.</summary>
     public bool DisplayDocumentTitle { get; init; }
 
+    /// <summary>
+    /// Viewer and print preferences written to the catalog's <c>/ViewerPreferences</c> (set properties only). <see cref="DisplayDocumentTitle"/> still
+    /// applies when this leaves <c>DisplayDocTitle</c> null. A value that cannot be written (see <see cref="PdfViewerPreferences"/>) makes
+    /// <see cref="PdfDocumentWriter.Finish"/> throw <see cref="ArgumentException"/>; page ranges are checked against the page count there. Default null.
+    /// </summary>
+    public PdfViewerPreferences? ViewerPreferences { get; init; }
+
     /// <summary>Leave the output stream open after <see cref="PdfDocumentWriter.Finish"/> or disposal. Default false.</summary>
     public bool LeaveOpen { get; init; }
 
@@ -640,10 +647,20 @@ public sealed partial class PdfDocumentWriter : IDisposable
             catalog.SetEntry("MarkInfo", mark);
         }
 
-        if (_options.DisplayDocumentTitle)
+        if (_options.DisplayDocumentTitle || _options.ViewerPreferences is not null)
         {
             var vp = new PdfDictionary();
-            vp.SetEntry("DisplayDocTitle", new PdfBoolean(true));
+            if (_options.ViewerPreferences is { } prefs)
+            {
+                prefs.Validate(_pageNumbers.Count);
+                prefs.ApplyTo(vp);
+            }
+
+            if (_options.DisplayDocumentTitle && !vp.ContainsKey("DisplayDocTitle"))
+            {
+                vp.SetEntry("DisplayDocTitle", new PdfBoolean(true));
+            }
+
             catalog.SetEntry("ViewerPreferences", vp);
         }
 
