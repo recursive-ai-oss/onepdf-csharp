@@ -4,6 +4,10 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ## [Unreleased]
 
+### Added
+
+- Print preferences: `PdfDocument.ViewerPreferences`, `SetViewerPreferences` and `SetPrintPreferences` read and write the catalog's `/ViewerPreferences` (`PrintScaling`, `Duplex`, `PrintPageRange`, `NumCopies`, `PickTrayByPDFSize`, the deprecated `PrintArea`/`PrintClip`/`ViewArea`/`ViewClip`, and the window flags), with `PdfViewerPreferences`, `PdfPrintScaling`, `PdfDuplex`, `PdfViewerBox` and `PdfPrintPageRange` (one-based pages, as stored). `PdfDocumentWriterOptions.ViewerPreferences` writes them for new documents. Unknown entries are kept; invalid values throw `ArgumentException` on write and are ignored with a diagnostic on read. See `docs/print-preferences.md`.
+
 ## [1.19.0] - 2026-11-06
 
 ### Added
