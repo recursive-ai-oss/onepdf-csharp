@@ -285,6 +285,35 @@ public sealed partial class PdfDocumentWriter : IDisposable
         return _openPage;
     }
 
+    /// <summary>
+    /// Starts the next page as a print page: the trim box is <paramref name="trimWidth"/> by <paramref name="trimHeight"/>, and the
+    /// media box and the bleed box are that grown by <paramref name="bleed"/> on every side. Coordinates start at the lower left of the
+    /// media box, so the trim box is at <c>(bleed, bleed)</c>; draw the bleed into the margin.
+    /// </summary>
+    /// <param name="trimWidth">Finished page width in points; finite and greater than zero.</param>
+    /// <param name="trimHeight">Finished page height in points; finite and greater than zero.</param>
+    /// <param name="bleed">Bleed margin in points; zero or more. The media box must stay between 3 and 14400 points on each side.</param>
+    /// <param name="rotate">Clockwise display rotation: 0, 90, 180 or 270.</param>
+    /// <exception cref="InvalidOperationException">A page is still open, or the writer is finished.</exception>
+    /// <exception cref="ArgumentOutOfRangeException">A size, the bleed or the rotation is not valid.</exception>
+    public PdfStreamPageBuilder BeginPrintPage(double trimWidth, double trimHeight, double bleed = 0, int rotate = 0)
+    {
+        if (!double.IsFinite(bleed) || bleed < 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(bleed), "The bleed must be finite and not negative.");
+        }
+
+        if (!double.IsFinite(trimWidth) || !double.IsFinite(trimHeight) || trimWidth <= 0 || trimHeight <= 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(trimWidth), "The trim size must be finite and greater than zero.");
+        }
+
+        PdfStreamPageBuilder b = BeginPage(trimWidth + 2 * bleed, trimHeight + 2 * bleed, rotate);
+        b.SetBleedBox(new PdfRectangle(0, 0, b.Width, b.Height));
+        b.SetTrimBox(new PdfRectangle(bleed, bleed, bleed + trimWidth, bleed + trimHeight));
+        return b;
+    }
+
     // A page builder that was disposed without Commit leaves its reserved page object behind; drop it. Structure bound to the page's
     // content would then point at a page that does not exist, so that case is an error.
     private void DropAbandonedPage()

@@ -27,6 +27,8 @@ public sealed class PdfPageCollection : IReadOnlyList<PdfPage>
 
     internal PdfPageNode NodeAt(int index) => _nodes[index];
 
+    internal void ReplaceNode(int index, PdfPageNode node) => _nodes[index] = node;
+
     /// <summary>The page at a zero-based index.</summary>
     /// <exception cref="ArgumentOutOfRangeException"><paramref name="index"/> is negative or not less than <see cref="Count"/>.</exception>
     public PdfPage this[int index]
@@ -85,9 +87,9 @@ public sealed class PdfPageCollection : IReadOnlyList<PdfPage>
 /// A page with the attributes it inherits from the page tree resolved (ISO 32000-2 7.7.3.4): <c>Resources</c>,
 /// <c>MediaBox</c>, <c>CropBox</c> and <c>Rotate</c> come from the nearest ancestor that has them.
 /// </summary>
-public sealed class PdfPage
+public sealed partial class PdfPage
 {
-    private readonly PdfPageNode _node;
+    private PdfPageNode _node;
     private Lazy<IReadOnlyList<PdfAnnotation>> _annotations = null!;
 
     internal PdfPage(PdfDocument document, int index, PdfPageNode node)
@@ -98,36 +100,7 @@ public sealed class PdfPage
         Dictionary = node.Dictionary;
         int objNum = node.Dictionary.Reference?.Number ?? -1;
 
-        PdfRectangle? media = PdfRectangle.From(node.MediaBox);
-        if (media is null)
-        {
-            document.ReportWarning(node.MediaBox is null ? "The page has no MediaBox; US Letter was assumed." : "The page's MediaBox is not four numbers; US Letter was assumed.", objNum, -1);
-            media = new PdfRectangle(0, 0, 612, 792);
-        }
-
-        MediaBox = media.Value;
-        PdfRectangle? crop = PdfRectangle.From(node.CropBox);
-        if (node.CropBox is not null && crop is null)
-        {
-            document.ReportWarning("The page's CropBox is not four numbers; the MediaBox was used.", objNum, -1);
-        }
-
-        // The visible region is the CropBox clipped to the MediaBox (7.7.3.3); a CropBox outside it is unusable.
-        CropBox = crop is { } c ? (c.Intersect(MediaBox) ?? MediaBox) : MediaBox;
-        BleedBox = Box("BleedBox", CropBox);
-        TrimBox = Box("TrimBox", CropBox);
-        ArtBox = Box("ArtBox", CropBox);
-
-        long rot = node.Rotate switch { PdfInteger i => i.Value, PdfReal r when double.IsFinite(r.Value) && Math.Abs(r.Value) < 1e9 => (long)r.Value, _ => 0 };
-        if (rot % 90 != 0)
-        {
-            document.ReportWarning($"The page's Rotate {rot} is not a multiple of 90; 0 was used.", objNum, -1);
-            rot = 0;
-        }
-
-        Rotate = (int)(((rot % 360) + 360) % 360);
-        double uu = node.Dictionary.GetDouble("UserUnit", 1);
-        UserUnit = double.IsFinite(uu) && uu > 0 ? uu : 1;
+        ReadGeometry(node, true);
         Resources = node.Resources as PdfDictionary ?? (node.Resources is PdfStream rs ? rs.Dictionary : new PdfDictionary(null));
         _annotations = new Lazy<IReadOnlyList<PdfAnnotation>>(LoadAnnotations, LazyThreadSafetyMode.ExecutionAndPublication);
     }
@@ -153,9 +126,7 @@ public sealed class PdfPage
     public Text.PdfPageText ExtractText(Text.PdfTextOptions? options = null, CancellationToken cancellationToken = default) =>
         Text.PdfTextExtractor.Create(Document, options).ExtractPage(Index, cancellationToken);
 
-    private PdfRectangle Box(string key, PdfRectangle fallback) => PdfRectangle.From(Dictionary.Get(key)) ?? fallback;
-
-    /// <summary>The document this page belongs to.</summary>
+        /// <summary>The document this page belongs to.</summary>
     public PdfDocument Document { get; }
 
     /// <summary>The page dictionary. Inherited attributes are not copied into it; use the properties of this class for those.</summary>
@@ -168,28 +139,28 @@ public sealed class PdfPage
     public PdfDictionary Resources { get; }
 
     /// <summary>The boundary of the physical medium, inherited. US Letter with a diagnostic when missing or malformed.</summary>
-    public PdfRectangle MediaBox { get; }
+    public PdfRectangle MediaBox { get; private set; }
 
     /// <summary>The visible region: the inherited CropBox clipped to the <see cref="MediaBox"/>; the MediaBox when absent or when it misses the MediaBox.</summary>
-    public PdfRectangle CropBox { get; }
+    public PdfRectangle CropBox { get; private set; }
 
     /// <summary>The bleed box; defaults to <see cref="CropBox"/>. Not inherited.</summary>
-    public PdfRectangle BleedBox { get; }
+    public PdfRectangle BleedBox { get; private set; }
 
     /// <summary>The trim box; defaults to <see cref="CropBox"/>. Not inherited.</summary>
-    public PdfRectangle TrimBox { get; }
+    public PdfRectangle TrimBox { get; private set; }
 
     /// <summary>The art box; defaults to <see cref="CropBox"/>. Not inherited.</summary>
-    public PdfRectangle ArtBox { get; }
+    public PdfRectangle ArtBox { get; private set; }
 
     /// <summary>
     /// The clockwise rotation applied when displaying, inherited: 0, 90, 180 or 270. Negative and larger multiples of 90 are
     /// normalized; a value that is not a multiple of 90 reads as 0 with a diagnostic.
     /// </summary>
-    public int Rotate { get; }
+    public int Rotate { get; private set; }
 
     /// <summary>Size of a default user space unit in 1/72 inch. 1 unless <c>/UserUnit</c> is a positive number.</summary>
-    public double UserUnit { get; }
+    public double UserUnit { get; private set; }
 
     /// <summary>
     /// The page's label (for example <c>iv</c> or <c>A-3</c>) from the document's page labels, or null when the document

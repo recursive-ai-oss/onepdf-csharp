@@ -201,14 +201,7 @@ internal static class PageGeometry
 {
     public static PdfPageInfo Compute(PdfPage page, PdfInterpretOptions o, Action<string> warn)
     {
-        PdfRectangle r = o.Box switch
-        {
-            PdfPageBox.MediaBox => page.MediaBox,
-            PdfPageBox.BleedBox => page.BleedBox,
-            PdfPageBox.TrimBox => page.TrimBox,
-            PdfPageBox.ArtBox => page.ArtBox,
-            _ => page.CropBox,
-        };
+        PdfRectangle r = page.GetBox(o.Box);
         PdfRectangle media = page.MediaBox;
 
         // Every box is limited to the media box (ISO 32000-2 14.11.2).
