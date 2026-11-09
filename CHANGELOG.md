@@ -4,6 +4,8 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ## [Unreleased]
 
+## [1.20.0] - 2026-11-09
+
 ### Added
 
 - Page geometry (`docs/page-geometry.md`): `PdfPage.SetMediaBox`, `SetCropBox`, `SetBleedBox`, `SetTrimBox`, `SetArtBox`, their `Clear*` counterparts, `SetRotate`/`ClearRotate`, `SetUserUnit`/`ClearUserUnit`, and `SetPrintGeometry` (also `PdfDocument.SetPrintGeometry` for every page). Boxes are written normalized on the page, overriding inherited values, and page objects update in place.
@@ -411,6 +413,7 @@ First release. Two packages, `RecursiveAI.OnePdf` (the library, `net10.0`, no de
 - Limits on by default (`PdfLimits`) and fuzzed parsers, filters and font readers; no `unsafe` code. OnePDF never runs code or touches the network.
 - `RecursiveAI.OnePdf.Fonts`: Liberation and Noto substitute outlines under the SIL Open Font License 1.1, registered with `FontsPackage.Register()`.
 
+[1.20.0]: https://github.com/recursive-ai-oss/onepdf-csharp/releases/tag/v1.20.0
 [1.19.0]: https://github.com/recursive-ai-oss/onepdf-csharp/releases/tag/v1.19.0
 [1.18.0]: https://github.com/recursive-ai-oss/onepdf-csharp/releases/tag/v1.18.0
 [1.17.1]: https://github.com/recursive-ai-oss/onepdf-csharp/releases/tag/v1.17.1
