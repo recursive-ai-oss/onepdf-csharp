@@ -4,6 +4,17 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ## [Unreleased]
 
+### Added
+
+- Page geometry (`docs/page-geometry.md`): `PdfPage.SetMediaBox`, `SetCropBox`, `SetBleedBox`, `SetTrimBox`, `SetArtBox`, their `Clear*` counterparts, `SetRotate`/`ClearRotate`, `SetUserUnit`/`ClearUserUnit`, and `SetPrintGeometry` (also `PdfDocument.SetPrintGeometry` for every page). Boxes are written normalized on the page, overriding inherited values, and page objects update in place.
+- `PdfPage.GetBox`, `HasExplicitBox` and `GetDisplaySize` (`PdfPageSize`, in points, inches and millimetres after `/Rotate` and `/UserUnit`).
+- `PdfPage.GetBoxColorInfo`/`SetBoxColorInfo` with `PdfBoxColorInfo` and `PdfBoxLineStyle` for `/BoxColorInfo`.
+- `PdfDocumentWriter.BeginPrintPage`, and `SetCropBox`, `SetBleedBox`, `SetTrimBox`, `SetArtBox` and `SetUserUnit` on `PdfStreamPageBuilder`.
+
+### Changed
+
+- `PdfPage.BleedBox`, `TrimBox` and `ArtBox` are now clipped to the media box when read (ISO 32000-2 14.11.2), as the crop box already was.
+
 ## [1.19.0] - 2026-11-06
 
 ### Added

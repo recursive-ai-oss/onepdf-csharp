@@ -38,6 +38,46 @@ public sealed class PdfStreamPageBuilder : PdfContentBuilder
     /// <summary>Page height in points.</summary>
     public double Height => _height;
 
+    private readonly PdfRectangle?[] _boxes = new PdfRectangle?[4]; // crop, bleed, trim, art
+    private double _userUnit = 1;
+
+    /// <summary>
+    /// Sets the crop box written with the page, in the page's coordinates (the media box is <c>[0 0 Width Height]</c>). Written
+    /// normalized; a reader clips it to the media box. Call before <see cref="Commit"/>.
+    /// </summary>
+    /// <exception cref="ArgumentException">The rectangle is not finite or has no area.</exception>
+    /// <exception cref="InvalidOperationException">The builder is already closed.</exception>
+    public void SetCropBox(PdfRectangle rectangle) => SetBox(0, rectangle);
+
+    /// <summary>Sets the bleed box written with the page. See <see cref="SetCropBox"/>.</summary>
+    public void SetBleedBox(PdfRectangle rectangle) => SetBox(1, rectangle);
+
+    /// <summary>Sets the trim box written with the page. See <see cref="SetCropBox"/>.</summary>
+    public void SetTrimBox(PdfRectangle rectangle) => SetBox(2, rectangle);
+
+    /// <summary>Sets the art box written with the page. See <see cref="SetCropBox"/>.</summary>
+    public void SetArtBox(PdfRectangle rectangle) => SetBox(3, rectangle);
+
+    /// <summary>Sets <c>/UserUnit</c> (the size of a user space unit in 1/72 inch; PDF 1.6) written with the page. Not written when 1.</summary>
+    /// <exception cref="ArgumentException">The value is not finite or not greater than zero.</exception>
+    /// <exception cref="InvalidOperationException">The builder is already closed.</exception>
+    public void SetUserUnit(double userUnit)
+    {
+        CheckOpen();
+        if (!double.IsFinite(userUnit) || userUnit <= 0)
+        {
+            throw new ArgumentException("The user unit must be finite and greater than zero.", nameof(userUnit));
+        }
+
+        _userUnit = userUnit;
+    }
+
+    private void SetBox(int slot, PdfRectangle rectangle)
+    {
+        CheckOpen();
+        _boxes[slot] = PageBoxes.Normalize(rectangle, nameof(rectangle));
+    }
+
     /// <summary>The reference the page is written under.</summary>
     public PdfReference Reference { get; }
 
@@ -203,6 +243,21 @@ public sealed class PdfStreamPageBuilder : PdfContentBuilder
         _page.SetEntry("MediaBox", box);
         _page.SetEntry("Resources", resources);
         _page.SetEntry("Contents", contents);
+        string[] boxKeys = ["CropBox", "BleedBox", "TrimBox", "ArtBox"];
+        for (int i = 0; i < boxKeys.Length; i++)
+        {
+            if (_boxes[i] is { } bx)
+            {
+                _page.SetEntry(boxKeys[i], PageBoxes.ToArray(bx));
+            }
+        }
+
+        if (_userUnit != 1)
+        {
+            _page.SetEntry("UserUnit", PageBoxes.Number(_userUnit));
+            doc.RaiseVersion("1.6");
+        }
+
         if (_rotate != 0)
         {
             _page.SetEntry("Rotate", new PdfInteger(_rotate));

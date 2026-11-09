@@ -232,6 +232,22 @@ catch (PdfFormatException e) { Console.WriteLine(e.Message); }
   first 16 MiB, nesting 256, 2^23 objects, 2^24 operators per page, 2^28 image pixels). `PdfLimits.Unrestricted` turns them off.
   Wall-clock limits are yours: pass a `CancellationToken`.
 
+## Print geometry
+
+### Page boxes
+
+Set, clear and read all five page boxes, `/Rotate` and `/UserUnit` on existing pages or while creating them; the effective size after rotation and user unit comes in points, inches and millimetres:
+
+```csharp
+using var doc = PdfDocument.Open(path, new PdfOpenOptions { AllowEditing = true });
+doc.Pages[0].SetPrintGeometry(new PdfRectangle(36, 36, 264, 264), bleed: 9); // media = bleed = trim + 9 pt
+PdfPageSize size = doc.Pages[0].GetDisplaySize(PdfPageBox.TrimBox);
+Console.WriteLine($"{size.WidthMillimeters:0.#} x {size.HeightMillimeters:0.#} mm");
+doc.Save("print.pdf");
+```
+
+See [docs/page-geometry.md](docs/page-geometry.md).
+
 ## Redaction
 
 `doc.Redact(regions, options)` removes the glyphs, paths, image samples, annotations and form values under given areas by
