@@ -198,7 +198,9 @@ public class ConformanceNoLossTests
             enc = ms.ToArray();
         }
 
-        // Flip a byte of the last cipher block of the font program: the padding no longer checks out.
+        // Flip the last byte of the next-to-last AES-CBC block of the font program (the IV when there is one block):
+        // CBC XORs it into the final padding byte, which becomes > 16, so the padding never checks out.
+        // (Flipping a byte inside the last block garbled it at random and left valid padding about 1 time in 256.)
         byte[] stored;
         using (PdfDocument d = PdfDocument.Open(enc, new PdfOpenOptions { Password = "pw" }))
         {
@@ -209,7 +211,7 @@ public class ConformanceNoLossTests
 
         int at = enc.AsSpan().IndexOf(stored);
         Assert.True(at >= 0);
-        enc[at + stored.Length - 3] ^= 0x55;
+        enc[at + stored.Length - 17] ^= 0x55;
 
         using PdfDocument bad = PdfDocument.Open(enc, new PdfOpenOptions { Password = "pw", AllowEditing = true });
         Assert.Contains(bad.CheckPdfUA(), v => v.Message.Contains("embedded font program", StringComparison.Ordinal) && v.Message.Contains("decrypted", StringComparison.Ordinal));
