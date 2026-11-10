@@ -133,11 +133,16 @@ internal sealed class DocumentTarget(PdfDocument document, int[]? sectionTotals 
 
     public TargetPage BeginPage(double width, double height, PrintSetup? print)
     {
-        double margin = print?.Margin ?? 0;
-        PdfPage page = document.InsertBlankPage(document.Pages.Count, width + 2 * margin, height + 2 * margin);
+        double left = print?.OffsetLeft ?? 0;
+        double bottom = print?.OffsetBottom ?? 0;
+        PdfPrintMargins bleed = print?.BleedMargins ?? default;
+        PdfPrintMargins slug = print?.SlugMargins ?? default;
+        double pageW = width + (left + (bleed.Right + slug.Right));
+        double pageH = height + (bottom + (bleed.Top + slug.Top));
+        PdfPage page = document.InsertBlankPage(document.Pages.Count, pageW, pageH);
         if (print is not null)
         {
-            page.SetPrintGeometry(new PdfRectangle(margin, margin, margin + width, margin + height), print.Bleed, print.Slug);
+            page.SetPrintGeometry(new PdfRectangle(left, bottom, left + width, bottom + height), bleed, slug, print.Marks);
             if (print.CropBox is { } crop)
             {
                 page.SetCropBox(print.ToPage(crop));
@@ -147,6 +152,8 @@ internal sealed class DocumentTarget(PdfDocument document, int[]? sectionTotals 
             {
                 page.SetArtBox(print.ToPage(art));
             }
+
+            print.ApplyColors(page.SetBoxColorInfo);
         }
 
         PdfPageContentBuilder b = page.BeginContent();
@@ -217,7 +224,7 @@ internal sealed class WriterTarget(PdfDocumentWriter writer) : ILayoutTarget
 
     public TargetPage BeginPage(double width, double height, PrintSetup? print)
     {
-        PdfStreamPageBuilder b = print is null ? writer.BeginPage(width, height) : writer.BeginPrintPage(width, height, print.Bleed, print.Slug, 0);
+        PdfStreamPageBuilder b = print is null ? writer.BeginPage(width, height) : writer.BeginPrintPage(width, height, print.BleedMargins, print.SlugMargins, 0, print.Marks);
         if (print?.CropBox is { } crop)
         {
             b.SetCropBox(print.ToPage(crop));
@@ -228,6 +235,7 @@ internal sealed class WriterTarget(PdfDocumentWriter writer) : ILayoutTarget
             b.SetArtBox(print.ToPage(art));
         }
 
+        print?.ApplyColors(b.SetBoxColorInfo);
         return new TargetPage(b, b.Commit, b);
     }
 }

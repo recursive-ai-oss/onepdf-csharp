@@ -377,16 +377,16 @@ public sealed partial class LayoutDocument
             }
 
             PdfContentBuilder b = tp.Builder;
-            // Layout space is y-down with its origin at the trim box's top-left; the media box reaches Margin further out on every side.
-            double edge = print?.Margin ?? 0;
-            var d = new DrawContext(b, ctx, size.Height + edge, edge, 0);
-            double bleed = print is { BleedBackground: true } ? print.Bleed : 0;
-            Placed? background = LayoutFull(ctx, setup.Background, "Background", firstPage + page, bleed > 0 ? new PageSize(size.Width + 2 * bleed, size.Height + 2 * bleed) : size);
+            // Layout space is y-down with its origin at the trim box's top-left; the media box reaches further out on every side.
+            var d = new DrawContext(b, ctx, size.Height + (print?.OffsetBottom ?? 0), print?.OffsetLeft ?? 0, 0);
+            PdfPrintMargins bleed = print is { BleedBackground: true } ? print.BleedMargins : default;
+            bool hasBleed = bleed.Left > 0 || bleed.Bottom > 0 || bleed.Right > 0 || bleed.Top > 0;
+            Placed? background = LayoutFull(ctx, setup.Background, "Background", firstPage + page, hasBleed ? new PageSize(size.Width + (bleed.Left + bleed.Right), size.Height + (bleed.Top + bleed.Bottom)) : size);
             Tagger tag = ctx.Tag;
             if (background is not null)
             {
                 bool a = tag.BeginArtifact(b, PdfArtifactType.Background);
-                background.Element.Draw(d.At(-bleed, -bleed), background);
+                background.Element.Draw(d.At(-bleed.Left, -bleed.Top), background);
                 tag.EndArtifact(b, a);
             }
 

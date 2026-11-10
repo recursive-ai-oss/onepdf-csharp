@@ -271,17 +271,55 @@ public sealed partial class PdfPage
     /// <param name="slug">The slug margin outside the bleed, in points; finite and zero or more.</param>
     /// <exception cref="ArgumentException">The trim rectangle is not valid, or the bleed or slug is negative or not finite.</exception>
     /// <exception cref="InvalidOperationException">The document was not opened with <see cref="PdfOpenOptions.AllowEditing"/>.</exception>
-    public void SetPrintGeometry(PdfRectangle trim, double bleed, double slug)
+    public void SetPrintGeometry(PdfRectangle trim, double bleed, double slug) => SetPrintGeometry(trim, new PdfPrintMargins(bleed), new PdfPrintMargins(slug), null);
+
+    /// <summary>
+    /// Sets print geometry with a slug and printer's marks: as <see cref="SetPrintGeometry(PdfRectangle, double, double)"/>, then draws
+    /// <paramref name="marks"/> over the page in the slug area.
+    /// </summary>
+    /// <param name="trim">The finished page, in default user space; finite and with an area.</param>
+    /// <param name="bleed">The bleed margin in points; finite and zero or more.</param>
+    /// <param name="slug">The slug margin outside the bleed, in points; at least <see cref="PdfPrinterMarks.MinimumSlug"/> for the marks.</param>
+    /// <param name="marks">The marks to draw; they are artifacts of type Page and lie outside the bleed box.</param>
+    /// <exception cref="ArgumentException">The trim rectangle, bleed or slug is not valid, or the slug is too small for the marks. Nothing is changed.</exception>
+    /// <exception cref="ArgumentNullException"><paramref name="marks"/> is null.</exception>
+    /// <exception cref="InvalidOperationException">The document was not opened with <see cref="PdfOpenOptions.AllowEditing"/>.</exception>
+    public void SetPrintGeometry(PdfRectangle trim, double bleed, double slug, PdfPrinterMarks marks)
+    {
+        ArgumentNullException.ThrowIfNull(marks);
+        SetPrintGeometry(trim, new PdfPrintMargins(bleed), new PdfPrintMargins(slug), marks);
+    }
+
+    /// <summary>
+    /// Sets print geometry with a different bleed and slug on each side: the bleed box is the trim box grown by
+    /// <paramref name="bleed"/> (left, bottom, right, top), the media box is the bleed box grown by <paramref name="slug"/>, and the crop
+    /// box is removed. Content keeps its coordinates, so the trim box stays where it was drawn. Otherwise as
+    /// <see cref="SetPrintGeometry(PdfRectangle, double, double)"/>, which is this with equal sides.
+    /// </summary>
+    /// <param name="trim">The finished page, in default user space; finite and with an area.</param>
+    /// <param name="bleed">The bleed on each side, in points; finite and zero or more.</param>
+    /// <param name="slug">The slug on each side outside the bleed, in points; finite and zero or more.</param>
+    /// <param name="marks">Printer's marks to draw in the slug, or null for none. A side's slug smaller than <see cref="PdfPrinterMarks.MinimumSlug"/> is refused.</param>
+    /// <exception cref="ArgumentException">A rectangle or margin is not valid, or the slug is too small for the marks. Nothing is changed.</exception>
+    /// <exception cref="InvalidOperationException">The document was not opened with <see cref="PdfOpenOptions.AllowEditing"/>.</exception>
+    public void SetPrintGeometry(PdfRectangle trim, PdfPrintMargins bleed, PdfPrintMargins slug, PdfPrinterMarks? marks = null)
     {
         PdfRectangle t = CheckBox(trim, nameof(trim));
         PdfRectangle bleedBox = PageBoxes.WithBleed(t, bleed);
         PdfRectangle media = PageBoxes.WithSlug(bleedBox, slug);
+        marks?.Check(slug);
         Document.EnsureEditable(0);
         SetMediaBox(media);
         ClearCropBox();
         Dictionary.SetEntry("BleedBox", ToArray(bleedBox));
         Dictionary.SetEntry("TrimBox", ToArray(t));
         Refresh();
+        if (marks is not null)
+        {
+            using PdfPageContentBuilder content = BeginContent();
+            marks.Draw(content, t, bleedBox);
+            content.Commit();
+        }
     }
 
     // ---- BoxColorInfo ----

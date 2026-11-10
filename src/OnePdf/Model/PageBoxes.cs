@@ -28,7 +28,13 @@ internal static class PageBoxes
             throw new ArgumentException("The bleed must be finite and not negative.", nameof(bleed));
         }
 
-        var r = new PdfRectangle(trim.Left - bleed, trim.Bottom - bleed, trim.Right + bleed, trim.Top + bleed);
+        return WithBleed(trim, new PdfPrintMargins(bleed));
+    }
+
+    public static PdfRectangle WithBleed(PdfRectangle trim, PdfPrintMargins bleed)
+    {
+        bleed.Check(nameof(bleed), "bleed");
+        var r = new PdfRectangle(trim.Left - bleed.Left, trim.Bottom - bleed.Bottom, trim.Right + bleed.Right, trim.Top + bleed.Top);
         return Normalize(r, nameof(bleed));
     }
 
@@ -53,7 +59,13 @@ internal static class PageBoxes
             throw new ArgumentException("The slug must be finite and not negative.", nameof(slug));
         }
 
-        return Normalize(new PdfRectangle(bleedBox.Left - slug, bleedBox.Bottom - slug, bleedBox.Right + slug, bleedBox.Top + slug), nameof(slug));
+        return WithSlug(bleedBox, new PdfPrintMargins(slug));
+    }
+
+    public static PdfRectangle WithSlug(PdfRectangle bleedBox, PdfPrintMargins slug)
+    {
+        slug.Check(nameof(slug), "slug");
+        return Normalize(new PdfRectangle(bleedBox.Left - slug.Left, bleedBox.Bottom - slug.Bottom, bleedBox.Right + slug.Right, bleedBox.Top + slug.Top), nameof(slug));
     }
 
     public static string ColorInfoKey(PdfPageBox box) => box switch

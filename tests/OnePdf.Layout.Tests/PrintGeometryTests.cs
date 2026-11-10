@@ -219,6 +219,244 @@ public class PrintGeometryTests
         }
     }
 
+    private static readonly PdfBoxColorInfo Guide = new() { Red = 1, Green = 0.25, LineWidth = 2, Style = PdfBoxLineStyle.Dashed, Dash = [4, 2] };
+
+    [Fact]
+    public void PerSideBleedAndSlugGiveTheExpectedBoxesAndKeepContentRelativeToTrim()
+    {
+        var bleed = new PdfPrintMargins(3, 4, 5, 6);
+        var slug = new PdfPrintMargins(10, 20, 30, 40);
+        LayoutDocument Make(PrintSetup? print) => Doc(d => d.Print = print);
+        byte[] plain = Support.Save(Make(null));
+        byte[] print = Support.Save(Make(new PrintSetup { BleedSides = bleed, SlugSides = slug, CropBox = new PdfRectangle(-3, -4, 303, 406) }));
+        using PdfDocument a = PdfDocument.Open(plain);
+        using PdfDocument b = PdfDocument.Open(print);
+        Assert.Equal(a.Pages.Count, b.Pages.Count);
+        for (int i = 0; i < b.Pages.Count; i++)
+        {
+            PdfPage p = b.Pages[i];
+            double w = a.Pages[i].MediaBox.Width, h = a.Pages[i].MediaBox.Height;
+            Assert.Equal(new PdfRectangle(0, 0, w + 13 + 35, h + 24 + 46), p.MediaBox);
+            Assert.Equal(new PdfRectangle(10, 20, w + 13 + 5, h + 24 + 6), p.BleedBox);
+            Assert.Equal(new PdfRectangle(13, 24, 13 + w, 24 + h), p.TrimBox);
+        }
+
+        Assert.Equal(new PdfRectangle(10, 20, 316, 430), b.Pages[0].CropBox);
+        (double ax, double ay) = FirstGlyph(a, 0);
+        (double bx, double by) = FirstGlyph(b, 0);
+        // Extraction reports positions from the crop box's corner, which is (10, 20) here.
+        Assert.Equal(ax + 13 - 10, bx, 3);
+        Assert.Equal(ay + 24 - 20, by, 3);
+    }
+
+    [Fact]
+    public void PerSideSetupMatchesTheUniformOneWhenTheSidesAreEqual()
+    {
+        byte[] one = Support.Save(Doc(d => d.Print = new PrintSetup { Bleed = 9, Slug = 18 }));
+        byte[] two = Support.Save(Doc(d => d.Print = new PrintSetup { BleedSides = new PdfPrintMargins(9), SlugSides = new PdfPrintMargins(18) }));
+        Assert.Equal(one, two);
+    }
+
+    [Fact]
+    public void PerSideBackgroundBleedsByTheSideAmounts()
+    {
+        var doc = new LayoutDocument();
+        doc.Pages.Add(new LayoutPage
+        {
+            Size = new PageSize(300, 400),
+            Margin = Insets.All(30),
+            Background = new Box { Background = LayoutColor.Black, ExpandHeight = true },
+            Content = new Text { Content = "Body", Size = 12 },
+            Print = new PrintSetup { BleedSides = new PdfPrintMargins(2, 3, 4, 5), SlugSides = new PdfPrintMargins(10) },
+        });
+        var dev = new Extent();
+        using PdfDocument r = PdfDocument.Open(Support.Save(doc));
+        PdfPage page = r.Pages[0];
+        page.Interpret(dev);
+        PdfRectangle bleed = page.BleedBox;
+        double h = page.MediaBox.Height;
+        // The black background fills the bleed box exactly (the interpreter reports y downwards from the top of the page).
+        Assert.Equal(bleed.Left, dev.MinX, 2);
+        Assert.Equal(bleed.Right, dev.MaxX, 2);
+        Assert.Equal(h - bleed.Top, dev.MinY, 2);
+        Assert.Equal(h - bleed.Bottom, dev.MaxY, 2);
+    }
+
+    [Fact]
+    public void FluentPerSideAndMarksReachTheDocument()
+    {
+        var marks = new PdfPrinterMarks();
+        LayoutDocument doc = LayoutDocument.Compose(c => c
+            .Print(new PdfPrintMargins(3, 4, 5, 6), new PdfPrintMargins(30), marks)
+            .Page(p =>
+            {
+                p.Size(200, 200);
+                p.Content().Text("Hello");
+            })
+            .Page(p =>
+            {
+                p.Size(200, 200);
+                p.Print(2, 25, marks);
+                p.Content().Text("Hello again");
+            }));
+        using PdfDocument r = PdfDocument.Open(Support.Save(doc));
+        Assert.Equal(new PdfRectangle(33, 34, 233, 234), r.Pages[0].TrimBox);
+        Assert.Equal(new PdfRectangle(27, 27, 227, 227), r.Pages[1].TrimBox);
+        foreach (int i in new[] { 0, 1 })
+        {
+            var dev = new Extent();
+            r.Pages[i].Interpret(dev);
+            Assert.True(dev.Strokes >= 20);
+        }
+    }
+
+    [Fact]
+    public void MarksLieInTheSlugOutsideTheBleedOnWriterAndDocumentTargets()
+    {
+        var marks = new PdfPrinterMarks();
+        PrintSetup Setup() => new() { BleedSides = new PdfPrintMargins(3, 4, 5, 6), SlugSides = new PdfPrintMargins(22, 24, 26, 28), Marks = marks };
+        using PdfDocument viaWriter = PdfDocument.Open(Support.Save(Doc(d => d.Print = Setup())));
+        using PdfDocument viaDoc = PdfDocument.CreateEmpty();
+        Doc(d => d.Print = Setup()).Render(viaDoc);
+        foreach (PdfDocument r in new[] { viaWriter, viaDoc })
+        {
+            Assert.True(r.Pages.Count > 2);
+            for (int i = 0; i < r.Pages.Count; i++)
+            {
+                var dev = new Extent();
+                r.Pages[i].Interpret(dev);
+                Assert.True(dev.Strokes >= 20);
+                PdfRectangle media = r.Pages[i].MediaBox, bleed = r.Pages[i].BleedBox;
+                foreach ((double x, double y) in dev.StrokePoints)
+                {
+                    Assert.True(x >= media.Left && x <= media.Right && y >= media.Bottom && y <= media.Top);
+                    Assert.True(x <= bleed.Left || x >= bleed.Right || y <= bleed.Bottom || y >= bleed.Top, $"page {i}: ({x},{y}) inside the bleed box");
+                }
+            }
+        }
+    }
+
+    [Fact]
+    public void MarksNeedEnoughSlug()
+    {
+        Assert.Throws<ArgumentException>(() => Support.Save(Doc(d => d.Print = new PrintSetup { Bleed = 3, Slug = 5, Marks = new PdfPrinterMarks() })));
+        Assert.Throws<ArgumentException>(() => Support.Save(Doc(d => d.Print = new PrintSetup { Bleed = 3, SlugSides = new PdfPrintMargins(30, 30, 30, 5), Marks = new PdfPrinterMarks() })));
+        Assert.Throws<ArgumentException>(() => Support.Save(Doc(d => d.Print = new PrintSetup { BleedSides = new PdfPrintMargins(1, 1, -1, 1) })));
+    }
+
+    [Fact]
+    public void BoxColorInfoRoundTripsAndMatchesTheCoreWriter()
+    {
+        var setup = new PrintSetup { Bleed = 4, Slug = 6, BleedBoxColor = Guide, TrimBoxColor = new PdfBoxColorInfo { Blue = 1 }, ArtBox = new PdfRectangle(20, 20, 200, 300), ArtBoxColor = new PdfBoxColorInfo { Green = 1, LineWidth = 0.5 } };
+        using PdfDocument viaWriter = PdfDocument.Open(Support.Save(Doc(d => d.Print = setup)));
+        using PdfDocument viaDoc = PdfDocument.CreateEmpty();
+        Doc(d => d.Print = setup).Render(viaDoc);
+        foreach (PdfDocument r in new[] { viaWriter, viaDoc })
+        {
+            for (int i = 0; i < r.Pages.Count; i++)
+            {
+                PdfPage p = r.Pages[i];
+                PdfBoxColorInfo? bleed = p.GetBoxColorInfo(PdfPageBox.BleedBox);
+                Assert.NotNull(bleed);
+                Assert.Equal(1, bleed.Red);
+                Assert.Equal(0.25, bleed.Green);
+                Assert.Equal(2, bleed.LineWidth);
+                Assert.Equal(PdfBoxLineStyle.Dashed, bleed.Style);
+                Assert.Equal([4, 2], bleed.Dash);
+                Assert.Equal(1, p.GetBoxColorInfo(PdfPageBox.TrimBox)!.Blue);
+                Assert.Equal(0.5, p.GetBoxColorInfo(PdfPageBox.ArtBox)!.LineWidth);
+                Assert.Null(p.GetBoxColorInfo(PdfPageBox.CropBox));
+            }
+        }
+
+        // The same entry as the core writer produces.
+        var ms = new MemoryStream();
+        using (var w = new PdfDocumentWriter(ms, new PdfDocumentWriterOptions { LeaveOpen = true }))
+        {
+            PdfStreamPageBuilder b = w.BeginPrintPage(100, 100, 4, 6, 0);
+            b.SetBoxColorInfo(PdfPageBox.BleedBox, Guide);
+            b.Commit();
+            w.Finish();
+        }
+
+        using PdfDocument core = PdfDocument.Open(ms.ToArray());
+        Assert.Equal(Describe((PdfDictionary)((PdfDictionary)core.Pages[0].Dictionary.Get("BoxColorInfo")!).Get("BleedBox")!), Describe((PdfDictionary)((PdfDictionary)viaWriter.Pages[0].Dictionary.Get("BoxColorInfo")!).Get("BleedBox")!));
+    }
+
+    private static string Describe(PdfDictionary d) =>
+        string.Join(";", d.Keys.Select(k => k.ToString()).OrderBy(k => k, StringComparer.Ordinal).Select(k => k + "=" + (d.Get(k) is PdfArray a ? string.Join(",", Enumerable.Range(0, a.Count).Select(i => a.GetDouble(i))) : d.Get(k)!.ToString())));
+
+    [Theory]
+    [InlineData("ua1")]
+    [InlineData("2a")]
+    public void PerSideMarksOutputPassesVeraPdf(string flavour)
+    {
+        LayoutDocument layout = PdfUATests.Sample();
+        layout.Print = new PrintSetup
+        {
+            BleedSides = new PdfPrintMargins(3, 4, 5, 6),
+            SlugSides = new PdfPrintMargins(24, 26, 28, 30),
+            Marks = new PdfPrinterMarks(),
+            BleedBoxColor = Guide,
+        };
+        var options = flavour == "ua1"
+            ? new PdfSaveOptions { DocumentId = new byte[16], PdfUA = new PdfUAOptions() }
+            : new PdfSaveOptions { DocumentId = new byte[16], PdfUA = new PdfUAOptions(), PdfA = new PdfAOptions { Part = PdfAPart.Part2, Conformance = PdfAConformance.A } };
+
+        using var ms = new MemoryStream();
+        layout.Save(ms, options);
+        byte[] pdf = ms.ToArray();
+        using (PdfDocument r = PdfDocument.Open(pdf))
+        {
+            var dev = new Extent();
+            r.Pages[0].Interpret(dev);
+            Assert.True(dev.Strokes >= 20);
+        }
+
+        Assert.Empty(TagSupport.Vera(pdf, flavour));
+        if (flavour == "2a")
+        {
+            Assert.Empty(TagSupport.Vera(pdf, "ua1"));
+        }
+    }
+
+    private sealed class Extent : PdfDevice
+    {
+        public double MinX { get; private set; } = double.MaxValue;
+
+        public double MinY { get; private set; } = double.MaxValue;
+
+        public double MaxX { get; private set; } = double.MinValue;
+
+        public double MaxY { get; private set; } = double.MinValue;
+
+        public int Strokes { get; private set; }
+
+        public List<(double X, double Y)> StrokePoints { get; } = [];
+
+        public override void FillPath(in PdfPath path, bool evenOdd, in PdfGraphicsState state)
+        {
+            ReadOnlySpan<double> pts = path.Points.Span;
+            for (int i = 0; i + 1 < pts.Length; i += 2)
+            {
+                MinX = Math.Min(MinX, pts[i]);
+                MaxX = Math.Max(MaxX, pts[i]);
+                MinY = Math.Min(MinY, pts[i + 1]);
+                MaxY = Math.Max(MaxY, pts[i + 1]);
+            }
+        }
+
+        public override void StrokePath(in PdfPath path, in PdfGraphicsState state)
+        {
+            Strokes++;
+            ReadOnlySpan<double> pts = path.Points.Span;
+            for (int i = 0; i + 1 < pts.Length; i += 2)
+            {
+                StrokePoints.Add((pts[i], pts[i + 1]));
+            }
+        }
+    }
+
     // Writes a file where external tools (pdfinfo -box, qpdf --check) can look at it, when asked to.
     [Fact]
     public void WritesFileForExternalTools()
@@ -231,6 +469,7 @@ public class PrintGeometryTests
 
         Directory.CreateDirectory(dir);
         File.WriteAllBytes(Path.Combine(dir, "layout-slug.pdf"), Support.Save(Doc(d => d.Print = new PrintSetup { Bleed = 9, Slug = 18, ArtBox = new PdfRectangle(20, 20, 280, 380) })));
+        File.WriteAllBytes(Path.Combine(dir, "layout-sides-marks.pdf"), Support.Save(Doc(d => d.Print = new PrintSetup { BleedSides = new PdfPrintMargins(3, 6, 9, 12), SlugSides = new PdfPrintMargins(24, 26, 28, 30), Marks = new PdfPrinterMarks(), BleedBoxColor = Guide })));
     }
 
     private sealed class LeftEdge : PdfDevice

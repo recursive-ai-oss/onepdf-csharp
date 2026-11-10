@@ -264,6 +264,23 @@ layout.Save("brochure.pdf");
 
 See [docs/layout.md](docs/layout.md#print-geometry).
 
+### Printer's marks and per-side bleed
+
+Bleed and slug can differ per side, and crop and registration marks can be drawn in the slug (registration colour, page artifacts, outside the bleed box). A slug too small for the marks is refused. Layout has the same through `PrintSetup`:
+
+```csharp
+var marks = new PdfPrinterMarks();                        // crop + registration, needs a slug of 18.125 pt
+using var doc = PdfDocument.Open(path, new PdfOpenOptions { AllowEditing = true });
+doc.SetPrintGeometry(new PdfPrintMargins(9, 9, 3, 3), new PdfPrintMargins(24), marks);   // left, bottom, right, top
+doc.Save("print.pdf");
+
+LayoutDocument layout = LayoutDocument.Compose(c => c
+    .Print(new PdfPrintMargins(9), new PdfPrintMargins(24), marks)
+    .Page(p => { p.Size(PageSize.A5); p.Content().Text("Hello"); }));
+```
+
+`PrintSetup` also takes `BleedBoxColor`, `TrimBoxColor`, `CropBoxColor` and `ArtBoxColor` (`PdfBoxColorInfo`) for `/BoxColorInfo`. See [docs/page-geometry.md](docs/page-geometry.md).
+
 ### Print preferences
 
 The catalog's `/ViewerPreferences` (print scaling, duplex, copies, page ranges, tray by page size, the deprecated area and clip boxes) is

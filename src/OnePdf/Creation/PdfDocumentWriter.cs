@@ -335,13 +335,51 @@ public sealed partial class PdfDocumentWriter : IDisposable
     /// <exception cref="InvalidOperationException">A page is still open, or the writer is finished.</exception>
     /// <exception cref="ArgumentOutOfRangeException">A size, the bleed, the slug or the rotation is not valid.</exception>
     public PdfStreamPageBuilder BeginPrintPage(double trimWidth, double trimHeight, double bleed, double slug, int rotate)
+        => BeginPrintPage(trimWidth, trimHeight, new PdfPrintMargins(bleed), new PdfPrintMargins(slug), rotate, null);
+
+    /// <summary>
+    /// Starts the next page as a print page with a slug and printer's marks, as
+    /// <see cref="BeginPrintPage(double, double, double, double, int)"/>; the marks are drawn first, so what you draw next goes over them.
+    /// </summary>
+    /// <param name="trimWidth">Finished page width in points; finite and greater than zero.</param>
+    /// <param name="trimHeight">Finished page height in points; finite and greater than zero.</param>
+    /// <param name="bleed">Bleed margin in points; zero or more.</param>
+    /// <param name="slug">Slug margin outside the bleed in points; at least <see cref="PdfPrinterMarks.MinimumSlug"/>.</param>
+    /// <param name="rotate">Clockwise display rotation: 0, 90, 180 or 270.</param>
+    /// <param name="marks">The marks to draw.</param>
+    /// <exception cref="InvalidOperationException">A page is still open, or the writer is finished.</exception>
+    /// <exception cref="ArgumentOutOfRangeException">A size, the bleed, the slug or the rotation is not valid.</exception>
+    /// <exception cref="ArgumentException">The slug is too small for the marks.</exception>
+    public PdfStreamPageBuilder BeginPrintPage(double trimWidth, double trimHeight, double bleed, double slug, int rotate, PdfPrinterMarks marks)
     {
-        if (!double.IsFinite(slug) || slug < 0)
+        ArgumentNullException.ThrowIfNull(marks);
+        return BeginPrintPage(trimWidth, trimHeight, new PdfPrintMargins(bleed), new PdfPrintMargins(slug), rotate, marks);
+    }
+
+    /// <summary>
+    /// Starts the next page as a print page with a different bleed and slug on each side: the trim box is <paramref name="trimWidth"/> by
+    /// <paramref name="trimHeight"/>, the bleed box is that grown by <paramref name="bleed"/>, and the media box is the bleed box grown by
+    /// <paramref name="slug"/>. No crop box is written. Coordinates start at the lower left of the media box, so the trim box is at
+    /// <c>(bleed.Left + slug.Left, bleed.Bottom + slug.Bottom)</c>. With equal sides this writes the same page as
+    /// <see cref="BeginPrintPage(double, double, double, double, int)"/>.
+    /// </summary>
+    /// <param name="trimWidth">Finished page width in points; finite and greater than zero.</param>
+    /// <param name="trimHeight">Finished page height in points; finite and greater than zero.</param>
+    /// <param name="bleed">Bleed on each side in points; zero or more.</param>
+    /// <param name="slug">Slug on each side outside the bleed in points; zero or more. The media box must stay between 3 and 14400 points on each side.</param>
+    /// <param name="rotate">Clockwise display rotation: 0, 90, 180 or 270.</param>
+    /// <param name="marks">Printer's marks to draw, or null for none. A side's slug smaller than <see cref="PdfPrinterMarks.MinimumSlug"/> is refused.</param>
+    /// <exception cref="InvalidOperationException">A page is still open, or the writer is finished.</exception>
+    /// <exception cref="ArgumentOutOfRangeException">A size, a margin or the rotation is not valid.</exception>
+    /// <exception cref="ArgumentException">The slug is too small for the marks.</exception>
+    public PdfStreamPageBuilder BeginPrintPage(double trimWidth, double trimHeight, PdfPrintMargins bleed, PdfPrintMargins slug, int rotate = 0, PdfPrinterMarks? marks = null)
+    {
+        if (!IsValidMargins(slug))
         {
             throw new ArgumentOutOfRangeException(nameof(slug), "The slug must be finite and not negative.");
         }
 
-        if (!double.IsFinite(bleed) || bleed < 0)
+        if (!IsValidMargins(bleed))
         {
             throw new ArgumentOutOfRangeException(nameof(bleed), "The bleed must be finite and not negative.");
         }
@@ -351,12 +389,19 @@ public sealed partial class PdfDocumentWriter : IDisposable
             throw new ArgumentOutOfRangeException(nameof(trimWidth), "The trim size must be finite and greater than zero.");
         }
 
-        double margin = bleed + slug;
-        PdfStreamPageBuilder b = BeginPage(trimWidth + 2 * margin, trimHeight + 2 * margin, rotate);
-        b.SetBleedBox(new PdfRectangle(slug, slug, b.Width - slug, b.Height - slug));
-        b.SetTrimBox(new PdfRectangle(margin, margin, margin + trimWidth, margin + trimHeight));
+        marks?.Check(slug);
+        double left = bleed.Left + slug.Left, bottom = bleed.Bottom + slug.Bottom;
+        PdfStreamPageBuilder b = BeginPage(trimWidth + (left + (bleed.Right + slug.Right)), trimHeight + (bottom + (bleed.Top + slug.Top)), rotate);
+        var bleedBox = new PdfRectangle(slug.Left, slug.Bottom, b.Width - slug.Right, b.Height - slug.Top);
+        var trim = new PdfRectangle(left, bottom, left + trimWidth, bottom + trimHeight);
+        b.SetBleedBox(bleedBox);
+        b.SetTrimBox(trim);
+        marks?.Draw(b, trim, bleedBox);
         return b;
     }
+
+    private static bool IsValidMargins(PdfPrintMargins m) =>
+        double.IsFinite(m.Left) && double.IsFinite(m.Bottom) && double.IsFinite(m.Right) && double.IsFinite(m.Top) && m.Left >= 0 && m.Bottom >= 0 && m.Right >= 0 && m.Top >= 0;
 
     // A page builder that was disposed without Commit leaves its reserved page object behind; drop it. Structure bound to the page's
     // content would then point at a page that does not exist, so that case is an error.
