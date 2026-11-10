@@ -4,6 +4,12 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ## [Unreleased]
 
+### Added
+
+- Per-side bleed and slug: `PdfPrintMargins` (left, bottom, right, top) overloads of `PdfPage.SetPrintGeometry`, `PdfDocument.SetPrintGeometry` and `PdfDocumentWriter.BeginPrintPage`, and `PrintSetup.BleedSides`/`SlugSides` plus `Print(...)` overloads in Layout. Equal sides write the same bytes as the number forms.
+- Opt-in printer's marks: `PdfPrinterMarks` (crop and registration marks in the slug, registration colour, `/Artifact` of type Page, outside the bleed box). Accepted by the page, document and writer print-geometry calls and `PrintSetup.Marks`; a slug below `PdfPrinterMarks.MinimumSlug` is refused. `PdfContentBuilder.SetFillRegistration`/`SetStrokeRegistration` set registration colour (`/Separation /All`) and the builders write the `/ColorSpace` resource.
+- Layout `PrintSetup` writes `/BoxColorInfo` per box (`CropBoxColor`, `BleedBoxColor`, `TrimBoxColor`, `ArtBoxColor`).
+
 ## [1.21.0] - 2026-11-10
 
 ### Added

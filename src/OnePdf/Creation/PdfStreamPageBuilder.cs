@@ -256,6 +256,7 @@ public sealed class PdfStreamPageBuilder : PdfContentBuilder
         AddCategory(resources, "XObject", XObjectResources);
         AddCategory(resources, "ExtGState", StateResources);
         AddCategory(resources, "Shading", ShadingResources);
+        AddCategory(resources, "ColorSpace", ColorSpaceResources);
 
         _page.SetEntry("Type", new PdfName("Page"));
         _page.SetEntry("Parent", new PdfReference(_writer.CurrentNodeNumber, 0));

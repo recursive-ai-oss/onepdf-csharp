@@ -961,7 +961,7 @@ public abstract partial class PdfContentBuilder : IDisposable
                 return;
             }
 
-            foreach (string category in (string[])["Font", "XObject", "ExtGState", "Shading"])
+            foreach (string category in (string[])["Font", "XObject", "ExtGState", "Shading", "ColorSpace"])
             {
                 if (existing.GetDictionary(category) is { } d)
                 {

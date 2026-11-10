@@ -237,6 +237,24 @@ public sealed class DocumentComposer
         return this;
     }
 
+    /// <summary>
+    /// Print geometry for every page that does not set its own, with bleed and slug that differ per side (left, bottom, right, top) and
+    /// optional printer's marks, which need a slug of at least <see cref="PdfPrinterMarks.MinimumSlug"/> on every side. See <see cref="PrintSetup"/>.
+    /// </summary>
+    public DocumentComposer Print(PdfPrintMargins bleed, PdfPrintMargins slug = default, PdfPrinterMarks? marks = null)
+    {
+        _document.Print = new PrintSetup { BleedSides = bleed, SlugSides = slug, Marks = marks };
+        return this;
+    }
+
+    /// <summary>Print geometry with the same bleed and slug on every side and printer's marks. See <see cref="PrintSetup"/>.</summary>
+    public DocumentComposer Print(double bleed, double slug, PdfPrinterMarks marks)
+    {
+        ArgumentNullException.ThrowIfNull(marks);
+        _document.Print = new PrintSetup { Bleed = bleed, Slug = slug, Marks = marks };
+        return this;
+    }
+
     /// <summary>Print geometry for every page that does not set its own, with explicit boxes if wanted.</summary>
     public DocumentComposer Print(PrintSetup setup)
     {
@@ -308,6 +326,24 @@ public sealed class PageComposer
     public PageComposer Print(double bleed, double slug = 0)
     {
         _page.Print = new PrintSetup { Bleed = bleed, Slug = slug };
+        return this;
+    }
+
+    /// <summary>
+    /// Print geometry for this run of pages, with bleed and slug that differ per side (left, bottom, right, top) and
+    /// optional printer's marks, which need a slug of at least <see cref="PdfPrinterMarks.MinimumSlug"/> on every side. See <see cref="PrintSetup"/>.
+    /// </summary>
+    public PageComposer Print(PdfPrintMargins bleed, PdfPrintMargins slug = default, PdfPrinterMarks? marks = null)
+    {
+        _page.Print = new PrintSetup { BleedSides = bleed, SlugSides = slug, Marks = marks };
+        return this;
+    }
+
+    /// <summary>Print geometry with the same bleed and slug on every side and printer's marks. See <see cref="PrintSetup"/>.</summary>
+    public PageComposer Print(double bleed, double slug, PdfPrinterMarks marks)
+    {
+        ArgumentNullException.ThrowIfNull(marks);
+        _page.Print = new PrintSetup { Bleed = bleed, Slug = slug, Marks = marks };
         return this;
     }
 
