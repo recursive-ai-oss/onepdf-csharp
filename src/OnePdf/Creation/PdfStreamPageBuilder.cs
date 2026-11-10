@@ -72,6 +72,30 @@ public sealed class PdfStreamPageBuilder : PdfContentBuilder
         _userUnit = userUnit;
     }
 
+    private readonly PdfDictionary?[] _colorInfo = new PdfDictionary?[4];
+
+    /// <summary>
+    /// Sets the <c>/BoxColorInfo</c> entry for a box (ISO 32000-2 14.11.2.2): the colour, width and style a viewer uses for that box's
+    /// guides. Written exactly as <see cref="PdfPage.SetBoxColorInfo"/> writes it. Call before <see cref="Commit"/>.
+    /// </summary>
+    /// <param name="box">The crop, bleed, trim or art box.</param>
+    /// <param name="info">What to write; null removes an entry set earlier on this builder.</param>
+    /// <exception cref="ArgumentException"><paramref name="box"/> is the media box, or a value in <paramref name="info"/> is not valid (see <see cref="PdfPage.SetBoxColorInfo"/>).</exception>
+    /// <exception cref="InvalidOperationException">The builder is already closed.</exception>
+    public void SetBoxColorInfo(PdfPageBox box, PdfBoxColorInfo? info)
+    {
+        CheckOpen();
+        string key = PageBoxes.ColorInfoKey(box);
+        if (info is not null)
+        {
+            PageBoxes.CheckColorInfo(info);
+        }
+
+        _colorInfo[Array.IndexOf(BoxKeys, key)] = info is null ? null : PageBoxes.BuildColorInfo(info);
+    }
+
+    private static readonly string[] BoxKeys = ["CropBox", "BleedBox", "TrimBox", "ArtBox"];
+
     private void SetBox(int slot, PdfRectangle rectangle)
     {
         CheckOpen();
@@ -250,6 +274,21 @@ public sealed class PdfStreamPageBuilder : PdfContentBuilder
             {
                 _page.SetEntry(boxKeys[i], PageBoxes.ToArray(bx));
             }
+        }
+
+        PdfDictionary? colorInfo = null;
+        for (int i = 0; i < _colorInfo.Length; i++)
+        {
+            if (_colorInfo[i] is { } ci)
+            {
+                colorInfo ??= new PdfDictionary();
+                colorInfo.SetEntry(BoxKeys[i], ci);
+            }
+        }
+
+        if (colorInfo is not null)
+        {
+            _page.SetEntry("BoxColorInfo", colorInfo);
         }
 
         if (_userUnit != 1)

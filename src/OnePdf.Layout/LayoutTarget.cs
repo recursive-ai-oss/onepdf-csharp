@@ -32,7 +32,8 @@ internal interface ILayoutTarget
     /// <summary>Starts a form XObject (a transparency group, a soft mask, a pattern cell).</summary>
     PdfFormContentBuilder BeginForm(PdfRectangle box);
 
-    TargetPage BeginPage(double width, double height);
+    /// <summary>Starts a page of the trim size; <paramref name="print"/> adds bleed, slug and boxes around it.</summary>
+    TargetPage BeginPage(double width, double height, PrintSetup? print);
 
     /// <summary>True when the target can record links, bookmarks, named destinations and page labels.</summary>
     bool SupportsNavigation { get; }
@@ -130,9 +131,24 @@ internal sealed class DocumentTarget(PdfDocument document, int[]? sectionTotals 
 
     public PdfFormContentBuilder BeginForm(PdfRectangle box) => document.BeginForm(box);
 
-    public TargetPage BeginPage(double width, double height)
+    public TargetPage BeginPage(double width, double height, PrintSetup? print)
     {
-        PdfPage page = document.InsertBlankPage(document.Pages.Count, width, height);
+        double margin = print?.Margin ?? 0;
+        PdfPage page = document.InsertBlankPage(document.Pages.Count, width + 2 * margin, height + 2 * margin);
+        if (print is not null)
+        {
+            page.SetPrintGeometry(new PdfRectangle(margin, margin, margin + width, margin + height), print.Bleed, print.Slug);
+            if (print.CropBox is { } crop)
+            {
+                page.SetCropBox(print.ToPage(crop));
+            }
+
+            if (print.ArtBox is { } art)
+            {
+                page.SetArtBox(print.ToPage(art));
+            }
+        }
+
         PdfPageContentBuilder b = page.BeginContent();
         return new TargetPage(b, b.Commit);
     }
@@ -199,9 +215,19 @@ internal sealed class WriterTarget(PdfDocumentWriter writer) : ILayoutTarget
 
     public PdfFormContentBuilder BeginForm(PdfRectangle box) => writer.BeginForm(box);
 
-    public TargetPage BeginPage(double width, double height)
+    public TargetPage BeginPage(double width, double height, PrintSetup? print)
     {
-        PdfStreamPageBuilder b = writer.BeginPage(width, height);
+        PdfStreamPageBuilder b = print is null ? writer.BeginPage(width, height) : writer.BeginPrintPage(width, height, print.Bleed, print.Slug, 0);
+        if (print?.CropBox is { } crop)
+        {
+            b.SetCropBox(print.ToPage(crop));
+        }
+
+        if (print?.ArtBox is { } art)
+        {
+            b.SetArtBox(print.ToPage(art));
+        }
+
         return new TargetPage(b, b.Commit, b);
     }
 }

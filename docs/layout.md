@@ -383,6 +383,32 @@ using (var secret = File.Create("secret.pdf"))
 }
 ```
 
+### Print geometry
+
+A page size is the trim size. Bleed and slug go around it, so margins, headers, footers and content are laid out exactly as without them and nothing moves on the trimmed page; the media box grows by bleed plus slug on every side, the bleed box by the bleed, and the trim box sits inside (ISO 32000-2 14.11.2; see [page-geometry.md](page-geometry.md) for the crop box choice). Links, bookmarks and anchors follow the trim box.
+
+```csharp
+LayoutDocument layout = LayoutDocument.Compose(doc =>
+{
+    doc.Title("Brochure").Language("en");
+    doc.Print(bleed: 9, slug: 18);                       // every page that does not set its own
+    doc.ViewerPreferences(new PdfViewerPreferences { PrintScaling = PdfPrintScaling.None, NumCopies = 2 });
+    doc.Page(page =>
+    {
+        page.Size(PageSize.A5);                          // the trim size
+        page.Background().Element(new Box { Background = LayoutColor.Black });   // runs into the bleed
+        page.Content().Text("Hello");
+    });
+    doc.Page(page => page.Print(new PrintSetup { Bleed = 3, ArtBox = new PdfRectangle(10, 10, 200, 300) }));
+});
+```
+
+- `PrintSetup` (on `LayoutDocument.Print` and per section as `LayoutPage.Print`, or `Print(bleed, slug)` / `Print(setup)` on the composers) holds `Bleed`, `Slug`, `BleedBackground`, and optional explicit `CropBox` and `ArtBox`. The explicit boxes are in points from the trim box's lower-left corner with y up, so a negative origin reaches into the bleed. A section's setup replaces the document's.
+- **Backgrounds bleed by default.** With `BleedBackground` (default true) and a bleed above zero, a section's `Background` is laid out over the trim size grown by the bleed and drawn from the bleed box's corner. Its content (a centred logo, say) is therefore laid out against the larger area; set `BleedBackground = false` to keep it on the trim size. Content, headers, footers and the foreground never bleed.
+- Nothing is drawn in the slug. Printer's marks are yours to add, for example in a section's `Foreground` through the content builder; keep them outside the bleed box.
+- `LayoutDocument.ViewerPreferences` (`doc.ViewerPreferences(...)` on the facade) writes the catalog's `/ViewerPreferences` ([print-preferences.md](print-preferences.md)); `DisplayDocTitle` is still set from the title when the preferences leave it unset, and a `PdfDocumentWriterOptions.ViewerPreferences` passed to a save wins. `Render(PdfDocument)` applies them to the target; with `Render(PdfDocumentWriter)` pass them in the writer's options.
+- Tagging, PDF/UA and PDF/A saves work with print geometry set. Keep the media box within the 3 to 14400 point limit of ISO 19005-2 6.1.13.
+
 ### The element tree underneath
 
 The facade builds the element objects described below; they stay public. They are the lower layer for code that builds trees from data, for custom elements' tests, and an escape hatch: `slot.Element(element)` puts any element object into a slot. A facade document and the same document built from element objects produce identical bytes (a test lays out a 50-page report both ways).

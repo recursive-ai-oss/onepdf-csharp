@@ -4,6 +4,16 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ## [Unreleased]
 
+### Added
+
+- Slug margins: `PdfPage.SetPrintGeometry(trim, bleed, slug)`, `PdfDocument.SetPrintGeometry(bleed, slug)` and `PdfDocumentWriter.BeginPrintPage(trimWidth, trimHeight, bleed, slug, rotate)`. The media box is the bleed box grown by the slug; the crop box is cleared so printer's marks show (`docs/page-geometry.md`).
+- `PdfStreamPageBuilder.SetBoxColorInfo`, writing `/BoxColorInfo` for pages made by the streaming writer exactly as `PdfPage.SetBoxColorInfo` does.
+- Layout print geometry: `PrintSetup` (bleed, slug, background bleed, explicit crop and art boxes), `LayoutDocument.Print`, `LayoutPage.Print`, `Print(...)` on `DocumentComposer` and `PageComposer`, and `LayoutDocument.ViewerPreferences` / `DocumentComposer.ViewerPreferences`. Content is laid out relative to the trim box (`docs/layout.md`).
+
+### Fixed
+
+- `LayoutDocument.Save` dropped `PdfDocumentWriterOptions.ViewerPreferences` on some paths; they now survive every save overload.
+
 ## [1.20.0] - 2026-11-09
 
 ### Added

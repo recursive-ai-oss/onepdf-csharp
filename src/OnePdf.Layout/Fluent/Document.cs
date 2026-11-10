@@ -67,6 +67,7 @@ public sealed partial class LayoutDocument
             DocumentId = options?.DocumentId,
             Language = options?.Language,
             DisplayDocumentTitle = options?.DisplayDocumentTitle ?? false,
+            ViewerPreferences = options?.ViewerPreferences,
             Limits = options?.Limits ?? PdfLimits.Default,
             LeaveOpen = true,
         });
@@ -116,6 +117,7 @@ public sealed partial class LayoutDocument
                 DocumentId = options?.DocumentId,
                 Language = options?.Language,
                 DisplayDocumentTitle = options?.DisplayDocumentTitle ?? false,
+                ViewerPreferences = options?.ViewerPreferences,
                 Limits = options?.Limits ?? PdfLimits.Default,
             };
         }
@@ -225,6 +227,32 @@ public sealed class DocumentComposer
         return this;
     }
 
+    /// <summary>
+    /// Print geometry for every page that does not set its own: <paramref name="bleed"/> and <paramref name="slug"/> in points around the
+    /// page size, which stays the trim size. See <see cref="PrintSetup"/>.
+    /// </summary>
+    public DocumentComposer Print(double bleed, double slug = 0)
+    {
+        _document.Print = new PrintSetup { Bleed = bleed, Slug = slug };
+        return this;
+    }
+
+    /// <summary>Print geometry for every page that does not set its own, with explicit boxes if wanted.</summary>
+    public DocumentComposer Print(PrintSetup setup)
+    {
+        ArgumentNullException.ThrowIfNull(setup);
+        _document.Print = setup;
+        return this;
+    }
+
+    /// <summary>Viewer and print preferences for the document, for example <c>new PdfViewerPreferences { PrintScaling = PdfPrintScaling.None, NumCopies = 2 }</c>.</summary>
+    public DocumentComposer ViewerPreferences(PdfViewerPreferences preferences)
+    {
+        ArgumentNullException.ThrowIfNull(preferences);
+        _document.ViewerPreferences = preferences;
+        return this;
+    }
+
     /// <summary>Adds a run of pages with the same setup (size, margins, header, footer, content). Each starts on a new page.</summary>
     /// <param name="compose">Describes the pages.</param>
     public DocumentComposer Page(Action<PageComposer> compose)
@@ -275,6 +303,21 @@ public sealed class PageComposer
 
     /// <summary>A page size in points.</summary>
     public PageComposer Size(double width, double height) => Size(new PageSize(width, height));
+
+    /// <summary>Gives this run of pages bleed and slug (points) around the page size, which stays the trim size. See <see cref="PrintSetup"/>.</summary>
+    public PageComposer Print(double bleed, double slug = 0)
+    {
+        _page.Print = new PrintSetup { Bleed = bleed, Slug = slug };
+        return this;
+    }
+
+    /// <summary>Gives this run of pages print geometry, with explicit boxes if wanted.</summary>
+    public PageComposer Print(PrintSetup setup)
+    {
+        ArgumentNullException.ThrowIfNull(setup);
+        _page.Print = setup;
+        return this;
+    }
 
     /// <summary>Turns the page to landscape (the size's sides are swapped if need be).</summary>
     public PageComposer Landscape()

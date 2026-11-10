@@ -32,6 +32,9 @@ public sealed class LayoutPage
     /// <summary>Drawn last on every page, at the full page size (margins ignored): watermarks and stamps.</summary>
     public Element? Foreground { get; set; }
 
+    /// <summary>Bleed, slug and explicit boxes for this run of pages. When null, <see cref="LayoutDocument.Print"/>; null there too means plain pages with the page size as the media box.</summary>
+    public PrintSetup? Print { get; set; }
+
     /// <summary>The flowing content, usually a <see cref="Column"/>. Empty when null (one blank page).</summary>
     public Element? Content { get; set; }
 
@@ -66,6 +69,16 @@ public sealed class LayoutPage
 /// </summary>
 public sealed partial class LayoutDocument
 {
+    /// <summary>Print geometry of every section that does not set its own <see cref="LayoutPage.Print"/>. Null for none.</summary>
+    public PrintSetup? Print { get; set; }
+
+    /// <summary>
+    /// Viewer and print preferences written to the catalog (<c>/ViewerPreferences</c>, ISO 32000-2 12.2): print scaling, duplex, copies, page
+    /// ranges, paper source and window flags. Wins over nothing: a <see cref="PdfDocumentWriterOptions.ViewerPreferences"/> passed to a save
+    /// takes precedence. <c>DisplayDocTitle</c> is still set from <see cref="Title"/> when this leaves it unset. Null writes none.
+    /// </summary>
+    public PdfViewerPreferences? ViewerPreferences { get; set; }
+
     /// <summary>The runs of pages, in order. Each contributes at least one page.</summary>
     public List<LayoutPage> Pages { get; } = [];
 
@@ -114,7 +127,13 @@ public sealed partial class LayoutDocument
     public int Render(PdfDocument target)
     {
         ArgumentNullException.ThrowIfNull(target);
-        return RenderCore(target, null);
+        int added = RenderCore(target, null);
+        if (ViewerPreferences is not null)
+        {
+            target.SetViewerPreferences(ViewerPreferences);
+        }
+
+        return added;
     }
 
     /// <summary>
@@ -156,7 +175,7 @@ public sealed partial class LayoutDocument
     {
         ArgumentNullException.ThrowIfNull(output);
         options ??= new PdfDocumentWriterOptions();
-        if ((Language is not null && options.Language is null) || (Title is not null && !options.DisplayDocumentTitle))
+        if ((Language is not null && options.Language is null) || (Title is not null && !options.DisplayDocumentTitle) || (ViewerPreferences is not null && options.ViewerPreferences is null))
         {
             options = new PdfDocumentWriterOptions
             {
@@ -166,6 +185,7 @@ public sealed partial class LayoutDocument
                 DocumentId = options.DocumentId,
                 Language = options.Language ?? Language,
                 DisplayDocumentTitle = options.DisplayDocumentTitle || Title is not null,
+                ViewerPreferences = options.ViewerPreferences ?? ViewerPreferences,
                 LeaveOpen = options.LeaveOpen,
                 Limits = options.Limits,
             };
@@ -289,6 +309,8 @@ public sealed partial class LayoutDocument
     private int RenderSection(LayoutContext ctx, ILayoutTarget target, LayoutPage setup, int sectionIndex, int firstPage, long startNumber, bool writeLabel, Action<int, LayoutPage, Placed?, Placed?, Placed?>? capture)
     {
         PageSize size = setup.Size.Oriented(setup.Orientation);
+        PrintSetup? print = setup.Print ?? Print;
+        print?.Validate();
         Insets m = setup.Margin;
         double bodyW = size.Width - m.Left - m.Right;
         double bodyH = size.Height - m.Top - m.Bottom;
@@ -346,7 +368,7 @@ public sealed partial class LayoutDocument
                 return;
             }
 
-            using TargetPage tp = target.BeginPage(size.Width, size.Height);
+            using TargetPage tp = target.BeginPage(size.Width, size.Height, print);
             ctx.OpenPage = tp;
             ctx.Values = ctx.Dynamic.Page(fit.Placed as Placed, new PageInfo(firstPage + page, sectionIndex, page, startNumber + page, setup.NumberStyle), Numbering.Format(startNumber + page, setup.NumberStyle));
             if (page == 0 && writeLabel && target.SupportsNavigation)
@@ -355,13 +377,16 @@ public sealed partial class LayoutDocument
             }
 
             PdfContentBuilder b = tp.Builder;
-            var d = new DrawContext(b, ctx, size.Height, 0, 0);
-            Placed? background = LayoutFull(ctx, setup.Background, "Background", firstPage + page, size);
+            // Layout space is y-down with its origin at the trim box's top-left; the media box reaches Margin further out on every side.
+            double edge = print?.Margin ?? 0;
+            var d = new DrawContext(b, ctx, size.Height + edge, edge, 0);
+            double bleed = print is { BleedBackground: true } ? print.Bleed : 0;
+            Placed? background = LayoutFull(ctx, setup.Background, "Background", firstPage + page, bleed > 0 ? new PageSize(size.Width + 2 * bleed, size.Height + 2 * bleed) : size);
             Tagger tag = ctx.Tag;
             if (background is not null)
             {
                 bool a = tag.BeginArtifact(b, PdfArtifactType.Background);
-                background.Element.Draw(d, background);
+                background.Element.Draw(d.At(-bleed, -bleed), background);
                 tag.EndArtifact(b, a);
             }
 
