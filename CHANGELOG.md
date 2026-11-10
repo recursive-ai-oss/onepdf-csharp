@@ -4,6 +4,8 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ## [Unreleased]
 
+## [1.22.0] - 2026-11-10
+
 ### Added
 
 - Per-side bleed and slug: `PdfPrintMargins` (left, bottom, right, top) overloads of `PdfPage.SetPrintGeometry`, `PdfDocument.SetPrintGeometry` and `PdfDocumentWriter.BeginPrintPage`, and `PrintSetup.BleedSides`/`SlugSides` plus `Print(...)` overloads in Layout. Equal sides write the same bytes as the number forms.
@@ -431,6 +433,7 @@ First release. Two packages, `RecursiveAI.OnePdf` (the library, `net10.0`, no de
 - Limits on by default (`PdfLimits`) and fuzzed parsers, filters and font readers; no `unsafe` code. OnePDF never runs code or touches the network.
 - `RecursiveAI.OnePdf.Fonts`: Liberation and Noto substitute outlines under the SIL Open Font License 1.1, registered with `FontsPackage.Register()`.
 
+[1.22.0]: https://github.com/recursive-ai-oss/onepdf-csharp/releases/tag/v1.22.0
 [1.21.0]: https://github.com/recursive-ai-oss/onepdf-csharp/releases/tag/v1.21.0
 [1.20.0]: https://github.com/recursive-ai-oss/onepdf-csharp/releases/tag/v1.20.0
 [1.19.0]: https://github.com/recursive-ai-oss/onepdf-csharp/releases/tag/v1.19.0
