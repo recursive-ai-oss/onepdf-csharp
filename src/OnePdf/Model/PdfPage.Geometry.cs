@@ -256,14 +256,30 @@ public sealed partial class PdfPage
     /// <param name="bleed">The bleed margin in points; finite and zero or more.</param>
     /// <exception cref="ArgumentException">The trim rectangle is not valid or the bleed is negative or not finite.</exception>
     /// <exception cref="InvalidOperationException">The document was not opened with <see cref="PdfOpenOptions.AllowEditing"/>.</exception>
-    public void SetPrintGeometry(PdfRectangle trim, double bleed = 0)
+    public void SetPrintGeometry(PdfRectangle trim, double bleed = 0) => SetPrintGeometry(trim, bleed, 0);
+
+    /// <summary>
+    /// Sets print geometry with a slug: the trim box is <paramref name="trim"/>; the bleed box is the trim box grown by
+    /// <paramref name="bleed"/> on every side; the media box is the bleed box grown by <paramref name="slug"/> on every side, room outside
+    /// the bleed for printer's marks, colour bars and job information. The crop box is removed, so the whole media box (marks included)
+    /// shows and prints; a crop box equal to the bleed box would hide the slug from every reader that clips to the crop box
+    /// (ISO 32000-2 14.11.2.1, 14.11.2.2). Art boxes stored on the page are clipped to the new media box. With a zero slug this is the
+    /// same as <see cref="SetPrintGeometry(PdfRectangle, double)"/>.
+    /// </summary>
+    /// <param name="trim">The finished page, in default user space; finite and with an area.</param>
+    /// <param name="bleed">The bleed margin in points; finite and zero or more.</param>
+    /// <param name="slug">The slug margin outside the bleed, in points; finite and zero or more.</param>
+    /// <exception cref="ArgumentException">The trim rectangle is not valid, or the bleed or slug is negative or not finite.</exception>
+    /// <exception cref="InvalidOperationException">The document was not opened with <see cref="PdfOpenOptions.AllowEditing"/>.</exception>
+    public void SetPrintGeometry(PdfRectangle trim, double bleed, double slug)
     {
         PdfRectangle t = CheckBox(trim, nameof(trim));
-        PdfRectangle media = PageBoxes.WithBleed(t, bleed);
+        PdfRectangle bleedBox = PageBoxes.WithBleed(t, bleed);
+        PdfRectangle media = PageBoxes.WithSlug(bleedBox, slug);
         Document.EnsureEditable(0);
         SetMediaBox(media);
         ClearCropBox();
-        Dictionary.SetEntry("BleedBox", ToArray(media));
+        Dictionary.SetEntry("BleedBox", ToArray(bleedBox));
         Dictionary.SetEntry("TrimBox", ToArray(t));
         Refresh();
     }
@@ -347,24 +363,7 @@ public sealed partial class PdfPage
             return;
         }
 
-        var d = new PdfDictionary();
-        var c = new PdfArray();
-        c.Append(new PdfReal(info.Red));
-        c.Append(new PdfReal(info.Green));
-        c.Append(new PdfReal(info.Blue));
-        d.SetEntry("C", c);
-        d.SetEntry("W", new PdfReal(info.LineWidth));
-        d.SetEntry("S", new PdfName(info.Style == PdfBoxLineStyle.Dashed ? "D" : "S"));
-        if (info.Style == PdfBoxLineStyle.Dashed)
-        {
-            var da = new PdfArray();
-            foreach (double v in info.Dash)
-            {
-                da.Append(new PdfReal(v));
-            }
-
-            d.SetEntry("D", da);
-        }
+        PdfDictionary d = PageBoxes.BuildColorInfo(info);
 
         if (all is null)
         {
@@ -384,51 +383,9 @@ public sealed partial class PdfPage
 
     private static double Clamp01(double v) => double.IsFinite(v) ? Math.Clamp(v, 0, 1) : 0;
 
-    private static string ColorInfoKey(PdfPageBox box) => box switch
-    {
-        PdfPageBox.CropBox => "CropBox",
-        PdfPageBox.BleedBox => "BleedBox",
-        PdfPageBox.TrimBox => "TrimBox",
-        PdfPageBox.ArtBox => "ArtBox",
-        _ => throw new ArgumentException("/BoxColorInfo has entries for the crop, bleed, trim and art boxes only.", nameof(box)),
-    };
+    private static string ColorInfoKey(PdfPageBox box) => PageBoxes.ColorInfoKey(box);
 
-    private static void CheckColorInfo(PdfBoxColorInfo i)
-    {
-        if (!(i.Red >= 0 && i.Red <= 1 && i.Green >= 0 && i.Green <= 1 && i.Blue >= 0 && i.Blue <= 1))
-        {
-            throw new ArgumentException("Colour components are between 0 and 1.", nameof(i));
-        }
-
-        if (!double.IsFinite(i.LineWidth) || i.LineWidth < 0)
-        {
-            throw new ArgumentException("The line width must be finite and not negative.", nameof(i));
-        }
-
-        if (i.Style == PdfBoxLineStyle.Dashed)
-        {
-            bool any = false;
-            if (i.Dash is null || i.Dash.Count == 0 || i.Dash.Count > 32)
-            {
-                throw new ArgumentException("A dash pattern has 1 to 32 entries.", nameof(i));
-            }
-
-            foreach (double v in i.Dash)
-            {
-                if (!double.IsFinite(v) || v < 0)
-                {
-                    throw new ArgumentException("Dash entries must be finite and not negative.", nameof(i));
-                }
-
-                any |= v > 0;
-            }
-
-            if (!any)
-            {
-                throw new ArgumentException("A dash pattern cannot be all zero.", nameof(i));
-            }
-        }
-    }
+    private static void CheckColorInfo(PdfBoxColorInfo i) => PageBoxes.CheckColorInfo(i);
 
     private static PdfRectangle CheckBox(PdfRectangle r, string name) => PageBoxes.Normalize(r, name);
 

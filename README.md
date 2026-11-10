@@ -248,6 +248,22 @@ doc.Save("print.pdf");
 
 See [docs/page-geometry.md](docs/page-geometry.md).
 
+### Slug and marks room
+
+`SetPrintGeometry(trim, bleed, slug)` adds a slug outside the bleed (media = bleed box + slug; the crop box is cleared so the marks show). `PdfDocumentWriter.BeginPrintPage(w, h, bleed, slug, rotate)` and `PdfStreamPageBuilder.SetBoxColorInfo` do the same for new pages. With `RecursiveAI.OnePdf.Layout` it is one line, and content stays put relative to the trim size:
+
+```csharp
+LayoutDocument layout = LayoutDocument.Compose(doc =>
+{
+    doc.Print(bleed: 9, slug: 18);
+    doc.ViewerPreferences(new PdfViewerPreferences { PrintScaling = PdfPrintScaling.None });
+    doc.Page(page => { page.Size(PageSize.A5); page.Content().Text("Hello"); });
+});
+layout.Save("brochure.pdf");
+```
+
+See [docs/layout.md](docs/layout.md#print-geometry).
+
 ### Print preferences
 
 The catalog's `/ViewerPreferences` (print scaling, duplex, copies, page ranges, tray by page size, the deprecated area and clip boxes) is

@@ -321,6 +321,43 @@ public sealed partial class PdfDocumentWriter : IDisposable
         return b;
     }
 
+    /// <summary>
+    /// Starts the next page as a print page with a slug: the trim box is <paramref name="trimWidth"/> by <paramref name="trimHeight"/>,
+    /// the bleed box is that grown by <paramref name="bleed"/> on every side, and the media box is the bleed box grown by
+    /// <paramref name="slug"/> on every side. No crop box is written, so the slug shows and prints (ISO 32000-2 14.11.2). Coordinates
+    /// start at the lower left of the media box, so the trim box is at <c>(bleed + slug, bleed + slug)</c>.
+    /// </summary>
+    /// <param name="trimWidth">Finished page width in points; finite and greater than zero.</param>
+    /// <param name="trimHeight">Finished page height in points; finite and greater than zero.</param>
+    /// <param name="bleed">Bleed margin in points; zero or more.</param>
+    /// <param name="slug">Slug margin outside the bleed in points; zero or more. The media box must stay between 3 and 14400 points on each side.</param>
+    /// <param name="rotate">Clockwise display rotation: 0, 90, 180 or 270. Required here so that a call with four numbers keeps meaning bleed and rotation.</param>
+    /// <exception cref="InvalidOperationException">A page is still open, or the writer is finished.</exception>
+    /// <exception cref="ArgumentOutOfRangeException">A size, the bleed, the slug or the rotation is not valid.</exception>
+    public PdfStreamPageBuilder BeginPrintPage(double trimWidth, double trimHeight, double bleed, double slug, int rotate)
+    {
+        if (!double.IsFinite(slug) || slug < 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(slug), "The slug must be finite and not negative.");
+        }
+
+        if (!double.IsFinite(bleed) || bleed < 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(bleed), "The bleed must be finite and not negative.");
+        }
+
+        if (!double.IsFinite(trimWidth) || !double.IsFinite(trimHeight) || trimWidth <= 0 || trimHeight <= 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(trimWidth), "The trim size must be finite and greater than zero.");
+        }
+
+        double margin = bleed + slug;
+        PdfStreamPageBuilder b = BeginPage(trimWidth + 2 * margin, trimHeight + 2 * margin, rotate);
+        b.SetBleedBox(new PdfRectangle(slug, slug, b.Width - slug, b.Height - slug));
+        b.SetTrimBox(new PdfRectangle(margin, margin, margin + trimWidth, margin + trimHeight));
+        return b;
+    }
+
     // A page builder that was disposed without Commit leaves its reserved page object behind; drop it. Structure bound to the page's
     // content would then point at a page that does not exist, so that case is an error.
     private void DropAbandonedPage()
