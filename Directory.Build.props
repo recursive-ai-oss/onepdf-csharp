@@ -41,7 +41,7 @@
     <!-- Every pack compares the public API with the last published version, so a breaking change cannot ship by accident.
          Move the baseline to the new version when a release is published. -->
     <EnablePackageValidation>true</EnablePackageValidation>
-    <PackageValidationBaselineVersion>1.21.0</PackageValidationBaselineVersion>
+    <PackageValidationBaselineVersion>1.22.0</PackageValidationBaselineVersion>
   </PropertyGroup>
 
   <PropertyGroup Label="Package metadata">
