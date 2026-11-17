@@ -12,6 +12,14 @@ form.SetChecked("agree", true);                      // check box
 form.SetValue("size", "M");                          // radio group: on-state name or /Opt export value
 doc.SaveIncremental(File.Create("filled.pdf"));
 
+form.RenameField("applicant.name", "fullName");      // new partial name; same parent, same widgets
+form.SetFieldAppearance("fullName", new PdfFieldAppearance
+{
+    Background = PdfFieldColor.Rgb(1, 1, 0.8),       // PdfFieldColor.Transparent removes it
+    FontSize = 0,                                    // 0 = automatic
+    TextColor = PdfFieldColor.Gray(0.1),
+});
+
 doc.Flatten();                                       // bake everything into the page, drop the form
 doc.Save("flat.pdf");
 ```
@@ -40,6 +48,30 @@ A document that is not editable throws `InvalidOperationException`; a value larg
 - **`/NeedAppearances`** is cleared only when every widget has a normal appearance (a button that is off needs none). When that moment arrives, text and choice fields not filled by the caller are rebuilt first, so clearing the flag never makes an old appearance authoritative. `GenerateMissingAppearances()` stores whatever is missing and applies the same rule.
 - **Reset** sets `/V` to the inherited `/DV` (or removes it; off for buttons). A default that is not among the options is stored as it is. `ResetAll` skips read-only fields unless overridden, push buttons and signatures.
 - Pages, `Form` and other views taken before an edit are not refreshed by value changes to the same objects; `Flatten` rebuilds `Pages` and `Form`, so take them again afterwards.
+
+## Renaming
+
+`PdfAcroForm.RenameField(oldFullName, newName)` or `PdfFormField.Rename(newName)` changes the partial name `/T` (ISO 32000-2 12.7.4.2). `newName` is the last part only: the field stays under its parent, and `/Parent`, `/Kids` and `/Fields` are not touched, so widgets stay attached. It works for a terminal field, a field merged with its widget, and a parent; renaming a parent changes the full name of every descendant (`person.first` becomes `human.first`). Field objects already taken stay valid and show the new `FullName`; `FindField` finds the new name straight away. Renaming to the current name does nothing.
+
+It throws `PdfFormValueException` and changes nothing when:
+
+| Reason | When |
+|---|---|
+| `UnknownField` | no field has the old full name |
+| `InvalidName` | the new name is empty or contains a period (the separator of full names) |
+| `NameInUse` | the field or one of its descendants would get the full name of a field outside the renamed subtree (full names are unique) |
+
+Moving a field to another parent is not supported.
+
+## Appearance
+
+`PdfFormField.SetAppearance(PdfFieldAppearance)` / `PdfAcroForm.SetFieldAppearance(fullName, appearance)` changes the settings you give (null leaves a setting alone) and rebuilds the stored normal appearance of every widget, so viewers show the change without `/NeedAppearances`. It returns the number of widgets rebuilt and works with `Save` and `SaveIncremental`.
+
+- `Background` and `BorderColor` write `/MK /BG` and `/BC` (Table 192) on each widget. `PdfFieldColor.Transparent` removes the entry (no fill, or no border). Colours are gray, RGB or CMYK in 0..1. A shared indirect `/MK` is copied first so other widgets are not affected.
+- `FontSize` (0 = automatic, up to 1000) and `TextColor` change the `/DA` string and keep its font and other operators. `/DA` is inheritable (12.7.4.3), so each terminal field in scope gets **its own** `/DA`, built from the string it inherits from its parents or the AcroForm. Siblings that inherited the same string, and the parent itself, are not changed. A widget with its own `/DA` gets the change too. A string without a font gets `/Helv`.
+- Scope: the field if it is terminal; for a parent, every terminal field below it (signature fields below a parent are skipped; a signature field named directly is refused with `WrongType`). Intermediate parents keep their own `/DA`.
+- Rebuilding: text, combo box, list box and push button widgets are redrawn as filling does. For check boxes and radio buttons every state in `/AP /N` is redrawn by the generator (frame in the new colours, mark from `/MK /CA`), so authored art for those states is replaced; the caller asked for the change, unlike the `/NeedAppearances` case. Other `/AP` entries (`/D`, `/R`) are left alone.
+- Text colour must not be transparent; a size outside 0..1000 is an `ArgumentOutOfRangeException`.
 
 ## Flattening
 

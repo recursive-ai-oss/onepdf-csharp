@@ -63,7 +63,11 @@ public sealed partial class PdfFormField
     public string PartialName => Dictionary.GetString("T")?.GetText() ?? string.Empty;
 
     /// <summary>The fully qualified name: the partial names from the root joined with dots (empty names are skipped).</summary>
-    public string FullName { get; }
+    public string FullName { get; private set; }
+
+    internal void SetFullName(string name) => FullName = name;
+
+    internal PdfObject? InheritedValue(string key) => Inherited(key);
 
     /// <summary>Child fields in order (empty for a terminal field).</summary>
     public IReadOnlyList<PdfFormField> Children => _children;

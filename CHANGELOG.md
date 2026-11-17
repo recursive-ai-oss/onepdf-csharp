@@ -4,6 +4,11 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ## [Unreleased]
 
+### Added
+
+- Form field rename: `PdfAcroForm.RenameField(oldFullName, newName)` and `PdfFormField.Rename(newName)` change a field's partial name (terminal, merged field/widget, or parent with every descendant), keep the widgets attached, and refuse empty names, names with a period and full-name collisions with `PdfFormValueException` (new reasons `InvalidName` and `NameInUse`).
+- Form field appearance: `PdfFormField.SetAppearance` and `PdfAcroForm.SetFieldAppearance` with `PdfFieldAppearance` and `PdfFieldColor` set the background (or none), border colour, default font size and text colour (gray, RGB, CMYK), write them into `/MK` and an own `/DA` that keeps the inherited font and operators, and rebuild the stored appearances (`docs/forms.md`).
+
 ## [1.22.0] - 2026-11-10
 
 ### Added

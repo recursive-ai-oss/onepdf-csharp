@@ -634,7 +634,7 @@ internal static class FormFiller
         return parent.GetDictionary(key)!;
     }
 
-    private static bool StoreNormal(PdfDocument doc, PdfDictionary widget, FormSession session)
+    internal static bool StoreNormal(PdfDocument doc, PdfDictionary widget, FormSession session)
     {
         PdfGeneratedAppearance? gen = Generate(doc, widget);
         if (gen is null)
