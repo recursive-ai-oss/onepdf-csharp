@@ -603,3 +603,107 @@ public sealed class PageNumberDescriptor : TextFormatDescriptor<PageNumberDescri
     /// <summary>For totals, how many digits the reserved space holds. Default 4.</summary>
     public PageNumberDescriptor ReservedDigits(int digits) => Set(f => f.ReservedDigits = digits);
 }
+
+public partial class Slot
+{
+    /// <summary>
+    /// One line of text with page numbers in it, shaped as a single run once the counts are known: <c>"{page}/{total}"</c>, <c>"Page {page} of {total}"</c>.
+    /// </summary>
+    /// <param name="format">The text. <c>{page}</c> is the page number in its section's numbering style, <c>{total}</c> the page count of the document
+    /// and <c>{sectionTotal}</c> that of the section; <c>{{</c> and <c>}}</c> are literal braces.</param>
+    /// <exception cref="ArgumentException">A placeholder is unknown or a brace is unbalanced.</exception>
+    /// <example>
+    /// <code>
+    /// page.Footer().PageNumberText("{page}/{total}").FontSize(8).AlignRight();
+    /// </code>
+    /// </example>
+    public PageNumberTextDescriptor PageNumberText(string format)
+    {
+        ArgumentNullException.ThrowIfNull(format);
+        var d = new PageNumberTextDescriptor(this, format);
+        Put(d.Build());
+        d.GoLive();
+        return d;
+    }
+}
+
+/// <summary>Style of a <see cref="PageNumberText"/>. Returned by <see cref="Slot.PageNumberText(string)"/>; settings can be made in any order.</summary>
+public sealed class PageNumberTextDescriptor : TextFormatDescriptor<PageNumberTextDescriptor>
+{
+    private readonly Slot _slot;
+    private readonly string _format;
+    private HorizontalAlignment _alignment;
+    private bool _alignmentSet;
+    private bool _live;
+
+    internal PageNumberTextDescriptor(Slot slot, string format)
+        : base(new SpanFormat())
+    {
+        _slot = slot;
+        _format = format;
+        _alignment = slot.InheritedAlignment;
+        new PageNumberText().Format = format; // validates now, so a bad format fails at the call
+    }
+
+    internal void GoLive() => _live = true;
+
+    private protected override void Changed()
+    {
+        if (_live)
+        {
+            _slot.Replace(Build());
+        }
+    }
+
+    private PageNumberTextDescriptor Edit(Action change)
+    {
+        change();
+        Changed();
+        return this;
+    }
+
+    internal Element Build() => new PageNumberText
+    {
+        Format = _format,
+        FontName = Format.Families is { Length: > 0 } f ? f[0] : null,
+        Size = Format.Size ?? 11,
+        Color = Format.Color ?? LayoutColor.Black,
+        Palette = Format.Palette,
+        Weight = Format.Weight ?? 400,
+        Italic = Format.Italic ?? false,
+        LetterSpacing = Format.LetterSpacing ?? 0,
+        LineSpacing = Format.LineHeight ?? 1.2,
+        Alignment = _alignmentSet ? _alignment : HorizontalAlignment.End,
+        ReservedDigits = Format.ReservedDigits ?? 4,
+    };
+
+    /// <summary>The font family (a registered family or standard font name).</summary>
+    public PageNumberTextDescriptor FontFamily(string family) => Edit(() => Format.Families = [family ?? throw new ArgumentNullException(nameof(family))]);
+
+    /// <summary>Uses an italic face.</summary>
+    public PageNumberTextDescriptor Italic() => Edit(() => Format.Italic = true);
+
+    /// <summary>Extra space after every character in points (negative tightens).</summary>
+    public PageNumberTextDescriptor LetterSpacing(double points) => Edit(() => Format.LetterSpacing = points);
+
+    /// <summary>Line distance as a multiple of the font size. Default 1.2.</summary>
+    public PageNumberTextDescriptor LineHeight(double factor) => Edit(() => Format.LineHeight = factor);
+
+    /// <summary>For slots that offer no width: how many digits each placeholder counts as. Default 4.</summary>
+    public PageNumberTextDescriptor ReservedDigits(int digits) => Edit(() => Format.ReservedDigits = digits);
+
+    /// <summary>The text sits at the start edge of its box.</summary>
+    public PageNumberTextDescriptor AlignStart() => Edit(() => { _alignment = HorizontalAlignment.Start; _alignmentSet = true; });
+
+    /// <summary>The text is centred in its box.</summary>
+    public PageNumberTextDescriptor AlignCenter() => Edit(() => { _alignment = HorizontalAlignment.Center; _alignmentSet = true; });
+
+    /// <summary>The text sits at the end edge of its box. This is the default.</summary>
+    public PageNumberTextDescriptor AlignEnd() => Edit(() => { _alignment = HorizontalAlignment.End; _alignmentSet = true; });
+
+    /// <summary>The text sits at the left edge whatever the direction.</summary>
+    public PageNumberTextDescriptor AlignLeft() => Edit(() => { _alignment = HorizontalAlignment.Left; _alignmentSet = true; });
+
+    /// <summary>The text sits at the right edge whatever the direction.</summary>
+    public PageNumberTextDescriptor AlignRight() => Edit(() => { _alignment = HorizontalAlignment.Right; _alignmentSet = true; });
+}
