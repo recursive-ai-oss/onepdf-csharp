@@ -93,7 +93,7 @@ If you know QuestPDF, the shape is the same: slots, decorator chains and nested 
 |---|---|---|
 | Decorator order | Each decorator wraps what follows (see its documentation for details) | The same, and neighbouring box decorators are merged into one box when their order allows it. The result is identical either way. |
 | Text alignment | Chosen on the text | Chosen on the text. Text fills the width it is offered, so `AlignCenter().Text(...)` centres the text itself. |
-| Total pages | Part of the text | Width is reserved before the total is known: `ReservedDigits` (default 4). Use `ReservedDigits(2)` in short documents so a centred footer has no gap. |
+| Total pages | Part of the text | `PageNumberText("{page}/{total}")` shapes the whole text once the count is known, with no reserved gap. Inside a rich `Text`, a total reserves `ReservedDigits` (default 4) digits of width; use `ReservedDigits(2)` in short documents so a centred footer has no gap. |
 | Tagged PDF | Opt in for accessibility | On by default: paragraphs, tables, lists, figures and links are tagged; headers, footers, borders and backgrounds are artifacts. Add `Heading(n)`, `AltText`, `Language`; `Tagged(false)` turns it off. |
 | Shaping | Fonts and shaping from its native stack | OneFont, managed: OpenType GSUB/GPOS, Arabic, Indic, USE and Thai shapers, UAX #9 bidi, UAX #14 line breaking, per-span font fallback. |
 | Fonts | Fonts registered with the library | `doc.Fonts.Add(bytes, family)`; default Liberation Sans from `RecursiveAI.OnePdf.Fonts`, embedded as a subset. System fonts are never used unless you add them, so output is the same on every machine. |

@@ -280,6 +280,7 @@ public sealed partial class LayoutDocument
                 ? section.NumberStyle != NumberingStyle.Arabic || prefix.Length > 0 || start != 1
                 : start != nextNumber || section.NumberStyle != previousStyle || prefix != previousPrefix;
             int count = RenderSection(ctx, target, section, s, pageNumber, start, label, capture);
+            ctx.SectionCounts.Add(count);
             target.SetTotal(s, count);
             if (sectionCounts is not null)
             {

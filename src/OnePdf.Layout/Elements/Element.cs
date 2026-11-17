@@ -163,6 +163,12 @@ internal sealed class LayoutContext : IDisposable
 
     private readonly HashSet<string> _destinations = new(StringComparer.Ordinal);
     private readonly HashSet<string> _linkedNames = new(StringComparer.Ordinal);
+    /// <summary>The page count of each finished section, in order.</summary>
+    public List<int> SectionCounts { get; } = [];
+
+    /// <summary>The page count of a finished section, from this run or, for a document edited in memory, from its first run; 0 when not known.</summary>
+    public int SectionCount(int section) => section < SectionCounts.Count ? SectionCounts[section] : Target is DocumentTarget dt ? dt.SectionTotal(section) : 0;
+
     private readonly Dictionary<string, PdfFormXObject> _totals = new(StringComparer.Ordinal);
     private int _lastBookmarkLevel = -1;
     private bool _navigationNoted;

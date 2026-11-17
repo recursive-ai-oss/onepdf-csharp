@@ -4,6 +4,10 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ## [Unreleased]
 
+### Added
+
+- Layout `PageNumberText` (`Slot.PageNumberText(format)`): one line of text with `{page}`, `{total}` and `{sectionTotal}` placeholders, shaped as a single run once the counts are known and aligned by its real width, so "3/17" has no reserved gap and no squeeze, in one layout pass. `TotalPages()`, `SectionPages()`, `CurrentPageNumber()` and `ReservedDigits` are unchanged.
+
 ## [1.22.0] - 2026-11-10
 
 ### Added

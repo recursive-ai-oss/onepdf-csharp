@@ -29,14 +29,7 @@ LayoutDocument.Compose(doc =>
                 table.Row(r => { r.Cell().Text("South"); r.Cell().AlignEnd().Text("987"); });
             });
         });
-        page.Footer().AlignCenter().Text(t =>
-        {
-            t.FontSize(9);
-            t.Span("Page ");
-            t.CurrentPageNumber();
-            t.Span(" of ");
-            t.TotalPages().ReservedDigits(2);
-        });
+        page.Footer().PageNumberText("Page {page} of {total}").FontSize(9).AlignCenter();
     });
 }).Save("report.pdf");
 ```
@@ -117,7 +110,9 @@ LayoutDocument.Compose(doc => doc.Page(page =>
 
 `Text("...")` returns a `TextDescriptor` with `FontSize`, `FontFamily`, `FontColor`, `Bold`, `Italic`, `Underline`, `Strike`, `LetterSpacing`, `LineHeight`, `Justify`, `AlignStart`/`AlignCenter`/`AlignEnd`, `FirstLineIndent`, `Language` and `Hyphenator`. `Text(t => ...)` builds rich text from `Span`, `Line`, `CurrentPageNumber`, `TotalPages` and `SectionPages`; a span has the same formatting methods plus `Superscript` and `Subscript`. Settings made on the descriptor are the default for its spans.
 
-A page number is shaped like any other text. A paragraph that holds a page number stays on one line (it does not wrap) and is as wide as its content. "Total pages" is not known until the end, so its width is reserved: `ReservedDigits` (default 4) says how many digits to leave room for. In a centred footer that reserve shows as a gap, so use `ReservedDigits(2)` for documents under 100 pages. Details of shaping, fallback fonts, bidirectional text and hyphenation are in [layout-text.md](layout-text.md).
+`PageNumberText("{page}/{total}")` is the one-line way to write "3/17" or "Page 3 of 17". `{page}` is the page's number in its section's numbering style, `{total}` the document's page count in decimal and `{sectionTotal}` the section's count in the section's style; `{{` and `}}` are literal braces, and an unknown placeholder or an unbalanced brace throws `ArgumentException` at the call. The element is one line as wide as its slot, drawn once the counts are known as a single shaped run, aligned by its real width (`AlignEnd` by default; `AlignStart`, `AlignCenter`, `AlignLeft` and `AlignRight` too; `FontSize`, `FontColor`, `Bold`, `Weight`, `Palette`, `FontFamily`, `Italic`, `LetterSpacing` and `LineHeight` style it). There is no reserved gap and no squeeze, and kerning across the whole text holds. Only in a slot that offers no width (an auto-sized row item) are the placeholders measured as `ReservedDigits` zeros each (default 4). Text wider than its box is condensed with a note. In right-to-left layouts start and end mirror while the digits keep their order. It is tagged as a paragraph with the final text, or an artifact in a header or footer, and the document is still laid out once.
+
+The older route, a page number inside a rich `Text`, still works. A page number is shaped like any other text. A paragraph that holds a page number stays on one line (it does not wrap) and is as wide as its content. "Total pages" is not known until the end, so its width is reserved: `ReservedDigits` (default 4) says how many digits to leave room for. In a centred footer that reserve shows as a gap, so use `ReservedDigits(2)` for documents under 100 pages. Details of shaping, fallback fonts, bidirectional text and hyphenation are in [layout-text.md](layout-text.md).
 
 ### Inline objects
 
@@ -445,6 +440,7 @@ A tree of plain element objects. Elements hold properties and no layout state, s
 
 ## Pages, numbers, links
 
+- **Page number text.** `PageNumberText` (`Format` with `{page}`, `{total}`, `{sectionTotal}`) keeps one form XObject per page, keyed by the page and the style, reserved at layout with the full width offered and painted when the count is known: at the end of the document, or of the section when only `{sectionTotal}` is used. The painted form shapes the whole formatted string as one left-to-right run and positions it by its natural width, so it matches an ordinary `Text` of the final string in the same box. A format with only `{page}` is laid out as ordinary text. The section count needed by a document-end form comes from `LayoutContext.SectionCounts` (or, for `Render(PdfDocument)`, from its counting run).
 - **Page numbers.** `PageNumber` shows the current number, or a total. A total is not known while pages are laid out: it is a form XObject reserved on first use and drawn on each page, filled once the document (or section) ends, with the number right-aligned inside a box of `ReservedDigits` digits. More digits than reserved are drawn condensed with a note. `Render(PdfDocument)` cannot fill a form later, so it lays the document out once into a throw-away writer to count pages, then renders. Put "Page N of M" in a `Row` with `Spacing`; a trailing space does not count towards a text's width.
 - **Numbering.** Each section has `NumberStyle`, `StartNumber` (default: continue) and `LabelPrefix`. The document gets page labels (ISO 32000-2 12.4.2) where numbering does not simply continue. `SectionTotal` counts a section's pages in its own style.
 - **Table of contents.** A table shows page numbers that depend on its own length and on pages not yet laid out. A document that contains one is laid out without drawing, as many times as it takes for the entries a run finds (title, level, page, label) to equal the entries the table drew in that run: the first run draws an empty table, the second the numbers of the first, a third confirms; at most six, with a note if they do not settle. One more run then writes the file. The number column is as wide as the widest label seen and never narrows between runs, so a label gaining a digit cannot make the runs chase each other. Only the entry list is kept between runs, so streaming memory is unchanged, and a document without a table pays nothing. Headings and entries are collected from the placed body pages in drawing order (not from table cells, repeated header rows, headers or footers), and each gets a named destination `onepdf-toc-N`. The search for a table before layout walks every container of this package (including `MultiColumn`) and components, and asks any element that holds others through one internal hook; set `LayoutOptions.TableOfContents` to true for a table it cannot see. An entry is not split across pages: a long title wraps and the number sits on its last line; the leader is a grid anchored at the number's edge, so dots line up from entry to entry. In right-to-left content the numbers move to the left. Structure: `TOC` holding one `TOCI` per entry, each a `Reference` holding a `Link` that owns the link annotation (ISO 32000-2 14.8.4.3.3, 14.8.4.4.2); the leader is an artifact.
