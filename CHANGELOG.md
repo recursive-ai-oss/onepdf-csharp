@@ -4,6 +4,8 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ## [Unreleased]
 
+## [1.23.0] - 2026-11-17
+
 ### Added
 
 - Form field rename: `PdfAcroForm.RenameField(oldFullName, newName)` and `PdfFormField.Rename(newName)` change a field's partial name (terminal, merged field/widget, or parent with every descendant), keep the widgets attached, and refuse empty names, names with a period and full-name collisions with `PdfFormValueException` (new reasons `InvalidName` and `NameInUse`).
@@ -444,6 +446,7 @@ First release. Two packages, `RecursiveAI.OnePdf` (the library, `net10.0`, no de
 - Limits on by default (`PdfLimits`) and fuzzed parsers, filters and font readers; no `unsafe` code. OnePDF never runs code or touches the network.
 - `RecursiveAI.OnePdf.Fonts`: Liberation and Noto substitute outlines under the SIL Open Font License 1.1, registered with `FontsPackage.Register()`.
 
+[1.23.0]: https://github.com/recursive-ai-oss/onepdf-csharp/releases/tag/v1.23.0
 [1.22.0]: https://github.com/recursive-ai-oss/onepdf-csharp/releases/tag/v1.22.0
 [1.21.0]: https://github.com/recursive-ai-oss/onepdf-csharp/releases/tag/v1.21.0
 [1.20.0]: https://github.com/recursive-ai-oss/onepdf-csharp/releases/tag/v1.20.0
