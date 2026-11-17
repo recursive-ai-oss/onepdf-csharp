@@ -85,6 +85,18 @@ public sealed partial class PdfDocument
         }
     }
 
+    /// <summary>Fills <paramref name="into"/> with the numbers <see cref="DirtyNumbers()"/> would return, so a caller that asks often can reuse one list.</summary>
+    internal void DirtyNumbers(List<int> into)
+    {
+        lock (_dirty)
+        {
+            into.Clear();
+            into.AddRange(_dirty);
+        }
+
+        into.Sort();
+    }
+
     internal int[] DirtyNumbers()
     {
         lock (_dirty)

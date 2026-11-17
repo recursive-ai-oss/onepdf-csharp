@@ -114,15 +114,19 @@ public sealed class PdfStructureElement
     // Children begun under this element and not yet ended; an element cannot end before them.
     internal int OpenChildren { get; set; }
 
-    // The object number of the page the element's first content item is on (its /Pg), or -1.
+    // The object number of the page the element's first content item is on (its /Pg), or -1, and the reference to it. The reference
+    // object is the page's own, shared by every element on the page.
     internal int PageNumber { get; set; } = -1;
 
-    internal List<StructureKid> Kids { get; } = [];
+    internal PdfReference? PageRef { get; set; }
+
+    // Most elements have one child or one content item, so the list starts with room for one.
+    internal List<StructureKid> Kids { get; } = new(1);
 }
 
 // One entry of an element's /K: a child element, a marked-content id on the element's own page, a marked-content reference on another
 // page, or an object reference (an annotation). Eight bytes each, so a large tree costs little while it is open.
-internal readonly record struct StructureKid(byte Kind, int A, int B)
+internal readonly record struct StructureKid(byte Kind, int A, int B, PdfReference? Ref = null)
 {
     public const byte Child = 0;
     public const byte Mcid = 1;
@@ -199,7 +203,7 @@ public sealed partial class PdfDocumentWriter
         }
         else
         {
-            parent.Kids.Add(new StructureKid(StructureKid.Child, reference.Number, 0));
+            parent.Kids.Add(new StructureKid(StructureKid.Child, reference.Number, 0, reference));
             parent.OpenChildren++;
         }
 
@@ -255,10 +259,10 @@ public sealed partial class PdfDocumentWriter
         PdfDictionary d = e.Dictionary;
         d.SetEntry("Type", new PdfName("StructElem"));
         d.SetEntry("S", new PdfName(e.Type));
-        d.SetEntry("P", new PdfReference(e.ParentNumber, 0));
-        if (e.PageNumber >= 0)
+        d.SetEntry("P", e.Parent?.Reference ?? _structureRoot!);
+        if (e.PageRef is not null)
         {
-            d.SetEntry("Pg", new PdfReference(e.PageNumber, 0));
+            d.SetEntry("Pg", e.PageRef);
         }
 
         if (e.Kids.Count == 1)
@@ -327,7 +331,7 @@ public sealed partial class PdfDocumentWriter
         switch (kid.Kind)
         {
             case StructureKid.Child:
-                return new PdfReference(kid.A, 0);
+                return kid.Ref ?? new PdfReference(kid.A, 0);
             case StructureKid.Mcid:
                 return new PdfInteger(kid.A);
             default:
@@ -350,31 +354,35 @@ public sealed partial class PdfDocumentWriter
     }
 
     // Binds a marked-content id on a page to an element (the element's /K) and returns nothing: the page builder records the parent.
-    internal static void BindContent(PdfStructureElement element, int pageNumber, int mcid)
+    internal static void BindContent(PdfStructureElement element, PdfReference page, int mcid)
     {
         if (element.IsEnded)
         {
             throw new InvalidOperationException("The structure element has ended; content cannot be added to it.");
         }
 
+        int pageNumber = page.Number;
         if (element.PageNumber < 0)
         {
             element.PageNumber = pageNumber;
+            element.PageRef = page;
         }
 
         element.Kids.Add(element.PageNumber == pageNumber ? new StructureKid(StructureKid.Mcid, mcid, 0) : new StructureKid(StructureKid.Mcr, mcid, pageNumber));
     }
 
-    internal static void BindObject(PdfStructureElement element, int pageNumber, int objectNumber)
+    internal static void BindObject(PdfStructureElement element, PdfReference page, int objectNumber)
     {
         if (element.IsEnded)
         {
             throw new InvalidOperationException("The structure element has ended; content cannot be added to it.");
         }
 
+        int pageNumber = page.Number;
         if (element.PageNumber < 0)
         {
             element.PageNumber = pageNumber;
+            element.PageRef = page;
         }
 
         element.Kids.Add(new StructureKid(StructureKid.Objr, objectNumber, pageNumber));

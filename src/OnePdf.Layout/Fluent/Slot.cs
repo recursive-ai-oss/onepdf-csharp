@@ -44,12 +44,20 @@ public interface IComponent
 public partial class Slot
 {
     private readonly Action<Element>? _set;
+
+    // Where the content goes when this slot is the inside of a wrapper: set directly, so a wrapper costs no delegate.
+    private readonly SingleChildElement? _into;
     private bool _filled;
     private bool _sealed;
 
     internal Slot(Action<Element>? set = null)
     {
         _set = set;
+    }
+
+    private Slot(SingleChildElement into)
+    {
+        _into = into;
     }
 
     /// <summary>What was put in this slot, or null.</summary>
@@ -76,14 +84,23 @@ public partial class Slot
 
         _filled = true;
         Held = element;
-        _set?.Invoke(element);
+        Deliver(element);
     }
 
     /// <summary>Replaces the content of a slot that was filled by a descriptor which rebuilds its element when its settings change.</summary>
     internal void Replace(Element element)
     {
         Held = element;
+        Deliver(element);
+    }
+
+    private void Deliver(Element element)
+    {
         _set?.Invoke(element);
+        if (_into is not null)
+        {
+            _into.Child = element;
+        }
     }
 
     /// <summary>Wraps what will be put in this slot in <paramref name="wrapper"/> and returns the slot inside it.</summary>
@@ -91,7 +108,7 @@ public partial class Slot
         where T : SingleChildElement
     {
         Put(wrapper);
-        return new Slot(c => wrapper.Child = c);
+        return new Slot(wrapper);
     }
 
     // The decorators below chain from the outside in. A Box paints in a fixed order, outside to inside: margin, then border and background
@@ -104,6 +121,31 @@ public partial class Slot
     // The horizontal alignment of the nearest enclosing box. Text is as wide as the space it is offered, so a box around it cannot move it;
     // text put in an aligned slot takes the alignment itself.
     private HorizontalAlignment _inherited;
+
+    private Slot Box<TState>(int stage, Func<Box, bool> free, Action<Box, TState> set, TState state)
+    {
+        if (_merge is { } open && !_filled && !_sealed && (stage < 0 || stage >= _stage) && free(open))
+        {
+            set(open, state);
+            _stage = Math.Max(_stage, stage);
+            if (open.HorizontalAlignment != HorizontalAlignment.Start)
+            {
+                _inherited = open.HorizontalAlignment;
+            }
+
+            return this;
+        }
+
+        var box = new Box();
+        set(box, state);
+        Slot inner = Wrap(box);
+        inner._merge = box;
+        inner._stage = stage;
+        inner._inherited = box.HorizontalAlignment != HorizontalAlignment.Start ? box.HorizontalAlignment : _inherited;
+        return inner;
+    }
+
+    private static readonly Func<Box, bool> PaddingFree = b => b.Padding == default && b.PaddingStart is null && b.PaddingEnd is null;
 
     private Slot Box(int stage, Func<Box, bool> free, Action<Box> set)
     {
@@ -169,13 +211,13 @@ public partial class Slot
     // ---- Boxes: padding, margin, border, background, size, alignment ----
 
     /// <summary>Space inside the box, around the content, on all four sides, in points. Use <see cref="UnitExtensions.Mm(double)"/> and friends for other units.</summary>
-    public Slot Padding(double value) => Box(2, b => b.Padding == default && b.PaddingStart is null && b.PaddingEnd is null, b => b.Padding = Insets.All(value));
+    public Slot Padding(double value) => Box(2, PaddingFree, static (b, v) => b.Padding = Insets.All(v), value);
 
     /// <summary>Space inside the box: <paramref name="horizontal"/> on left and right, <paramref name="vertical"/> on top and bottom.</summary>
-    public Slot Padding(double horizontal, double vertical) => Box(2, b => b.Padding == default && b.PaddingStart is null && b.PaddingEnd is null, b => b.Padding = Insets.Symmetric(horizontal, vertical));
+    public Slot Padding(double horizontal, double vertical) => Box(2, PaddingFree, static (b, v) => b.Padding = Insets.Symmetric(v.Item1, v.Item2), (horizontal, vertical));
 
     /// <summary>Space inside the box, one value per side (physical sides).</summary>
-    public Slot Padding(double top, double right, double bottom, double left) => Box(2, b => b.Padding == default && b.PaddingStart is null && b.PaddingEnd is null, b => b.Padding = new Insets(top, right, bottom, left));
+    public Slot Padding(double top, double right, double bottom, double left) => Box(2, PaddingFree, static (b, v) => b.Padding = v, new Insets(top, right, bottom, left));
 
     /// <summary>Padding on the top.</summary>
     public Slot PaddingTop(double value) => Box(2, b => b.Padding.Top == 0, b => b.Padding = b.Padding with { Top = value });
@@ -254,7 +296,9 @@ public partial class Slot
         Box(1, b => b.BorderEnd is null, b => b.BorderEnd = new Border(width, color ?? LayoutColor.Black, style));
 
     /// <summary>Fills the box's area (inside the margin) with a colour.</summary>
-    public Slot Background(LayoutColor color) => Box(1, b => b.Background is null && b.BackgroundGradient is null, b => b.Background = color);
+    public Slot Background(LayoutColor color) => Box(1, BackgroundFree, static (b, c) => b.Background = c, color);
+
+    private static readonly Func<Box, bool> BackgroundFree = b => b.Background is null && b.BackgroundGradient is null;
 
     /// <summary>
     /// Fills the box's area (inside the margin) with a gradient, under the border and clipped to rounded corners. It is painted at the box's

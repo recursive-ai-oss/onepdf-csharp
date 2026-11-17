@@ -32,6 +32,53 @@ internal static class Program
             return Rss(args);
         }
 
+        if (args.Length > 0 && args[0] == "shorttext-hash")
+        {
+            foreach (ShortTextVariant v in Enum.GetValues<ShortTextVariant>())
+            {
+                foreach (bool tagged in new[] { false, true })
+                {
+                    foreach (int rows in new[] { 150, 600 })
+                    {
+                        Console.WriteLine($"{v} tagged={tagged} rows={rows} {ShortTextDocs.Hash(ShortTextDocs.Make(v, rows, tagged))}");
+                    }
+                }
+            }
+
+            // The shared workloads too: tables, headings, justified book text, mixed scripts, images, tagged output.
+            foreach (Workload w in Enum.GetValues<Workload>())
+            {
+                var ms = new MemoryStream();
+                new OnePdfEngine().Render(w, ms);
+                Console.WriteLine($"workload {w} {ShortTextDocs.Hash(ms.ToArray())}");
+            }
+
+            return 0;
+        }
+
+        if (args.Length > 0 && args[0] == "shorttext-alloc")
+        {
+            ShortTextDocs.Make(ShortTextVariant.Plain, 50, true);
+            foreach (ShortTextVariant v in Enum.GetValues<ShortTextVariant>())
+            {
+                foreach (bool tagged in new[] { false, true })
+                {
+                    long a150 = Alloc(v, 150, tagged, out _);
+                    long a600 = Alloc(v, 600, tagged, out double ms);
+                    Console.WriteLine($"{v,-10} tagged={tagged,-5} {(a600 - a150) / 1350.0,8:F0} B/text  600 rows {ms:F1} ms");
+                }
+            }
+
+            foreach (ShortTextVariant v in new[] { ShortTextVariant.Plain, ShortTextVariant.Styled, ShortTextVariant.Column })
+            {
+                long c150 = ComposeAlloc(v, 150);
+                long c600 = ComposeAlloc(v, 600);
+                Console.WriteLine($"compose only {v,-10} {(c600 - c150) / 1350.0,8:F0} B/text");
+            }
+
+            return 0;
+        }
+
         if (args.Length > 1 && args[0] == "profile")
         {
             return Profile.Run(args[1]);
@@ -44,6 +91,24 @@ internal static class Program
 
         BenchmarkSwitcher.FromAssembly(typeof(Program).Assembly).Run(args);
         return 0;
+    }
+
+    private static long ComposeAlloc(ShortTextVariant v, int rows)
+    {
+        GC.Collect();
+        long before = GC.GetAllocatedBytesForCurrentThread();
+        ShortTextDocs.Compose(v, rows, true);
+        return GC.GetAllocatedBytesForCurrentThread() - before;
+    }
+
+    private static long Alloc(ShortTextVariant v, int rows, bool tagged, out double ms)
+    {
+        GC.Collect();
+        long before = GC.GetAllocatedBytesForCurrentThread();
+        var clock = Stopwatch.StartNew();
+        ShortTextDocs.Make(v, rows, tagged);
+        ms = clock.Elapsed.TotalMilliseconds;
+        return GC.GetAllocatedBytesForCurrentThread() - before;
     }
 
     /// <summary>One row once in this process, so <c>/usr/bin/time -v</c> around it gives the peak resident set and the wall time includes the first (cold) document.</summary>

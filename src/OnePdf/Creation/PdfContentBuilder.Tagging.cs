@@ -53,7 +53,9 @@ public abstract partial class PdfContentBuilder
     public void BeginMarkedContent(string tag)
     {
         CheckOpen();
-        EmitMark(Name(tag) + " BMC\n");
+        BeginMark();
+        AppendName(_sb, tag);
+        _sb.Append(" BMC\n");
     }
 
     /// <summary>Begins a marked-content sequence whose property list is <c>&lt;&lt; /MCID <paramref name="mcid"/> &gt;&gt;</c> (<c>BDC</c>, ISO 32000-2 14.7.4.4): the content item that a structure element refers to.</summary>
@@ -63,7 +65,9 @@ public abstract partial class PdfContentBuilder
     {
         CheckOpen();
         ArgumentOutOfRangeException.ThrowIfNegative(mcid);
-        EmitMark(Name(tag) + " <</MCID " + mcid.ToString(CultureInfo.InvariantCulture) + ">> BDC\n");
+        BeginMark();
+        AppendName(_sb, tag);
+        _sb.Append(" <</MCID ").Append(CultureInfo.InvariantCulture, $"{mcid}").Append(">> BDC\n");
     }
 
     /// <summary>
@@ -147,14 +151,25 @@ public abstract partial class PdfContentBuilder
 
     private void EmitMark(string text)
     {
+        BeginMark();
+        Emit(text);
+    }
+
+    // Opens a marked-content level and checks the size limit; the caller then appends the operator text to the content.
+    private void BeginMark()
+    {
         if (_open.Count >= MaxDepth * 2)
         {
             throw new InvalidOperationException("Marked content is nested too deeply.");
         }
 
+        if (_sb.Length > MaxContentBytes)
+        {
+            throw new PdfLimitException("The content stream would be larger than 256 MiB.");
+        }
+
         _open.Add('M');
         MarkedContentDepth++;
-        Emit(text);
     }
 
     private static void AppendTextEntry(StringBuilder sb, string key, string? value)
@@ -182,14 +197,25 @@ public abstract partial class PdfContentBuilder
 
     private static string Name(string tag)
     {
+        var sb = new StringBuilder();
+        AppendName(sb, tag);
+        return sb.ToString();
+    }
+
+    private static void AppendName(StringBuilder sb, string tag)
+    {
         ArgumentNullException.ThrowIfNull(tag);
         if (tag.Length == 0)
         {
             throw new ArgumentException("A tag must not be empty.", nameof(tag));
         }
 
-        var sb = new StringBuilder("/");
-        foreach (byte b in Encoding.UTF8.GetBytes(tag))
+        sb.Append('/');
+        Span<byte> buffer = stackalloc byte[128];
+        int length = Encoding.UTF8.GetMaxByteCount(tag.Length);
+        Span<byte> bytes = length <= buffer.Length ? buffer : new byte[length];
+        int n = Encoding.UTF8.GetBytes(tag, bytes);
+        foreach (byte b in bytes[..n])
         {
             // ISO 32000-2 7.3.5: regular characters other than '#' stand for themselves; everything else is written as #xx.
             if (b is >= 0x21 and < 0x7F && b is not ((byte)'#' or (byte)'(' or (byte)')' or (byte)'<' or (byte)'>' or (byte)'[' or (byte)']' or (byte)'{' or (byte)'}' or (byte)'/' or (byte)'%'))
@@ -201,7 +227,5 @@ public abstract partial class PdfContentBuilder
                 sb.Append('#').Append(b.ToString("X2", CultureInfo.InvariantCulture));
             }
         }
-
-        return sb.ToString();
     }
 }

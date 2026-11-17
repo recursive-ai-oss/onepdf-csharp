@@ -27,7 +27,7 @@ internal sealed class ParagraphTextEngine : ITextEngine
         if (e.Block is null || e.Width != w)
         {
             e.Width = w;
-            e.Block = new Block(e, e.Shaped!.Layout(w), _renderer, e.Shaped.MaxContentWidth, e.Shaped.MinContentWidth);
+            e.Block = new Block(e.Shared ? null : e, e.Shaped!.Layout(w), _renderer, e.Shaped.MaxContentWidth, e.Shaped.MinContentWidth);
         }
 
         return e.Block;
@@ -39,11 +39,66 @@ internal sealed class ParagraphTextEngine : ITextEngine
         return new WidthRange(shaped.MinContentWidth, shaped.MaxContentWidth);
     }
 
+    // Short plain texts repeat a lot (the cells of a report column, the same label on every row), and shaping one costs far more than
+    // finding it again. A shaped paragraph and its layout never change once made, so equal texts share them. The table is per document,
+    // so nothing is shared between documents or threads, and it is small: it starts over when it holds MaxShared entries.
+    // The first level is keyed by the text alone, a reference type, so the common case needs no generic instantiation over a struct key.
+    private const int MaxShared = 2048;
+    private const int MaxSharedLength = 128;
+    private readonly Dictionary<string, Entry> _shared = new(StringComparer.Ordinal);
+    private int _sharedCount;
+
+    private static bool Shareable(Text t) => t.Spans.Count == 0 && t.Hyphenator is null && t.Content is { Length: <= MaxSharedLength };
+
+    private Entry? FindShared(Text t, LayoutDirection dir, LineBreakMode mode, KnuthPlassOptions? knuth)
+    {
+        if (!_shared.TryGetValue(t.Content, out Entry? e))
+        {
+            return null;
+        }
+
+        for (; e is not null; e = e.Next)
+        {
+            if (e.Direction == dir && e.Matches(t, mode, knuth))
+            {
+                return e;
+            }
+        }
+
+        return null;
+    }
+
+    private void AddShared(Entry e, string content)
+    {
+        if (_sharedCount >= MaxShared)
+        {
+            _shared.Clear();
+            _sharedCount = 0;
+        }
+
+        _sharedCount++;
+        if (_shared.TryGetValue(content, out Entry? head))
+        {
+            e.Next = head;
+        }
+
+        _shared[content] = e;
+    }
+
     // The shaped paragraph of a text, made once and kept until the text has been drawn to its last line (see Block.Draw).
     private Entry Shaped(Text text, LayoutContext ctx)
     {
         LayoutDirection dir = ctx.Direction;
-        if (_cache.TryGetValue(text, out Entry? e) && e.Direction == dir && e.Shaped is not null)
+        LineBreakMode mode = text.LineBreakMode ?? ctx.Options.LineBreakMode;
+        KnuthPlassOptions? knuth = text.KnuthPlass ?? ctx.Options.KnuthPlass;
+        bool shareable = Shareable(text);
+        if (shareable && FindShared(text, dir, mode, knuth) is { } found)
+        {
+            return found;
+        }
+
+        Entry? e = null;
+        if (!shareable && _cache.TryGetValue(text, out e) && e.Direction == dir && e.Shaped is not null)
         {
             return e;
         }
@@ -74,10 +129,18 @@ internal sealed class ParagraphTextEngine : ITextEngine
             },
             FirstLineIndent = text.FirstLineIndent,
             Hyphenator = text.Hyphenator,
-            LineBreakMode = text.LineBreakMode ?? ctx.Options.LineBreakMode,
-            KnuthPlass = text.KnuthPlass ?? ctx.Options.KnuthPlass,
+            LineBreakMode = mode,
+            KnuthPlass = knuth,
         };
         ShapedParagraph shaped = paragraph.Shape(_fonts);
+        if (shareable)
+        {
+            e = new Entry(dir) { Shared = true, Mode = mode, Knuth = knuth, Shaped = shaped };
+            e.SetKey(text);
+            AddShared(e, text.Content!);
+            return e;
+        }
+
         if (e is null || e.Direction != dir)
         {
             e = new Entry(dir);
@@ -196,6 +259,22 @@ internal sealed class ParagraphTextEngine : ITextEngine
     {
         public LayoutDirection Direction { get; } = direction;
 
+        // For a shared entry: the next one with the same text, and the settings it was shaped with (a copy, since the element may change).
+        public bool Shared { get; init; }
+
+        public Entry? Next { get; set; }
+
+        public LineBreakMode Mode { get; init; }
+
+        public KnuthPlassOptions? Knuth { get; init; }
+
+        public bool Matches(Text t, LineBreakMode mode, KnuthPlassOptions? knuth) =>
+            Shared && Mode == mode && Equals(Knuth, knuth) && _key.Equals(new TextKey(t));
+
+        private TextKey _key;
+
+        public void SetKey(Text t) => _key = new TextKey(t);
+
         // Null once the text was drawn to its last line and nothing asks for it again.
         public ShapedParagraph? Shaped { get; set; }
 
@@ -220,7 +299,7 @@ internal sealed class ParagraphTextEngine : ITextEngine
         }
     }
 
-    private sealed class Block(Entry entry, ParagraphLayout layout, TextRenderer renderer, double natural, double minContent) : ITextBlock
+    private sealed class Block(Entry? entry, ParagraphLayout layout, TextRenderer renderer, double natural, double minContent) : ITextBlock
     {
         public int LineCount => layout.Lines.Count;
 
@@ -245,7 +324,7 @@ internal sealed class ParagraphTextEngine : ITextEngine
             renderer.Draw(d.B, layout, d.X, d.PdfY(0), first, count, HasInline ? new Host(d) : null);
             if (first + count >= layout.Lines.Count)
             {
-                entry.Release();
+                entry?.Release();
             }
         }
     }
@@ -333,4 +412,29 @@ internal sealed class Host(DrawContext frame) : IInlineHost
 
     // A frame whose origin is the top-left corner of a box at (x, top) in the builder's coordinates.
     private DrawContext At(double x, double top) => frame.At(x - frame.X, frame.PdfY(0) - top);
+}
+
+/// <summary>The settings of a <see cref="Text"/> that decide how its content shapes and lays out, copied so a shared shaping can be matched later.</summary>
+internal readonly struct TextKey(Text t) : IEquatable<TextKey>
+{
+    private readonly string? _font = t.FontName;
+    private readonly double _size = t.Size;
+    private readonly LayoutColor _color = t.Color;
+    private readonly ColorPalette? _palette = t.Palette;
+    private readonly int _weight = t.Weight;
+    private readonly bool _italic = t.Italic;
+    private readonly double _lineSpacing = t.LineSpacing;
+    private readonly string? _language = t.Language;
+    private readonly HorizontalAlignment _alignment = t.Alignment;
+    private readonly bool _justify = t.Justify;
+    private readonly double _indent = t.FirstLineIndent;
+
+    public bool Equals(TextKey o) =>
+        string.Equals(_font, o._font, StringComparison.Ordinal) && _size.Equals(o._size) && _color.Equals(o._color) && _palette.Equals(o._palette)
+        && _weight == o._weight && _italic == o._italic && _lineSpacing.Equals(o._lineSpacing) && string.Equals(_language, o._language, StringComparison.Ordinal)
+        && _alignment == o._alignment && _justify == o._justify && _indent.Equals(o._indent);
+
+    public override bool Equals(object? obj) => obj is TextKey k && Equals(k);
+
+    public override int GetHashCode() => HashCode.Combine(_font, _size, _color, _weight, _italic, _lineSpacing, _language);
 }

@@ -11,7 +11,7 @@ public sealed class PdfStreamPageBuilder : PdfContentBuilder
 {
     private readonly PdfDocumentWriter _writer;
     private readonly PdfDictionary _page;
-    private readonly List<int> _mcidParents = [];
+    private readonly List<PdfReference> _mcidParents = [];
     private readonly List<PdfReference> _annotations = [];
     private readonly double _width;
     private readonly double _height;
@@ -133,9 +133,9 @@ public sealed class PdfStreamPageBuilder : PdfContentBuilder
         }
 
         int mcid = _mcidParents.Count;
-        PdfDocumentWriter.BindContent(element, Reference.Number, mcid);
+        PdfDocumentWriter.BindContent(element, Reference, mcid);
         BeginMarkedContent(tag ?? element.Type, mcid);
-        _mcidParents.Add(element.Reference.Number);
+        _mcidParents.Add(element.Reference);
         return mcid;
     }
 
@@ -213,7 +213,7 @@ public sealed class PdfStreamPageBuilder : PdfContentBuilder
             d.SetEntry("StructParent", new PdfInteger(key));
             _writer.AddParentTreeEntry(key, element.Reference);
             PdfReference annotation = Document.AddObject(d);
-            PdfDocumentWriter.BindObject(element, Reference.Number, annotation.Number);
+            PdfDocumentWriter.BindObject(element, Reference, annotation.Number);
             _boundAnnotations++;
             _annotations.Add(annotation);
             return;
@@ -317,9 +317,9 @@ public sealed class PdfStreamPageBuilder : PdfContentBuilder
         if (_mcidParents.Count > 0)
         {
             var parents = new PdfArray();
-            foreach (int n in _mcidParents)
+            foreach (PdfReference parent in _mcidParents)
             {
-                parents.Append(new PdfReference(n, 0));
+                parents.Append(parent);
             }
 
             int key = _writer.NextStructureKey();

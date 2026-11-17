@@ -185,17 +185,25 @@ public sealed class TableRowDescriptor
 /// </example>
 public sealed class TableCellSlot : Slot
 {
-    private int _columnSpan = 1;
-    private int _rowSpan = 1;
-    private Insets? _padding;
-    private LayoutColor? _background;
-    private LayoutGradient? _gradient;
-    private Border? _top;
-    private Border? _bottom;
-    private Border? _start;
-    private Border? _end;
-    private bool _rowHeader;
-    private VerticalAlignment _vertical;
+    // Most cells set nothing of their own, so the properties live in a separate object made on first use.
+    private sealed class Props
+    {
+        public int ColumnSpan = 1;
+        public int RowSpan = 1;
+        public Insets? Padding;
+        public LayoutColor? Background;
+        public LayoutGradient? Gradient;
+        public Border? Top;
+        public Border? Bottom;
+        public Border? Start;
+        public Border? End;
+        public bool RowHeader;
+        public VerticalAlignment Vertical;
+    }
+
+    private Props? _props;
+
+    private Props P => _props ??= new Props();
 
     internal TableCellSlot()
         : base(null)
@@ -205,37 +213,39 @@ public sealed class TableCellSlot : Slot
     /// <summary>Makes the cell cover several columns and rows (past the table's edge they are cut back).</summary>
     public TableCellSlot Span(int columns, int rows = 1)
     {
-        _columnSpan = columns;
-        _rowSpan = rows;
+        Props p = P;
+        p.ColumnSpan = columns;
+        p.RowSpan = rows;
         return this;
     }
 
     /// <summary>Space between the cell's borders and its content, instead of the table's cell padding.</summary>
     public TableCellSlot CellPadding(double points)
     {
-        _padding = Insets.All(points);
+        P.Padding = Insets.All(points);
         return this;
     }
 
     /// <summary>Space between the cell's borders and its content, per physical side.</summary>
     public TableCellSlot CellPadding(double top, double right, double bottom, double left)
     {
-        _padding = new Insets(top, right, bottom, left);
+        P.Padding = new Insets(top, right, bottom, left);
         return this;
     }
 
     /// <summary>Fills the cell.</summary>
     public TableCellSlot CellBackground(LayoutColor color)
     {
-        _background = color;
-        _gradient = null;
+        Props p = P;
+        p.Background = color;
+        p.Gradient = null;
         return this;
     }
 
     /// <summary>Fills the cell with a gradient, scaled to the cell (to each piece of a cell that splits over pages).</summary>
     public TableCellSlot CellBackground(LayoutGradient gradient)
     {
-        _gradient = gradient ?? throw new ArgumentNullException(nameof(gradient));
+        P.Gradient = gradient ?? throw new ArgumentNullException(nameof(gradient));
         return this;
     }
 
@@ -243,67 +253,74 @@ public sealed class TableCellSlot : Slot
     public TableCellSlot CellBorder(double width, LayoutColor? color = null, BorderStyle style = BorderStyle.Solid)
     {
         var b = new Border(width, color ?? LayoutColor.Black, style);
-        _top = b;
-        _bottom = b;
-        _start = b;
-        _end = b;
+        Props p = P;
+        p.Top = b;
+        p.Bottom = b;
+        p.Start = b;
+        p.End = b;
         return this;
     }
 
     /// <summary>A border on the top edge of the cell.</summary>
     public TableCellSlot CellBorderTop(double width, LayoutColor? color = null, BorderStyle style = BorderStyle.Solid)
     {
-        _top = new Border(width, color ?? LayoutColor.Black, style);
+        P.Top = new Border(width, color ?? LayoutColor.Black, style);
         return this;
     }
 
     /// <summary>A border on the bottom edge of the cell.</summary>
     public TableCellSlot CellBorderBottom(double width, LayoutColor? color = null, BorderStyle style = BorderStyle.Solid)
     {
-        _bottom = new Border(width, color ?? LayoutColor.Black, style);
+        P.Bottom = new Border(width, color ?? LayoutColor.Black, style);
         return this;
     }
 
     /// <summary>A border on the start edge of the cell (left in left-to-right documents).</summary>
     public TableCellSlot CellBorderStart(double width, LayoutColor? color = null, BorderStyle style = BorderStyle.Solid)
     {
-        _start = new Border(width, color ?? LayoutColor.Black, style);
+        P.Start = new Border(width, color ?? LayoutColor.Black, style);
         return this;
     }
 
     /// <summary>A border on the end edge of the cell.</summary>
     public TableCellSlot CellBorderEnd(double width, LayoutColor? color = null, BorderStyle style = BorderStyle.Solid)
     {
-        _end = new Border(width, color ?? LayoutColor.Black, style);
+        P.End = new Border(width, color ?? LayoutColor.Black, style);
         return this;
     }
 
     /// <summary>Places content shorter than the cell at the top (the default), middle or bottom. A cell that splits across pages starts at the top.</summary>
     public TableCellSlot CellAlign(VerticalAlignment alignment)
     {
-        _vertical = alignment;
+        P.Vertical = alignment;
         return this;
     }
 
     /// <summary>Marks a body or footer cell as the header of its row (a row header in the structure tree). Cells of header rows are column headers already.</summary>
     public TableCellSlot RowHeader()
     {
-        _rowHeader = true;
+        P.RowHeader = true;
         return this;
     }
 
-        internal TableCell Build() => new(Held ?? new Spacer())
+    internal TableCell Build()
     {
-        ColumnSpan = _columnSpan,
-        RowSpan = _rowSpan,
-        Padding = _padding,
-        Background = _background,
-        BackgroundGradient = _gradient,
-        BorderTop = _top,
-        BorderBottom = _bottom,
-        BorderStart = _start,
-        BorderEnd = _end,
-        IsHeader = _rowHeader,
-        VerticalAlignment = _vertical,
-    };
+        var cell = new TableCell(Held ?? new Spacer());
+        if (_props is { } p)
+        {
+            cell.ColumnSpan = p.ColumnSpan;
+            cell.RowSpan = p.RowSpan;
+            cell.Padding = p.Padding;
+            cell.Background = p.Background;
+            cell.BackgroundGradient = p.Gradient;
+            cell.BorderTop = p.Top;
+            cell.BorderBottom = p.Bottom;
+            cell.BorderStart = p.Start;
+            cell.BorderEnd = p.End;
+            cell.IsHeader = p.RowHeader;
+            cell.VerticalAlignment = p.Vertical;
+        }
+
+        return cell;
+    }
 }
