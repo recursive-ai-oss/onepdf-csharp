@@ -812,10 +812,14 @@ public sealed partial class PdfDocumentWriter : IDisposable
         return result;
     }
 
+    // Flush runs each time a structure element ends, so its list of numbers is kept between calls.
+    private readonly List<int> _flushNumbers = [];
+
     // Writes every new object that is final (not held back) and lets the workspace forget it.
     internal void Flush()
     {
-        foreach (int n in _workspace.DirtyNumbers())
+        _workspace.DirtyNumbers(_flushNumbers);
+        foreach (int n in _flushNumbers)
         {
             if (_held.Contains(n))
             {

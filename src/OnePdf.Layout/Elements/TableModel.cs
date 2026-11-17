@@ -24,6 +24,21 @@ public sealed class TableColumn
 /// <summary>One cell of a <see cref="TableRow"/>: content plus how it sits in the grid and how it looks.</summary>
 public sealed class TableCell
 {
+    // Most cells set none of the look properties below, so they share one object made on first use. A report of thousands of
+    // cells then holds one small object per cell instead of seven nullable structs.
+    private sealed class Extras
+    {
+        public Insets? Padding;
+        public LayoutColor? Background;
+        public LayoutGradient? Gradient;
+        public Border? Top;
+        public Border? Bottom;
+        public Border? Start;
+        public Border? End;
+    }
+
+    private Extras? _extras;
+
     /// <summary>Creates a cell holding <paramref name="content"/>.</summary>
     /// <exception cref="ArgumentNullException">The content is null.</exception>
     public TableCell(Element content) => Content = content ?? throw new ArgumentNullException(nameof(content));
@@ -41,25 +56,109 @@ public sealed class TableCell
     public int RowSpan { get; set; } = 1;
 
     /// <summary>Space between the cell's borders and its content (physical sides). The table's <see cref="Table.CellPadding"/> when null.</summary>
-    public Insets? Padding { get; set; }
+    public Insets? Padding
+    {
+        get => _extras?.Padding;
+        set
+        {
+            if (value is null && _extras is null)
+            {
+                return;
+            }
+
+            (_extras ??= new Extras()).Padding = value;
+        }
+    }
 
     /// <summary>Fill colour of the cell, over the row's. None when null.</summary>
-    public LayoutColor? Background { get; set; }
+    public LayoutColor? Background
+    {
+        get => _extras?.Background;
+        set
+        {
+            if (value is null && _extras is null)
+            {
+                return;
+            }
+
+            (_extras ??= new Extras()).Background = value;
+        }
+    }
 
     /// <summary>Gradient fill of the cell, replacing <see cref="Background"/>. A cell split over pages paints the whole gradient in each piece.</summary>
-    public LayoutGradient? BackgroundGradient { get; set; }
+    public LayoutGradient? BackgroundGradient
+    {
+        get => _extras?.Gradient;
+        set
+        {
+            if (value is null && _extras is null)
+            {
+                return;
+            }
+
+            (_extras ??= new Extras()).Gradient = value;
+        }
+    }
 
     /// <summary>Top border. The table's <see cref="Table.CellBorder"/> when null; use a default <see cref="Border"/> for none.</summary>
-    public Border? BorderTop { get; set; }
+    public Border? BorderTop
+    {
+        get => _extras?.Top;
+        set
+        {
+            if (value is null && _extras is null)
+            {
+                return;
+            }
+
+            (_extras ??= new Extras()).Top = value;
+        }
+    }
 
     /// <summary>Bottom border. The table's <see cref="Table.CellBorder"/> when null.</summary>
-    public Border? BorderBottom { get; set; }
+    public Border? BorderBottom
+    {
+        get => _extras?.Bottom;
+        set
+        {
+            if (value is null && _extras is null)
+            {
+                return;
+            }
+
+            (_extras ??= new Extras()).Bottom = value;
+        }
+    }
 
     /// <summary>Border at the start edge (left in left-to-right content). The table's <see cref="Table.CellBorder"/> when null.</summary>
-    public Border? BorderStart { get; set; }
+    public Border? BorderStart
+    {
+        get => _extras?.Start;
+        set
+        {
+            if (value is null && _extras is null)
+            {
+                return;
+            }
+
+            (_extras ??= new Extras()).Start = value;
+        }
+    }
 
     /// <summary>Border at the end edge. The table's <see cref="Table.CellBorder"/> when null.</summary>
-    public Border? BorderEnd { get; set; }
+    public Border? BorderEnd
+    {
+        get => _extras?.End;
+        set
+        {
+            if (value is null && _extras is null)
+            {
+                return;
+            }
+
+            (_extras ??= new Extras()).End = value;
+        }
+    }
 
     /// <summary>
     /// Marks a body or footer cell as a header for its row (a row header, <c>TH</c> with scope <c>Row</c> in the structure tree). Every cell of a

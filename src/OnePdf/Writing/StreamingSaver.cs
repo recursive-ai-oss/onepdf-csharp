@@ -70,9 +70,17 @@ internal sealed class StreamingSaver : SaverBase, IDisposable
         {
             if (_osNumbers.Count == 0)
             {
-                _osBody?.Dispose();
-                _osBody = new MemoryStream();
-                _osSink = new ByteSink(_osBody, 0, 4096);
+                if (_osBody is null)
+                {
+                    _osBody = new MemoryStream();
+                    _osSink = new ByteSink(_osBody, 0, 4096);
+                }
+                else
+                {
+                    // The buffers of the last object stream are reused: a document with many tagged pages writes thousands of them.
+                    _osBody.SetLength(0);
+                    _osSink!.Restart();
+                }
             }
 
             _offsets[number] = -1; // taken; the real place is recorded when the stream is written
@@ -112,9 +120,19 @@ internal sealed class StreamingSaver : SaverBase, IDisposable
         byte[] head = Encoding.ASCII.GetBytes(header.ToString());
         byte[] body = _osBody!.GetBuffer();
         int bodyLength = checked((int)_osBody.Length);
-        byte[] data = new byte[head.Length + bodyLength];
-        head.CopyTo(data, 0);
-        Array.Copy(body, 0, data, head.Length, bodyLength);
+        // Joined in a pooled buffer and compressed in one call: the compressor's output can depend on how its input is split.
+        byte[] data = System.Buffers.ArrayPool<byte>.Shared.Rent(checked(head.Length + bodyLength));
+        byte[] packed;
+        try
+        {
+            head.CopyTo(data, 0);
+            Array.Copy(body, 0, data, head.Length, bodyLength);
+            packed = FlateWriter.Compress(data.AsSpan(0, head.Length + bodyLength));
+        }
+        finally
+        {
+            System.Buffers.ArrayPool<byte>.Shared.Return(data);
+        }
 
         var dict = new PdfDictionary(null);
         dict.Set("Type", new PdfName("ObjStm"));
@@ -122,7 +140,7 @@ internal sealed class StreamingSaver : SaverBase, IDisposable
         dict.Set("First", new PdfInteger(head.Length));
         dict.Set("Filter", new PdfName("FlateDecode"));
         _offsets[streamNumber] = Sink.Position;
-        WriteRawStream(streamNumber, dict, FlateWriter.Compress(data), null);
+        WriteRawStream(streamNumber, dict, packed, null);
         for (int i = 0; i < _osNumbers.Count; i++)
         {
             _packed.Add((_osNumbers[i], streamNumber, i));

@@ -92,22 +92,42 @@ public abstract class TextFormatDescriptor<TSelf>
     }
 
     /// <summary>The font size in points. Default 11.</summary>
-    public TSelf FontSize(double points) => Set(f => f.Size = points);
+    public TSelf FontSize(double points)
+    {
+        Format.Size = points;
+        Changed();
+        return (TSelf)this;
+    }
 
     /// <summary>The text colour. Default black.</summary>
-    public TSelf FontColor(LayoutColor color) => Set(f => f.Color = color);
+    public TSelf FontColor(LayoutColor color)
+    {
+        Format.Color = color;
+        Changed();
+        return (TSelf)this;
+    }
 
     /// <summary>
     /// The palette colour glyphs (colour emoji, colour icon fonts) are drawn with; <see cref="LayoutOptions.ColorPalette"/> when not set.
     /// Glyphs of fonts without OpenType <c>COLR</c> layers are not affected.
     /// </summary>
-    public TSelf Palette(ColorPalette palette) => Set(f => f.Palette = palette);
+    public TSelf Palette(ColorPalette palette)
+    {
+        Format.Palette = palette;
+        Changed();
+        return (TSelf)this;
+    }
 
     /// <summary>Weight 700.</summary>
     public TSelf Bold() => Set(f => f.Weight = 700);
 
     /// <summary>A weight from 1 to 1000 (400 regular, 700 bold). The nearest registered face is used; weights are never synthesized.</summary>
-    public TSelf Weight(int weight) => Set(f => f.Weight = weight);
+    public TSelf Weight(int weight)
+    {
+        Format.Weight = weight;
+        Changed();
+        return (TSelf)this;
+    }
 }
 
 /// <summary>
@@ -122,7 +142,7 @@ public abstract class TextFormatDescriptor<TSelf>
 public sealed class TextDescriptor : TextFormatDescriptor<TextDescriptor>
 {
     private readonly Slot _slot;
-    private readonly List<(string? Text, SpanFormat Format, int Kind)> _segments = [];
+    private readonly List<(string? Text, SpanFormat Format, int Kind)> _segments = new(1);
     private HorizontalAlignment _alignment;
     private readonly HorizontalAlignment _inheritedAlignment;
     private bool _alignmentSet;
@@ -144,11 +164,18 @@ public sealed class TextDescriptor : TextFormatDescriptor<TextDescriptor>
 
     internal void GoLive() => _live = true;
 
+    // The text element the descriptor last built. Settings changed afterwards edit it in place instead of making a new element each time.
+    private Text? _text;
+
     private void Rebuild()
     {
         if (_live)
         {
-            _slot.Replace(Build());
+            Element built = Build();
+            if (!ReferenceEquals(built, _slot.Held))
+            {
+                _slot.Replace(built);
+            }
         }
     }
 
@@ -159,10 +186,18 @@ public sealed class TextDescriptor : TextFormatDescriptor<TextDescriptor>
         return this;
     }
 
-    internal void AddText(string text) => _segments.Add((text, new SpanFormat(), 0));
+    // The format of a piece that was given as plain text: it has no settings and is never changed, so one object serves all.
+    private static readonly SpanFormat NoFormat = new();
+
+    internal void AddText(string text) => _segments.Add((text, NoFormat, 0));
 
     /// <summary>The font family (see the remarks of this type). Several families name fallbacks, tried in order for characters the first lacks.</summary>
-    public TextDescriptor FontFamily(params string[] families) => Edit(() => Format.Families = families.Length == 0 ? null : families);
+    public TextDescriptor FontFamily(params string[] families)
+    {
+        Format.Families = families.Length == 0 ? null : families;
+        Rebuild();
+        return this;
+    }
 
     /// <summary>Uses an italic face.</summary>
     public TextDescriptor Italic() => Edit(() => Format.Italic = true);
@@ -174,10 +209,20 @@ public sealed class TextDescriptor : TextFormatDescriptor<TextDescriptor>
     public TextDescriptor Strike() => Edit(() => Format.Strike = true);
 
     /// <summary>Extra space after every character in points (negative tightens).</summary>
-    public TextDescriptor LetterSpacing(double points) => Edit(() => Format.LetterSpacing = points);
+    public TextDescriptor LetterSpacing(double points)
+    {
+        Format.LetterSpacing = points;
+        Rebuild();
+        return this;
+    }
 
     /// <summary>Line distance as a multiple of the font size. Default 1.2.</summary>
-    public TextDescriptor LineHeight(double factor) => Edit(() => Format.LineHeight = factor);
+    public TextDescriptor LineHeight(double factor)
+    {
+        Format.LineHeight = factor;
+        Rebuild();
+        return this;
+    }
 
     /// <summary>The language of the text, a BCP 47 tag such as <c>tr</c> or <c>ar</c>: selects language-specific glyph forms, is passed to the hyphenator and recorded in the structure tree.</summary>
     public TextDescriptor Language(string tag) => Edit(() => Format.Language = tag ?? throw new ArgumentNullException(nameof(tag)));
@@ -391,29 +436,33 @@ public sealed class TextDescriptor : TextFormatDescriptor<TextDescriptor>
             }
         }
 
-        return hasNumbers ? BuildRow() : BuildText(_segments, 0, _segments.Count);
+        return hasNumbers ? BuildRow() : BuildText(_segments, 0, _segments.Count, own: true);
     }
 
-    private Text BuildText(List<(string? Text, SpanFormat Format, int Kind)> segs, int from, int to)
+    private Text BuildText(List<(string? Text, SpanFormat Format, int Kind)> segs, int from, int to, bool own = false)
     {
         SpanFormat d = Format;
-        var t = new Text
+        Text t = (own ? _text : null) ?? new Text();
+        t.Spans.Clear();
+        t.Content = string.Empty;
+        t.FontName = d.Families is { Length: > 0 } fam ? fam[0] : null;
+        t.Size = d.Size ?? 11;
+        t.Color = d.Color ?? LayoutColor.Black;
+        t.Palette = d.Palette;
+        t.Weight = d.Weight ?? 400;
+        t.Italic = d.Italic ?? false;
+        t.LineSpacing = d.LineHeight ?? 1.2;
+        t.Alignment = _alignmentSet ? _alignment : _inheritedAlignment;
+        t.Justify = _justify;
+        t.FirstLineIndent = _indent;
+        t.Hyphenator = _hyphenator;
+        t.LineBreakMode = _lineBreakMode;
+        t.KnuthPlass = _knuthPlass;
+        t.Language = d.Language;
+        if (own)
         {
-            FontName = d.Families is { Length: > 0 } fam ? fam[0] : null,
-            Size = d.Size ?? 11,
-            Color = d.Color ?? LayoutColor.Black,
-            Palette = d.Palette,
-            Weight = d.Weight ?? 400,
-            Italic = d.Italic ?? false,
-            LineSpacing = d.LineHeight ?? 1.2,
-            Alignment = _alignmentSet ? _alignment : _inheritedAlignment,
-            Justify = _justify,
-            FirstLineIndent = _indent,
-            Hyphenator = _hyphenator,
-            LineBreakMode = _lineBreakMode,
-            KnuthPlass = _knuthPlass,
-            Language = d.Language,
-        };
+            _text = t;
+        }
 
         // The element's own properties carry the text when nothing needs a per-span style; otherwise every span gets a complete style.
         bool plain = !(d.Underline ?? false) && !(d.Strike ?? false) && (d.LetterSpacing ?? 0) == 0 && (d.Families?.Length ?? 0) <= 1;
@@ -424,6 +473,12 @@ public sealed class TextDescriptor : TextFormatDescriptor<TextDescriptor>
 
         if (plain)
         {
+            if (to - from == 1)
+            {
+                t.Content = segs[from].Text ?? string.Empty;
+                return t;
+            }
+
             var sb = new System.Text.StringBuilder();
             for (int i = from; i < to; i++)
             {

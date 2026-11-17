@@ -35,6 +35,13 @@ internal sealed class ByteSink
         }
     }
 
+    /// <summary>Forgets what was written and counts from zero again, keeping the buffer. For a sink over a stream that has been emptied.</summary>
+    public void Restart()
+    {
+        _n = 0;
+        _flushed = 0;
+    }
+
     /// <summary>Starts hashing (SHA-256) everything written from here on, so a caller can derive a value from the bytes it wrote.</summary>
     public void StartHash()
     {

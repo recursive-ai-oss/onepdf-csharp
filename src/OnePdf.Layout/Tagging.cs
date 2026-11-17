@@ -11,6 +11,9 @@ internal sealed class TagNode(PdfStructureElement element, string type, string? 
     public string? Language { get; } = language;
 
     public TagNode? Parent { get; } = parent;
+
+    /// <summary>True while the node is in the tagger's table of elements that continue on a later page. Most nodes never are, and looking them up anyway would need a hash of each fresh object.</summary>
+    public bool Registered { get; set; }
 }
 
 /// <summary>What <see cref="Tagger.Open"/> returns, to be handed back to <see cref="Tagger.Close"/>.</summary>
@@ -174,6 +177,7 @@ internal sealed class Tagger
             if (continues)
             {
                 _open[(owner, parent)] = node;
+                node.Registered = true;
             }
         }
 
@@ -196,7 +200,12 @@ internal sealed class Tagger
             return;
         }
 
-        _open.Remove((scope.Owner!, scope.Parent!));
+        if (node.Registered)
+        {
+            _open.Remove((scope.Owner!, scope.Parent!));
+            node.Registered = false;
+        }
+
         End(node);
     }
 

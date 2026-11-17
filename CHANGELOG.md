@@ -10,6 +10,11 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 - Form field appearance: `PdfFormField.SetAppearance` and `PdfAcroForm.SetFieldAppearance` with `PdfFieldAppearance` and `PdfFieldColor` set the background (or none), border colour, default font size and text colour (gray, RGB, CMYK), write them into `/MK` and an own `/DA` that keeps the inherited font and operators, and rebuild the stored appearances (`docs/forms.md`).
 - Layout `PageNumberText` (`Slot.PageNumberText(format)`): one line of text with `{page}`, `{total}` and `{sectionTotal}` placeholders, shaped as a single run once the counts are known and aligned by its real width, so "3/17" has no reserved gap and no squeeze, in one layout pass. `TotalPages()`, `SectionPages()`, `CurrentPageNumber()` and `ReservedDigits` are unchanged.
 
+### Changed
+
+- Layout allocates much less per short text. Equal short plain texts in a document share their shaping and line layout (per document, bounded), the fluent text and table-cell builders make fewer temporary objects, and a table cell keeps its look properties in one lazily made object.
+- Tagged output is cheaper to write: structure and marked-content writing reuse buffers and reference objects, and object streams reuse their buffers. Output bytes are unchanged.
+
 ## [1.22.0] - 2026-11-10
 
 ### Added

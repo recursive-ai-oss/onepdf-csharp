@@ -176,7 +176,22 @@ public abstract partial class PdfContentBuilder : IDisposable
         _depth = 0;
         MarkedContentDepth = 0;
 
-        return Encoding.Latin1.GetBytes(_sb.ToString());
+        // Encoded chunk by chunk, so the content does not exist as one string (two bytes a character) on the way. A chunk that ends
+        // in the first half of a surrogate pair would encode differently from the whole text, so that case takes the plain route.
+        var result = new byte[_sb.Length];
+        int at = 0;
+        foreach (ReadOnlyMemory<char> chunk in _sb.GetChunks())
+        {
+            ReadOnlySpan<char> span = chunk.Span;
+            if (span.Length > 0 && char.IsHighSurrogate(span[^1]))
+            {
+                return Encoding.Latin1.GetBytes(_sb.ToString());
+            }
+
+            at += Encoding.Latin1.GetBytes(span, result.AsSpan(at));
+        }
+
+        return at == result.Length ? result : result.AsSpan(0, at).ToArray();
     }
 
     private void Emit(string s)

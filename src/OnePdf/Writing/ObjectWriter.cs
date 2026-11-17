@@ -193,8 +193,12 @@ internal sealed class ObjectWriter
     private static void WriteName(ByteSink sink, string name)
     {
         sink.Byte((byte)'/');
-        byte[] bytes = Encoding.UTF8.GetBytes(name);
-        foreach (byte c in bytes)
+        // Most names are short ASCII; encode them in a stack buffer instead of allocating an array per name.
+        Span<byte> buffer = stackalloc byte[128];
+        int length = Encoding.UTF8.GetMaxByteCount(name.Length);
+        Span<byte> bytes = length <= buffer.Length ? buffer : new byte[length];
+        int n = Encoding.UTF8.GetBytes(name, bytes);
+        foreach (byte c in bytes[..n])
         {
             // ISO 32000-2 7.3.5: regular characters other than '#' are written as they are, all else as #xx.
             if (c is >= 0x21 and <= 0x7E && c is not ((byte)'#' or (byte)'(' or (byte)')' or (byte)'<' or (byte)'>' or (byte)'[' or (byte)']' or (byte)'{' or (byte)'}' or (byte)'/' or (byte)'%'))
