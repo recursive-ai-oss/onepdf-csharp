@@ -23,6 +23,12 @@ public enum PdfFormValueError
 
     /// <summary>The field has child fields; values belong to terminal fields.</summary>
     NotTerminal,
+
+    /// <summary>A new partial field name is empty or contains a period (ISO 32000-2 12.7.4.2: the period separates the parts of a full name).</summary>
+    InvalidName,
+
+    /// <summary>The renamed field, or one of its descendants, would get the full name of a field outside the renamed subtree (full names are unique, 12.7.4.2).</summary>
+    NameInUse,
 }
 
 /// <summary>

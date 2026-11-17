@@ -37,8 +37,10 @@ are read through safe, bounds-checked code with size limits on by default.
 - **Page operations.** Delete, reorder, rotate, duplicate and insert pages; import pages from other documents, merge documents and
   split one into parts, with bookmarks, links, form fields and tagged structure carried along
   ([page operations](https://github.com/recursive-ai-oss/onepdf-csharp/blob/main/docs/page-operations.md)).
-- **Forms.** Fill text, choice, check box and radio fields with validation, store their appearances, reset them, and flatten
-  fields and annotations into the page
+- **Forms.** Fill text, choice, check box and radio fields with validation, store their appearances, reset them, rename fields
+  (`form.RenameField("person.surname", "family")`), change a field's background, font size and text colour with its appearance
+  rebuilt (`form.SetFieldAppearance("name", new PdfFieldAppearance { Background = PdfFieldColor.Transparent, FontSize = 0 })`),
+  and flatten fields and annotations into the page
   ([forms](https://github.com/recursive-ai-oss/onepdf-csharp/blob/main/docs/forms.md)).
 - **Content creation.** Draw text, paths, images and reusable forms onto new or existing pages (over or under what is there),
   with the 14 standard fonts or TrueType/OpenType fonts embedded as subsets with `ToUnicode` maps, and stamp or watermark pages

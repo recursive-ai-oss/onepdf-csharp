@@ -70,6 +70,7 @@ if (back.Pages.Count != 1 || !text.Contains("Layout smoke", StringComparison.Ord
 LayoutDocument structured = LayoutDocument.Compose(d => d.Page(p =>
 {
     p.Size(PageSize.A5);
+    p.Header().PageNumberText("{page}/{total}").FontSize(8);
     p.Footer().Text(t =>
     {
         t.Span("Page ");

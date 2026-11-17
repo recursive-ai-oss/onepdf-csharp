@@ -115,6 +115,9 @@ internal sealed class DocumentTarget(PdfDocument document, int[]? sectionTotals 
         return fb.Commit();
     }
 
+    /// <summary>The page count of a section known from the first run, or 0.</summary>
+    public int SectionTotal(int section) => (uint)section < (uint)_sectionTotals.Length ? _sectionTotals[section] : 0;
+
     public void SetTotal(int section, int count) { }
 
     public int PageCount => document.Pages.Count;
