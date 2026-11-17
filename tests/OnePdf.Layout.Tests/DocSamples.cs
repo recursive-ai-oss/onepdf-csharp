@@ -89,14 +89,7 @@ public class DocSamples
                         table.Row(r => { r.Cell().Text("South"); r.Cell().AlignEnd().Text("987"); });
                     });
                 });
-                page.Footer().AlignCenter().Text(t =>
-                {
-                    t.FontSize(9);
-                    t.Span("Page ");
-                    t.CurrentPageNumber();
-                    t.Span(" of ");
-                    t.TotalPages().ReservedDigits(2);
-                });
+                page.Footer().PageNumberText("Page {page} of {total}").FontSize(9).AlignCenter();
             });
         }).Save("report.pdf");
     }
