@@ -13,7 +13,7 @@ form.SetValue("size", "M");                          // radio group: on-state na
 doc.SaveIncremental(File.Create("filled.pdf"));
 
 form.RenameField("applicant.name", "fullName");      // new partial name; same parent, same widgets
-form.SetFieldAppearance("fullName", new PdfFieldAppearance
+form.SetFieldAppearance("applicant.fullName", new PdfFieldAppearance
 {
     Background = PdfFieldColor.Rgb(1, 1, 0.8),       // PdfFieldColor.Transparent removes it
     FontSize = 0,                                    // 0 = automatic
