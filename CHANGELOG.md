@@ -4,6 +4,8 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ## [Unreleased]
 
+## [1.24.0] - 2026-11-19
+
 ### Added
 
 - New package `RecursiveAI.OnePdf.Layout.Core` (assembly `OnePdf.Layout.Core`, namespace `OnePdf.Layout`): the Layout API without the bundled Liberation fonts and without a dependency on `RecursiveAI.OnePdf.Fonts`, for applications that register their own fonts. `TextFontRegistry.CreateDefault()` and `Shared` are empty there, and the standard-14 names do not resolve. Text that resolves to no registered font throws the new `PdfFontNotRegisteredException`, which names the requested family and says how to fix it. `RecursiveAI.OnePdf.Layout` is unchanged. See `docs/layout.md`.
@@ -458,6 +460,7 @@ First release. Two packages, `RecursiveAI.OnePdf` (the library, `net10.0`, no de
 - Limits on by default (`PdfLimits`) and fuzzed parsers, filters and font readers; no `unsafe` code. OnePDF never runs code or touches the network.
 - `RecursiveAI.OnePdf.Fonts`: Liberation and Noto substitute outlines under the SIL Open Font License 1.1, registered with `FontsPackage.Register()`.
 
+[1.24.0]: https://github.com/recursive-ai-oss/onepdf-csharp/releases/tag/v1.24.0
 [1.23.0]: https://github.com/recursive-ai-oss/onepdf-csharp/releases/tag/v1.23.0
 [1.22.0]: https://github.com/recursive-ai-oss/onepdf-csharp/releases/tag/v1.22.0
 [1.21.0]: https://github.com/recursive-ai-oss/onepdf-csharp/releases/tag/v1.21.0

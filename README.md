@@ -335,6 +335,11 @@ LayoutDocument.Compose(doc =>
   ([inline objects](https://github.com/recursive-ai-oss/onepdf-csharp/blob/main/docs/layout.md#inline-objects)).
 - **Values that depend on the page.** Running sums, "brought forward" and "carried forward" amounts, page subtotals and running
   headers from markers ([per-page values](https://github.com/recursive-ai-oss/onepdf-csharp/blob/main/docs/layout.md#values-that-depend-on-the-page)).
+- **Fitting, default styles and font features.** `ScaleToFit`, `Shrink` and `Unconstrained` wrappers; a default text style per page
+  or document; OpenType features such as ligatures, kerning, small caps and tabular figures switched per text or span
+  ([fitting wrappers](https://github.com/recursive-ai-oss/onepdf-csharp/blob/main/docs/layout.md#fitting-and-sizing-wrappers),
+  [default text style](https://github.com/recursive-ai-oss/onepdf-csharp/blob/main/docs/layout.md#default-text-style),
+  [font features](https://github.com/recursive-ai-oss/onepdf-csharp/blob/main/docs/layout.md#font-features)).
 
 See the [layout guide](https://github.com/recursive-ai-oss/onepdf-csharp/blob/main/docs/layout.md), and [Migrating from QuestPDF](https://github.com/recursive-ai-oss/onepdf-csharp/blob/main/docs/migrating-from-questpdf.md) if you know a library of that style.
 
