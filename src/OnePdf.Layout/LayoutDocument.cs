@@ -50,6 +50,9 @@ public sealed class LayoutPage
     /// <summary>Footer of pages whose displayed number is even (and that are not the first page of the section), instead of <see cref="Footer"/>. The ordinary footer is used when null.</summary>
     public Element? EvenFooter { get; set; }
 
+    /// <summary>The default text style of this run of pages, set by <see cref="PageComposer.DefaultTextStyle(Action{DefaultTextStyleDescriptor})"/>; null when none was set.</summary>
+    internal SpanFormat? TextDefaults { get; set; }
+
     /// <summary>How page numbers of this section are written, in <see cref="PageNumber"/> and in the document's page labels. Default <see cref="NumberingStyle.Arabic"/>.</summary>
     public NumberingStyle NumberStyle { get; set; }
 
@@ -69,6 +72,9 @@ public sealed class LayoutPage
 /// </summary>
 public sealed partial class LayoutDocument
 {
+    /// <summary>The default text style of every run of pages, set by <see cref="DocumentComposer.DefaultTextStyle(Action{DefaultTextStyleDescriptor})"/>; null when none was set.</summary>
+    internal SpanFormat? TextDefaults { get; set; }
+
     /// <summary>Print geometry of every section that does not set its own <see cref="LayoutPage.Print"/>. Null for none.</summary>
     public PrintSetup? Print { get; set; }
 

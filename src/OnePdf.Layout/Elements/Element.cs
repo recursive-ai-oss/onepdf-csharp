@@ -285,7 +285,7 @@ internal sealed class LayoutContext : IDisposable
             return;
         }
 
-        Target.AddNamedDestination(name, Page.Index, d.PdfY(0));
+        Target.AddNamedDestination(name, Page.Index, d.PageYOf(d.PdfY(0)));
         Tag.NeedDestinationElement(e => Target.SetDestinationElement(name, e));
     }
 
@@ -305,7 +305,7 @@ internal sealed class LayoutContext : IDisposable
 
         _lastBookmarkLevel = clamped;
         int index = Target.BookmarkCount;
-        Target.AddBookmark(title, clamped, Page.Index, d.PdfY(0));
+        Target.AddBookmark(title, clamped, Page.Index, d.PageYOf(d.PdfY(0)));
         Tag.NeedDestinationElement(e => Target.SetBookmarkElement(index, e));
     }
 
@@ -317,7 +317,7 @@ internal sealed class LayoutContext : IDisposable
             return;
         }
 
-        var area = new PdfRectangle(d.X, d.PdfY(height), d.X + width, d.PdfY(0));
+        var area = new PdfRectangle(d.PageX(d.X), d.PageYOf(d.PdfY(height)), d.PageX(d.X + width), d.PageYOf(d.PdfY(0)));
         if (uri is { Length: > 0 })
         {
             OpenPage!.Stream!.AddLink(area, uri, element, description ?? uri);
@@ -363,8 +363,27 @@ internal sealed class LayoutContext : IDisposable
 }
 
 /// <summary>Where and on what an element draws. The origin is the element's own top-left corner in the frame (the page, or a transformed child frame).</summary>
-internal readonly struct DrawContext(PdfContentBuilder builder, LayoutContext context, double frameHeight, double x, double y, bool transformed = false)
+internal readonly struct DrawContext(PdfContentBuilder builder, LayoutContext context, double frameHeight, double x, double y, bool transformed = false, double scale = 1, double originX = 0, double originY = 0)
 {
+    /// <summary>
+    /// How a uniformly scaled frame (<see cref="ScaleToFit"/>) maps to the page: a point (x, y) in the frame's PDF coordinates is at
+    /// (<see cref="PageScale"/> * x + <see cref="PageOriginX"/>, <see cref="PageScale"/> * y + <see cref="PageOriginY"/>) on the page. Links and anchors use it,
+    /// since their rectangles are not drawn through the content stream's transform. 1, 0, 0 outside such frames.
+    /// </summary>
+    public double PageScale { get; } = scale;
+
+    public double PageOriginX { get; } = originX;
+
+    public double PageOriginY { get; } = originY;
+
+    public double PageX(double frameX) => (PageScale * frameX) + PageOriginX;
+
+    public double PageYOf(double framePdfY) => (PageScale * framePdfY) + PageOriginY;
+
+    /// <summary>A frame inside this one drawn with <c>Transform(s, 0, 0, s, X, bottom)</c>, where bottom is the PDF y of the scaled box's bottom edge.</summary>
+    public DrawContext InScaledFrame(double childHeight, double s, double bottom) =>
+        new(B, Ctx, childHeight, 0, 0, Transformed, PageScale * s, (PageScale * X) + PageOriginX, (PageScale * bottom) + PageOriginY);
+
     /// <summary>True inside a rotated or scaled frame, where positions are no longer page positions.</summary>
     public bool Transformed { get; } = transformed;
 
@@ -379,7 +398,7 @@ internal readonly struct DrawContext(PdfContentBuilder builder, LayoutContext co
 
     public double Y { get; } = y;
 
-    public DrawContext At(double dx, double dy) => new(B, Ctx, FrameHeight, X + dx, Y + dy, Transformed);
+    public DrawContext At(double dx, double dy) => new(B, Ctx, FrameHeight, X + dx, Y + dy, Transformed, PageScale, PageOriginX, PageOriginY);
 
     public DrawContext InFrame(double height) => new(B, Ctx, height, 0, 0, true);
 

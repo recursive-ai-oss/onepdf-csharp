@@ -139,19 +139,38 @@ public sealed class DynamicText : Element
     public string? FontName { get; set; }
 
     /// <summary>Weight of the font, 400 regular or 700 bold. Default 400.</summary>
-    public int Weight { get; set; } = 400;
+    public int Weight { get => _weight ?? 400; set => _weight = value; }
 
     /// <summary>Whether the face is italic. Default false.</summary>
-    public bool Italic { get; set; }
+    public bool Italic { get => _italic ?? false; set => _italic = value; }
 
     /// <summary>Font size in points. Default 11.</summary>
-    public double Size { get; set; } = 11;
+    public double Size { get => _size ?? 11; set => _size = value; }
 
     /// <summary>Text colour. Default black.</summary>
-    public LayoutColor Color { get; set; }
+    public LayoutColor Color { get => _color ?? LayoutColor.Black; set => _color = value; }
 
     /// <summary>Line distance as a multiple of the font size. Default 1.2.</summary>
-    public double LineSpacing { get; set; } = 1.2;
+    public double LineSpacing { get => _lineSpacing ?? 1.2; set => _lineSpacing = value; }
+
+    private int? _weight;
+    private bool? _italic;
+    private double? _size;
+    private LayoutColor? _color;
+    private double? _lineSpacing;
+
+    internal void InheritFrom(SpanFormat d)
+    {
+        if (FontName is null && d.Families is { Length: > 0 } fam)
+        {
+            FontName = fam[0];
+        }
+        _weight ??= d.Weight;
+        _italic ??= d.Italic;
+        _size ??= d.Size;
+        _color ??= d.Color;
+        _lineSpacing ??= d.LineHeight;
+    }
 
     /// <summary>Where the text sits in the element's width. Default <see cref="HorizontalAlignment.Start"/>.</summary>
     public HorizontalAlignment Alignment { get; set; }

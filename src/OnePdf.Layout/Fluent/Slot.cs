@@ -387,6 +387,26 @@ public partial class Slot
     /// <summary>Scales the content by the same factor in both directions.</summary>
     public Slot Scale(double factor) => Scale(factor, factor);
 
+    /// <summary>
+    /// Scales the content down, uniformly, until it fits the space offered; content that already fits is left alone, and nothing is scaled up.
+    /// Text stays text. See <see cref="OnePdf.Layout.ScaleToFit"/>.
+    /// </summary>
+    /// <param name="minScale">The smallest scale tried (default 0.05); layout fails with <see cref="PdfLayoutException"/> when even that does not fit.</param>
+    public Slot ScaleToFit(double minScale = 0.05) => Wrap(new ScaleToFit { MinScale = minScale });
+
+    /// <summary>
+    /// Makes the box no larger than its content: text, and a box around it, take the width they need rather than all the width offered.
+    /// Put it outside the decoration that should hug the content (<c>Shrink().Border(1).Text("Short")</c>). See <see cref="OnePdf.Layout.Shrink"/>.
+    /// </summary>
+    public Slot Shrink() => Wrap(new Shrink());
+
+    /// <summary>
+    /// Lays the content out in unlimited space: it keeps its natural size, may overflow the parent and is drawn from this slot's top-left corner,
+    /// unclipped. See <see cref="OnePdf.Layout.Unconstrained"/>.
+    /// </summary>
+    /// <param name="space">What the parent reserves for it. Default <see cref="UnconstrainedSpace.None"/>: siblings are placed as if the content were not there.</param>
+    public Slot Unconstrained(UnconstrainedSpace space = UnconstrainedSpace.None) => Wrap(new Unconstrained { Space = space });
+
     /// <summary>Moves the drawing of the content (right and down, in points) without changing the space it takes.</summary>
     public Slot Translate(double x, double y) => Wrap(new Translate { X = x, Y = y });
 

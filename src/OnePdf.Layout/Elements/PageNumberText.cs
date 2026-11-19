@@ -51,25 +51,47 @@ public sealed class PageNumberText : Element
     public string? FontName { get; set; }
 
     /// <summary>Weight of the font, 400 regular or 700 bold. Default 400.</summary>
-    public int Weight { get; set; } = 400;
+    public int Weight { get => _weight ?? 400; set => _weight = value; }
 
     /// <summary>Whether an italic face is wanted. Default false.</summary>
-    public bool Italic { get; set; }
+    public bool Italic { get => _italic ?? false; set => _italic = value; }
 
     /// <summary>Extra space after every character in points. Default 0.</summary>
-    public double LetterSpacing { get; set; }
+    public double LetterSpacing { get => _letterSpacing ?? 0; set => _letterSpacing = value; }
 
     /// <summary>The palette colour glyphs are drawn with; the document's when null.</summary>
     public ColorPalette? Palette { get; set; }
 
     /// <summary>Font size in points. Default 11.</summary>
-    public double Size { get; set; } = 11;
+    public double Size { get => _size ?? 11; set => _size = value; }
 
     /// <summary>Text colour. Default black.</summary>
-    public LayoutColor Color { get; set; }
+    public LayoutColor Color { get => _color ?? LayoutColor.Black; set => _color = value; }
 
     /// <summary>Line distance as a multiple of the font size. Default 1.2.</summary>
-    public double LineSpacing { get; set; } = 1.2;
+    public double LineSpacing { get => _lineSpacing ?? 1.2; set => _lineSpacing = value; }
+
+    private int? _weight;
+    private bool? _italic;
+    private double? _letterSpacing;
+    private double? _size;
+    private LayoutColor? _color;
+    private double? _lineSpacing;
+
+    internal void InheritFrom(SpanFormat d)
+    {
+        if (FontName is null && d.Families is { Length: > 0 } fam)
+        {
+            FontName = fam[0];
+        }
+        _weight ??= d.Weight;
+        _italic ??= d.Italic;
+        _letterSpacing ??= d.LetterSpacing;
+        _size ??= d.Size;
+        _color ??= d.Color;
+        _lineSpacing ??= d.LineHeight;
+        Palette ??= d.Palette;
+    }
 
     /// <summary>Where the text sits in its box. Default <see cref="HorizontalAlignment.End"/>.</summary>
     public HorizontalAlignment Alignment { get; set; } = HorizontalAlignment.End;
