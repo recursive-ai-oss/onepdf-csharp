@@ -6,10 +6,15 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ### Added
 
+- New package `RecursiveAI.OnePdf.Layout.Core` (assembly `OnePdf.Layout.Core`, namespace `OnePdf.Layout`): the Layout API without the bundled Liberation fonts and without a dependency on `RecursiveAI.OnePdf.Fonts`, for applications that register their own fonts. `TextFontRegistry.CreateDefault()` and `Shared` are empty there, and the standard-14 names do not resolve. Text that resolves to no registered font throws the new `PdfFontNotRegisteredException`, which names the requested family and says how to fix it. `RecursiveAI.OnePdf.Layout` is unchanged. See `docs/layout.md`.
 - Layout wrappers: `Slot.ScaleToFit()` scales a child down uniformly until it fits the space offered (never up; text stays text, and tags and links inside still work), `Slot.Shrink()` makes a box no larger than its content, and `Slot.Unconstrained()` lays a child out in unlimited space and draws it from the slot's corner, taking no room (or the room offered, `UnconstrainedSpace.Offered`) in the parent.
 - Layout default text style: `PageComposer.DefaultTextStyle` and `DocumentComposer.DefaultTextStyle` give all text on a page (or in the document) a font family, size, colour, weight, italic, letter spacing, line height, underline, strike and OpenType features, inherited field by field and overridden by explicit settings.
 - Layout OpenType feature switches: `TextStyle.Features` with `TextFeature`, and `Feature`, `Ligatures` and `Kerning` on text and span descriptors, turn individual features such as `liga`, `kern`, `calt`, `smcp`, `tnum` and `onum` on or off through the shaper.
 - Documents that use none of these produce the same bytes as before.
+
+### Changed
+
+- `IHyphenator` now lives in the core assembly (still in the `OnePdf.Layout` namespace) so that `RecursiveAI.OnePdf.Hyphenation` works with both layout packages. `RecursiveAI.OnePdf.Layout` forwards the type, so existing code and binaries are unaffected; `RecursiveAI.OnePdf.Hyphenation` no longer depends on `RecursiveAI.OnePdf.Layout`.
 
 ## [1.23.0] - 2026-11-17
 

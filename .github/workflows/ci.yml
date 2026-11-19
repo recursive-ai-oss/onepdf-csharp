@@ -44,6 +44,11 @@ jobs:
       - name: Run layout AOT smoke app
         shell: bash
         run: '"$RUNNER_TEMP/layout-smoke/OnePdf.Layout.AotSmoke"'
+      - name: Publish layout core AOT smoke app (warnings are errors)
+        run: dotnet publish tests/OnePdf.Layout.Core.AotSmoke -c Release -r ${{ matrix.rid }} -o ${{ runner.temp }}/layout-core-smoke -warnaserror
+      - name: Run layout core AOT smoke app
+        shell: bash
+        run: '"$RUNNER_TEMP/layout-core-smoke/OnePdf.Layout.Core.AotSmoke"'
 
   pack:
     # Builds the packages as artifacts only; nothing is pushed anywhere.

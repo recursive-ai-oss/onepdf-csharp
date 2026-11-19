@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- NativeAOT smoke for RecursiveAI.OnePdf.Layout.Core: a caller-registered font, and no Fonts assembly anywhere in the graph. -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <RootNamespace>$(LibName).Layout.Core.AotSmoke</RootNamespace>
+    <IsPackable>false</IsPackable>
+    <PublishAot>true</PublishAot>
+    <IsAotCompatible>true</IsAotCompatible>
+    <TrimmerSingleWarn>false</TrimmerSingleWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../../src/OnePdf/OnePdf.csproj" />
+    <ProjectReference Include="../../src/OnePdf.Layout.Core/OnePdf.Layout.Core.csproj" />
+    <ProjectReference Include="../../src/OnePdf.Hyphenation/OnePdf.Hyphenation.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- The test font is data next to the program, not a reference to the fonts package. -->
+    <None Include="../../src/OnePdf.Fonts/Fonts/LiberationSans-Regular.ttf" Link="fonts/LiberationSans-Regular.ttf" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+  </ItemGroup>
+
+</Project>

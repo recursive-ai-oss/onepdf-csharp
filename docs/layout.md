@@ -1,6 +1,6 @@
 # Layout
 
-`OnePdf.Layout` generates documents from code: you describe pages with nested delegates, it lays them out (shaped text, tables, lists, images, headers and footers, page numbers) and writes a tagged PDF through OnePDF's streaming writer, one page at a time. It ships as the package `RecursiveAI.OnePdf.Layout` (`dotnet add package RecursiveAI.OnePdf.Layout`), which depends on `RecursiveAI.OnePdf`, `RecursiveAI.OnePdf.Fonts` and `RecursiveAI.OneFont`.
+`OnePdf.Layout` generates documents from code: you describe pages with nested delegates, it lays them out (shaped text, tables, lists, images, headers and footers, page numbers) and writes a tagged PDF through OnePDF's streaming writer, one page at a time. It ships as the package `RecursiveAI.OnePdf.Layout` (`dotnet add package RecursiveAI.OnePdf.Layout`), which depends on `RecursiveAI.OnePdf`, `RecursiveAI.OnePdf.Fonts` and `RecursiveAI.OneFont`. [Which package](#which-package) explains `RecursiveAI.OnePdf.Layout.Core`, the same API without bundled fonts.
 
 ```csharp
 LayoutDocument.Compose(doc =>
@@ -33,6 +33,31 @@ LayoutDocument.Compose(doc =>
     });
 }).Save("report.pdf");
 ```
+
+## Which package
+
+| | `RecursiveAI.OnePdf.Layout` | `RecursiveAI.OnePdf.Layout.Core` |
+|---|---|---|
+| API and namespace | `OnePdf.Layout` | the same |
+| Default fonts | Liberation Sans, Serif and Mono, registered for you (`Sans`, `Serif`, `Mono`) | none |
+| Standard-14 names (`Helvetica`, `Times-Roman`, ...) | resolve, unshaped and not embedded | do not resolve |
+| Depends on `RecursiveAI.OnePdf.Fonts` | yes | no |
+
+Use `RecursiveAI.OnePdf.Layout` unless your application ships its own fonts and you do not want the Liberation files (about 4 MB) in your output. Install one of the two, not both: they define the same types in different assemblies. `RecursiveAI.OnePdf.Hyphenation` works with either, because `IHyphenator` lives in the core `OnePdf` assembly.
+
+With Core, register at least one font and make it the default, or name it in every text style:
+
+```csharp
+byte[] brand = File.ReadAllBytes("BrandSans-Regular.ttf");
+LayoutDocument.Compose(doc =>
+{
+    doc.Fonts.Add(brand, "Brand Sans");
+    doc.Fonts.DefaultFamily = "Brand Sans";   // used when a style names no family, or a family that is not registered
+    doc.Page(page => page.Content().Text("Set in my own font."));
+}).Save("core.pdf");
+```
+
+Text that resolves to no registered font, with the registry's default family missing too, throws `PdfFontNotRegisteredException` when the document is laid out or saved. Its message names the requested family and says to register a font with `TextFontRegistry.Add` or use the full package; `RequestedFamilies` and `DefaultFamily` carry the same. `TextFontRegistry.CreateDefault()` and `Shared` return empty registries in Core. The type exists only in Core: in the full package a missing default family still throws `InvalidOperationException`, as before.
 
 ## The fluent API
 
@@ -361,7 +386,7 @@ LayoutDocument.Compose(doc => doc.Page(page =>
 
 ### Right to left and fonts
 
-`doc.RightToLeft()` mirrors rows, table columns, start/end alignment and insets, and sets the base direction of text. Fonts are registered on `doc.Fonts` (grouped by family, weight and style); the default is Liberation Sans from `RecursiveAI.OnePdf.Fonts`, embedded as a subset. System fonts are never used unless you add them.
+`doc.RightToLeft()` mirrors rows, table columns, start/end alignment and insets, and sets the base direction of text. Fonts are registered on `doc.Fonts` (grouped by family, weight and style); the default is Liberation Sans from `RecursiveAI.OnePdf.Fonts`, embedded as a subset (`RecursiveAI.OnePdf.Layout.Core` has no default: see [Which package](#which-package)). System fonts are never used unless you add them.
 
 ```csharp
 LayoutDocument.Compose(doc =>
