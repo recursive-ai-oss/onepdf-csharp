@@ -48,7 +48,7 @@ internal sealed class ParagraphTextEngine : ITextEngine
     private readonly Dictionary<string, Entry> _shared = new(StringComparer.Ordinal);
     private int _sharedCount;
 
-    private static bool Shareable(Text t) => t.Spans.Count == 0 && t.Hyphenator is null && t.Content is { Length: <= MaxSharedLength };
+    private static bool Shareable(Text t) => t.Spans.Count == 0 && t.Hyphenator is null && !t.HasPageExtras && t.Content is { Length: <= MaxSharedLength };
 
     private Entry? FindShared(Text t, LayoutDirection dir, LineBreakMode mode, KnuthPlassOptions? knuth)
     {
@@ -113,6 +113,10 @@ internal sealed class ParagraphTextEngine : ITextEngine
             Italic = text.Italic,
             LineHeight = text.LineSpacing,
             Language = text.Language,
+            Underline = text.PageUnderline,
+            Strike = text.PageStrike,
+            LetterSpacing = text.PageLetterSpacing,
+            Features = text.PageFeatures ?? [],
         };
         IEnumerable<TextSpan> spans = text.Spans.Count > 0 ? ResolveInlines(text.Spans, ctx) : [new TextSpan(text.Content ?? string.Empty)];
         var paragraph = new TextParagraph(spans)

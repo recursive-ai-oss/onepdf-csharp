@@ -4,6 +4,13 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ## [Unreleased]
 
+### Added
+
+- Layout wrappers: `Slot.ScaleToFit()` scales a child down uniformly until it fits the space offered (never up; text stays text, and tags and links inside still work), `Slot.Shrink()` makes a box no larger than its content, and `Slot.Unconstrained()` lays a child out in unlimited space and draws it from the slot's corner, taking no room (or the room offered, `UnconstrainedSpace.Offered`) in the parent.
+- Layout default text style: `PageComposer.DefaultTextStyle` and `DocumentComposer.DefaultTextStyle` give all text on a page (or in the document) a font family, size, colour, weight, italic, letter spacing, line height, underline, strike and OpenType features, inherited field by field and overridden by explicit settings.
+- Layout OpenType feature switches: `TextStyle.Features` with `TextFeature`, and `Feature`, `Ligatures` and `Kerning` on text and span descriptors, turn individual features such as `liga`, `kern`, `calt`, `smcp`, `tnum` and `onum` on or off through the shaper.
+- Documents that use none of these produce the same bytes as before.
+
 ## [1.23.0] - 2026-11-17
 
 ### Added

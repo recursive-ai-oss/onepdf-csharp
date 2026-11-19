@@ -48,6 +48,73 @@ public enum ParagraphDirection
     RightToLeft,
 }
 
+/// <summary>
+/// One OpenType layout feature setting for <see cref="TextStyle.Features"/>: a four-letter tag such as <c>liga</c>, <c>kern</c>, <c>smcp</c>,
+/// <c>tnum</c> or <c>onum</c> and a value. 0 turns the feature off (including one that is on by default), 1 turns it on, and for a feature
+/// with alternates (<c>salt</c>, <c>aalt</c>) a larger value picks the alternate with that 1-based number.
+/// </summary>
+public readonly record struct TextFeature
+{
+    /// <summary>Creates a setting.</summary>
+    /// <param name="tag">Exactly four printable ASCII characters.</param>
+    /// <param name="value">0 for off, 1 for on, or the 1-based alternate number.</param>
+    /// <exception cref="ArgumentException"><paramref name="tag"/> is not four printable ASCII characters.</exception>
+    /// <exception cref="ArgumentOutOfRangeException"><paramref name="value"/> is negative.</exception>
+    public TextFeature(string tag, int value = 1)
+    {
+        ArgumentNullException.ThrowIfNull(tag);
+        if (tag.Length != 4)
+        {
+            throw new ArgumentException("An OpenType feature tag is exactly four characters.", nameof(tag));
+        }
+
+        foreach (char c in tag)
+        {
+            if (c < 0x20 || c > 0x7E)
+            {
+                throw new ArgumentException("An OpenType feature tag is four printable ASCII characters.", nameof(tag));
+            }
+        }
+
+        ArgumentOutOfRangeException.ThrowIfNegative(value);
+        Tag = tag;
+        Value = value;
+    }
+
+    /// <summary>The four-character tag; null for a default-constructed value, which is not a valid setting.</summary>
+    public string Tag { get; }
+
+    /// <summary>0 off, 1 on, or the 1-based alternate number.</summary>
+    public int Value { get; }
+
+    /// <summary>Turns a feature on.</summary>
+    /// <param name="tag">The feature tag.</param>
+    public static TextFeature On(string tag) => new(tag, 1);
+
+    /// <summary>Turns a feature off, including one that is on by default (<c>liga</c>, <c>kern</c>).</summary>
+    /// <param name="tag">The feature tag.</param>
+    public static TextFeature Off(string tag) => new(tag, 0);
+
+    /// <inheritdoc/>
+    public override string ToString() => Tag is null ? "(none)" : Tag + "=" + Value.ToString(System.Globalization.CultureInfo.InvariantCulture);
+
+    internal static string KeyOf(IReadOnlyList<TextFeature> features)
+    {
+        if (features.Count == 0)
+        {
+            return string.Empty;
+        }
+
+        var sb = new System.Text.StringBuilder();
+        foreach (TextFeature f in features)
+        {
+            sb.Append(f.Tag).Append('=').Append(f.Value).Append(',');
+        }
+
+        return sb.ToString();
+    }
+}
+
 /// <summary>The look of a stretch of text. Immutable; make a changed copy with <c>with</c>.</summary>
 public sealed record TextStyle
 {
@@ -107,6 +174,16 @@ public sealed record TextStyle
     /// </summary>
     public ColorPalette? Palette { get; init; }
 
+    /// <summary>
+    /// OpenType layout features switched on or off for this text, on top of the shaper's defaults (<c>liga</c>, <c>kern</c>, <c>calt</c> and the
+    /// script's own features stay on unless listed here). Later entries replace earlier ones with the same tag. A tag the font does not have is
+    /// ignored. Empty by default. See <see cref="TextFeature"/>.
+    /// </summary>
+    public IReadOnlyList<TextFeature> Features { get; init; } = [];
+
+    /// <summary>Which settings the fluent API left unset, so a default text style can fill them in; none for a style made any other way.</summary>
+    internal TextInherit Inherit { get; init; }
+
     internal void Validate()
     {
         if (!(Size > 0) || !double.IsFinite(Size) || Size > 10_000)
@@ -117,6 +194,14 @@ public sealed record TextStyle
         if (!double.IsFinite(LetterSpacing) || Math.Abs(LetterSpacing) > 10_000)
         {
             throw new ArgumentException("The letter spacing must be finite.");
+        }
+
+        foreach (TextFeature f in Features)
+        {
+            if (f.Tag is null)
+            {
+                throw new ArgumentException("A feature setting has no tag.");
+            }
         }
 
         if (LineHeight is { } lh && (!(lh > 0) || !double.IsFinite(lh) || lh > 1000))

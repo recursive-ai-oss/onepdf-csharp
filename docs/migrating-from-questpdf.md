@@ -41,6 +41,11 @@ rename calls, not to rethink the structure.
 | Image | `Image(bytes or path)` with `FitWidth`, `FitHeight`, `Contain`, `Cover`, `Stretch` (JPEG and PNG) |
 | Canvas-style drawing | `Canvas(height, surface => ...)` |
 | Rotate, scale, offset | `Rotate`, `Scale`, `Translate` |
+| Scale to fit | `ScaleToFit()` |
+| Shrink to content | `Shrink()` |
+| Unconstrained | `Unconstrained()` |
+| Default text style (per page or document) | `page.DefaultTextStyle(t => ...)`, `doc.DefaultTextStyle(t => ...)` |
+| Font features (ligatures, kerning, small caps, figures) | `Feature(tag, on)`, `Ligatures(bool)`, `Kerning(bool)` on a text or span |
 | Prevent page break, ensure space, page break | `KeepTogether`, `EnsureSpace`, `PageBreak` (and `KeepWithNext`) |
 | Text, spans, styles | `Text(...)` with `FontSize`, `Bold`, `FontColor`, ...; `Text(t => t.Span(...))` |
 | Page numbers | `t.CurrentPageNumber()`, `t.TotalPages()`, `t.SectionPages()` inside `Text(t => ...)` |
@@ -114,7 +119,7 @@ revenue test and no registration. The font packages are OFL 1.1 and ship their n
 
 Things QuestPDF's public documentation lists that `OnePdf.Layout` does not have yet:
 
-- Shadows and scale-to-fit, flip, unconstrained and shrink wrappers.
+- Shadows and flip.
 - An inlined layout (a flow of arbitrary elements wrapping like words). Elements embedded in text are there: `Inline`,
   `InlineImage` and `InlineCanvas` on a text.
 - Hyperlinks on a text span: put `Hyperlink` on the slot that holds the text, or on an `Inline` object.

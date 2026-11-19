@@ -27,6 +27,16 @@ public sealed partial class LayoutDocument
         ArgumentNullException.ThrowIfNull(compose);
         var document = new LayoutDocument();
         compose(new DocumentComposer(document));
+
+        // The default text styles are applied once everything is composed, so it does not matter in which order they were set.
+        foreach (LayoutPage page in document.Pages)
+        {
+            if (PageTextStyle.Combine(document.TextDefaults, page.TextDefaults) is { } defaults)
+            {
+                PageTextStyle.Apply(page, defaults);
+            }
+        }
+
         return document;
     }
 
@@ -271,6 +281,19 @@ public sealed class DocumentComposer
         return this;
     }
 
+    /// <summary>
+    /// Sets the text style all text in the document starts from, unless a page sets its own (<see cref="PageComposer.DefaultTextStyle(Action{DefaultTextStyleDescriptor})"/>)
+    /// or the text sets its own. Settings are inherited field by field. Calls add up; a later call for the same setting wins.
+    /// </summary>
+    /// <param name="style">Makes the settings.</param>
+    /// <remarks>See <see cref="PageComposer.DefaultTextStyle(Action{DefaultTextStyleDescriptor})"/> for what is covered.</remarks>
+    public DocumentComposer DefaultTextStyle(Action<DefaultTextStyleDescriptor> style)
+    {
+        ArgumentNullException.ThrowIfNull(style);
+        style(new DefaultTextStyleDescriptor(_document.TextDefaults ??= new SpanFormat()));
+        return this;
+    }
+
     /// <summary>Adds a run of pages with the same setup (size, margins, header, footer, content). Each starts on a new page.</summary>
     /// <param name="compose">Describes the pages.</param>
     public DocumentComposer Page(Action<PageComposer> compose)
@@ -310,6 +333,33 @@ public sealed class PageComposer
         }
 
         return s;
+    }
+
+    /// <summary>
+    /// Sets the text style all text on these pages starts from: font family, size, colour, weight, italic, line height, letter spacing,
+    /// underline, strike and OpenType features. It reaches the header, footer, first and even page variants, background, foreground and
+    /// content, including tables, lists, page numbers, dynamic text and the table of contents. Text that sets a value itself keeps it, and
+    /// still gets the other settings from here: the inheritance is field by field, as between a text and its spans.
+    /// </summary>
+    /// <param name="style">Makes the settings. Several calls add up; a later call for the same setting wins.</param>
+    /// <remarks>
+    /// <para>This page's settings win over those of <see cref="DocumentComposer.DefaultTextStyle(Action{DefaultTextStyleDescriptor})"/>, which win over
+    /// the built-in defaults (and over <see cref="TextFontRegistry"/>'s default family, which only applies when no family is set anywhere).
+    /// Which settings are applied is decided when the document is composed, so the call may come before or after the slots are filled.</para>
+    /// <para>Elements made directly (<see cref="Text"/>, <see cref="ItemList"/>, ...) and put in a slot inherit the settings they never set.
+    /// A <see cref="Component"/> subclass's content is not reached; components written against <see cref="IComponent"/> are.
+    /// Text drawn by a <see cref="Canvas"/> or an SVG is not covered.</para>
+    /// </remarks>
+    /// <example>
+    /// <code>
+    /// page.DefaultTextStyle(t => t.FontFamily("Serif").FontSize(10).FontColor(new LayoutColor(0.2, 0.2, 0.2)));
+    /// </code>
+    /// </example>
+    public PageComposer DefaultTextStyle(Action<DefaultTextStyleDescriptor> style)
+    {
+        ArgumentNullException.ThrowIfNull(style);
+        style(new DefaultTextStyleDescriptor(_page.TextDefaults ??= new SpanFormat()));
+        return this;
     }
 
     /// <summary>The page size before orientation. Default A4.</summary>

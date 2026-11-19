@@ -77,16 +77,33 @@ public sealed class ItemList : Element
     public string? FontName { get; set; }
 
     /// <summary>Weight of the marker font. Default 400.</summary>
-    public int Weight { get; set; } = 400;
+    public int Weight { get => _weight ?? 400; set => _weight = value; }
 
     /// <summary>Marker size in points; use the size of the entries' text. Default 11.</summary>
-    public double Size { get; set; } = 11;
+    public double Size { get => _size ?? 11; set => _size = value; }
 
     /// <summary>Marker colour. Default black.</summary>
-    public LayoutColor Color { get; set; }
+    public LayoutColor Color { get => _color ?? LayoutColor.Black; set => _color = value; }
 
     /// <summary>Line distance of the marker as a multiple of its size; match the entries' text. Default 1.2.</summary>
-    public double LineSpacing { get; set; } = 1.2;
+    public double LineSpacing { get => _lineSpacing ?? 1.2; set => _lineSpacing = value; }
+
+    private int? _weight;
+    private double? _size;
+    private LayoutColor? _color;
+    private double? _lineSpacing;
+
+    internal void InheritFrom(SpanFormat d)
+    {
+        if (FontName is null && d.Families is { Length: > 0 } fam)
+        {
+            FontName = fam[0];
+        }
+        _weight ??= d.Weight;
+        _size ??= d.Size;
+        _color ??= d.Color;
+        _lineSpacing ??= d.LineHeight;
+    }
 
     /// <summary>The narrowest the marker column may be, in points, before the gap. Default 0.</summary>
     public double MarkerWidth { get; set; }

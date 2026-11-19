@@ -141,7 +141,7 @@ public sealed partial class ShapedParagraph
             for (int s = 0; s < spanCount; s++)
             {
                 TextStyle st = _norm.Styles[s];
-                string key = string.Create(CultureInfo.InvariantCulture, $"{TextFontRegistry.ChainKey(st)}#{st.Language}#{(int)st.Position}");
+                string key = string.Create(CultureInfo.InvariantCulture, $"{TextFontRegistry.ChainKey(st)}#{st.Language}#{(int)st.Position}#{TextFeature.KeyOf(st.Features)}");
                 if (!groupKeys.TryGetValue(key, out int g))
                 {
                     g = chains.Count;
@@ -450,7 +450,7 @@ public sealed partial class ShapedParagraph
         }
 
         bool sup = groupStyle.Position != ScriptPosition.Normal;
-        ShapingOptions options = OptionsFor(groupStyle.Language, groupStyle.Position);
+        ShapingOptions options = OptionsFor(groupStyle.Language, groupStyle.Position, groupStyle.Features);
         ShapedRun clusters = _runs ??= new ShapedRun();
         chain.Chain!.ShapeRun(run, clusters, rtl, options);
         bool synthesize = false;
@@ -458,7 +458,7 @@ public sealed partial class ShapedParagraph
         {
             // The font has the feature when turning it on changes the glyphs; otherwise scale and shift.
             ShapedRun plain = _plainRun ??= new ShapedRun();
-            chain.Chain.ShapeRun(run, plain, rtl, OptionsFor(groupStyle.Language, ScriptPosition.Normal));
+            chain.Chain.ShapeRun(run, plain, rtl, OptionsFor(groupStyle.Language, ScriptPosition.Normal, groupStyle.Features));
             synthesize = SameGlyphs(clusters, plain);
         }
 
@@ -492,9 +492,9 @@ public sealed partial class ShapedParagraph
     // dictionary is not, and the first document pays for every method the JIT has to compile.
     private static readonly Dictionary<string, ShapingOptions>[] OptionCache = [new(StringComparer.Ordinal), new(StringComparer.Ordinal), new(StringComparer.Ordinal)];
 
-    private static ShapingOptions OptionsFor(string? language, ScriptPosition position)
+    private static ShapingOptions OptionsFor(string? language, ScriptPosition position, IReadOnlyList<TextFeature> features)
     {
-        string lang = language ?? string.Empty;
+        string lang = (language ?? string.Empty) + "#" + TextFeature.KeyOf(features);
         Dictionary<string, ShapingOptions> table = OptionCache[(int)position];
         lock (table)
         {
@@ -504,6 +504,16 @@ public sealed partial class ShapedParagraph
                 if (position != ScriptPosition.Normal)
                 {
                     o.Features.Add(FontFeature.On(position == ScriptPosition.Superscript ? "sups" : "subs"));
+                }
+
+                foreach (TextFeature f in features)
+                {
+                    o.Features.Add(new FontFeature(f.Tag, f.Value));
+                    if (f.Tag == "kern")
+                    {
+                        // The shaper has a switch for pair kerning as well as the feature; turning kerning off means both.
+                        o.Kerning = f.Value == 0 ? KerningMode.None : KerningMode.Normal;
+                    }
                 }
 
                 table[lang] = o;

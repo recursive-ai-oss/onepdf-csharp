@@ -64,10 +64,40 @@ LayoutDocument.Compose(doc => doc.Page(page =>
 
 `Margin`, `Border`, `Background`, `Rounded`, `Opacity`, `Width`/`Height` (and `Min`/`Max`), `AspectRatio`, `Padding` and the nine-point `Align*` methods all become one box when the order allows it: margin first, then border and background and size, then padding, then alignment. Writing them in another order gives nested boxes, which look the same on the page and cost a little more; the result is correct either way. `Rounded` can sit anywhere. Spelled-out sides exist for every inset (`PaddingTop`, `MarginStart`, `BorderEnd` and so on); `Start` and `End` flip in right-to-left documents.
 
-Other decorators: `Rotate`, `Scale`, `Translate`, `KeepTogether`, `EnsureSpace`, `KeepWithNext`, `ExpandHeight`, `Name` (the label the debug overlay and errors use). `AlignMiddle` and `AlignBottom` make the slot as tall as the space offered, because there is nothing to centre in otherwise.
+Other decorators: `Rotate`, `Scale`, `ScaleToFit`, `Shrink`, `Unconstrained`, `Translate`, `KeepTogether`, `EnsureSpace`, `KeepWithNext`, `ExpandHeight`, `Name` (the label the debug overlay and errors use). `AlignMiddle` and `AlignBottom` make the slot as tall as the space offered, because there is nothing to centre in otherwise.
 
 - `Rotate` and `Scale` do not split their child: if the content would need a page break inside them, layout throws `PdfLayoutException`. Rotating by 90 degrees makes the child's width the page height, so put a `Width` box inside the rotation.
 - Text fills the width it is offered, so `AlignCenter().Text(...)` aligns the text, not a box around it.
+
+#### Fitting and sizing wrappers
+
+```csharp
+// A table that is too big for its box is scaled down until it fits; real text, so it still extracts and tags.
+col.Item().Width(240).Height(150).ScaleToFit().Table(t => { /* ... */ });
+
+// A box that is as wide as its text, instead of as wide as the column.
+col.Item().Shrink().Border(1).Padding(4).Text("Paid");
+
+// A wide element that overflows its parent without moving what follows it.
+col.Item().Unconstrained().Width(900).Height(40).Background(Colors.LightGrey).Text("Wider than the page");
+```
+
+- **`ScaleToFit(minScale = 0.05)`** scales its child down, uniformly, until it fits the space offered, and never up. Content that already fits is laid out and drawn exactly as without the wrapper (same output bytes). The child is laid out at its natural size first (as wide as the space offered, as tall as it needs, no page break inside; a page break raises `PdfLayoutException`, as in `Scale`). If it is too wide or too tall it is laid out again at a smaller scale in a space wider and taller by the same factor, so text reflows as it would at that scale, and the largest scale that fits is found by bisection. A child that fills whatever width it is offered (an image set to `FitWidth`) cannot get smaller that way, so it is scaled after the first layout instead. When even `minScale` does not fit, layout throws `PdfLayoutException` (or moves to the next page). In flowing content, a child too tall for what is left of a page moves to the next page first, and only on an empty page is it scaled to the height; too wide is scaled wherever it sits. The scale is a transform of the page content: text stays text, extraction, tags and the structure tree are unchanged, and links, anchors and bookmarks inside are placed through the scale. (Inside `Rotate` and non-uniform `Scale`, they are still not recorded.)
+- **`Shrink()`** makes the wrapper no larger than its content. The child is measured for its widest unbroken width and laid out in at most that width (or the space offered, if less), so a `Border` and `Padding` box around short text hugs it. The height of every element is already its content's, so there is no per-axis form. A child that splits across pages keeps that width on every page. Put `Shrink()` outside the decoration that should hug the content: `Shrink().Border(1).Text("x")`.
+- **`Unconstrained(space = UnconstrainedSpace.None)`** lays its child out as if the space were unlimited: it keeps its natural size, is drawn from the slot's top-left corner, may overflow the parent and is not clipped. By default the parent reserves nothing for it, so siblings are placed and paginated as if it were absent. `UnconstrainedSpace.Offered` reserves the width offered and the child's own height (at most the height offered), for content that should take its normal row but may be wider than the column. A page break inside the child raises `PdfLayoutException`.
+
+### Default text style
+
+`page.DefaultTextStyle(t => t.FontFamily("Serif").FontSize(10).FontColor(Colors.Grey))` sets the style all text on those pages starts from, and `doc.DefaultTextStyle(...)` does the same for every page. The descriptor has `FontFamily`, `FontSize`, `FontColor`, `Bold`/`Weight`, `Italic`, `Underline`, `Strike`, `LetterSpacing`, `LineHeight`, `Palette` and the font-feature methods below.
+
+- **Reach.** Header, footer, first and even page variants, background, foreground and content, including tables, lists (text and markers), page numbers, `PageNumberText`, `DynamicText` and the table of contents. Text drawn by a `Canvas` or an SVG, and the content of a hand-written `Component` subclass, are not covered (an `IComponent` is).
+- **Inheritance is field by field**, as between a text and its spans: text that sets its own size keeps it and still takes the page's font and colour; a span that sets a colour takes the text's size. An explicit setting always wins, and a text with no default anywhere looks as before. Elements made directly (`new Text { ... }`) inherit the settings they never set.
+- **Order.** A page's settings win over the document's, which win over the built-in defaults (and over the font registry's default family, which applies only when no family is set). Defaults are applied when `Compose` returns, so they may be set before or after the slots are filled. Settings made by several calls add up; a later call for the same setting wins. Font features add up the same way, tag by tag, and a text's own features win over the page's.
+- A document without a default text style produces the same bytes as before.
+
+### Font features
+
+A text or span can switch OpenType features on or off: `Feature("smcp")`, `Feature("liga", false)`, `Feature("ss01", 2)` (a value picks an alternate), `Ligatures(false)` (turns `liga` and `clig` off, so "fi" is two glyphs) and `Kerning(false)`. `TextStyle.Features` takes `TextFeature` values (`TextFeature.On("tnum")`, `TextFeature.Off("kern")`) for the paragraph engine. Features not mentioned keep the shaper's defaults (`liga`, `clig`, `calt`, `kern`, the script's own features); a tag the font lacks is ignored; a later setting of a tag replaces an earlier one. They go to the shaper, so advances, clusters and line breaking follow. Extraction stays correct: a ligature, or a discretionary one switched on with `Feature("dlig")`, maps back to its letters through `/ToUnicode` and `/ActualText` as before, and the text is the same with the feature on or off.
 
 ### Gradient backgrounds
 

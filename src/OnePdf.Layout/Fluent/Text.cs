@@ -67,8 +67,18 @@ internal sealed class SpanFormat
     public double? LineHeight;
     public int? ReservedDigits;
     public InlineDescriptor? Inline;
+    public TextFeature[]? Features;
 
-    public bool HasStyle => Families is not null || Size is not null || Color is not null || Palette is not null || Weight is not null || Italic is not null
+    /// <summary>Adds a feature setting; a later setting of the same tag replaces an earlier one.</summary>
+    public void AddFeature(TextFeature feature)
+    {
+        var list = new List<TextFeature>(Features ?? []);
+        list.RemoveAll(f => f.Tag == feature.Tag);
+        list.Add(feature);
+        Features = [.. list];
+    }
+
+    public bool HasStyle => Features is not null || Families is not null || Size is not null || Color is not null || Palette is not null || Weight is not null || Italic is not null
         || Underline is not null || Strike is not null || LetterSpacing is not null || Position is not null || Language is not null || LineHeight is not null;
 }
 
@@ -223,6 +233,33 @@ public sealed class TextDescriptor : TextFormatDescriptor<TextDescriptor>
         Rebuild();
         return this;
     }
+
+    /// <summary>
+    /// Turns an OpenType feature on or off for this text (<c>liga</c>, <c>kern</c>, <c>calt</c>, <c>smcp</c>, <c>tnum</c>, <c>onum</c>, <c>ss01</c>, ...). Features not
+    /// mentioned keep the shaper's defaults; a tag the font does not have is ignored. A later call for the same tag replaces an earlier one.
+    /// </summary>
+    /// <param name="tag">Four printable ASCII characters.</param>
+    /// <param name="on">True to turn it on (the default), false to turn it off.</param>
+    /// <exception cref="ArgumentException"><paramref name="tag"/> is not a four-character tag.</exception>
+    public TextDescriptor Feature(string tag, bool on = true) => Set(f => f.AddFeature(new TextFeature(tag, on ? 1 : 0)));
+
+    /// <summary>Sets an OpenType feature to a value: 0 off, 1 on, or the 1-based number of the alternate a feature such as <c>salt</c> offers. See <see cref="Feature(string, bool)"/>.</summary>
+    /// <param name="tag">Four printable ASCII characters.</param>
+    /// <param name="value">The value.</param>
+    public TextDescriptor Feature(string tag, int value) => Set(f => f.AddFeature(new TextFeature(tag, value)));
+
+    /// <summary>Turns the standard ligatures (<c>liga</c> and <c>clig</c>) on or off. Default on.</summary>
+    /// <param name="on">False separates "fi", "fl" and the like into their letters.</param>
+    public TextDescriptor Ligatures(bool on = true) => Set(f =>
+    {
+        f.AddFeature(new TextFeature("liga", on ? 1 : 0));
+        f.AddFeature(new TextFeature("clig", on ? 1 : 0));
+    });
+
+    /// <summary>Turns pair kerning (<c>kern</c>) on or off. Default on.</summary>
+    /// <param name="on">False uses the plain advance widths.</param>
+    public TextDescriptor Kerning(bool on = true) => Set(f => f.AddFeature(new TextFeature("kern", on ? 1 : 0)));
+
 
     /// <summary>The language of the text, a BCP 47 tag such as <c>tr</c> or <c>ar</c>: selects language-specific glyph forms, is passed to the hyphenator and recorded in the structure tree.</summary>
     public TextDescriptor Language(string tag) => Edit(() => Format.Language = tag ?? throw new ArgumentNullException(nameof(tag)));
@@ -398,11 +435,25 @@ public sealed class TextDescriptor : TextFormatDescriptor<TextDescriptor>
             LineHeight = span.LineHeight ?? d.LineHeight,
             ReservedDigits = span.ReservedDigits ?? d.ReservedDigits,
             Inline = span.Inline,
+            Features = MergeFeatures(d.Features, span.Features),
         };
+    }
+
+    // The span's settings go after the text's, so the span wins for a tag both set.
+    private static TextFeature[]? MergeFeatures(TextFeature[]? outer, TextFeature[]? inner)
+    {
+        if (outer is null || inner is null)
+        {
+            return inner ?? outer;
+        }
+
+        return [.. outer, .. inner];
     }
 
     private static TextStyle StyleOf(SpanFormat merged) => new()
     {
+        Inherit = PageTextStyle.Unset(merged),
+        Features = merged.Features ?? [],
         Families = merged.Families ?? [],
         Size = merged.Size ?? 11,
         Color = merged.Color ?? LayoutColor.Black,
@@ -446,12 +497,34 @@ public sealed class TextDescriptor : TextFormatDescriptor<TextDescriptor>
         t.Spans.Clear();
         t.Content = string.Empty;
         t.FontName = d.Families is { Length: > 0 } fam ? fam[0] : null;
-        t.Size = d.Size ?? 11;
-        t.Color = d.Color ?? LayoutColor.Black;
         t.Palette = d.Palette;
-        t.Weight = d.Weight ?? 400;
-        t.Italic = d.Italic ?? false;
-        t.LineSpacing = d.LineHeight ?? 1.2;
+
+        // Settings the text does not make stay unset on the element, so the default text style of the page can fill them in.
+        if (d.Size is { } size)
+        {
+            t.Size = size;
+        }
+
+        if (d.Color is { } color)
+        {
+            t.Color = color;
+        }
+
+        if (d.Weight is { } weight)
+        {
+            t.Weight = weight;
+        }
+
+        if (d.Italic is { } italic)
+        {
+            t.Italic = italic;
+        }
+
+        if (d.LineHeight is { } lineHeight)
+        {
+            t.LineSpacing = lineHeight;
+        }
+
         t.Alignment = _alignmentSet ? _alignment : _inheritedAlignment;
         t.Justify = _justify;
         t.FirstLineIndent = _indent;
@@ -465,7 +538,7 @@ public sealed class TextDescriptor : TextFormatDescriptor<TextDescriptor>
         }
 
         // The element's own properties carry the text when nothing needs a per-span style; otherwise every span gets a complete style.
-        bool plain = !(d.Underline ?? false) && !(d.Strike ?? false) && (d.LetterSpacing ?? 0) == 0 && (d.Families?.Length ?? 0) <= 1;
+        bool plain = d.Features is null && !(d.Underline ?? false) && !(d.Strike ?? false) && (d.LetterSpacing ?? 0) == 0 && (d.Families?.Length ?? 0) <= 1;
         for (int i = from; plain && i < to; i++)
         {
             plain = !segs[i].Format.HasStyle && segs[i].Kind != 4;
@@ -509,16 +582,33 @@ public sealed class TextDescriptor : TextFormatDescriptor<TextDescriptor>
             if (_segments[i].Kind != 0)
             {
                 SpanFormat m = Merge(_segments[i].Format);
-                items.Add(new RowItem(new PageNumber
+                var number = new PageNumber
                 {
                     Kind = _segments[i].Kind switch { 1 => PageNumberKind.Current, 2 => PageNumberKind.DocumentTotal, _ => PageNumberKind.SectionTotal },
                     FontName = m.Families is { Length: > 0 } f ? f[0] : null,
-                    Weight = m.Weight ?? 400,
-                    Size = m.Size ?? 11,
-                    Color = m.Color ?? LayoutColor.Black,
-                    LineSpacing = m.LineHeight ?? 1.2,
                     ReservedDigits = m.ReservedDigits ?? 4,
-                }));
+                };
+                if (m.Weight is { } weight)
+                {
+                    number.Weight = weight;
+                }
+
+                if (m.Size is { } size)
+                {
+                    number.Size = size;
+                }
+
+                if (m.Color is { } color)
+                {
+                    number.Color = color;
+                }
+
+                if (m.LineHeight is { } lineHeight)
+                {
+                    number.LineSpacing = lineHeight;
+                }
+
+                items.Add(new RowItem(number));
                 i++;
                 continue;
             }
@@ -632,6 +722,33 @@ public sealed class TextSpanDescriptor : TextFormatDescriptor<TextSpanDescriptor
     /// <summary>Lowered and smaller, with the font's <c>subs</c> glyphs when it has them.</summary>
     public TextSpanDescriptor Subscript() => Set(f => f.Position = ScriptPosition.Subscript);
 
+    /// <summary>
+    /// Turns an OpenType feature on or off for this span (<c>liga</c>, <c>kern</c>, <c>calt</c>, <c>smcp</c>, <c>tnum</c>, <c>onum</c>, <c>ss01</c>, ...). Features not
+    /// mentioned keep the shaper's defaults; a tag the font does not have is ignored. A later call for the same tag replaces an earlier one.
+    /// </summary>
+    /// <param name="tag">Four printable ASCII characters.</param>
+    /// <param name="on">True to turn it on (the default), false to turn it off.</param>
+    /// <exception cref="ArgumentException"><paramref name="tag"/> is not a four-character tag.</exception>
+    public TextSpanDescriptor Feature(string tag, bool on = true) => Set(f => f.AddFeature(new TextFeature(tag, on ? 1 : 0)));
+
+    /// <summary>Sets an OpenType feature to a value: 0 off, 1 on, or the 1-based number of the alternate a feature such as <c>salt</c> offers. See <see cref="Feature(string, bool)"/>.</summary>
+    /// <param name="tag">Four printable ASCII characters.</param>
+    /// <param name="value">The value.</param>
+    public TextSpanDescriptor Feature(string tag, int value) => Set(f => f.AddFeature(new TextFeature(tag, value)));
+
+    /// <summary>Turns the standard ligatures (<c>liga</c> and <c>clig</c>) on or off. Default on.</summary>
+    /// <param name="on">False separates "fi", "fl" and the like into their letters.</param>
+    public TextSpanDescriptor Ligatures(bool on = true) => Set(f =>
+    {
+        f.AddFeature(new TextFeature("liga", on ? 1 : 0));
+        f.AddFeature(new TextFeature("clig", on ? 1 : 0));
+    });
+
+    /// <summary>Turns pair kerning (<c>kern</c>) on or off. Default on.</summary>
+    /// <param name="on">False uses the plain advance widths.</param>
+    public TextSpanDescriptor Kerning(bool on = true) => Set(f => f.AddFeature(new TextFeature("kern", on ? 1 : 0)));
+
+
     /// <summary>The language of this span, a BCP 47 tag.</summary>
     public TextSpanDescriptor Language(string tag) => Set(f => f.Language = tag ?? throw new ArgumentNullException(nameof(tag)));
 
@@ -717,20 +834,50 @@ public sealed class PageNumberTextDescriptor : TextFormatDescriptor<PageNumberTe
         return this;
     }
 
-    internal Element Build() => new PageNumberText
+    internal Element Build()
     {
-        Format = _format,
-        FontName = Format.Families is { Length: > 0 } f ? f[0] : null,
-        Size = Format.Size ?? 11,
-        Color = Format.Color ?? LayoutColor.Black,
-        Palette = Format.Palette,
-        Weight = Format.Weight ?? 400,
-        Italic = Format.Italic ?? false,
-        LetterSpacing = Format.LetterSpacing ?? 0,
-        LineSpacing = Format.LineHeight ?? 1.2,
-        Alignment = _alignmentSet ? _alignment : HorizontalAlignment.End,
-        ReservedDigits = Format.ReservedDigits ?? 4,
-    };
+        var e = new PageNumberText
+        {
+            Format = _format,
+            FontName = Format.Families is { Length: > 0 } f ? f[0] : null,
+            Palette = Format.Palette,
+            Alignment = _alignmentSet ? _alignment : HorizontalAlignment.End,
+            ReservedDigits = Format.ReservedDigits ?? 4,
+        };
+
+        // Settings that were not made stay unset, so the default text style of the page can fill them in.
+        if (Format.Size is { } size)
+        {
+            e.Size = size;
+        }
+
+        if (Format.Color is { } color)
+        {
+            e.Color = color;
+        }
+
+        if (Format.Weight is { } weight)
+        {
+            e.Weight = weight;
+        }
+
+        if (Format.Italic is { } italic)
+        {
+            e.Italic = italic;
+        }
+
+        if (Format.LetterSpacing is { } spacing)
+        {
+            e.LetterSpacing = spacing;
+        }
+
+        if (Format.LineHeight is { } lineHeight)
+        {
+            e.LineSpacing = lineHeight;
+        }
+
+        return e;
+    }
 
     /// <summary>The font family (a registered family or standard font name).</summary>
     public PageNumberTextDescriptor FontFamily(string family) => Edit(() => Format.Families = [family ?? throw new ArgumentNullException(nameof(family))]);
