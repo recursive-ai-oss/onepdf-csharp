@@ -35,6 +35,34 @@ public class LayoutCoreTests
     }
 
     [Fact]
+    public void WrappersFeaturesAndPageDefaultsWorkWithARegisteredFont()
+    {
+        byte[] font = TestFont();
+        LayoutDocument doc = LayoutDocument.Compose(d =>
+        {
+            d.Fonts.Add(font, "Acme");
+            d.Page(p =>
+            {
+                p.DefaultTextStyle(t => t.FontFamily("Acme").FontSize(12).Ligatures(false));
+                p.Content().Column(c =>
+                {
+                    c.Item().Width(120).Height(30).ScaleToFit().Text(string.Join(' ', Enumerable.Repeat("scaled words that do not fit", 6)));
+                    c.Item().Shrink().Border(1).Padding(3).Text("hugging");
+                    c.Item().Text(t => t.Span("office").Feature("smcp"));
+                    c.Item().Unconstrained().Width(900).Height(20).Text("overflowing");
+                });
+            });
+        });
+
+        using PdfDocument back = PdfDocument.Open(Save(doc));
+        string text = string.Join(' ', back.ExtractText().Select(t => t.Text));
+        Assert.Contains("hugging", text, StringComparison.Ordinal);
+        Assert.Contains("overflowing", text, StringComparison.Ordinal);
+        Assert.Contains("office", text, StringComparison.Ordinal);
+        Assert.Contains("scaled words", text, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void NoRegisteredFontIsATypedErrorNamingTheFamily()
     {
         LayoutDocument doc = LayoutDocument.Compose(d => d.Page(p => p.Content().Text("hello")));
