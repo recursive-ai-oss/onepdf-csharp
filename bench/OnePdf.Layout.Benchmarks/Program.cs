@@ -32,6 +32,11 @@ internal static class Program
             return Rss(args);
         }
 
+        if (args.Length > 0 && args[0] == "featured")
+        {
+            return FeaturedText.Run(args.Length > 1 ? int.Parse(args[1], CultureInfo.InvariantCulture) : 30);
+        }
+
         if (args.Length > 0 && args[0] == "shorttext-hash")
         {
             foreach (ShortTextVariant v in Enum.GetValues<ShortTextVariant>())

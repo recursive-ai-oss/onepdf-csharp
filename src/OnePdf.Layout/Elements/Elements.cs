@@ -570,8 +570,6 @@ public sealed class Text : Element
     internal double PageLetterSpacing;
     internal IReadOnlyList<TextFeature>? PageFeatures;
 
-    internal bool HasPageExtras => PageUnderline || PageStrike || PageLetterSpacing != 0 || PageFeatures is { Count: > 0 };
-
     internal sealed record Fragment(ITextBlock Block, int First, int Count);
 
     internal override WidthRange WidthsCore(LayoutContext ctx) => ctx.Text.Widths(this, ctx);

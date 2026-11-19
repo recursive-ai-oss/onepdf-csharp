@@ -4,6 +4,12 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ## [Unreleased]
 
+## [1.24.1] - 2026-11-19
+
+### Fixed
+
+- Layout: short texts that carry OpenType features share their shaping and line layout with equal texts again. Since 1.24.0 a text with `Feature`, `Ligatures` or `Kerning`, or one that inherited features, underline, strike or letter spacing from a `DefaultTextStyle`, missed the per-document cache and was shaped every time (a document of 1,200 texts from 8 distinct strings took several times as long and allocated about twice as much). Texts share when their effective settings are the same; a feature set to the shaper's default (`Kerning(true)`) counts as no feature. Output is byte-identical.
+
 ## [1.24.0] - 2026-11-19
 
 ### Added
@@ -460,6 +466,7 @@ First release. Two packages, `RecursiveAI.OnePdf` (the library, `net10.0`, no de
 - Limits on by default (`PdfLimits`) and fuzzed parsers, filters and font readers; no `unsafe` code. OnePDF never runs code or touches the network.
 - `RecursiveAI.OnePdf.Fonts`: Liberation and Noto substitute outlines under the SIL Open Font License 1.1, registered with `FontsPackage.Register()`.
 
+[1.24.1]: https://github.com/recursive-ai-oss/onepdf-csharp/releases/tag/v1.24.1
 [1.24.0]: https://github.com/recursive-ai-oss/onepdf-csharp/releases/tag/v1.24.0
 [1.23.0]: https://github.com/recursive-ai-oss/onepdf-csharp/releases/tag/v1.23.0
 [1.22.0]: https://github.com/recursive-ai-oss/onepdf-csharp/releases/tag/v1.22.0
