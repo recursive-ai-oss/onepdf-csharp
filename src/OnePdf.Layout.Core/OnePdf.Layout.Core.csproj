@@ -17,9 +17,6 @@
     <IsAotCompatible>true</IsAotCompatible>
     <IsTrimmable>true</IsTrimmable>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
-    <!-- A new package: there is no published version to compare with. -->
-    <EnablePackageValidation>false</EnablePackageValidation>
-    <PackageValidationBaselineVersion></PackageValidationBaselineVersion>
   </PropertyGroup>
 
   <ItemGroup>
