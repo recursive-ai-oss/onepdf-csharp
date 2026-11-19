@@ -48,11 +48,25 @@ internal sealed class ParagraphTextEngine : ITextEngine
     private readonly Dictionary<string, Entry> _shared = new(StringComparer.Ordinal);
     private int _sharedCount;
 
-    private static bool Shareable(Text t) => t.Spans.Count == 0 && t.Hyphenator is null && !t.HasPageExtras && t.Content is { Length: <= MaxSharedLength };
+    /// <summary>How many times a text found its shaping already made, and how many shareable texts had to be shaped; read by tests.</summary>
+    internal int SharedHits { get; private set; }
+
+    internal int SharedMisses { get; private set; }
+
+    // A text qualifies when its whole content is one piece: plain, or a single unlinked span (what a feature, underline or letter spacing set
+    // on the text turns into). The key then also carries everything that can change the shaping: the page default's extras and the span style.
+    private static bool Shareable(Text t) => t.Hyphenator is null && SharedContent(t) is { Length: <= MaxSharedLength };
+
+    private static string? SharedContent(Text t) => t.Spans.Count switch
+    {
+        0 => t.Content,
+        1 when t.Spans[0] is { Inline: null, Style: null or { Link: null } } span => span.Text,
+        _ => null,
+    };
 
     private Entry? FindShared(Text t, LayoutDirection dir, LineBreakMode mode, KnuthPlassOptions? knuth)
     {
-        if (!_shared.TryGetValue(t.Content, out Entry? e))
+        if (!_shared.TryGetValue(SharedContent(t)!, out Entry? e))
         {
             return null;
         }
@@ -94,6 +108,7 @@ internal sealed class ParagraphTextEngine : ITextEngine
         bool shareable = Shareable(text);
         if (shareable && FindShared(text, dir, mode, knuth) is { } found)
         {
+            SharedHits++;
             return found;
         }
 
@@ -139,9 +154,10 @@ internal sealed class ParagraphTextEngine : ITextEngine
         ShapedParagraph shaped = paragraph.Shape(_fonts);
         if (shareable)
         {
+            SharedMisses++;
             e = new Entry(dir) { Shared = true, Mode = mode, Knuth = knuth, Shaped = shaped };
             e.SetKey(text);
-            AddShared(e, text.Content!);
+            AddShared(e, SharedContent(text)!);
             return e;
         }
 
@@ -432,11 +448,100 @@ internal readonly struct TextKey(Text t) : IEquatable<TextKey>
     private readonly HorizontalAlignment _alignment = t.Alignment;
     private readonly bool _justify = t.Justify;
     private readonly double _indent = t.FirstLineIndent;
+    private readonly bool _underline = t.PageUnderline;
+    private readonly bool _strike = t.PageStrike;
+    private readonly double _letterSpacing = t.PageLetterSpacing;
+    private readonly IReadOnlyList<TextFeature>? _features = t.PageFeatures;
+    private readonly bool _hasSpan = t.Spans.Count == 1 && !SpanIsTheTextsOwnStyle(t);
+    private readonly TextStyle? _spanStyle = t.Spans.Count == 1 && !SpanIsTheTextsOwnStyle(t) ? t.Spans[0].Style : null;
+
+    // A single span whose style is what the text's own settings would give (a feature spelled out at its default value, say) shapes exactly like
+    // the same text without the span, so the two share. Compared field by field: building the style would allocate for every lookup.
+    private static bool SpanIsTheTextsOwnStyle(Text t)
+    {
+        if (t.Spans[0].Style is not { } s)
+        {
+            return false;
+        }
+
+        bool family = t.FontName is null ? s.Families.Count == 0 : s.Families.Count == 1 && string.Equals(s.Families[0], t.FontName, StringComparison.Ordinal);
+        return family && s.Link is null && s.Position == ScriptPosition.Normal && s.Width == 5
+            && s.Size.Equals(t.Size) && s.Color.Equals(t.Color) && s.Palette == t.Palette && s.Weight == t.Weight && s.Italic == t.Italic
+            && s.LineHeight == t.LineSpacing && string.Equals(s.Language, t.Language, StringComparison.Ordinal)
+            && s.Underline == t.PageUnderline && s.Strike == t.PageStrike && s.LetterSpacing.Equals(t.PageLetterSpacing)
+            && FeaturesEqual(s.Features, t.PageFeatures);
+    }
 
     public bool Equals(TextKey o) =>
         string.Equals(_font, o._font, StringComparison.Ordinal) && _size.Equals(o._size) && _color.Equals(o._color) && _palette.Equals(o._palette)
         && _weight == o._weight && _italic == o._italic && _lineSpacing.Equals(o._lineSpacing) && string.Equals(_language, o._language, StringComparison.Ordinal)
-        && _alignment == o._alignment && _justify == o._justify && _indent.Equals(o._indent);
+        && _alignment == o._alignment && _justify == o._justify && _indent.Equals(o._indent)
+        && _underline == o._underline && _strike == o._strike && _letterSpacing.Equals(o._letterSpacing) && FeaturesEqual(_features, o._features)
+        && _hasSpan == o._hasSpan && StyleEquals(_spanStyle, o._spanStyle);
+
+    // Two feature lists shape alike when each tag ends up with the same value (a later entry replaces an earlier one) and a feature set to what
+    // the shaper does anyway is the same as none. Compared in place: this runs for every text that repeats.
+    private static bool FeaturesEqual(IReadOnlyList<TextFeature>? a, IReadOnlyList<TextFeature>? b) =>
+        (a is not { Count: > 0 } && b is not { Count: > 0 }) || (Covers(a, b) && Covers(b, a));
+
+    private static bool Covers(IReadOnlyList<TextFeature>? a, IReadOnlyList<TextFeature>? b)
+    {
+        for (int i = 0; a is not null && i < a.Count; i++)
+        {
+            if (Effective(a, a[i].Tag) != Effective(b, a[i].Tag))
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    // The value a tag ends up with, or -1 when it is not set or is set to its default (these three are on unless a text turns them off).
+    private static int Effective(IReadOnlyList<TextFeature>? list, string tag)
+    {
+        for (int i = (list?.Count ?? 0) - 1; i >= 0; i--)
+        {
+            if (list![i].Tag == tag)
+            {
+                int v = list[i].Value;
+                return v == 1 && tag is "kern" or "liga" or "clig" ? -1 : v;
+            }
+        }
+
+        return -1;
+    }
+
+    private static bool StyleEquals(TextStyle? a, TextStyle? b)
+    {
+        if (a is null || b is null)
+        {
+            return a is null && b is null;
+        }
+
+        if (ReferenceEquals(a, b))
+        {
+            return true;
+        }
+
+        if (a.Families.Count != b.Families.Count)
+        {
+            return false;
+        }
+
+        for (int i = 0; i < a.Families.Count; i++)
+        {
+            if (!string.Equals(a.Families[i], b.Families[i], StringComparison.Ordinal))
+            {
+                return false;
+            }
+        }
+
+        return a.Size.Equals(b.Size) && a.Color.Equals(b.Color) && a.Weight == b.Weight && a.Italic == b.Italic && a.Width == b.Width
+            && a.LetterSpacing.Equals(b.LetterSpacing) && a.Underline == b.Underline && a.Strike == b.Strike && a.Position == b.Position
+            && a.LineHeight.Equals(b.LineHeight) && string.Equals(a.Language, b.Language, StringComparison.Ordinal) && a.Palette == b.Palette
+            && FeaturesEqual(a.Features, b.Features);
+    }
 
     public override bool Equals(object? obj) => obj is TextKey k && Equals(k);
 

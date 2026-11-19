@@ -259,11 +259,16 @@ public sealed partial class LayoutDocument
         return false;
     }
 
+    // The text engine of the most recent render, so tests can see how much shaping was shared.
+    internal ParagraphTextEngine? LastTextEngine { get; private set; }
+
     // When `capture` is set, each page's placed tree is handed to it as the page is finished.
     internal int RenderCore(ILayoutTarget target, Action<int, LayoutPage, Placed?, Placed?, Placed?>? capture, int[]? sectionCounts = null, bool countOnly = false, TocState? toc = null)
     {
         toc?.Reset();
-        using var ctx = new LayoutContext(target, Options, new ParagraphTextEngine(target, Options.Fonts ?? TextFontRegistry.Shared)) { CountOnly = countOnly, Toc = toc };
+        var engine = new ParagraphTextEngine(target, Options.Fonts ?? TextFontRegistry.Shared);
+        LastTextEngine = engine;
+        using var ctx = new LayoutContext(target, Options, engine) { CountOnly = countOnly, Toc = toc };
         _diagnostics = ctx.Diagnostics;
         if (!countOnly)
         {
