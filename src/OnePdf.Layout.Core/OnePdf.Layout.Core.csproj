@@ -1,0 +1,54 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- The layout code of src/OnePdf.Layout built without the substitute fonts: the same source files, compiled with LAYOUT_CORE, into
+       an assembly that has no reference to RecursiveAI.OnePdf.Fonts. -->
+  <PropertyGroup>
+    <AssemblyName>$(LibName).Layout.Core</AssemblyName>
+    <RootNamespace>$(LibName).Layout</RootNamespace>
+    <PackageId>$(PackagePrefix)$(LibName).Layout.Core</PackageId>
+    <Description>Fluent page layout for OnePDF without bundled fonts: the same API as RecursiveAI.OnePdf.Layout (containers, tables, lists, shaped and bidirectional text, images, headers, footers, page numbers, tagged PDF), for applications that register their own fonts. No dependencies beyond .NET and the OneFont and OnePDF packages.</Description>
+    <DefineConstants>$(DefineConstants);LAYOUT_CORE</DefineConstants>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageTags>pdf;layout;document-generation;tagged-pdf;nativeaot;trimmable</PackageTags>
+    <IncludeSymbols>true</IncludeSymbols>
+    <SymbolPackageFormat>snupkg</SymbolPackageFormat>
+    <PublishRepositoryUrl>true</PublishRepositoryUrl>
+    <EmbedUntrackedSources>true</EmbedUntrackedSources>
+    <IsAotCompatible>true</IsAotCompatible>
+    <IsTrimmable>true</IsTrimmable>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <!-- A new package: there is no published version to compare with. -->
+    <EnablePackageValidation>false</EnablePackageValidation>
+    <PackageValidationBaselineVersion></PackageValidationBaselineVersion>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Using Include="System" />
+    <Using Include="System.Collections.Generic" />
+    <Using Include="System.IO" />
+    <Using Include="System.Threading" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Include="../OnePdf.Layout/**/*.cs" Exclude="../OnePdf.Layout/obj/**;../OnePdf.Layout/bin/**" Link="%(RecursiveDir)%(Filename)%(Extension)" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="$(LibName).Layout.Core.Tests" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../OnePdf/OnePdf.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- The family's shaping package: the one PackageReference a library project here may have. -->
+    <PackageReference Include="RecursiveAI.OneFont" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="../../README.md" Pack="true" PackagePath="/" />
+    <None Include="../../THIRD-PARTY-NOTICES.md" Pack="true" PackagePath="/" />
+  </ItemGroup>
+
+</Project>

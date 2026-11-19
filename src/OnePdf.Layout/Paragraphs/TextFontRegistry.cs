@@ -1,6 +1,8 @@
 using System.Globalization;
 using OneFont;
+#if !LAYOUT_CORE
 using OnePdf.Fonts;
+#endif
 
 namespace OnePdf.Layout;
 
@@ -176,7 +178,9 @@ public sealed class TextFontRegistry
     // gate. A reference-keyed dictionary is precompiled in the runtime; a struct-keyed concurrent one is compiled by the JIT on first use.
     private volatile Dictionary<string, ChainSlot[]> _chains = new(StringComparer.Ordinal);
     private readonly Dictionary<string, FontEntry?> _systemCache = new(StringComparer.Ordinal);
+#if !LAYOUT_CORE
     private readonly Dictionary<string, FontEntry> _standard = new(StringComparer.Ordinal);
+#endif
     private IPdfFontProvider? _system;
 
     /// <summary>Creates an empty registry. The standard-14 fonts still resolve by name.</summary>
@@ -190,9 +194,13 @@ public sealed class TextFontRegistry
     /// <summary>Families appended to every style's chain, for characters its own families lack. Add the families of the scripts the document needs.</summary>
     public IList<string> FallbackFamilies { get; } = [];
 
-    /// <summary>A registry of the default faces shared by documents that set no registry of their own. Do not add fonts to it.</summary>
+    /// <summary>A registry of the default faces shared by documents that set no registry of their own. Do not add fonts to it. In <c>RecursiveAI.OnePdf.Layout.Core</c> it is empty, so a document must set its own registry.</summary>
     public static TextFontRegistry Shared { get; } = CreateDefault();
 
+#if LAYOUT_CORE
+    /// <summary>Creates an empty registry: this package carries no fonts. Add the application's own with <see cref="Add"/>.</summary>
+    public static TextFontRegistry CreateDefault() => new();
+#else
     /// <summary>Creates a registry holding the Liberation faces of the fonts package.</summary>
     public static TextFontRegistry CreateDefault()
     {
@@ -215,6 +223,7 @@ public sealed class TextFontRegistry
         r.AddAlias("Monospace", "Liberation Mono");
         return r;
     }
+#endif
 
     /// <summary>Registers a face from the bytes of a TrueType, OpenType or TrueType Collection file.</summary>
     /// <param name="fontData">The file. It is kept, not copied; do not change it afterwards.</param>
@@ -384,7 +393,11 @@ public sealed class TextFontRegistry
 
         if (entries.Count == 0)
         {
+#if LAYOUT_CORE
+            FontEntry? def = Find(DefaultFamily, style) ?? throw new PdfFontNotRegisteredException(names, DefaultFamily);
+#else
             FontEntry? def = Find(DefaultFamily, style) ?? throw new InvalidOperationException($"No font family could be found for '{string.Join(", ", names)}', and the default family '{DefaultFamily}' is not registered.");
+#endif
             if (def.StandardName is not null)
             {
                 return new ResolvedChain([def], null);
@@ -432,11 +445,14 @@ public sealed class TextFontRegistry
             return best;
         }
 
+#if !LAYOUT_CORE
+        // Standard fonts are measured with metric-compatible Liberation faces; the Core package has no such faces, so it skips this step.
         FontEntry? std = FindStandard(family, style);
         if (std is not null)
         {
             return std;
         }
+#endif
 
         if (_system is not null)
         {
@@ -492,6 +508,7 @@ public sealed class TextFontRegistry
         return entry;
     }
 
+#if !LAYOUT_CORE
     // Standard fonts: Helvetica/Arial, Times, Courier families, bold and italic from the name or the style. Measured with the
     // metric-compatible Liberation face, drawn with the PDF standard font.
     private FontEntry? FindStandard(string family, TextStyle style)
@@ -545,4 +562,5 @@ public sealed class TextFontRegistry
         _standard[std] = entry;
         return entry;
     }
+#endif
 }

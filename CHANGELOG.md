@@ -4,6 +4,14 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ## [Unreleased]
 
+### Added
+
+- New package `RecursiveAI.OnePdf.Layout.Core` (assembly `OnePdf.Layout.Core`, namespace `OnePdf.Layout`): the Layout API without the bundled Liberation fonts and without a dependency on `RecursiveAI.OnePdf.Fonts`, for applications that register their own fonts. `TextFontRegistry.CreateDefault()` and `Shared` are empty there, and the standard-14 names do not resolve. Text that resolves to no registered font throws the new `PdfFontNotRegisteredException`, which names the requested family and says how to fix it. `RecursiveAI.OnePdf.Layout` is unchanged. See `docs/layout.md`.
+
+### Changed
+
+- `IHyphenator` now lives in the core assembly (still in the `OnePdf.Layout` namespace) so that `RecursiveAI.OnePdf.Hyphenation` works with both layout packages. `RecursiveAI.OnePdf.Layout` forwards the type, so existing code and binaries are unaffected; `RecursiveAI.OnePdf.Hyphenation` no longer depends on `RecursiveAI.OnePdf.Layout`.
+
 ## [1.23.0] - 2026-11-17
 
 ### Added

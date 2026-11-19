@@ -1,0 +1,36 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Covers RecursiveAI.OnePdf.Layout.Core on its own: no reference to the Layout or Fonts packages. The font file is only data. -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <RootNamespace>$(LibName).Layout.Core.Tests</RootNamespace>
+    <AssemblyName>$(LibName).Layout.Core.Tests</AssemblyName>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+    <NoWarn>$(NoWarn);xUnit1051;xUnit1031</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Using Include="System" />
+    <Using Include="System.Collections.Generic" />
+    <Using Include="System.IO" />
+    <Using Include="System.Linq" />
+    <Using Include="System.Threading" />
+    <Using Include="Xunit" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="xunit.v3" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../../src/OnePdf/OnePdf.csproj" />
+    <ProjectReference Include="../../src/OnePdf.Layout.Core/OnePdf.Layout.Core.csproj" />
+    <ProjectReference Include="../../src/OnePdf.Hyphenation/OnePdf.Hyphenation.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="../../src/OnePdf.Fonts/Fonts/LiberationSans-Regular.ttf" Link="fonts/LiberationSans-Regular.ttf" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+</Project>

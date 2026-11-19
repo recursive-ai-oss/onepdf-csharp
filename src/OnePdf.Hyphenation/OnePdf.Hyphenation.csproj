@@ -29,8 +29,8 @@
   </ItemGroup>
 
   <ItemGroup>
-    <!-- IHyphenator lives in the layout package. -->
-    <ProjectReference Include="../OnePdf.Layout/OnePdf.Layout.csproj" />
+    <!-- IHyphenator lives in the core package, shared by both layout packages. -->
+    <ProjectReference Include="../OnePdf/OnePdf.csproj" />
   </ItemGroup>
 
   <ItemGroup>
