@@ -16,7 +16,7 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ### Changed
 
-- `IHyphenator` now lives in the core assembly (still in the `OnePdf.Layout` namespace) so that `RecursiveAI.OnePdf.Hyphenation` works with both layout packages. `RecursiveAI.OnePdf.Layout` forwards the type, so existing code and binaries are unaffected; `RecursiveAI.OnePdf.Hyphenation` no longer depends on `RecursiveAI.OnePdf.Layout`.
+- `IHyphenator` now lives in the core assembly (still in the `OnePdf.Layout` namespace) so that `RecursiveAI.OnePdf.Hyphenation` works with both layout packages. `RecursiveAI.OnePdf.Layout` forwards the type, so code and binaries built against `IHyphenator` keep working. `RecursiveAI.OnePdf.Hyphenation` no longer depends on `RecursiveAI.OnePdf.Layout`: a project that referenced only `RecursiveAI.OnePdf.Hyphenation` and got the layout types through it loses them on upgrade, and must add `RecursiveAI.OnePdf.Layout` (or `RecursiveAI.OnePdf.Layout.Core`) itself.
 
 ## [1.23.0] - 2026-11-17
 

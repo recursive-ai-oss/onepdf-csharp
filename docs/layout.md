@@ -43,7 +43,7 @@ LayoutDocument.Compose(doc =>
 | Standard-14 names (`Helvetica`, `Times-Roman`, ...) | resolve, unshaped and not embedded | do not resolve |
 | Depends on `RecursiveAI.OnePdf.Fonts` | yes | no |
 
-Use `RecursiveAI.OnePdf.Layout` unless your application ships its own fonts and you do not want the Liberation files (about 4 MB) in your output. Install one of the two, not both: they define the same types in different assemblies. `RecursiveAI.OnePdf.Hyphenation` works with either, because `IHyphenator` lives in the core `OnePdf` assembly.
+Use `RecursiveAI.OnePdf.Layout` unless your application ships its own fonts and you do not want the Liberation files (about 4 MB) in your output. Install one of the two, not both: they define the same types in different assemblies. `RecursiveAI.OnePdf.Hyphenation` works with either, because `IHyphenator` lives in the core `OnePdf` assembly. Since 1.24.0 it no longer brings in a layout package: a project that referenced only `RecursiveAI.OnePdf.Hyphenation` and used the layout types through it must add `RecursiveAI.OnePdf.Layout` (or `RecursiveAI.OnePdf.Layout.Core`) itself.
 
 With Core, register at least one font and make it the default, or name it in every text style:
 
