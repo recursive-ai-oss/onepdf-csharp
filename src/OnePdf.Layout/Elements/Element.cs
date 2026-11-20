@@ -158,6 +158,9 @@ internal sealed class LayoutContext : IDisposable
     /// <summary>The page being laid out and drawn.</summary>
     public PageInfo Page { get; set; }
 
+    /// <summary>True while content that is laid out again (a header on a later page, a repeated table header row) is laid out: <see cref="ShowOnce"/> and <see cref="SkipOnce"/> read it.</summary>
+    public bool Repeated { get; set; }
+
     /// <summary>The page being drawn, so elements can add link annotations to it; null while measuring.</summary>
     public TargetPage? OpenPage { get; set; }
 

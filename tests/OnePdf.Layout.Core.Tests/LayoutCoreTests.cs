@@ -162,4 +162,41 @@ public class LayoutCoreTests
         }));
         Assert.DoesNotContain(AppDomain.CurrentDomain.GetAssemblies(), a => a.GetName().Name == "OnePdf.Fonts");
     }
+
+    [Fact]
+    public void ShowOnceSkipOnceShowIfAndMetadataWorkWithARegisteredFont()
+    {
+        byte[] font = TestFont();
+        LayoutDocument doc = LayoutDocument.Compose(d =>
+        {
+            d.Fonts.Add(font, "Acme");
+            d.Fonts.DefaultFamily = "Acme";
+            d.Title("Core").Author("A. Writer").Subject("Subject").Keywords(["one", "two"]);
+            d.Page(p =>
+            {
+                p.Size(300, 200);
+                p.Margin(20);
+                p.Header().ShowOnce().Text("CORE-FIRST");
+                p.Footer().SkipOnce().Text("CORE-REPEAT");
+                p.Content().Column(c =>
+                {
+                    c.Item().ShowIf(false).Text("CORE-OFF");
+                    for (int i = 0; i < 40; i++)
+                    {
+                        c.Item().Text("line " + i);
+                    }
+                });
+            });
+        });
+
+        using PdfDocument back = PdfDocument.Open(Save(doc));
+        string[] pages = back.ExtractText().Select(t => t.Text).ToArray();
+        Assert.True(pages.Length > 1);
+        Assert.Contains("CORE-FIRST", pages[0], StringComparison.Ordinal);
+        Assert.DoesNotContain("CORE-REPEAT", pages[0], StringComparison.Ordinal);
+        Assert.DoesNotContain("CORE-FIRST", pages[1], StringComparison.Ordinal);
+        Assert.Contains("CORE-REPEAT", pages[1], StringComparison.Ordinal);
+        Assert.DoesNotContain("CORE-OFF", string.Concat(pages), StringComparison.Ordinal);
+        Assert.Equal(("A. Writer", "Subject", "one, two"), (back.Info.Author, back.Info.Subject, back.Info.Keywords));
+    }
 }

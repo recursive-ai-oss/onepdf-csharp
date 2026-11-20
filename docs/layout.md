@@ -89,7 +89,7 @@ LayoutDocument.Compose(doc => doc.Page(page =>
 
 `Margin`, `Border`, `Background`, `Rounded`, `Opacity`, `Width`/`Height` (and `Min`/`Max`), `AspectRatio`, `Padding` and the nine-point `Align*` methods all become one box when the order allows it: margin first, then border and background and size, then padding, then alignment. Writing them in another order gives nested boxes, which look the same on the page and cost a little more; the result is correct either way. `Rounded` can sit anywhere. Spelled-out sides exist for every inset (`PaddingTop`, `MarginStart`, `BorderEnd` and so on); `Start` and `End` flip in right-to-left documents.
 
-Other decorators: `Rotate`, `Scale`, `ScaleToFit`, `Shrink`, `Unconstrained`, `Translate`, `KeepTogether`, `EnsureSpace`, `KeepWithNext`, `ExpandHeight`, `Name` (the label the debug overlay and errors use). `AlignMiddle` and `AlignBottom` make the slot as tall as the space offered, because there is nothing to centre in otherwise.
+Other decorators: `ShowOnce`, `SkipOnce`, `ShowIf` (see [Showing content once, or conditionally](#showing-content-once-or-conditionally)), `Rotate`, `Scale`, `ScaleToFit`, `Shrink`, `Unconstrained`, `Translate`, `KeepTogether`, `EnsureSpace`, `KeepWithNext`, `ExpandHeight`, `Name` (the label the debug overlay and errors use). `AlignMiddle` and `AlignBottom` make the slot as tall as the space offered, because there is nothing to centre in otherwise.
 
 - `Rotate` and `Scale` do not split their child: if the content would need a page break inside them, layout throws `PdfLayoutException`. Rotating by 90 degrees makes the child's width the page height, so put a `Width` box inside the rotation.
 - Text fills the width it is offered, so `AlignCenter().Text(...)` aligns the text, not a box around it.
@@ -291,6 +291,35 @@ LayoutDocument.Compose(doc => doc.Page(page =>
     });
 })).Save("navigation.pdf");
 ```
+
+### Showing content once, or conditionally
+
+`ShowOnce()`, `SkipOnce()` and `ShowIf(...)` wrap the content in the slot and decide whether it is there. What they do to content that is left out is the same for all three: it takes **no space** (a column's spacing is not added around it either), draws nothing and writes **no structure elements**, so a tagged file has nothing for it; a header that is wholly hidden on a page gives the body its height back. Content that is shown keeps its normal tagging, and bands stay artifacts.
+
+**What "once" means.** Layout is stateless: the answer depends on where the content is laid out, never on how often it was laid out before. Two kinds of content repeat:
+
+| Content | First time | Repeat |
+|---|---|---|
+| `Header`, `Footer`, `Background`, `Foreground` of a page (also the first/even variants) | the first page of the section | every later page of the same section; the next section's first page is a first time again |
+| Header and footer rows of a table | the piece that starts the table, wherever it lands (a table moved whole to the next page is still first) | the pieces that continue it |
+
+Everywhere else (flowing content, body rows) nothing repeats: `ShowOnce` shows its content and `SkipOnce` hides it. A paragraph or other element that splits over pages is one showing, so `ShowOnce` never cuts a split element off after its first piece, and a `SkipOnce` that is shown (in a repeat) shows all its pieces.
+
+```csharp
+page.Header().ShowOnce().Text("Quarterly report");          // first page of the section only
+page.Footer().SkipOnce().Text("Continued from the first page"); // every page after the first
+page.Header().Column(h =>
+{
+    h.Item().Text("Acme Corp");
+    h.Item().SkipOnce().Text("(continued)");                // only where the header repeats
+});
+// In a table header cell: shown on the first piece only
+cell.Column(c => { c.Item().Text("Item"); c.Item().ShowOnce().Text("see note 3").FontSize(8); });
+```
+
+`ShowIf(bool)` includes or omits its content. `ShowIf(Func<PagePosition, bool>)` decides per page while the content is laid out; `PagePosition` has `Index`, `Section`, `IndexInSection`, `Number` and the shortcuts `IsFirstPage`, `IsFirstInSection` and `IsEvenNumber`. For a header or footer it is the page the band goes on; for flowing content it is the page the element is placed on (an element that moves to the next page is asked again there). The predicate may run more than once per page and should be free of side effects. "Last page" is not offered, because the page count is not known while pages are laid out; use `DynamicText` or a `FirstPageFooter`/`EvenPageFooter` for that. The element objects are `ShowOnce`, `SkipOnce` and `ShowIf` (`Child`, `Condition`, `Predicate`).
+
+Use `FirstPageHeader()`/`EvenPageHeader()` when the first or even page needs *different* content; use these wrappers when only part of a band differs.
 
 ### Table of contents
 
@@ -519,7 +548,7 @@ Boxes, backgrounds, borders, rules, a `Canvas` without `AltText`, the debug over
 
 `Element.AltText`, `Element.Language` (BCP 47; `/Lang` is written where it differs from the surrounding content) and `Element.Artifact` are plain properties; `LayoutDocument.Title` and `LayoutDocument.Language` set the information dictionary's title, `/ViewerPreferences /DisplayDocTitle` and the catalog's `/Lang` in `Save` (render into your own writer with `PdfDocumentWriterOptions.Language` and `DisplayDocumentTitle`). An image without `AltText` that is not an artifact is a `LayoutDiagnostic`, once per element. A document built in memory with `Render(PdfDocument)` cannot write a structure tree and is untagged. Tagging costs little time and memory and a good deal of file size. Measured on one run (Release, Ryzen 9 7950X3D, .NET 10.0.11, median of five): a 48-page report with a 500-row table took 145 ms tagged against 138 ms untagged, allocating 183 against 166 MiB, and its file grew from 125 KB to 523 KB (every table cell is a structure element); a 498-page justified book took 1.69 s against 1.68 s, allocating 2,572 against 2,558 MiB, and grew from 1.53 MB to 1.94 MB. Nothing is ever left untagged: every painted mark is tagged content or an artifact, which the tests check by interpreting the written pages. 
 
-**PDF/UA-1 and PDF/A level A.** `Save(stream, new PdfSaveOptions { PdfUA = new PdfUAOptions() })` writes PDF/UA-1, and `PdfA = new PdfAOptions { Conformance = PdfAConformance.A }` writes PDF/A-2a (`Part = PdfAPart.Part3` for 3a); both together give one file for both. The save repairs `/Lang`, `DisplayDocTitle`, tab order, link descriptions and the XMP identification, and **refuses with every violation listed** what the document itself must provide: a title, a figure's `AltText` (mark decoration `Artifact`), heading levels without gaps starting at H1, tables with header cells, and so on. These are checked in the finished file, so this path holds the whole file in memory (see [Output](#output)). `LayoutDocument.Author`, `Subject` and `Keywords` (and `doc.Author(...)` in the fluent API) fill the information dictionary and the XMP packet. This is for documents OnePDF laid out; a clean result is not proof of conformance. Read [pdfua.md](pdfua.md) for what is and is not checked.
+**PDF/UA-1 and PDF/A level A.** `Save(stream, new PdfSaveOptions { PdfUA = new PdfUAOptions() })` writes PDF/UA-1, and `PdfA = new PdfAOptions { Conformance = PdfAConformance.A }` writes PDF/A-2a (`Part = PdfAPart.Part3` for 3a); both together give one file for both. The save repairs `/Lang`, `DisplayDocTitle`, tab order, link descriptions and the XMP identification, and **refuses with every violation listed** what the document itself must provide: a title, a figure's `AltText` (mark decoration `Artifact`), heading levels without gaps starting at H1, tables with header cells, and so on. These are checked in the finished file, so this path holds the whole file in memory (see [Output](#output)). `LayoutDocument.Author`, `Subject` and `Keywords` (and `doc.Author(...)`, `doc.Subject(...)` and `doc.Keywords(...)` in the fluent API) fill the information dictionary (`Author`, `Subject`, `Keywords`) and the XMP packet (`dc:creator`, `dc:description`, `pdf:Keywords`); `doc.Keywords(IEnumerable<string>)` and `LayoutDocument.SetKeywords` take a list and join it with `, `. A document that sets none of them is written exactly as before. This is for documents OnePDF laid out; a clean result is not proof of conformance. Read [pdfua.md](pdfua.md) for what is and is not checked.
 
 **Right to left.** `LayoutDocument.Direction` (or a section's or element's `Direction`) mirrors everything that has a start and an end: rows run right to left, table columns and cell borders, list markers hang on the right with the content to their left, `Start`/`End` alignment, `PaddingStart`/`End`, `MarginStart`/`End`, `BorderStart`/`End`, `Translate` and a paragraph's first-line indent. Paragraphs take their base direction from it and are reordered by UAX #9. An element marked `Direction = LeftToRight` inside a right-to-left document stays left to right. `Left` and `Right` stay physical, and so do page margins.
 

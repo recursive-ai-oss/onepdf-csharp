@@ -8,6 +8,9 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 - Layout: links on a span of a text. `TextSpanDescriptor.Hyperlink(uri)` and `LinkToAnchor(anchorId)` link exactly the span's glyphs, with one annotation rectangle per line the span wraps over and per page it is split over. In tagged output each stretch is a `Link` structure element holding the span's text with its annotation as the object reference, and the annotation has `/Contents` (ISO 14289-1 7.18.5). A `TextStyle.Link` set on a span of a `Text` element now produces the same annotations.
 - Layout: page numbers inside wrapping paragraphs. A text with `CurrentPageNumber()`, `TotalPages()` or `SectionPages()` that does not fit one line (or has a line break or an inline object) wraps, justifies and splits across pages like any text, with the right number on each page. Each number reserves `ReservedDigits` digits (default 4) because lines are broken before the page count is known; more digits are squeezed into the room with a note. A text that fits on one line keeps its previous layout and bytes.
+- Layout: `Slot.ShowOnce()`, `Slot.SkipOnce()` and `Slot.ShowIf(bool)` / `Slot.ShowIf(Func<PagePosition, bool>)` (element classes `ShowOnce`, `SkipOnce`, `ShowIf`, and the `PagePosition` struct). Content shown only on the first page of a section (or the first piece of a table) or only on the repeats of a header, footer, background, foreground or repeated table header and footer row, and content included by a condition or per page. Left-out content takes no space and writes no structure elements. `docs/layout.md` defines what "once" means for each kind of repeated content.
+- Layout: `DocumentComposer.Keywords(IEnumerable<string>)` and `LayoutDocument.SetKeywords(IEnumerable<string>)` take keywords as a list (joined with `, `).
+- Documents that use none of these produce the same bytes as before.
 
 ## [1.24.1] - 2026-11-19
 

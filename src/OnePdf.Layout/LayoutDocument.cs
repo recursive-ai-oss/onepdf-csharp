@@ -112,6 +112,27 @@ public sealed partial class LayoutDocument
     /// <summary>The information dictionary's <c>Keywords</c> (in a PDF/A or PDF/UA save, the XMP <c>pdf:Keywords</c>). Null writes none.</summary>
     public string? Keywords { get; set; }
 
+    /// <summary>Sets <see cref="Keywords"/> from a list, joined with ", " (the separator the XMP <c>pdf:Keywords</c> value uses).</summary>
+    /// <param name="keywords">The keywords; empty items are skipped, and an empty list sets null.</param>
+    /// <exception cref="ArgumentNullException"><paramref name="keywords"/> or one of its items is null.</exception>
+    public void SetKeywords(IEnumerable<string> keywords) => Keywords = JoinKeywords(keywords);
+
+    internal static string? JoinKeywords(IEnumerable<string> keywords)
+    {
+        ArgumentNullException.ThrowIfNull(keywords);
+        var parts = new List<string>();
+        foreach (string k in keywords)
+        {
+            ArgumentNullException.ThrowIfNull(k);
+            if (k.Length > 0)
+            {
+                parts.Add(k);
+            }
+        }
+
+        return parts.Count == 0 ? null : string.Join(", ", parts);
+    }
+
     /// <summary>
     /// The language of the document, a BCP 47 tag such as <c>en-US</c>: the catalog's <c>/Lang</c> when written by <see cref="Save(Stream, PdfDocumentWriterOptions?)"/> (set it in the
     /// writer's options when you render into your own writer) and the language every structure element inherits. Elements override it with
@@ -345,8 +366,11 @@ public sealed partial class LayoutDocument
             bool even = number % 2 == 0;
             Element? headerElement = first && setup.FirstHeader is not null ? setup.FirstHeader : even && setup.EvenHeader is not null ? setup.EvenHeader : setup.Header;
             Element? footerElement = first && setup.FirstFooter is not null ? setup.FirstFooter : even && setup.EvenFooter is not null ? setup.EvenFooter : setup.Footer;
+            // Bands repeat from the second page of a section on (ShowOnce and SkipOnce read this).
+            ctx.Repeated = !first;
             header = LayoutBand(ctx, headerElement, "Header", firstPage + page, bodyW, bodyH);
             footer = LayoutBand(ctx, footerElement, "Footer", firstPage + page, bodyW, bodyH - (header?.Height ?? 0));
+            ctx.Repeated = false;
             return bodyH - (header?.Height ?? 0) - (footer?.Height ?? 0);
         }
 
@@ -393,6 +417,7 @@ public sealed partial class LayoutDocument
             var d = new DrawContext(b, ctx, size.Height + (print?.OffsetBottom ?? 0), print?.OffsetLeft ?? 0, 0);
             PdfPrintMargins bleed = print is { BleedBackground: true } ? print.BleedMargins : default;
             bool hasBleed = bleed.Left > 0 || bleed.Bottom > 0 || bleed.Right > 0 || bleed.Top > 0;
+            ctx.Repeated = page > 0;
             Placed? background = LayoutFull(ctx, setup.Background, "Background", firstPage + page, hasBleed ? new PageSize(size.Width + (bleed.Left + bleed.Right), size.Height + (bleed.Top + bleed.Bottom)) : size);
             Tagger tag = ctx.Tag;
             if (background is not null)
@@ -425,6 +450,7 @@ public sealed partial class LayoutDocument
             }
 
             Placed? foreground = LayoutFull(ctx, setup.Foreground, "Foreground", firstPage + page, size);
+            ctx.Repeated = false;
             if (foreground is not null)
             {
                 bool a = tag.BeginArtifact(b, PdfArtifactType.Pagination, PdfArtifactSubtype.Watermark);
