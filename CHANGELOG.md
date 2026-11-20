@@ -4,6 +4,12 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ## [Unreleased]
 
+### Added
+
+- Layout: `Slot.ShowOnce()`, `Slot.SkipOnce()` and `Slot.ShowIf(bool)` / `Slot.ShowIf(Func<PagePosition, bool>)` (element classes `ShowOnce`, `SkipOnce`, `ShowIf`, and the `PagePosition` struct). Content shown only on the first page of a section (or the first piece of a table) or only on the repeats of a header, footer, background, foreground or repeated table header and footer row, and content included by a condition or per page. Left-out content takes no space and writes no structure elements. `docs/layout.md` defines what "once" means for each kind of repeated content.
+- Layout: `DocumentComposer.Keywords(IEnumerable<string>)` and `LayoutDocument.SetKeywords(IEnumerable<string>)` take keywords as a list (joined with `, `).
+- Documents that use none of these produce the same bytes as before.
+
 ## [1.24.1] - 2026-11-19
 
 ### Fixed

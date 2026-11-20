@@ -410,6 +410,31 @@ public partial class Slot
     /// <summary>Moves the drawing of the content (right and down, in points) without changing the space it takes.</summary>
     public Slot Translate(double x, double y) => Wrap(new Translate { X = x, Y = y });
 
+    // ---- Conditional content ----
+
+    /// <summary>
+    /// Shows the content only the first time the content around it is laid out: the first page of a section for a header, footer, background or
+    /// foreground, the first piece of a table for a header or footer row. On repeats it is left out and takes no space. Elsewhere it changes
+    /// nothing. See <see cref="OnePdf.Layout.ShowOnce"/>.
+    /// </summary>
+    public Slot ShowOnce() => Wrap(new ShowOnce());
+
+    /// <summary>
+    /// Hides the content the first time the content around it is laid out and shows it on every repeat: the pages after the first of a section
+    /// for a header, footer, background or foreground, the pieces after the first of a table for a header or footer row. Hidden content takes
+    /// no space. See <see cref="OnePdf.Layout.SkipOnce"/>.
+    /// </summary>
+    public Slot SkipOnce() => Wrap(new SkipOnce());
+
+    /// <summary>Includes the content when <paramref name="condition"/> is true and leaves it out, taking no space and writing no structure, when it is false.</summary>
+    public Slot ShowIf(bool condition) => Wrap(new ShowIf { Condition = condition });
+
+    /// <summary>
+    /// Includes the content on the pages for which <paramref name="predicate"/> returns true, asked while the content is laid out with the page it
+    /// is placed on (for example <c>p =&gt; !p.IsFirstInSection</c>). It may be called more than once per page and should have no side effects.
+    /// </summary>
+    public Slot ShowIf(Func<PagePosition, bool> predicate) => Wrap(new ShowIf { Predicate = predicate ?? throw new ArgumentNullException(nameof(predicate)) });
+
     // ---- Page-flow rules ----
 
     /// <summary>Keeps the content on one page: if it does not fit in what is left of a page it moves to the next. Content taller than a page splits anyway (a note is recorded).</summary>

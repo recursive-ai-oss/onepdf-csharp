@@ -172,6 +172,15 @@ public sealed class DocumentComposer
         return this;
     }
 
+    /// <summary>The keywords as a list: written to <c>Keywords</c> joined with ", ".</summary>
+    /// <exception cref="ArgumentNullException"><paramref name="keywords"/> or one of its items is null.</exception>
+    public DocumentComposer Keywords(IEnumerable<string> keywords)
+    {
+        ArgumentNullException.ThrowIfNull(keywords);
+        _document.Keywords = LayoutDocument.JoinKeywords(keywords);
+        return this;
+    }
+
     /// <summary>The document language, a BCP 47 tag such as <c>en-US</c>: the catalog's <c>/Lang</c> and the default for every structure element.</summary>
     public DocumentComposer Language(string tag)
     {

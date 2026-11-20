@@ -181,6 +181,14 @@ internal static class FlowPaginator
                     return page;
 
                 case FlowKind.Complete:
+                    if (fit.Placed is null)
+                    {
+                        // An item that is not there (ShowIf false, a hidden ShowOnce): no placement, no spacing, and it is not the first thing on the page.
+                        resume = null;
+                        i++;
+                        break;
+                    }
+
                     page.Placements.Add(new FlowPlacement(i, y + gap, fit.Height, fit.Placed));
                     y += gap + fit.Height;
                     resume = null;
@@ -219,6 +227,11 @@ internal static class FlowPaginator
             if (fit.Kind == FlowKind.Break)
             {
                 return true;
+            }
+
+            if (fit.Kind == FlowKind.Complete && fit.Placed is null)
+            {
+                gap = 0;
             }
 
             height += gap + fit.Height;
