@@ -156,10 +156,15 @@ public sealed class Table : Element
         int bodyEnd = g.HeaderCount + g.BodyCount;
 
         // Header, then the footer's height (the footer goes below the body, which is not placed yet).
+        // Pieces after the first repeat the header and footer rows (ShowOnce and SkipOnce inside them read this).
+        bool savedRepeated = ctx.Repeated;
+        bool repeatRows = savedRepeated || r is not null;
         double headerH = 0;
         if (g.HeaderCount > 0)
         {
+            ctx.Repeated = repeatRows;
             BlockResult hr = PlaceRun(ctx, c, st, main, 0, g.HeaderCount, 0, c.Height, c.AtTop);
+            ctx.Repeated = savedRepeated;
             if (hr.Kind != FlowKind.Complete)
             {
                 return ctx.NoFit(c, st.Width, double.IsNaN(hr.Requested) ? 0 : hr.Requested, "The header rows do not fit the space offered");
@@ -172,7 +177,9 @@ public sealed class Table : Element
         double footerH = 0;
         if (g.Rows > bodyEnd)
         {
+            ctx.Repeated = repeatRows;
             BlockResult fr = PlaceRun(ctx, c, st, foot, bodyEnd, g.Rows, 0, c.Height - headerH, c.AtTop);
+            ctx.Repeated = savedRepeated;
             if (fr.Kind != FlowKind.Complete)
             {
                 return ctx.NoFit(c, st.Width, headerH + (double.IsNaN(fr.Requested) ? 0 : fr.Requested), "The footer rows do not fit the space offered");

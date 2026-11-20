@@ -46,6 +46,8 @@ rename calls, not to rethink the structure.
 | Unconstrained | `Unconstrained()` |
 | Default text style (per page or document) | `page.DefaultTextStyle(t => ...)`, `doc.DefaultTextStyle(t => ...)` |
 | Font features (ligatures, kerning, small caps, figures) | `Feature(tag, on)`, `Ligatures(bool)`, `Kerning(bool)` on a text or span |
+| Show once, skip once, show if | `ShowOnce()`, `SkipOnce()`, `ShowIf(bool)`, `ShowIf(page => ...)`: first page of a section / first table piece is the first time (see [layout.md](layout.md#showing-content-once-or-conditionally)) |
+| Document title, author, subject, keywords | `doc.Title(...)`, `Author(...)`, `Subject(...)`, `Keywords(...)` (string or list); Info dictionary and XMP |
 | Prevent page break, ensure space, page break | `KeepTogether`, `EnsureSpace`, `PageBreak` (and `KeepWithNext`) |
 | Text, spans, styles | `Text(...)` with `FontSize`, `Bold`, `FontColor`, ...; `Text(t => t.Span(...))` |
 | Page numbers | `t.CurrentPageNumber()`, `t.TotalPages()`, `t.SectionPages()` inside `Text(t => ...)` |
@@ -123,14 +125,12 @@ Things QuestPDF's public documentation lists that `OnePdf.Layout` does not have 
 - An inlined layout (a flow of arbitrary elements wrapping like words). Elements embedded in text are there: `Inline`,
   `InlineImage` and `InlineCanvas` on a text.
 - Hyperlinks on a text span: put `Hyperlink` on the slot that holds the text, or on an `Inline` object.
-- Show-once / skip-once / show-if helpers and lazy content (`MultiColumn`, `TableOfContents` and `DynamicText` are there). Plain C# `if` statements and loops in your delegates replace the conditional ones; header-only-on-first-page
-  is `FirstPageHeader()`.
+- Lazy content (`MultiColumn`, `TableOfContents` and `DynamicText` are there). Plain C# `if` statements and loops in your delegates also work for conditions known at compose time.
 - A page number inside a paragraph keeps the paragraph on one line; text with page numbers does not wrap.
 - Charts, barcodes and maps (draw them with `Canvas`, place them as SVG with `Svg`, or pass the rendered image).
 - A previewer or hot reload.
 - Document operations such as merging and encryption are not part of the layout types, but OnePDF core has them:
   [page operations](page-operations.md), [writing](writing.md) and `Save(stream, PdfSaveOptions)`.
-- Author, subject and keywords on `LayoutDocument` (set them on the `PdfDocument` from `ToPdfDocument()`).
 
 ## Moving a component
 
