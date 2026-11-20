@@ -4,6 +4,11 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ## [Unreleased]
 
+### Added
+
+- Layout: links on a span of a text. `TextSpanDescriptor.Hyperlink(uri)` and `LinkToAnchor(anchorId)` link exactly the span's glyphs, with one annotation rectangle per line the span wraps over and per page it is split over. In tagged output each stretch is a `Link` structure element holding the span's text with its annotation as the object reference, and the annotation has `/Contents` (ISO 14289-1 7.18.5). A `TextStyle.Link` set on a span of a `Text` element now produces the same annotations.
+- Layout: page numbers inside wrapping paragraphs. A text with `CurrentPageNumber()`, `TotalPages()` or `SectionPages()` that does not fit one line (or has a line break or an inline object) wraps, justifies and splits across pages like any text, with the right number on each page. Each number reserves `ReservedDigits` digits (default 4) because lines are broken before the page count is known; more digits are squeezed into the room with a note. A text that fits on one line keeps its previous layout and bytes.
+
 ## [1.24.1] - 2026-11-19
 
 ### Fixed

@@ -22,11 +22,17 @@ public partial class Slot
     /// <summary>Text made of spans, line breaks and page numbers, composed by a delegate.</summary>
     /// <param name="compose">Sets the default style and adds spans and page numbers.</param>
     /// <remarks>
-    /// Page numbers are not inline characters of a paragraph: a text that contains <see cref="TextDescriptor.CurrentPageNumber"/>,
-    /// <see cref="TextDescriptor.TotalPages"/> or <see cref="TextDescriptor.SectionPages"/> is laid out as one line, from a row of its
-    /// pieces (a compact <see cref="Row"/>), and does not wrap. Spaces at the edges of a piece become fixed gaps one space wide in the
-    /// piece's size. The line is as wide as its pieces, so alignment on the text or on a slot around it places it. This fits the usual
-    /// "Page 3 of 12" in a footer.
+    /// <para>A text that contains <see cref="TextDescriptor.CurrentPageNumber"/>, <see cref="TextDescriptor.TotalPages"/> or
+    /// <see cref="TextDescriptor.SectionPages"/> and fits on one line of the space it is offered is laid out as one line, from a row of its pieces
+    /// (a compact <see cref="Row"/>): each number is exactly as wide as its digits, spaces at the edges of a piece become fixed gaps one space wide
+    /// in the piece's size, and the line is as wide as its pieces, so alignment on the text or on a slot around it places it. This fits the usual
+    /// "Page 3 of 12" in a footer.</para>
+    /// <para>A text that does not fit on one line, or that has a line break or an inline object, is a paragraph like any other: it breaks, justifies and
+    /// splits across pages by the usual rules, and each number is an unbreakable object in it. Line breaking is done once, before the pages
+    /// are known, so every number reserves room for <see cref="PageNumberDescriptor.ReservedDigits"/> digits (default 4), starting at the left
+    /// edge of its room; the spare room shows as a gap after a shorter number. A number with more digits than reserved is squeezed horizontally into
+    /// its room, and a note is recorded. The current number is drawn on the page its line lands on, so a paragraph split by a page break shows the right
+    /// number on each page; a total is a form filled when the last page is done, as for <see cref="PageNumberText"/>.</para>
     /// </remarks>
     /// <example>
     /// <code>
@@ -69,6 +75,9 @@ internal sealed class SpanFormat
     public InlineDescriptor? Inline;
     public TextFeature[]? Features;
 
+    /// <summary>The link target of a span: a URI, or <c>#name</c> for an anchor of the document. Never inherited from the text.</summary>
+    public string? Link;
+
     /// <summary>Adds a feature setting; a later setting of the same tag replaces an earlier one.</summary>
     public void AddFeature(TextFeature feature)
     {
@@ -79,7 +88,7 @@ internal sealed class SpanFormat
     }
 
     public bool HasStyle => Features is not null || Families is not null || Size is not null || Color is not null || Palette is not null || Weight is not null || Italic is not null
-        || Underline is not null || Strike is not null || LetterSpacing is not null || Position is not null || Language is not null || LineHeight is not null;
+        || Underline is not null || Strike is not null || LetterSpacing is not null || Position is not null || Language is not null || LineHeight is not null || Link is not null;
 }
 
 /// <summary>Style settings shared by text, spans and page numbers.</summary>
@@ -436,6 +445,7 @@ public sealed class TextDescriptor : TextFormatDescriptor<TextDescriptor>
             ReservedDigits = span.ReservedDigits ?? d.ReservedDigits,
             Inline = span.Inline,
             Features = MergeFeatures(d.Features, span.Features),
+            Link = span.Link,
         };
     }
 
@@ -466,28 +476,62 @@ public sealed class TextDescriptor : TextFormatDescriptor<TextDescriptor>
         Position = merged.Position ?? ScriptPosition.Normal,
         Language = merged.Language,
         LineHeight = merged.LineHeight ?? 1.2,
+        Link = merged.Link,
     };
 
     internal Element Build()
     {
         bool hasNumbers = false;
-        foreach ((string? _, SpanFormat _, int kind) in _segments)
+        bool rowPossible = true;
+        foreach ((string? text, SpanFormat _, int kind) in _segments)
         {
             hasNumbers |= kind is 1 or 2 or 3;
+
+            // The one-line form is a row of pieces: it cannot hold inline objects or a line break.
+            rowPossible &= kind != 4 && (text is null || !text.Contains('\n'));
         }
 
-        if (hasNumbers)
+        if (!hasNumbers)
         {
-            foreach ((string? _, SpanFormat _, int kind) in _segments)
-            {
-                if (kind == 4)
-                {
-                    throw new InvalidOperationException("A text with page numbers is laid out as a row of pieces and cannot hold inline objects.");
-                }
-            }
+            return BuildText(_segments, 0, _segments.Count, own: true);
         }
 
-        return hasNumbers ? BuildRow() : BuildText(_segments, 0, _segments.Count, own: true);
+        // Page numbers are inline objects of a reserved width in a paragraph that wraps like any other. A text that fits on one line is
+        // laid out as the row of its pieces instead, which sizes each number exactly (see NumberedText).
+        return new NumberedText { Flow = BuildText(_segments, 0, _segments.Count), Compact = rowPossible ? BuildRow() : null };
+    }
+
+    // A page number inside wrapping text: an object as wide as ReservedDigits zeros, which the paragraph breaks around. The number itself is
+    // drawn on the page the line lands on.
+    private static InlineElement NumberSlot(SpanFormat m, int kind)
+    {
+        var number = new PageNumber
+        {
+            Kind = kind switch { 1 => PageNumberKind.Current, 2 => PageNumberKind.DocumentTotal, _ => PageNumberKind.SectionTotal },
+            FontName = m.Families is { Length: > 0 } f ? f[0] : null,
+            ReservedDigits = m.ReservedDigits ?? 4,
+        };
+        if (m.Weight is { } weight)
+        {
+            number.Weight = weight;
+        }
+
+        if (m.Size is { } size)
+        {
+            number.Size = size;
+        }
+
+        if (m.Color is { } color)
+        {
+            number.Color = color;
+        }
+
+        if (m.LineHeight is { } lineHeight)
+        {
+            number.LineSpacing = lineHeight;
+        }
+
+        return new InlineElement(new PageNumberSlot { Number = number });
     }
 
     private Text BuildText(List<(string? Text, SpanFormat Format, int Kind)> segs, int from, int to, bool own = false)
@@ -541,7 +585,7 @@ public sealed class TextDescriptor : TextFormatDescriptor<TextDescriptor>
         bool plain = d.Features is null && !(d.Underline ?? false) && !(d.Strike ?? false) && (d.LetterSpacing ?? 0) == 0 && (d.Families?.Length ?? 0) <= 1;
         for (int i = from; plain && i < to; i++)
         {
-            plain = !segs[i].Format.HasStyle && segs[i].Kind != 4;
+            plain = !segs[i].Format.HasStyle && segs[i].Kind == 0;
         }
 
         if (plain)
@@ -565,7 +609,12 @@ public sealed class TextDescriptor : TextFormatDescriptor<TextDescriptor>
         for (int i = from; i < to; i++)
         {
             TextStyle style = StyleOf(Merge(segs[i].Format));
-            t.Spans.Add(segs[i].Kind == 4 ? TextSpan.ForInline(segs[i].Format.Inline!.Create(), style) : new TextSpan(segs[i].Text!, style));
+            t.Spans.Add(segs[i].Kind switch
+            {
+                0 => new TextSpan(segs[i].Text!, style),
+                4 => TextSpan.ForInline(segs[i].Format.Inline!.Create(), style),
+                _ => TextSpan.ForInline(NumberSlot(Merge(segs[i].Format), segs[i].Kind), style),
+            });
         }
 
         return t;
@@ -754,6 +803,37 @@ public sealed class TextSpanDescriptor : TextFormatDescriptor<TextSpanDescriptor
 
     /// <summary>Line distance of lines this span is on, as a multiple of the font size; the tallest span of a line decides.</summary>
     public TextSpanDescriptor LineHeight(double factor) => Set(f => f.LineHeight = factor);
+
+    /// <summary>
+    /// Makes the span a link to an address (data only; nothing is opened or fetched). The link covers exactly the span's glyphs: a span that wraps
+    /// gets one annotation rectangle per line it is on, and one that a page break splits gets its rectangles on both pages. In a tagged document each
+    /// stretch on a line is a <c>Link</c> structure element holding the span's text, tied to its annotation, and the annotation's description
+    /// (<c>/Contents</c>) is that text. Nothing is drawn: add <see cref="Underline"/> and a colour for the usual look.
+    /// </summary>
+    /// <param name="uri">An absolute address such as <c>https://example.com/</c>. Characters outside ASCII are percent-encoded.</param>
+    /// <exception cref="ArgumentNullException"><paramref name="uri"/> is null.</exception>
+    /// <exception cref="ArgumentException"><paramref name="uri"/> is empty.</exception>
+    public TextSpanDescriptor Hyperlink(string uri) => Set(f => f.Link = Target(uri, nameof(uri)));
+
+    /// <summary>
+    /// Makes the span a link to an anchor of this document (see <see cref="Slot.Anchor(string)"/>), which may be defined later in the document than
+    /// the link. A name no anchor defines is recorded as a note and the link goes nowhere. See <see cref="Hyperlink(string)"/> for rectangles and tags.
+    /// </summary>
+    /// <param name="anchorId">The anchor's id.</param>
+    /// <exception cref="ArgumentNullException"><paramref name="anchorId"/> is null.</exception>
+    /// <exception cref="ArgumentException"><paramref name="anchorId"/> is empty.</exception>
+    public TextSpanDescriptor LinkToAnchor(string anchorId) => Set(f => f.Link = "#" + Target(anchorId, nameof(anchorId)));
+
+    private static string Target(string value, string name)
+    {
+        ArgumentNullException.ThrowIfNull(value, name);
+        if (value.Length == 0)
+        {
+            throw new ArgumentException("A link needs a target.", name);
+        }
+
+        return value;
+    }
 }
 
 /// <summary>The style of a page number inside a text. Returned by <see cref="TextDescriptor.CurrentPageNumber"/> and its siblings.</summary>
@@ -772,7 +852,7 @@ public sealed class PageNumberDescriptor : TextFormatDescriptor<PageNumberDescri
     /// <summary>The font family (a registered family or standard font name).</summary>
     public PageNumberDescriptor FontFamily(string family) => Set(f => f.Families = [family ?? throw new ArgumentNullException(nameof(family))]);
 
-    /// <summary>For totals, how many digits the reserved space holds. Default 4.</summary>
+    /// <summary>For totals, and for every number inside text that wraps, how many digits the reserved space holds. Default 4.</summary>
     public PageNumberDescriptor ReservedDigits(int digits) => Set(f => f.ReservedDigits = digits);
 }
 

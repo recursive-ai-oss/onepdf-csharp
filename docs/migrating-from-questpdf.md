@@ -48,8 +48,8 @@ rename calls, not to rethink the structure.
 | Font features (ligatures, kerning, small caps, figures) | `Feature(tag, on)`, `Ligatures(bool)`, `Kerning(bool)` on a text or span |
 | Prevent page break, ensure space, page break | `KeepTogether`, `EnsureSpace`, `PageBreak` (and `KeepWithNext`) |
 | Text, spans, styles | `Text(...)` with `FontSize`, `Bold`, `FontColor`, ...; `Text(t => t.Span(...))` |
-| Page numbers | `t.CurrentPageNumber()`, `t.TotalPages()`, `t.SectionPages()` inside `Text(t => ...)` |
-| Hyperlink | `slot.Hyperlink(uri)` |
+| Page numbers | `t.CurrentPageNumber()`, `t.TotalPages()`, `t.SectionPages()` inside `Text(t => ...)`, also in paragraphs that wrap and split across pages |
+| Hyperlink | `slot.Hyperlink(uri)`; on one span of a text: `t.Span("...").Hyperlink(uri)` or `.LinkToAnchor(id)` |
 | Section and internal links | `Anchor(id)`, `LinkToAnchor(id)`, `Bookmark(title, level)` |
 | Components | `IComponent` with `Compose(Slot slot)`; `slot.Component(instance)` or `slot.Component<T>()` |
 | Content direction | `doc.RightToLeft()`, `page.RightToLeft()`, `slot.RightToLeft()` |
@@ -122,10 +122,8 @@ Things QuestPDF's public documentation lists that `OnePdf.Layout` does not have 
 - Shadows and flip.
 - An inlined layout (a flow of arbitrary elements wrapping like words). Elements embedded in text are there: `Inline`,
   `InlineImage` and `InlineCanvas` on a text.
-- Hyperlinks on a text span: put `Hyperlink` on the slot that holds the text, or on an `Inline` object.
 - Show-once / skip-once / show-if helpers and lazy content (`MultiColumn`, `TableOfContents` and `DynamicText` are there). Plain C# `if` statements and loops in your delegates replace the conditional ones; header-only-on-first-page
   is `FirstPageHeader()`.
-- A page number inside a paragraph keeps the paragraph on one line; text with page numbers does not wrap.
 - Charts, barcodes and maps (draw them with `Canvas`, place them as SVG with `Svg`, or pass the rendered image).
 - A previewer or hot reload.
 - Document operations such as merging and encryption are not part of the layout types, but OnePDF core has them:

@@ -76,9 +76,9 @@ public sealed class TextRenderer
         }
 
         double origin = layout.Lines[firstLine].Top;
-        if (layout.Paragraph.HasInline)
+        if (layout.Paragraph.HasInline || (host is not null && layout.Paragraph.HasLinks))
         {
-            // With inline objects the graphics state is saved around each stretch of text instead of around the whole paragraph, so that
+            // With inline objects, or with linked text that gets structure and annotations of its own, the graphics state is saved around each stretch of text instead of around the whole paragraph, so that
             // an object (which may open marked content of its own) is never drawn inside a state saved before its marked content began.
             var state = new DrawState(host);
             try
@@ -160,6 +160,50 @@ public sealed class TextRenderer
         public bool TextOpen { get; set; }
 
         public bool Began { get; set; }
+
+        // The linked stretch being drawn on the current line: its target, the host's token for it, where it starts, how wide it has grown and
+        // which parts of the paragraph text it holds (for the link's description).
+        public string? LinkTarget { get; set; }
+
+        public object? LinkToken { get; set; }
+
+        public double LinkX { get; set; }
+
+        public double LinkWidth { get; set; }
+
+        public List<(int Start, int Length)> LinkText { get; } = [];
+    }
+
+    // Linked text is drawn as its own stretch: the text before it is closed so that the link's structure element (opened by the host) is the one
+    // the glyphs bind to, and it is closed again when the stretch ends, so the text after it binds to the paragraph.
+    private static void BeginLinkStretch(PdfContentBuilder b, DrawState st, string target, double x)
+    {
+        CloseText(b, st);
+        st.LinkTarget = target;
+        st.LinkToken = st.Host!.BeginLink(target);
+        st.LinkX = x;
+        st.LinkWidth = 0;
+        st.LinkText.Clear();
+    }
+
+    private static void EndLinkStretch(PdfContentBuilder b, ShapedParagraph para, DrawState st, double bottom, double height)
+    {
+        if (st.LinkTarget is not { } target)
+        {
+            return;
+        }
+
+        CloseText(b, st);
+        st.LinkText.Sort();
+        var sb = new System.Text.StringBuilder();
+        foreach ((int start, int length) in st.LinkText)
+        {
+            sb.Append(para.Text, start, length);
+        }
+
+        st.Host!.EndLink(st.LinkToken, target, sb.ToString().Trim(), st.LinkX, bottom, st.LinkWidth, height);
+        st.LinkTarget = null;
+        st.LinkToken = null;
     }
 
     private static void OpenText(PdfContentBuilder b, DrawState st)
@@ -315,6 +359,21 @@ public sealed class TextRenderer
         {
             Piece p = _pieces[pi];
             Fmt f = para.FmtAt(p.Fmt);
+            if (st?.Host is not null)
+            {
+                string? want = p.IsInline || f.Style.Link is not { Length: > 0 } ? null : f.Style.Link;
+                if (st.LinkTarget is not null && st.LinkTarget != want)
+                {
+                    EndLinkStretch(b, para, st, lineBottom, line.Height);
+                }
+
+                if (want is not null && st.LinkTarget is null)
+                {
+                    BeginLinkStretch(b, st, want, x);
+                    lastColorStyle = null;
+                }
+            }
+
             if (p.IsInline)
             {
                 CloseText(b, st!);
@@ -376,6 +435,15 @@ public sealed class TextRenderer
                 }
             }
 
+            if (st?.LinkTarget is not null)
+            {
+                st.LinkWidth += p.Width;
+                if (!p.IsHyphen)
+                {
+                    st.LinkText.Add((p.TextStart, p.TextLength));
+                }
+            }
+
             if (f.Style.Link is { } target)
             {
                 links ??= [];
@@ -392,6 +460,11 @@ public sealed class TextRenderer
             }
 
             x += p.Width;
+        }
+
+        if (st?.LinkTarget is not null)
+        {
+            EndLinkStretch(b, para, st, lineBottom, line.Height);
         }
     }
 
@@ -799,4 +872,10 @@ internal interface IInlineHost
 
     /// <summary>Closes what <see cref="Begin"/> opened, and adds the link annotation of the object.</summary>
     void End(object? token, InlineObject item, PdfContentBuilder b, double x, double y);
+
+    /// <summary>Opens the structure element of a stretch of linked text (<see cref="TextStyle.Link"/>: a URI, or <c>#name</c> for a destination); the result goes to <see cref="EndLink"/>.</summary>
+    object? BeginLink(string target);
+
+    /// <summary>Closes what <see cref="BeginLink"/> opened and adds the link annotation over the box whose lower-left corner is (<paramref name="x"/>, <paramref name="bottom"/>) in the builder's coordinates; <paramref name="text"/> is the text it covers.</summary>
+    void EndLink(object? token, string target, string text, double x, double bottom, double width, double height);
 }
