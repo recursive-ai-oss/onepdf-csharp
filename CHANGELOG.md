@@ -4,6 +4,8 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ## [Unreleased]
 
+## [1.25.0] - 2026-11-20
+
 ### Added
 
 - Layout: links on a span of a text. `TextSpanDescriptor.Hyperlink(uri)` and `LinkToAnchor(anchorId)` link exactly the span's glyphs, with one annotation rectangle per line the span wraps over and per page it is split over. In tagged output each stretch is a `Link` structure element holding the span's text with its annotation as the object reference, and the annotation has `/Contents` (ISO 14289-1 7.18.5). A `TextStyle.Link` set on a span of a `Text` element now produces the same annotations.
@@ -474,6 +476,7 @@ First release. Two packages, `RecursiveAI.OnePdf` (the library, `net10.0`, no de
 - Limits on by default (`PdfLimits`) and fuzzed parsers, filters and font readers; no `unsafe` code. OnePDF never runs code or touches the network.
 - `RecursiveAI.OnePdf.Fonts`: Liberation and Noto substitute outlines under the SIL Open Font License 1.1, registered with `FontsPackage.Register()`.
 
+[1.25.0]: https://github.com/recursive-ai-oss/onepdf-csharp/releases/tag/v1.25.0
 [1.24.1]: https://github.com/recursive-ai-oss/onepdf-csharp/releases/tag/v1.24.1
 [1.24.0]: https://github.com/recursive-ai-oss/onepdf-csharp/releases/tag/v1.24.0
 [1.23.0]: https://github.com/recursive-ai-oss/onepdf-csharp/releases/tag/v1.23.0
