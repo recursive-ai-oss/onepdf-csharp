@@ -124,8 +124,7 @@ Things QuestPDF's public documentation lists that `OnePdf.Layout` does not have 
 - Shadows and flip.
 - An inlined layout (a flow of arbitrary elements wrapping like words). Elements embedded in text are there: `Inline`,
   `InlineImage` and `InlineCanvas` on a text.
-- Show-once / skip-once / show-if helpers and lazy content (`MultiColumn`, `TableOfContents` and `DynamicText` are there). Plain C# `if` statements and loops in your delegates replace the conditional ones; header-only-on-first-page
-  is `FirstPageHeader()`.
+- Lazy content (`MultiColumn`, `TableOfContents` and `DynamicText` are there). Plain C# `if` statements and loops in your delegates also work for conditions known at compose time.
 - Charts, barcodes and maps (draw them with `Canvas`, place them as SVG with `Svg`, or pass the rendered image).
 - A previewer or hot reload.
 - Document operations such as merging and encryption are not part of the layout types, but OnePDF core has them:
