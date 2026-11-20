@@ -110,6 +110,47 @@ public class LayoutCoreTests
     }
 
     [Fact]
+    public void SpanLinksAndPageNumbersInWrappingTextWorkWithARegisteredFont()
+    {
+        byte[] font = TestFont();
+        LayoutDocument doc = LayoutDocument.Compose(d =>
+        {
+            d.Fonts.Add(font, "Acme");
+            d.Fonts.DefaultFamily = "Acme";
+            d.Page(p =>
+            {
+                p.Size(300, 160);
+                p.Margin(20);
+                p.Content().Text(t =>
+                {
+                    t.Justify();
+                    for (int i = 0; i < 6; i++)
+                    {
+                        t.Span(string.Join(' ', Enumerable.Range(0, 12).Select(k => $"q{i}_{k}")) + " ");
+                        t.Span("a linked stretch of words that wraps").Hyperlink("https://example.com/core");
+                        t.Span(" read on page ");
+                        t.CurrentPageNumber();
+                        t.Span(" of ");
+                        t.TotalPages();
+                        t.Span(" ");
+                    }
+                });
+            });
+        });
+
+        using PdfDocument back = PdfDocument.Open(Save(doc));
+        Assert.True(back.Pages.Count >= 2);
+        Assert.Contains(back.Pages[0].Links, l => l.Action?.Uri == "https://example.com/core");
+        Assert.Contains(back.Pages[1].Links, l => l.Action?.Uri == "https://example.com/core");
+        int count = back.Pages.Count;
+        var texts = back.ExtractText();
+        for (int pg = 0; pg < count; pg++)
+        {
+            Assert.Matches($@"page\s+{pg + 1}\s+of\s+{count}", texts[pg].Text);
+        }
+    }
+
+    [Fact]
     public void NoFontsAssemblyIsLoaded()
     {
         byte[] font = TestFont();

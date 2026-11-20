@@ -194,6 +194,11 @@ public sealed partial class ShapedParagraph
     /// <summary>True when the paragraph holds inline objects.</summary>
     internal bool HasInline => _norm.Inlines is { Count: > 0 };
 
+    /// <summary>True when some span has a <see cref="TextStyle.Link"/>.</summary>
+    internal bool HasLinks => _hasLinks ??= _norm.Styles.Exists(s => s.Link is not null);
+
+    private bool? _hasLinks;
+
     internal InlineObject InlineOf(in Item item) => _norm.Inlines![item.Inline - 1];
 
     internal Item ItemAt(int index) => _items[index];

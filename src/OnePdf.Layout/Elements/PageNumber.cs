@@ -87,6 +87,17 @@ public sealed class PageNumber : Element
 
     private int Digits => Math.Clamp(ReservedDigits, 1, 12);
 
+    /// <summary>
+    /// The room a number of this style reserves in running text: a placed box as wide as <see cref="ReservedDigits"/> zeros, holding a line of them
+    /// so that a paragraph can find the baseline.
+    /// </summary>
+    internal Placed ReservedBox(LayoutContext ctx)
+    {
+        Text zeros = MakeText(new string('0', Digits), HorizontalAlignment.Start);
+        ITextBlock block = ctx.Text.Prepare(zeros, 1e6, ctx);
+        return new Placed(zeros, 0, 0, block.NaturalWidth, block.LineHeight(0)) { Data = new Text.Fragment(block, 0, 1) };
+    }
+
     private Text CurrentText(LayoutContext ctx) => MakeText(Numbering.Format(ctx.Page.Number, ctx.Page.Style), Alignment);
 
     internal override WidthRange WidthsCore(LayoutContext ctx)

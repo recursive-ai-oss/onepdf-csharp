@@ -682,20 +682,25 @@ public class InlineTests
     }
 
     [Fact]
-    public void InlineObjectsAndPageNumbersCannotShareOneText()
+    public void InlineObjectsAndPageNumbersShareOneText()
     {
-        Assert.Throws<InvalidOperationException>(() => LayoutDocument.Compose(doc =>
+        byte[] pdf = Support.Save(LayoutDocument.Compose(doc =>
         {
+            doc.Title("Both").Language("en");
             doc.Page(page =>
             {
+                page.Size(300, 200);
                 page.Content().Text(t =>
                 {
                     t.Span("Page ");
                     t.CurrentPageNumber();
                     t.InlineCanvas(4, 4, _ => { });
+                    t.Span(" end.");
                 });
             });
         }));
+        using PdfDocument back = PdfDocument.Open(pdf);
+        Assert.Contains("Page 1", Support.Normalize(back.ExtractText()[0].Text), StringComparison.Ordinal);
     }
 
     // ---- compliance ----

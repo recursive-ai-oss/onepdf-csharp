@@ -80,7 +80,7 @@ var paragraph = new TextParagraph(text) { Alignment = TextAlignment.Justify, Lin
 
 - A line-end hyphen is the font's hyphen glyph (U+2010 if the font has it, else `-`) mapped to U+00AD, as tagged PDF asks for incidental hyphens (ISO 32000-2 14.8.2.2.3). Standard-font text draws `-`.
 - Underline and strike-through are filled rectangles in the text colour, at the position and thickness of `post` and `OS/2`, at least 0.25 pt thick.
-- Spans with `TextStyle.Link` are returned as `TextLinkArea` rectangles (line-box height); placing the annotation is up to the caller.
+- Spans with `TextStyle.Link` are returned as `TextLinkArea` rectangles (line-box height); placing the annotation is up to the caller when drawing with `TextRenderer` alone. In a layout `Text` the annotations are added for you, one per line the span covers, with a `Link` structure element around its glyphs (`Hyperlink(uri)` and `LinkToAnchor(id)` on a span descriptor set it). Page numbers in a paragraph that wraps are inline objects of reserved width (see [layout.md](layout.md)).
 - The builder's graphics state is restored.
 
 ## Inline objects

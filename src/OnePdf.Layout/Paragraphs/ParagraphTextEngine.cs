@@ -335,7 +335,8 @@ internal sealed class ParagraphTextEngine : ITextEngine
 
         public double LineX(int line) => layout.Lines[line].X;
 
-        public bool HasInline => layout.Paragraph.HasInline;
+        // Inline objects and linked text are both drawn through the host: each opens structure of its own between stretches of text.
+        public bool HasInline => layout.Paragraph.HasInline || layout.Paragraph.HasLinks;
 
         public void Draw(in DrawContext d, Placed p, int first, int count)
         {
@@ -428,6 +429,43 @@ internal sealed class Host(DrawContext frame) : IInlineHost
         }
 
         tag.Close(t.Link);
+    }
+
+    private sealed class LinkToken
+    {
+        public TagScope Scope;
+        public PdfStructureElement? Element;
+    }
+
+    // A stretch of linked text is a Link structure element holding its glyphs, with the annotation tied to it (ISO 32000-2 14.8.4.4.2). Inside an
+    // element that is a link already, the text only adds its own annotation to that element.
+    public object? BeginLink(string target)
+    {
+        Tagger tag = Tag;
+        if (tag.Current is { Type: "Link" } outer)
+        {
+            return new LinkToken { Element = outer.Element };
+        }
+
+        TagScope scope = tag.Open(this, false, false, "Link");
+        return new LinkToken { Scope = scope, Element = scope.Node?.Element };
+    }
+
+    public void EndLink(object? token, string target, string text, double x, double bottom, double width, double height)
+    {
+        var t = (LinkToken)token!;
+        DrawContext at = At(x, bottom + height);
+        string description = text.Length > 0 ? text : target;
+        if (target[0] == '#')
+        {
+            frame.Ctx.AddLink(at, width, height, null, target[1..], t.Element, description);
+        }
+        else
+        {
+            frame.Ctx.AddLink(at, width, height, target, null, t.Element, description);
+        }
+
+        Tag.Close(t.Scope);
     }
 
     // A frame whose origin is the top-left corner of a box at (x, top) in the builder's coordinates.

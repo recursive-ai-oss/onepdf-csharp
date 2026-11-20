@@ -164,7 +164,8 @@ public sealed record TextStyle
 
     /// <summary>
     /// A link target carried with the text as data (a URI, or <c>#name</c> for a destination). The paragraph reports where the text landed
-    /// (<see cref="TextLinkArea"/>); placing the annotation is the caller's job.
+    /// (<see cref="TextLinkArea"/>) when drawn with <see cref="TextRenderer"/> alone, which leaves placing the annotation to the caller. In a layout
+    /// document the text element adds the link annotations itself, one rectangle per line the text covers, and tags them (see <see cref="TextSpanDescriptor.Hyperlink(string)"/>).
     /// </summary>
     public string? Link { get; init; }
 
