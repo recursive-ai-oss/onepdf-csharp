@@ -4,6 +4,10 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ## [Unreleased]
 
+### Added
+
+- Layout: barcodes drawn as vector rectangles, with encoders written from the standards and no new dependency. `Slot.QrCode(value)` and `Slot.Barcode(BarcodeSymbology, value)` (and the `Barcode` element class) draw QR Code (ISO/IEC 18004: byte, numeric and alphanumeric segments, versions 1 to 40, levels L/M/Q/H, automatic or bounded version, all eight masks scored), Code 128 with automatic code set switching, GS1-128, EAN-13, EAN-8, UPC-A and Code 39 (optional modulo-43 check). Options: module size or `Contain()`, quiet zone, bar height, colours and background, human-readable text under linear symbols (EAN and UPC in the layout of the standard). In a tagged document a barcode is a `Figure` whose alternate text is the value. Invalid data raises the new `PdfBarcodeException`. Works in `RecursiveAI.OnePdf.Layout` and `RecursiveAI.OnePdf.Layout.Core` (a QR Code needs no font). See `docs/layout.md`.
+
 ## [1.25.0] - 2026-11-20
 
 ### Added

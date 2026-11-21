@@ -167,6 +167,9 @@ internal static class PageTextStyle
                 case PageNumber n:
                     n.InheritFrom(defaults);
                     break;
+                case Barcode barcode:
+                    barcode.InheritFrom(defaults);
+                    break;
                 case PageNumberText n:
                     n.InheritFrom(defaults);
                     break;

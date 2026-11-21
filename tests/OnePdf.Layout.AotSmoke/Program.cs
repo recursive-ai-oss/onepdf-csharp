@@ -394,6 +394,22 @@ if (svgBack.Pages.Count != 1 || !svgBackText.Contains("Vector words", StringComp
     return 1;
 }
 
+// Barcodes: a QR Code and an EAN-13 with its digits become vector rectangles and real text.
+LayoutDocument barcodeDoc = LayoutDocument.Compose(d => d.Page(p => p.Content().Column(col =>
+{
+    col.Item().QrCode("https://example.com/smoke").ModuleSize(2);
+    col.Item().Barcode(BarcodeSymbology.Ean13, "400638133393");
+})));
+using var barcodeStream = new MemoryStream();
+barcodeDoc.Save(barcodeStream, new PdfDocumentWriterOptions { LeaveOpen = true });
+using PdfDocument barcodeBack = PdfDocument.Open(barcodeStream.ToArray());
+string barcodeText = new([.. barcodeBack.Pages[0].ExtractText().Text.Where(ch => !char.IsWhiteSpace(ch))]);
+if (!barcodeText.Contains("4006381333931", StringComparison.Ordinal))
+{
+    Console.WriteLine("FAIL barcode: " + barcodeText);
+    return 1;
+}
+
 Console.WriteLine("ok");
 return 0;
 

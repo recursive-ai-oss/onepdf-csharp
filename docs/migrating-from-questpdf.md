@@ -39,6 +39,7 @@ rename calls, not to rethink the structure.
 | Table, spans, repeating header and footer | `Table`: `Columns`, `HeaderRow`, `Row`, `FooterRow`, `cell.Span(columns, rows)` |
 | Lists | `List`: `Bulleted`, `Numbered`, custom markers |
 | Image | `Image(bytes or path)` with `FitWidth`, `FitHeight`, `Contain`, `Cover`, `Stretch` (JPEG and PNG) |
+| QR codes and barcodes | `QrCode(value)`, `Barcode(BarcodeSymbology.Code128 / Ean13 / UpcA / Ean8 / Code39 / Gs1128, value)`: vector, encoded by the package, tagged as a figure (see [layout.md](layout.md#barcodes)) |
 | Canvas-style drawing | `Canvas(height, surface => ...)` |
 | Rotate, scale, offset | `Rotate`, `Scale`, `Translate` |
 | Scale to fit | `ScaleToFit()` |
@@ -125,7 +126,7 @@ Things QuestPDF's public documentation lists that `OnePdf.Layout` does not have 
 - An inlined layout (a flow of arbitrary elements wrapping like words). Elements embedded in text are there: `Inline`,
   `InlineImage` and `InlineCanvas` on a text.
 - Lazy content (`MultiColumn`, `TableOfContents` and `DynamicText` are there). Plain C# `if` statements and loops in your delegates also work for conditions known at compose time.
-- Charts, barcodes and maps (draw them with `Canvas`, place them as SVG with `Svg`, or pass the rendered image).
+- Charts and maps (draw them with `Canvas`, place them as SVG with `Svg`, or pass the rendered image).
 - A previewer or hot reload.
 - Document operations such as merging and encryption are not part of the layout types, but OnePDF core has them:
   [page operations](page-operations.md), [writing](writing.md) and `Save(stream, PdfSaveOptions)`.

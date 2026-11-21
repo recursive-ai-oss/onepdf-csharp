@@ -199,4 +199,37 @@ public class LayoutCoreTests
         Assert.DoesNotContain("CORE-OFF", string.Concat(pages), StringComparison.Ordinal);
         Assert.Equal(("A. Writer", "Subject", "one, two"), (back.Info.Author, back.Info.Subject, back.Info.Keywords));
     }
+
+    [Fact]
+    public void BarcodesWorkWithoutBundledFonts()
+    {
+        // A QR Code is rectangles only: no font is needed, and nothing is looked up.
+        LayoutDocument qr = LayoutDocument.Compose(d => d.Page(p => p.Content().QrCode("https://example.com/core").ModuleSize(2)));
+        using PdfDocument qrBack = PdfDocument.Open(Save(qr));
+        Assert.Single(qrBack.Pages);
+
+        // Digits under an EAN-13 are text: with a registered font they are drawn and extract; without one the usual typed error says so.
+        byte[] font = TestFont();
+        LayoutDocument ean = LayoutDocument.Compose(d =>
+        {
+            d.Title("Barcodes").Language("en");
+            d.Fonts.Add(font, "Acme");
+            d.Fonts.DefaultFamily = "Acme";
+            d.Page(p => p.Content().Column(c =>
+            {
+                c.Item().Barcode(BarcodeSymbology.Ean13, "400638133393");
+                c.Item().Barcode(BarcodeSymbology.Code128, "CORE-1").HumanReadableText();
+                c.Item().QrCode("tagged figure").AltText("Link to the parcel");
+            }));
+        });
+        using PdfDocument back = PdfDocument.Open(Save(ean));
+        string text = new([.. string.Concat(back.ExtractText().Select(t => t.Text)).Where(ch => !char.IsWhiteSpace(ch))]);
+        Assert.Contains("4006381333931", text, StringComparison.Ordinal);
+        Assert.Contains("CORE-1", text, StringComparison.Ordinal);
+        Assert.NotNull(back.Catalog.GetDictionary("StructTreeRoot"));
+
+        LayoutDocument bare = LayoutDocument.Compose(d => d.Page(p => p.Content().Barcode(BarcodeSymbology.Ean13, "400638133393")));
+        Assert.Throws<PdfFontNotRegisteredException>(() => Save(bare));
+        Assert.Throws<PdfBarcodeException>(() => Save(LayoutDocument.Compose(d => d.Page(p => p.Content().Barcode(BarcodeSymbology.Ean13, "4006381333930")))));
+    }
 }

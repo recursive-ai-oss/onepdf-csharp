@@ -43,6 +43,33 @@ if (back.Pages.Count != 1 || !text.Contains("Layout core smoke", StringCompariso
     return 1;
 }
 
+// A QR Code is vector rectangles: it needs no font, and a registered font adds human-readable text to a linear symbol.
+LayoutDocument qrDoc = LayoutDocument.Compose(d => d.Page(p => p.Content().QrCode("https://example.com/core").ModuleSize(2)));
+using var qrStream = new MemoryStream();
+qrDoc.Save(qrStream, new PdfDocumentWriterOptions { LeaveOpen = true });
+using PdfDocument qrBack = PdfDocument.Open(qrStream.ToArray());
+if (qrBack.Pages.Count != 1 || qrBack.Pages[0].ContentStreams.Count == 0)
+{
+    Console.WriteLine("FAIL: QR Code page");
+    return 1;
+}
+
+LayoutDocument eanDoc = LayoutDocument.Compose(d =>
+{
+    d.Fonts.Add(font, "Acme");
+    d.Fonts.DefaultFamily = "Acme";
+    d.Page(p => p.Content().Barcode(BarcodeSymbology.Ean13, "400638133393"));
+});
+using var eanStream = new MemoryStream();
+eanDoc.Save(eanStream, new PdfDocumentWriterOptions { LeaveOpen = true });
+using PdfDocument eanBack = PdfDocument.Open(eanStream.ToArray());
+string eanText = new([.. eanBack.Pages[0].ExtractText().Text.Where(ch => !char.IsWhiteSpace(ch))]);
+if (!eanText.Contains("4006381333931", StringComparison.Ordinal))
+{
+    Console.WriteLine("FAIL: EAN-13 digits");
+    return 1;
+}
+
 LayoutDocument bare = LayoutDocument.Compose(d => d.Page(p => p.Content().Text("no font")));
 try
 {

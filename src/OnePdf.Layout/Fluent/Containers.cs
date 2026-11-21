@@ -199,6 +199,38 @@ public partial class Slot
         return new SvgDescriptor(e);
     }
 
+    /// <summary>
+    /// A QR Code (ISO/IEC 18004) drawn as vector rectangles. The smallest version that holds the value is used. The alternate text of the tagged
+    /// figure is the value unless <see cref="BarcodeDescriptor.AltText(string)"/> sets it.
+    /// </summary>
+    /// <param name="value">The text to encode; UTF-8 by default.</param>
+    /// <returns>A descriptor for the size, error correction and colours.</returns>
+    /// <example>
+    /// <code>
+    /// slot.Width(90).QrCode("https://example.com/invoice/1042").Contain().ErrorCorrection(QrErrorCorrection.Quartile);
+    /// </code>
+    /// </example>
+    public BarcodeDescriptor QrCode(string value) => Barcode(BarcodeSymbology.QrCode, value);
+
+    /// <summary>A barcode drawn as vector rectangles. See <see cref="OnePdf.Layout.Barcode"/> for the symbologies, sizes and what the value may hold.</summary>
+    /// <param name="symbology">The symbology to draw.</param>
+    /// <param name="value">The data to encode.</param>
+    /// <returns>A descriptor for the size, quiet zone, colours and human-readable text.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="value"/> is null.</exception>
+    /// <example>
+    /// <code>
+    /// slot.Barcode(BarcodeSymbology.Ean13, "400638133393");
+    /// slot.Barcode(BarcodeSymbology.Code128, "ORDER-2041").BarHeight(36).HumanReadableText();
+    /// </code>
+    /// </example>
+    public BarcodeDescriptor Barcode(BarcodeSymbology symbology, string value)
+    {
+        ArgumentNullException.ThrowIfNull(value);
+        var e = new Barcode { Symbology = symbology, Value = value };
+        Put(e);
+        return new BarcodeDescriptor(e);
+    }
+
     /// <summary>A picture already added to the output with <see cref="PdfDocumentWriter.AddJpegImage(ReadOnlyMemory{byte})"/> or the document's equivalent, to share it between many places.</summary>
     public ImageDescriptor Image(PdfCreatedImage image)
     {
@@ -294,6 +326,77 @@ public sealed class SvgDescriptor
     private SvgDescriptor Set(Action<SvgPicture> change)
     {
         change(_picture);
+        return this;
+    }
+}
+
+/// <summary>Sets the size, quiet zone, colours and options of a barcode. Returned by <see cref="Slot.Barcode(BarcodeSymbology, string)"/> and <see cref="Slot.QrCode(string)"/>.</summary>
+public sealed class BarcodeDescriptor
+{
+    private readonly Barcode _barcode;
+
+    internal BarcodeDescriptor(Barcode barcode) => _barcode = barcode;
+
+    /// <summary>QR Code: the error correction level. Default <see cref="QrErrorCorrection.Medium"/>.</summary>
+    public BarcodeDescriptor ErrorCorrection(QrErrorCorrection level) => Set(b => b.ErrorCorrection = level);
+
+    /// <summary>QR Code: use exactly this version, 1 to 40. Data that does not fit raises <see cref="PdfBarcodeException"/>.</summary>
+    public BarcodeDescriptor Version(int version) => Set(b =>
+    {
+        b.MinVersion = version;
+        b.MaxVersion = version;
+    });
+
+    /// <summary>QR Code: the smallest version to use, 1 to 40; a larger one is chosen if the data needs it.</summary>
+    public BarcodeDescriptor MinVersion(int version) => Set(b => b.MinVersion = version);
+
+    /// <summary>QR Code: the largest version allowed, 1 to 40.</summary>
+    public BarcodeDescriptor MaxVersion(int version) => Set(b => b.MaxVersion = version);
+
+    /// <summary>QR Code: how text becomes bytes. Default UTF-8 without an ECI header.</summary>
+    public BarcodeDescriptor CharacterSet(QrCharacterSet characterSet) => Set(b => b.CharacterSet = characterSet);
+
+    /// <summary>Code 39: add the optional modulo-43 check character.</summary>
+    public BarcodeDescriptor Code39CheckDigit(bool add = true) => Set(b => b.Code39CheckDigit = add);
+
+    /// <summary>The size of one module in points; it is never rounded. See <see cref="Barcode.ModuleSize"/>.</summary>
+    public BarcodeDescriptor ModuleSize(double points) => Set(b => b.ModuleSize = points);
+
+    /// <summary>The largest module size at which the symbol fits the space offered. Put the barcode under <see cref="Slot.Width(double)"/> and <see cref="Slot.Height(double)"/> to set that space.</summary>
+    public BarcodeDescriptor Contain() => Set(b => b.Contain = true);
+
+    /// <summary>The quiet zone in modules; zero is allowed. Default per symbology (see <see cref="Barcode.QuietZone"/>).</summary>
+    public BarcodeDescriptor QuietZone(double modules) => Set(b => b.QuietZone = modules);
+
+    /// <summary>The height of the bars of a linear symbol, in points.</summary>
+    public BarcodeDescriptor BarHeight(double points) => Set(b => b.BarHeight = points);
+
+    /// <summary>The colour of the bars and text, and optionally a background for the whole box, quiet zone included.</summary>
+    public BarcodeDescriptor Colors(LayoutColor foreground, LayoutColor? background = null) => Set(b =>
+    {
+        b.Foreground = foreground;
+        b.Background = background;
+    });
+
+    /// <summary>Sets the encoded characters under a linear symbol (on by default for EAN and UPC), or turns that off.</summary>
+    public BarcodeDescriptor HumanReadableText(bool show = true) => Set(b => b.HumanReadableText = show);
+
+    /// <summary>The font family and size of the human-readable text, in points.</summary>
+    public BarcodeDescriptor TextFont(string? family = null, double size = 9) => Set(b =>
+    {
+        b.FontName = family;
+        b.TextSize = size;
+    });
+
+    /// <summary>Describes the barcode for readers who cannot see it. The default is the value.</summary>
+    public BarcodeDescriptor AltText(string description) => Set(b => b.AltText = description ?? throw new ArgumentNullException(nameof(description)));
+
+    /// <summary>Marks the barcode as decoration, so it stays out of the structure tree.</summary>
+    public BarcodeDescriptor Artifact() => Set(b => b.Artifact = true);
+
+    private BarcodeDescriptor Set(Action<Barcode> change)
+    {
+        change(_barcode);
         return this;
     }
 }

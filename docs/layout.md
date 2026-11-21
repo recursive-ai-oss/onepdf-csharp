@@ -224,6 +224,33 @@ LayoutDocument.Compose(doc => doc.Page(page =>
 })).Save("images.pdf");
 ```
 
+### Barcodes
+
+`QrCode(value)` and `Barcode(symbology, value)` draw a barcode as vector rectangles: no image, and no font unless human-readable text is on. The encoders are part of the package and follow the standards: QR Code (ISO/IEC 18004), Code 128 and GS1-128 (ISO/IEC 15417, GS1 General Specifications), EAN-13, EAN-8 and UPC-A (ISO/IEC 15420) and Code 39 (ISO/IEC 16388).
+
+```csharp
+page.Content().Column(col =>
+{
+    col.Spacing(10);
+    col.Item().Width(90).QrCode("https://example.com/invoice/1042").ErrorCorrection(QrErrorCorrection.Quartile).Contain();
+    col.Item().Barcode(BarcodeSymbology.Code128, "ORDER-2041").BarHeight(36).HumanReadableText();
+    col.Item().Barcode(BarcodeSymbology.Ean13, "400638133393");            // the check digit is added
+    col.Item().Barcode(BarcodeSymbology.Gs1128, "(01)09501101530003(17)150119(10)AB-123");
+});
+```
+
+- **QR Code.** Byte mode (UTF-8 by default, or ISO 8859-1, or UTF-8 announced by an ECI header with `CharacterSet`), numeric and alphanumeric segments chosen by a cost search, versions 1 to 40, levels L, M (the default), Q and H. The smallest version that holds the data is used; `MinVersion`, `MaxVersion` or `Version(n)` bound it. All eight masks are scored with the penalty rules of ISO/IEC 18004 7.8.3 and the lowest wins (the first on a tie). Data that does not fit version 40 at the chosen level raises `PdfBarcodeException`.
+- **Code 128.** Code sets A, B and C are switched, and shifted, for the fewest symbol characters (characters 0 to 127; FNC4 for higher characters is not supported). GS1-128 takes application identifiers in parentheses: the symbol starts with FNC1, FNC1 follows the data of every variable-length identifier that is not last, and the lengths of the fixed-length identifiers (00, 01, 02, 11 to 13, 15 to 17, 20, 31 to 36, 41) are checked. Check digits inside GS1 data are not verified.
+- **EAN-13, EAN-8, UPC-A.** Give the digits without the check digit (it is added) or with it (it is verified; a wrong one raises `PdfBarcodeException`). Guard bars run lower than the others; the digits are set in the layout of the standard, the first (and for UPC-A the last) outside the bars.
+- **Code 39.** The 43 characters `0-9 A-Z - . space $ / + %`; start and stop `*` are added; `Code39CheckDigit()` adds the modulo-43 check character. Narrow to wide is 1 : 3.
+- **Size.** Everything is measured in modules (the narrowest bar, or one dark square of a QR Code). All modules of a symbol have the same size and it is never rounded, so a symbol is exactly a whole number of modules wide. `ModuleSize(points)` sets it; `Contain()` takes the largest size at which the symbol, quiet zone included, fits the width (and, for QR Code, the height) offered; otherwise a module is 2 pt for QR Code and 1 pt for the linear symbologies. A symbol too wide or tall for its space is shrunk to fit, with a note. Linear bars are `BarHeight(points)` tall, 40 modules by default (with `Contain` and a bounded height, what is left of it).
+- **Quiet zone.** The margin the standard requires is part of the element's box: 4 modules for QR Code, 10 for Code 128 and Code 39, 11 left and 7 right for EAN-13, 9 for UPC-A and 7 for EAN-8. `QuietZone(modules)` overrides it on every side (zero is allowed). With human-readable digits the outside digits of EAN-13 and UPC-A sit in the quiet zone, so that side is at least 7 modules.
+- **Colours.** `Colors(foreground, background)`: bars and text, and an optional fill for the whole box. Readers need contrast and a light background; the library does not check it.
+- **Human-readable text.** `HumanReadableText()` (on by default for EAN and UPC) sets the characters under a linear symbol in the document's text pipeline, with the page's default font family (`TextFont(family, size)` sets them for this barcode; 9 pt default). EAN and UPC digits go in their groups; others are centred. The size shrinks, for all groups alike, when the digits would not fit under the bars. Without a registered font (`RecursiveAI.OnePdf.Layout.Core`) the usual `PdfFontNotRegisteredException` is raised; a QR Code needs no font.
+- **Tagging.** In a tagged document a barcode is a `Figure` whose alternate text is the value, or `AltText(...)`; `Artifact()` makes it decoration. The human-readable text is an artifact inside it (the figure carries the value). Untagged output has no structure.
+- **Errors.** A character the symbology cannot encode, a wrong length or check digit, a QR version too small, or too much data raise `PdfBarcodeException` (with the `Symbology` and a message naming the problem) when the document is laid out, never a symbol that does not read.
+- **Element classes.** `Barcode` (properties for everything above) can be put into a slot with `slot.Element(...)` or built into a tree like any element.
+
 ### Multi-column flow
 
 `MultiColumn(cols => ...)` pours its items through equal columns: down the first, then down the next, and onto the next page after the last column. It goes anywhere a container does: the page's content slot, a section, a box, or between full-width items of a `Column`, as in the sample below.

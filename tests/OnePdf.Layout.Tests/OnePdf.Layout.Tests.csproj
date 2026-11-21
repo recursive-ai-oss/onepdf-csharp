@@ -23,6 +23,9 @@
     <PackageReference Include="xunit.v3" />
     <!-- Test-only: a second reader that must still open what the layout writes. -->
     <PackageReference Include="PdfPig" />
+    <!-- Test-only: a published renderer turns the layout output into pixels, and a published barcode reader decodes them. Both are black boxes. -->
+    <PackageReference Include="RecursiveAI.OneImage.Pdf" />
+    <PackageReference Include="ZXing.Net" />
   </ItemGroup>
 
   <ItemGroup>
