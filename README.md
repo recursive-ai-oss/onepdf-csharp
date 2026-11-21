@@ -340,6 +340,9 @@ LayoutDocument.Compose(doc =>
   ([fitting wrappers](https://github.com/recursive-ai-oss/onepdf-csharp/blob/main/docs/layout.md#fitting-and-sizing-wrappers),
   [default text style](https://github.com/recursive-ai-oss/onepdf-csharp/blob/main/docs/layout.md#default-text-style),
   [font features](https://github.com/recursive-ai-oss/onepdf-csharp/blob/main/docs/layout.md#font-features)).
+- **Barcodes.** QR Code, Code 128, GS1-128, EAN-13, EAN-8, UPC-A and Code 39, drawn as vector rectangles by encoders built into
+  the package (no extra dependency), tagged as figures with the value as alternate text
+  ([barcodes](https://github.com/recursive-ai-oss/onepdf-csharp/blob/main/docs/layout.md#barcodes)).
 
 See the [layout guide](https://github.com/recursive-ai-oss/onepdf-csharp/blob/main/docs/layout.md), and [Migrating from QuestPDF](https://github.com/recursive-ai-oss/onepdf-csharp/blob/main/docs/migrating-from-questpdf.md) if you know a library of that style.
 
