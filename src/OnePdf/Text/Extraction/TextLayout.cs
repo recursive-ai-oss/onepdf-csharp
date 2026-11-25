@@ -1621,23 +1621,60 @@ internal static class TextLayout
     /// Joins neighbouring horizontal bands that are the same columns cut at paragraph gaps. Some other part of the region (a full-width note, a figure
     /// caption) crosses the gutter, so the vertical cut failed and the region is being cut into bands; if two successive bands each split into columns
     /// and share a gutter, the gap between them is only the paragraph gap that both columns have at the same height. Cutting there would read the
-    /// columns band by band, so the bands are kept together and the next round cuts them into columns. <paramref name="gb"/> is compacted in place;
+    /// columns band by band, so the bands are kept together and the next round cuts them into columns. Bands under such a pair that have no gutter of
+    /// their own are the first column going on after the second has ended; they are kept in the group too under the conditions of
+    /// <see cref="HasTextBothSides"/>, <see cref="IsOneSidedText"/> and <see cref="LayoutParameters.ColumnContinueGapEm"/>. <paramref name="gb"/> is compacted in place;
     /// returns the new group count.
     /// </summary>
     private static int MergeColumnBands(Frag[] f, int[] reg, int s, KeyIdx[] ks, int[] gb, int groups, double gap, double[] prev, double[] cur)
     {
         int pn = GutterStripes(f, reg, s + gb[0], gb[1] - gb[0], gap, ks, prev, out bool pm);
         int outGroups = 1;
+
+        // Set once a band without a gutter of its own has been joined: only more such bands may follow it into the group (a band with a
+        // gutter of its own would have to share it with the first bands, which nothing has checked).
+        bool tail = false;
+
+        // What a band without a gutter needs to be joined (see HasTextBothSides and IsOneSidedText): the one gutter that every band of the group shares,
+        // and the largest text in the group. The group is later cut at that gutter, with a width test made from the group's own median text size.
+        double commonLo = pn == 1 ? prev[0] : 0, commonHi = pn == 1 ? prev[1] : 0, biggest = LargestText(f, reg, s + gb[0], gb[1] - gb[0]);
+        bool single = pn == 1;
         for (int j = 1; j < groups; j++)
         {
             int cn = GutterStripes(f, reg, s + gb[j], gb[j + 1] - gb[j], gap, ks, cur, out bool cm);
-            if (pm && cm && ShareStripe(prev, pn, cur, cn, gap))
+            double size = LargestText(f, reg, s + gb[j], gb[j + 1] - gb[j]);
+            if (!tail && pm && cm && ShareStripe(prev, pn, cur, cn, gap))
             {
                 // Merged into the previous band: its start stays, this band's start is dropped.
+                single &= cn == 1;
+                if (single)
+                {
+                    commonLo = Math.Max(commonLo, cur[0]);
+                    commonHi = Math.Min(commonHi, cur[1]);
+                }
+
+                biggest = Math.Max(biggest, size);
+            }
+            else if (single && pm && cn == 0
+                && BandGap(f, reg, s + gb[j - 1], gb[j] - gb[j - 1], gb[j + 1] - gb[j]) <= LayoutParameters.ColumnContinueGapEm * size
+                && commonHi - commonLo >= LayoutParameters.ColumnGutterEm * biggest
+                && HasTextBothSides(f, reg, s + gb[outGroups - 1], gb[j] - gb[outGroups - 1], prev, gap)
+                && IsOneSidedText(f, reg, s + gb[j], gb[j + 1] - gb[j], prev, pn, gap))
+            {
+                // The first column goes on after the second has ended: this band has no gutter of its own because only one column is left,
+                // and it keeps clear of the gutter the bands above shared. It stays with them, and the stripes of those bands stay the
+                // reference for the bands after it.
+                tail = true;
+                continue;
             }
             else
             {
                 gb[outGroups++] = gb[j];
+                tail = false;
+                single = cn == 1;
+                commonLo = cn == 1 ? cur[0] : 0;
+                commonHi = cn == 1 ? cur[1] : 0;
+                biggest = size;
             }
 
             (prev, cur) = (cur, prev);
@@ -1649,6 +1686,102 @@ internal static class TextLayout
 
         // 1 when everything merged: the region is whole again and the caller moves on to the next kind of cut.
         return outGroups;
+    }
+
+    /// <summary>The empty space between a band and the band above it (the following <paramref name="len"/> fragments after the <paramref name="prevLen"/> of the one above).</summary>
+    private static double BandGap(Frag[] f, int[] reg, int s, int prevLen, int len)
+    {
+        double bottom = double.MinValue, top = double.MaxValue;
+        for (int i = 0; i < prevLen; i++)
+        {
+            bottom = Math.Max(bottom, f[reg[s + i]].Bot);
+        }
+
+        for (int i = 0; i < len; i++)
+        {
+            top = Math.Min(top, f[reg[s + prevLen + i]].Top);
+        }
+
+        return top - bottom;
+    }
+
+    private static double LargestText(Frag[] f, int[] reg, int s, int len)
+    {
+        double m = 0;
+        for (int i = 0; i < len; i++)
+        {
+            m = Math.Max(m, f[reg[s + i]].Size);
+        }
+
+        return m;
+    }
+
+    /// <summary>
+    /// True when the bands joined so far have at least two wide fragments (see <see cref="LayoutParameters.SoftColumnWidthEm"/>) on each side of the
+    /// first stripe: two real columns, not a line with an equation number, a margin note or a page number beside it.
+    /// </summary>
+    private static bool HasTextBothSides(Frag[] f, int[] reg, int s, int len, double[] stripes, double gap)
+    {
+        double ms = gap / LayoutParameters.ColumnGutterEm, slack = 0.25 * ms, wideMin = LayoutParameters.SoftColumnWidthEm * ms;
+        int left = 0, right = 0;
+        for (int i = 0; i < len; i++)
+        {
+            ref Frag fr = ref f[reg[s + i]];
+            if (fr.X1 - fr.X0 < wideMin)
+            {
+                continue;
+            }
+
+            if (fr.X1 <= stripes[0] + slack)
+            {
+                left++;
+            }
+            else if (fr.X0 >= stripes[1] - slack)
+            {
+                right++;
+            }
+        }
+
+        return left >= 2 && right >= 2;
+    }
+
+    /// <summary>
+    /// True when a band is running text kept clear of every stripe in <paramref name="stripes"/>: at least three lines (a two-line footer or note is not a column), and at least half of its
+    /// fragments wider than <see cref="LayoutParameters.SoftColumnWidthEm"/>. <paramref name="gap"/> is the gutter width, from which the text height follows.
+    /// A full-width note crosses the gutter and a list of short labels is not running text, so neither is joined to the columns above.
+    /// </summary>
+    private static bool IsOneSidedText(Frag[] f, int[] reg, int s, int len, double[] stripes, int stripeCount, double gap)
+    {
+        double ms = gap / LayoutParameters.ColumnGutterEm;
+
+        // The stripes come from the neighbouring band and its fragments end where the gutter starts, so touching is not crossing.
+        double slack = 0.25 * ms;
+        int seen = 0, wide = 0;
+        int l0 = -1, l1 = -1;
+        for (int i = 0; i < len; i++)
+        {
+            ref Frag fr = ref f[reg[s + i]];
+            for (int k = 0; k < stripeCount; k++)
+            {
+                if (fr.X0 < stripes[2 * k + 1] - slack && fr.X1 > stripes[2 * k] + slack)
+                {
+                    return false;
+                }
+            }
+
+            if (seen < 3 && fr.Line != l0 && fr.Line != l1)
+            {
+                (l1, l0) = (l0, fr.Line);
+                seen++;
+            }
+
+            if (fr.X1 - fr.X0 >= LayoutParameters.SoftColumnWidthEm * ms)
+            {
+                wide++;
+            }
+        }
+
+        return seen >= 3 && 2 * wide >= len;
     }
 
     /// <summary>Writes the empty vertical stripes (start, end pairs, at least <paramref name="gap"/> wide) of a run of fragments into <paramref name="stripes"/>; returns how many.</summary>

@@ -76,6 +76,12 @@ internal static class LayoutParameters
     internal const double BlockGapEm = 0.5;
 
     /// <summary>
+    /// A band of running text without a gutter of its own is the first column going on after the second has ended only when it follows the band above
+    /// within this many text heights; a wider space is a figure, an advertisement or another part of the page.
+    /// </summary>
+    internal const double ColumnContinueGapEm = 3;
+
+    /// <summary>
     /// A direction class is skewed when at least <see cref="SkewShareQuarters"/> quarters of its glyphs that run within 12 degrees of the axis are turned from it by
     /// at least this many degrees and lie within <see cref="SkewSpreadDegrees"/> of the median angle (a text layer over a slightly rotated scan). The class is then laid out in a frame turned by the median angle, and each glyph joins its line by its own
     /// slope. Below this angle a 500 pt line drifts about 2 pt, which <see cref="BaselineToleranceEm"/> absorbs, so upright pages are not touched.
