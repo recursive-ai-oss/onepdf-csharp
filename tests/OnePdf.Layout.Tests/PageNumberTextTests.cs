@@ -13,7 +13,7 @@ public class PageNumberTextTests
             doc.Title("Numbers").Language("en");
             doc.Page(page =>
             {
-                page.Size(300, 200);
+                page.Size(300, 200).Portrait();
                 page.Margin(20);
                 PageNumberTextDescriptor d = page.Footer().PageNumberText(format).FontSize(8).AlignRight();
                 style?.Invoke(d);
@@ -56,7 +56,7 @@ public class PageNumberTextTests
         // The same footer as ordinary text, in a page of its own.
         byte[] plain = Support.Save(LayoutDocument.Compose(doc => doc.Page(page =>
         {
-            page.Size(300, 200);
+            page.Size(300, 200).Portrait();
             page.Margin(20);
             page.Footer().Text("3/17").FontSize(8).AlignRight();
             page.Content().Text("Body");

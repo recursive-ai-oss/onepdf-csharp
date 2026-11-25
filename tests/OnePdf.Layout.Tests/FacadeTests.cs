@@ -354,7 +354,7 @@ public class FacadeTests
     {
         LayoutDocument layout = LayoutDocument.Compose(doc => doc.Page(page =>
         {
-            page.Size(300, 200);
+            page.Size(300, 200).Portrait();
             page.Content().Column(col =>
             {
                 col.Item().Bookmark("Start").Anchor("top").Text("Start here");

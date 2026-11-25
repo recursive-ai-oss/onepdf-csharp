@@ -14,6 +14,20 @@ public class LayoutCoreTests
     }
 
     [Fact]
+    public void ExplicitPageSizeKeepsItsOrientation()
+    {
+        static double[] Media(Action<PageComposer> page)
+        {
+            using PdfDocument back = PdfDocument.Open(Save(LayoutDocument.Compose(d => d.Page(page))));
+            return [back.Pages[0].MediaBox.Width, back.Pages[0].MediaBox.Height];
+        }
+
+        Assert.Equal([1260.0, 810.0], Media(p => p.Size(1260, 810)));
+        Assert.Equal([810.0, 1260.0], Media(p => p.Size(1260, 810).Portrait()));
+        Assert.Equal([PageSize.A4.Height, PageSize.A4.Width], Media(p => p.Size(PageSize.A4).Landscape()));
+    }
+
+    [Fact]
     public void RegisteredFontLaysOutAndExtracts()
     {
         byte[] font = TestFont();

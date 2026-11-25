@@ -188,7 +188,7 @@ public class SpanLinkAndNumberTests
         doc.Title("Numbers").Language("en");
         doc.Page(page =>
         {
-            page.Size(300, height);
+            page.Size(300, height).Portrait();
             page.Margin(20);
             page.Content().Text(t =>
             {
