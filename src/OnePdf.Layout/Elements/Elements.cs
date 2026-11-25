@@ -336,10 +336,10 @@ public abstract class Component : Element
 /// </summary>
 public sealed class Image : Element
 {
-    /// <summary>JPEG file bytes, added to the output document once. Ignored when <see cref="Png"/> or <see cref="Created"/> is set.</summary>
+    /// <summary>JPEG file bytes, added to the output document once however many elements carry the same content (see <see cref="Png"/>). Ignored when <see cref="Png"/> or <see cref="Created"/> is set.</summary>
     public ReadOnlyMemory<byte> Jpeg { get; set; }
 
-    /// <summary>PNG file bytes, added to the output document once. Used instead of <see cref="Jpeg"/> when not empty.</summary>
+    /// <summary>PNG file bytes, added to the output document once per render: elements whose bytes are the same memory, or equal in content (compared in full, not by hash alone), share one image XObject and one soft mask, across pages and sections. Used instead of <see cref="Jpeg"/> when not empty.</summary>
     public ReadOnlyMemory<byte> Png { get; set; }
 
     /// <summary>An image already added to the output document, to share one image between many elements.</summary>

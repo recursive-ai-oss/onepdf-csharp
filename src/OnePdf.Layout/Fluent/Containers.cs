@@ -138,7 +138,7 @@ public partial class Slot
     public void Canvas(double height, Action<CanvasSurface> paint, double? width = null) =>
         Put(new Canvas { Height = height, Width = width, Paint = paint ?? throw new ArgumentNullException(nameof(paint)) });
 
-    /// <summary>A JPEG or PNG picture, chosen by the file's signature. The picture is added to the file once however often the bytes are used.</summary>
+    /// <summary>A JPEG or PNG picture, chosen by the file's signature. The picture is added to the file once however often the bytes are used: equal content from different arrays, other pages and other sections shares one image (and one soft mask for a PNG with alpha). Inline pictures and pictures inside SVG files share the same way.</summary>
     /// <param name="data">The file's bytes.</param>
     /// <returns>A descriptor for the fit, resolution and description.</returns>
     /// <exception cref="ArgumentException">The bytes are neither JPEG nor PNG.</exception>
