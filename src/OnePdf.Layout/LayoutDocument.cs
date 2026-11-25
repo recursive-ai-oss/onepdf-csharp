@@ -8,11 +8,27 @@ namespace OnePdf.Layout;
 /// </summary>
 public sealed class LayoutPage
 {
-    /// <summary>Page size before <see cref="Orientation"/> is applied. Default A4.</summary>
+    private PageOrientation _orientation;
+
+    /// <summary>Page size as given. Default A4. It is turned only when an orientation is set (<see cref="Orientation"/>); a size such as 1260 by 810 stays landscape unless portrait is asked for.</summary>
     public PageSize Size { get; set; } = PageSize.A4;
 
-    /// <summary>Portrait (default) or landscape; the size's sides are swapped when they disagree.</summary>
-    public PageOrientation Orientation { get; set; }
+    /// <summary>
+    /// Portrait or landscape; the size's sides are swapped when they disagree. Until this is assigned (to either value) the size is used as given,
+    /// and reading the property returns <see cref="PageOrientation.Portrait"/>. Assigning <see cref="PageOrientation.Portrait"/> explicitly makes a landscape size portrait.
+    /// The order of <see cref="Size"/> and <see cref="Orientation"/> assignments does not matter.
+    /// </summary>
+    public PageOrientation Orientation
+    {
+        get => _orientation;
+        set
+        {
+            _orientation = value;
+            OrientationSet = true;
+        }
+    }
+
+    internal bool OrientationSet { get; private set; }
 
     /// <summary>Space between the page edge and the header, content and footer. Default 36 points on every side.</summary>
     public Insets Margin { get; set; } = Insets.All(36);
@@ -341,7 +357,7 @@ public sealed partial class LayoutDocument
 
     private int RenderSection(LayoutContext ctx, ILayoutTarget target, LayoutPage setup, int sectionIndex, int firstPage, long startNumber, bool writeLabel, Action<int, LayoutPage, Placed?, Placed?, Placed?>? capture)
     {
-        PageSize size = setup.Size.Oriented(setup.Orientation);
+        PageSize size = setup.OrientationSet ? setup.Size.Oriented(setup.Orientation) : setup.Size;
         PrintSetup? print = setup.Print ?? Print;
         print?.Validate();
         Insets m = setup.Margin;

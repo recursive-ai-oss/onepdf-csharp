@@ -371,7 +371,7 @@ public sealed class PageComposer
         return this;
     }
 
-    /// <summary>The page size before orientation. Default A4.</summary>
+    /// <summary>The page size. Default A4. It is used as given unless <see cref="Landscape"/> or <see cref="Portrait"/> is called (in either order), so <c>Size(1260, 810)</c> is a landscape page.</summary>
     public PageComposer Size(PageSize size)
     {
         _page.Size = size;
@@ -421,7 +421,7 @@ public sealed class PageComposer
         return this;
     }
 
-    /// <summary>Portrait pages. This is the default.</summary>
+    /// <summary>Portrait pages: a landscape size is turned (its sides swapped). Without a call to <see cref="Landscape"/> or this method the size is used as given; A4 is portrait.</summary>
     public PageComposer Portrait()
     {
         _page.Orientation = PageOrientation.Portrait;
