@@ -40,6 +40,13 @@ directions. Glyphs are laid out per direction: the direction with most glyphs fi
 below is done in a frame where *x runs along the text* and *y towards the next line*, so rotated pages and vertical writing use the same code.
 Text at other angles is analyzed by its nearest axis direction.
 
+**Skewed pages.** Within a direction class, a page is *skewed* when at least three quarters of the glyphs that run within 12° of the axis are turned from it by at least
+0.25° and lie within 1.5° of the median of those angles (a text layer over a slightly rotated scan). The class is then laid out in a frame turned by that median angle, so
+columns, gutters and block gaps are measured along and across the lines, and each glyph joins its line by an offset measured across its *own* direction, so lines
+whose angles differ by a few tenths of a degree stay whole. Glyphs more than 12° from the frame keep the measured-along-their-own-baseline rule below. A page where
+fewer glyphs are turned together (a few tilted lines, a stamp, text on an arc where every glyph has its own angle) keeps the axis frame, and so does every upright page.
+Content-order mode reads each glyph in its own turned frame the same way.
+
 **Ideographs stacked by a horizontal producer.** Some producers (browsers printing `vertical-rl` text) set each upright ideograph with its own horizontal matrix, so the
 glyphs look like horizontal text one character wide. Two successive glyphs in content order, both ideographs, kana or hangul, form a *downward step* when the second origin is
 at most 0.35 em to either side of the first and 0.4 to 2 em below it (an *across step* is the same turned 90°). Once a page has at least 2 downward steps, every

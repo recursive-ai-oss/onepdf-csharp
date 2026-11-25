@@ -75,6 +75,19 @@ internal static class LayoutParameters
     /// <summary>An empty horizontal band at least this tall (em) separates blocks.</summary>
     internal const double BlockGapEm = 0.5;
 
+    /// <summary>
+    /// A direction class is skewed when at least <see cref="SkewShareQuarters"/> quarters of its glyphs that run within 12 degrees of the axis are turned from it by
+    /// at least this many degrees and lie within <see cref="SkewSpreadDegrees"/> of the median angle (a text layer over a slightly rotated scan). The class is then laid out in a frame turned by the median angle, and each glyph joins its line by its own
+    /// slope. Below this angle a 500 pt line drifts about 2 pt, which <see cref="BaselineToleranceEm"/> absorbs, so upright pages are not touched.
+    /// </summary>
+    internal const double SkewMinDegrees = 0.25;
+
+    /// <summary>The share of a class's near-axis glyphs, in quarters, that must be turned together (see <see cref="SkewMinDegrees"/>).</summary>
+    internal const int SkewShareQuarters = 3;
+
+    /// <summary>How far, in degrees, a glyph's angle may lie from the median angle and still count as turned with the page; lines of one scan differ by a few tenths of a degree.</summary>
+    internal const double SkewSpreadDegrees = 1.5;
+
     /// <summary>Two glyphs are on the same line when their baselines differ by at most this fraction of the smaller size.</summary>
     internal const double BaselineToleranceEm = 0.3;
 
