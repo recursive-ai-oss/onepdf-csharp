@@ -86,7 +86,7 @@ internal sealed class LayoutSvgHost : ISvgHost
         Dictionary<SvgElement, PdfCreatedImage> images = s_images.GetOrCreateValue(_ctx.Target);
         if (!images.TryGetValue(source, out PdfCreatedImage? image))
         {
-            image = png ? _ctx.Target.AddPngImage(data) : _ctx.Target.AddJpegImage(data);
+            image = _ctx.ImageFor(data, png);
             images[source] = image;
         }
 

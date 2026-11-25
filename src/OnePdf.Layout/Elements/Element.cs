@@ -1,3 +1,4 @@
+using System.Security.Cryptography;
 using OnePdf.Layout.Pagination;
 
 namespace OnePdf.Layout;
@@ -101,6 +102,8 @@ internal sealed class LayoutContext : IDisposable
     private readonly List<(string Text, int Number)> _path = [];
     private readonly Dictionary<string, PdfCreatedFont> _fonts = new(StringComparer.Ordinal);
     private readonly Dictionary<Image, PdfCreatedImage> _images = [];
+    private readonly Dictionary<(bool Png, ReadOnlyMemory<byte> Data), PdfCreatedImage> _imagesByMemory = [];
+    private readonly Dictionary<(bool Png, string Hash), List<(ReadOnlyMemory<byte> Data, PdfCreatedImage Image)>> _imagesByContent = [];
     private PdfContentBuilder? _measurer;
     private PdfCreatedFont? _debugFont;
 
@@ -222,6 +225,41 @@ internal sealed class LayoutContext : IDisposable
 
     public PdfCreatedFont DebugFont => _debugFont ??= Font("Helvetica");
 
+    /// <summary>
+    /// Adds a picture once per document however many elements, sections or arrays carry it. The same memory (array, offset, length) is
+    /// found without reading the bytes; otherwise a SHA-256 of the content selects candidates and a full byte comparison decides, so a
+    /// hash collision can never merge two different pictures.
+    /// </summary>
+    public PdfCreatedImage ImageFor(ReadOnlyMemory<byte> data, bool png)
+    {
+        var same = (png, data);
+        if (_imagesByMemory.TryGetValue(same, out PdfCreatedImage? known))
+        {
+            return known;
+        }
+
+        var key = (png, Convert.ToHexString(SHA256.HashData(data.Span)));
+        if (!_imagesByContent.TryGetValue(key, out List<(ReadOnlyMemory<byte> Data, PdfCreatedImage Image)>? bucket))
+        {
+            bucket = [];
+            _imagesByContent[key] = bucket;
+        }
+
+        foreach ((ReadOnlyMemory<byte> other, PdfCreatedImage image) in bucket)
+        {
+            if (other.Span.SequenceEqual(data.Span))
+            {
+                _imagesByMemory[same] = image;
+                return image;
+            }
+        }
+
+        PdfCreatedImage created = png ? Target.AddPngImage(data) : Target.AddJpegImage(data);
+        bucket.Add((data, created));
+        _imagesByMemory[same] = created;
+        return created;
+    }
+
     public PdfCreatedImage ImageFor(Image image)
     {
         if (image.Created is { } created)
@@ -231,7 +269,7 @@ internal sealed class LayoutContext : IDisposable
 
         if (!_images.TryGetValue(image, out PdfCreatedImage? result))
         {
-            result = image.Png.IsEmpty ? Target.AddJpegImage(image.Jpeg) : Target.AddPngImage(image.Png);
+            result = ImageFor(image.Png.IsEmpty ? image.Jpeg : image.Png, !image.Png.IsEmpty);
             _images[image] = result;
         }
 
