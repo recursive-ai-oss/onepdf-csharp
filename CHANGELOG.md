@@ -4,6 +4,10 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ## [Unreleased]
 
+### Fixed
+
+- Text extraction: lines of text set a few degrees off the page axes (a text layer over a slightly rotated scan, an invisible word-by-word OCR layer, a page placed on a sheet at a small angle) are now grouped along their own baselines, so they come out as whole lines in reading order instead of fragments. A page counts as skewed when at least three quarters of its near-axis glyphs are turned by 0.25 to 12 degrees and lie within 1.5 degrees of their median angle; each glyph then joins its line by its own slope, so lines whose angles differ by a few tenths of a degree still read as one. Pages with upright text, text on an arc, 90/180/270-degree pages and vertical writing are laid out as before.
+
 ## [1.25.0] - 2026-11-20
 
 ### Added

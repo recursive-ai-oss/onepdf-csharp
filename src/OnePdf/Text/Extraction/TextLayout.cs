@@ -9,6 +9,12 @@ internal struct Item
     internal int G;
     internal int K;
     internal double X0, X1, Top, Bot, Base, Size;
+
+    /// <summary>
+    /// The baseline offset used to group glyphs into lines: <see cref="Base"/> measured across the glyph's own direction. It equals <see cref="Base"/>
+    /// unless the page is skewed (see <see cref="TextLayout.EstimateSkew"/>), where it lets each line follow its own slope.
+    /// </summary>
+    internal double LineKey;
     internal bool Space;
     internal bool Cjk;
     internal int Line;
@@ -200,15 +206,177 @@ internal static class TextLayout
         }
     }
 
-    internal static Item MakeItem(in PdfTextGlyph g, int index) => MakeItem(g, index, Quantize(g));
+    // A page is skewed when most of its upright-ish glyphs run at least this far from the axis (and within TiltThreshold of it). Below a quarter of a
+    // degree a 500 pt line drifts 2 pt, which the baseline tolerance already absorbs, so such pages are left exactly as they were.
+    private static readonly double SkewMinSin = Math.Sin(LayoutParameters.SkewMinDegrees * Math.PI / 180);
+    private static readonly double SkewMinSin2 = SkewMinSin * SkewMinSin;
+    private static readonly double TiltSin2 = Math.Sin(TiltThreshold) * Math.Sin(TiltThreshold);
 
-    internal static Item MakeItem(in PdfTextGlyph g, int index, int k)
+    /// <summary>The reading direction of the glyph as a unit vector; false for a glyph without one.</summary>
+    private static bool OwnDirection(in PdfTextGlyph g, out double ux, out double uy)
+    {
+        double dx, dy;
+        if (g.IsVertical)
+        {
+            dx = -g.Matrix.C;
+            dy = -g.Matrix.D;
+        }
+        else
+        {
+            dx = g.Matrix.A;
+            dy = g.Matrix.B;
+        }
+
+        double len = Math.Sqrt((dx * dx) + (dy * dy));
+        if (!(len > 0) || double.IsInfinity(len))
+        {
+            ux = uy = 0;
+            return false;
+        }
+
+        ux = dx / len;
+        uy = dy / len;
+        return true;
+    }
+
+    /// <summary>
+    /// The signed angle in radians from the axis of direction class <paramref name="k"/> to the glyph's direction, counter-clockwise, when the glyph is
+    /// inside the class and turned by at least <see cref="LayoutParameters.SkewMinDegrees"/> but no more than the tilt window (12 degrees); 0 otherwise.
+    /// </summary>
+    private static double SkewOf(in PdfTextGlyph g, int k)
+    {
+        if (!OwnDirection(g, out double ux, out double uy))
+        {
+            return 0;
+        }
+
+        double along = (ux * Dx[k]) + (uy * Dy[k]);
+        double cross = (Dx[k] * uy) - (Dy[k] * ux);
+        double c2 = cross * cross;
+        if (along <= 0 || c2 < SkewMinSin2 || c2 > TiltSin2)
+        {
+            return 0;
+        }
+
+        return Math.Atan2(cross, along);
+    }
+
+    internal static double OwnSkew(in PdfTextGlyph g, int k) => SkewOf(g, k);
+
+    /// <summary>
+    /// The skew of a direction class: the median angle of its glyphs from the axis, when at least three quarters of the glyphs that run within 12 degrees of
+    /// the axis are turned by 0.25 degree or more and lie within 1.5 degrees of that median (an OCR text layer over a slightly rotated scan, a rotated
+    /// page placed on a sheet). Otherwise 0, so text on an arc, a stamp or a few turned lines leave the page in its plain axis frame, and the
+    /// class is laid out in its plain axis frame. One angle for the class keeps columns and blocks in one frame; each glyph still groups into its line
+    /// by its own slope (<see cref="Item.LineKey"/>).
+    /// </summary>
+    internal static double EstimateSkew(LayoutWork w, PdfTextGlyph[] g, int[] idx, int offset, int count, int k)
+    {
+        int inWindow = 0, skewed = 0;
+        for (int i = 0; i < count; i++)
+        {
+            ref readonly PdfTextGlyph gl = ref g[idx[offset + i]];
+            if (!OwnDirection(gl, out double ux, out double uy))
+            {
+                continue;
+            }
+
+            double cross = (Dx[k] * uy) - (Dy[k] * ux);
+            if ((ux * Dx[k]) + (uy * Dy[k]) <= 0 || cross * cross > TiltSin2 || Quantize(gl) != k)
+            {
+                continue;
+            }
+
+            inWindow++;
+            if (cross * cross >= SkewMinSin2)
+            {
+                skewed++;
+            }
+        }
+
+        if (skewed == 0 || skewed * 4 < inWindow * LayoutParameters.SkewShareQuarters)
+        {
+            return 0;
+        }
+
+        double[] angles = w.Doubles.Rent(skewed);
+        int n = 0;
+        for (int i = 0; i < count && n < skewed; i++)
+        {
+            ref readonly PdfTextGlyph gl = ref g[idx[offset + i]];
+            if (Quantize(gl) != k)
+            {
+                continue;
+            }
+
+            double a = SkewOf(gl, k);
+            if (a != 0)
+            {
+                angles[n++] = a;
+            }
+        }
+
+        if (n == 0)
+        {
+            return 0;
+        }
+
+        double median = Median(angles.AsSpan(0, n));
+
+        // The turn must be the page's, not a fan of glyphs each at its own angle (text set along a curve): the same share of the glyphs must lie
+        // within a degree and a half of the median.
+        double spread = LayoutParameters.SkewSpreadDegrees * Math.PI / 180;
+        int close = 0;
+        for (int i = 0; i < n; i++)
+        {
+            if (Math.Abs(angles[i] - median) <= spread)
+            {
+                close++;
+            }
+        }
+
+        return close * 4 >= inWindow * LayoutParameters.SkewShareQuarters ? median : 0;
+    }
+
+    /// <summary>An item in the glyph's own frame: its quantized direction, turned by its own skew when that is small (used where there is no page to judge by).</summary>
+    internal static Item MakeItem(in PdfTextGlyph g, int index)
+    {
+        int k = Quantize(g);
+        return MakeItem(g, index, k, OwnSkew(g, k));
+    }
+
+    internal static Item MakeItem(in PdfTextGlyph g, int index, int k) => MakeItem(g, index, k, 0);
+
+    /// <summary>
+    /// <paramref name="skew"/> is the angle in radians by which the class's frame is turned from its axis (0 for an upright page), counter-clockwise in page space;
+    /// see <see cref="EstimateSkew"/>.
+    /// </summary>
+    internal static Item MakeItem(in PdfTextGlyph g, int index, int k, double skew)
     {
         double ux = Dx[k], uy = Dy[k];
-        if (Quantize(g) == k)
+        if (skew != 0)
+        {
+            double cs = Math.Cos(skew), sn = Math.Sin(skew);
+            (ux, uy) = ((ux * cs) - (uy * sn), (ux * sn) + (uy * cs));
+        }
+
+        bool own = Quantize(g) == k;
+        bool tilted = false;
+        if (own)
         {
             // Only text read in the direction it is set in; stacked ideographs set upright in a vertical column keep the axis frame.
+            double bx0 = ux, by0 = uy;
             TiltedFrame(g, ref ux, ref uy);
+            tilted = ux != bx0 || uy != by0;
+        }
+
+        // On a skewed page each line is grouped along its own baseline: the offset is measured across the glyph's own direction, so lines whose
+        // slopes differ a little from the page's still sit at one offset along their length.
+        double kx = uy, ky = -ux;
+        if (skew != 0 && own && !tilted && OwnDirection(g, out double ox, out double oy))
+        {
+            kx = oy;
+            ky = -ox;
         }
 
         double nx = uy, ny = -ux;
@@ -300,6 +468,7 @@ internal static class TextLayout
             Top = y0,
             Bot = y1,
             Base = nx * g.Matrix.E + ny * g.Matrix.F,
+            LineKey = kx * g.Matrix.E + ky * g.Matrix.F,
             Size = Math.Max(g.Size, 1e-6),
             Space = space,
             Cjk = IsCjk(first),
@@ -535,9 +704,10 @@ internal static class TextLayout
     internal static Item[] MakeItems(LayoutWork w, PdfTextGlyph[] g, int[] idx, int offset, int count, int k)
     {
         Item[] items = w.Items.Rent(count);
+        double skew = EstimateSkew(w, g, idx, offset, count, k);
         for (int i = 0; i < count; i++)
         {
-            items[i] = MakeItem(g[idx[offset + i]], idx[offset + i], k);
+            items[i] = MakeItem(g[idx[offset + i]], idx[offset + i], k, skew);
         }
 
         return items;
@@ -583,7 +753,7 @@ internal static class TextLayout
         Key2Idx[] ord = w.Keys2.Rent(n);
         for (int i = 0; i < n; i++)
         {
-            ord[i] = new Key2Idx { A = items[i].Base, B = items[i].X0, Idx = i };
+            ord[i] = new Key2Idx { A = items[i].LineKey, B = items[i].X0, Idx = i };
         }
 
         IntroSort.SortNearlyOrdered<Key2Idx, ByKey2Order>(ord.AsSpan(0, n), w.Keys2.Rent(n));
@@ -599,16 +769,16 @@ internal static class TextLayout
             {
                 double mean = sum / (p - cs[cc - 1]);
                 double tol = LayoutParameters.BaselineToleranceEm * Math.Min(minSize, it.Size);
-                if (Math.Abs(it.Base - mean) <= tol)
+                if (Math.Abs(it.LineKey - mean) <= tol)
                 {
-                    sum += it.Base;
+                    sum += it.LineKey;
                     minSize = Math.Min(minSize, it.Size);
                     continue;
                 }
             }
 
             cs[cc++] = p;
-            sum = it.Base;
+            sum = it.LineKey;
             minSize = it.Size;
         }
 
@@ -629,7 +799,7 @@ internal static class TextLayout
             medSize[c] = Median(scratch.AsSpan(0, len));
             for (int q = 0; q < len; q++)
             {
-                scratch[q] = items[ord[cs[c] + q].Idx].Base;
+                scratch[q] = items[ord[cs[c] + q].Idx].LineKey;
             }
 
             medBase[c] = Median(scratch.AsSpan(0, len));
@@ -721,7 +891,7 @@ internal static class TextLayout
                 }
 
                 double gap = Math.Max(a.X0 - b.X1, b.X0 - a.X1);
-                if (gap <= LayoutParameters.ScriptTouchEm * a.Size && a.Size <= LayoutParameters.ScriptSizeRatio * b.Size && Math.Abs(a.Base - b.Base) <= LayoutParameters.ScriptOffsetEm * b.Size)
+                if (gap <= LayoutParameters.ScriptTouchEm * a.Size && a.Size <= LayoutParameters.ScriptSizeRatio * b.Size && Math.Abs(a.LineKey - b.LineKey) <= LayoutParameters.ScriptOffsetEm * b.Size)
                 {
                     return true;
                 }
