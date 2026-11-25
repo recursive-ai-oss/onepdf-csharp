@@ -60,7 +60,7 @@ public class ImageSharingTests
         byte[] jpeg = Support.Jpeg();
         Assert.Equal(1, Images(LayoutDocument.Compose(doc => doc.Page(page =>
         {
-            page.Size(200, 100);
+            page.Size(100, 200);
             page.Content().Column(c =>
             {
                 c.Item().Height(80).Image(jpeg).Contain().AltText("a");
