@@ -4,6 +4,8 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ## [Unreleased]
 
+## [1.25.1] - 2026-11-26
+
 ### Fixed
 
 - Layout: a picture placed more than once is embedded once per document, as documented. `Image(bytes)` created one image XObject per call, so a logo repeated on every page was stored once per page. Pictures are now shared when they are the same memory or equal in content (compared byte for byte), across pages, sections, inline images and SVG-embedded rasters; an alpha PNG shares its soft mask. Documents without repeated pictures are byte-identical to before. (#6)
@@ -489,6 +491,7 @@ First release. Two packages, `RecursiveAI.OnePdf` (the library, `net10.0`, no de
 - Limits on by default (`PdfLimits`) and fuzzed parsers, filters and font readers; no `unsafe` code. OnePDF never runs code or touches the network.
 - `RecursiveAI.OnePdf.Fonts`: Liberation and Noto substitute outlines under the SIL Open Font License 1.1, registered with `FontsPackage.Register()`.
 
+[1.25.1]: https://github.com/recursive-ai-oss/onepdf-csharp/releases/tag/v1.25.1
 [1.25.0]: https://github.com/recursive-ai-oss/onepdf-csharp/releases/tag/v1.25.0
 [1.24.1]: https://github.com/recursive-ai-oss/onepdf-csharp/releases/tag/v1.24.1
 [1.24.0]: https://github.com/recursive-ai-oss/onepdf-csharp/releases/tag/v1.24.0
